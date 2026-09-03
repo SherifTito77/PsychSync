@@ -31,11 +31,11 @@ from psycopg2.extras import RealDictCursor
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler('/var/log/psychsync/database_maintenance.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+        logging.FileHandler("/var/log/psychsync/database_maintenance.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,9 @@ class DatabaseMaintenance:
         """Get database connection"""
         return await asyncpg.connect(self.connection_string)
 
-    async def execute_query(self, query: str, params: Optional[Dict] = None) -> List[Dict]:
+    async def execute_query(
+        self, query: str, params: Optional[Dict] = None
+    ) -> List[Dict]:
         """Execute database query and return results"""
         async with await self.get_connection() as conn:
             if params:
@@ -68,7 +70,9 @@ class DatabaseMaintenance:
     # 1. VACUUM and ANALYZE Operations
     # ---------------------------------------------------------
 
-    async def auto_vacuum_analyze(self, table_name: Optional[str] = None) -> Dict[str, any]:
+    async def auto_vacuum_analyze(
+        self, table_name: Optional[str] = None
+    ) -> Dict[str, any]:
         """Perform VACUUM ANALYZE on specified table or all tables"""
         start_time = time.time()
 
@@ -85,12 +89,12 @@ class DatabaseMaintenance:
             duration = time.time() - start_time
 
             result = {
-                'operation': 'vacuum_analyze',
-                'duration_seconds': round(duration, 2),
-                'tables_processed': len(affected_tables),
-                'affected_tables': affected_tables,
-                'timestamp': datetime.utcnow().isoformat(),
-                'status': 'success'
+                "operation": "vacuum_analyze",
+                "duration_seconds": round(duration, 2),
+                "tables_processed": len(affected_tables),
+                "affected_tables": affected_tables,
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "success",
             }
 
             logger.info(f"VACUUM ANALYZE completed in {duration:.2f} seconds")
@@ -99,10 +103,10 @@ class DatabaseMaintenance:
         except Exception as e:
             logger.error(f"VACUUM ANALYZE failed: {str(e)}")
             return {
-                'operation': 'vacuum_analyze',
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "operation": "vacuum_analyze",
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     async def aggressive_vacuum(self, table_name: str) -> Dict[str, any]:
@@ -118,25 +122,27 @@ class DatabaseMaintenance:
             stats = await self.get_table_statistics(table_name)
 
             result = {
-                'operation': 'aggressive_vacuum',
-                'table_name': table_name,
-                'duration_seconds': round(duration, 2),
-                'table_statistics': stats,
-                'timestamp': datetime.utcnow().isoformat(),
-                'status': 'success'
+                "operation": "aggressive_vacuum",
+                "table_name": table_name,
+                "duration_seconds": round(duration, 2),
+                "table_statistics": stats,
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "success",
             }
 
-            logger.info(f"Aggressive VACUUM for {table_name} completed in {duration:.2f} seconds")
+            logger.info(
+                f"Aggressive VACUUM for {table_name} completed in {duration:.2f} seconds"
+            )
             return result
 
         except Exception as e:
             logger.error(f"Aggressive VACUUM failed for {table_name}: {str(e)}")
             return {
-                'operation': 'aggressive_vacuum',
-                'table_name': table_name,
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "operation": "aggressive_vacuum",
+                "table_name": table_name,
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     # 2. Index Maintenance
@@ -187,11 +193,11 @@ class DatabaseMaintenance:
 
             if not unused_indexes:
                 return {
-                    'operation': 'rebuild_unused_indexes',
-                    'unused_indexes_found': 0,
-                    'indexes_rebuilt': 0,
-                    'status': 'success',
-                    'message': 'No unused indexes found'
+                    "operation": "rebuild_unused_indexes",
+                    "unused_indexes_found": 0,
+                    "indexes_rebuilt": 0,
+                    "status": "success",
+                    "message": "No unused indexes found",
                 }
 
             rebuilt_count = 0
@@ -199,28 +205,32 @@ class DatabaseMaintenance:
                 try:
                     # REINDEX CONCURRENTLY to avoid blocking
                     index_name = f"{index['schemaname']}.{index['indexname']}"
-                    await self.execute_command(f"REINDEX INDEX CONCURRENTLY {index_name}")
+                    await self.execute_command(
+                        f"REINDEX INDEX CONCURRENTLY {index_name}"
+                    )
                     rebuilt_count += 1
                     logger.info(f"Rebuilt index: {index_name}")
                 except Exception as e:
-                    logger.warning(f"Failed to rebuild index {index['indexname']}: {str(e)}")
+                    logger.warning(
+                        f"Failed to rebuild index {index['indexname']}: {str(e)}"
+                    )
 
             return {
-                'operation': 'rebuild_unused_indexes',
-                'unused_indexes_found': len(unused_indexes),
-                'indexes_rebuilt': rebuilt_count,
-                'unused_indexes': unused_indexes,
-                'timestamp': datetime.utcnow().isoformat(),
-                'status': 'success'
+                "operation": "rebuild_unused_indexes",
+                "unused_indexes_found": len(unused_indexes),
+                "indexes_rebuilt": rebuilt_count,
+                "unused_indexes": unused_indexes,
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "success",
             }
 
         except Exception as e:
             logger.error(f"Index rebuild failed: {str(e)}")
             return {
-                'operation': 'rebuild_unused_indexes',
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "operation": "rebuild_unused_indexes",
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     # 3. Partition Management
@@ -233,29 +243,45 @@ class DatabaseMaintenance:
             dropped_partitions = []
 
             # Create future partitions for time-based tables
-            partition_tables = ['audit_logs', 'analytics', 'notifications', 'resource_access', 'permission_audit']
+            partition_tables = [
+                "audit_logs",
+                "analytics",
+                "notifications",
+                "resource_access",
+                "permission_audit",
+            ]
 
             for table in partition_tables:
                 try:
                     # Create partitions for next 3 months
                     for months_ahead in range(1, 4):
-                        future_date = datetime.utcnow() + timedelta(days=30 * months_ahead)
+                        future_date = datetime.utcnow() + timedelta(
+                            days=30 * months_ahead
+                        )
                         partition_name = f"{table}_{future_date.strftime('%Y_%m')}"
 
                         try:
-                            if table in ['analytics']:
+                            if table in ["analytics"]:
                                 # Weekly partitions for analytics
                                 for weeks_ahead in range(1, 13):
-                                    future_week = datetime.utcnow() + timedelta(weeks=weeks_ahead)
-                                    week_partition_name = f"{table}_{future_week.strftime('%Y_WW')}"
-                                    await self.create_weekly_partition(table, future_week)
+                                    future_week = datetime.utcnow() + timedelta(
+                                        weeks=weeks_ahead
+                                    )
+                                    week_partition_name = (
+                                        f"{table}_{future_week.strftime('%Y_WW')}"
+                                    )
+                                    await self.create_weekly_partition(
+                                        table, future_week
+                                    )
                                     created_partitions.append(week_partition_name)
                             else:
                                 # Monthly partitions for other tables
                                 await self.create_monthly_partition(table, future_date)
                                 created_partitions.append(partition_name)
                         except Exception as e:
-                            logger.warning(f"Failed to create partition {partition_name}: {str(e)}")
+                            logger.warning(
+                                f"Failed to create partition {partition_name}: {str(e)}"
+                            )
 
                 except Exception as e:
                     logger.error(f"Failed to manage partitions for {table}: {str(e)}")
@@ -263,37 +289,49 @@ class DatabaseMaintenance:
             # Drop old partitions (older than 12 months)
             for table in partition_tables:
                 try:
-                    old_partitions = await self.get_old_partitions(table, retention_months=12)
+                    old_partitions = await self.get_old_partitions(
+                        table, retention_months=12
+                    )
                     for partition in old_partitions:
-                        await self.execute_command(f"DROP TABLE {partition['partition_name']} CASCADE")
-                        dropped_partitions.append(partition['partition_name'])
-                        logger.info(f"Dropped old partition: {partition['partition_name']}")
+                        await self.execute_command(
+                            f"DROP TABLE {partition['partition_name']} CASCADE"
+                        )
+                        dropped_partitions.append(partition["partition_name"])
+                        logger.info(
+                            f"Dropped old partition: {partition['partition_name']}"
+                        )
                 except Exception as e:
-                    logger.warning(f"Failed to drop old partitions for {table}: {str(e)}")
+                    logger.warning(
+                        f"Failed to drop old partitions for {table}: {str(e)}"
+                    )
 
             return {
-                'operation': 'manage_partitions',
-                'created_partitions': created_partitions,
-                'dropped_partitions': dropped_partitions,
-                'total_created': len(created_partitions),
-                'total_dropped': len(dropped_partitions),
-                'timestamp': datetime.utcnow().isoformat(),
-                'status': 'success'
+                "operation": "manage_partitions",
+                "created_partitions": created_partitions,
+                "dropped_partitions": dropped_partitions,
+                "total_created": len(created_partitions),
+                "total_dropped": len(dropped_partitions),
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "success",
             }
 
         except Exception as e:
             logger.error(f"Partition management failed: {str(e)}")
             return {
-                'operation': 'manage_partitions',
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "operation": "manage_partitions",
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
-    async def create_monthly_partition(self, table_name: str, target_date: datetime) -> None:
+    async def create_monthly_partition(
+        self, table_name: str, target_date: datetime
+    ) -> None:
         """Create monthly partition for specified date"""
         partition_name = f"{table_name}_{target_date.strftime('%Y_%m')}"
-        start_date = target_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_date = target_date.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
 
         if target_date.month == 12:
             end_date = start_date.replace(year=target_date.year + 1, month=1)
@@ -306,7 +344,9 @@ class DatabaseMaintenance:
         """
         await self.execute_command(command)
 
-    async def create_weekly_partition(self, table_name: str, target_date: datetime) -> None:
+    async def create_weekly_partition(
+        self, table_name: str, target_date: datetime
+    ) -> None:
         """Create weekly partition for specified date"""
         week_number = target_date.isocalendar()[1]
         partition_name = f"{table_name}_{target_date.strftime('%Y_WW')}"
@@ -320,7 +360,9 @@ class DatabaseMaintenance:
         """
         await self.execute_command(command)
 
-    async def get_old_partitions(self, table_name: str, retention_months: int) -> List[Dict]:
+    async def get_old_partitions(
+        self, table_name: str, retention_months: int
+    ) -> List[Dict]:
         """Get partitions older than retention period"""
         cutoff_date = datetime.utcnow() - timedelta(days=30 * retention_months)
 
@@ -333,14 +375,14 @@ class DatabaseMaintenance:
           AND schemaname = 'public'
         """
 
-        partitions = await self.execute_query(query, {'pattern': f'{table_name}_%'})
+        partitions = await self.execute_query(query, {"pattern": f"{table_name}_%"})
 
         # Filter by date (this is a simplified approach)
         old_partitions = []
         for partition in partitions:
             try:
                 # Extract date from partition name (e.g., "audit_logs_2023_12")
-                parts = partition['partition_name'].split('_')
+                parts = partition["partition_name"].split("_")
                 if len(parts) >= 3:
                     year = int(parts[-2])
                     month = int(parts[-1])
@@ -374,21 +416,21 @@ class DatabaseMaintenance:
             duration = time.time() - start_time
 
             return {
-                'operation': 'update_statistics',
-                'duration_seconds': round(duration, 2),
-                'tables_updated': len(updated_tables),
-                'updated_tables': updated_tables,
-                'timestamp': datetime.utcnow().isoformat(),
-                'status': 'success'
+                "operation": "update_statistics",
+                "duration_seconds": round(duration, 2),
+                "tables_updated": len(updated_tables),
+                "updated_tables": updated_tables,
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "success",
             }
 
         except Exception as e:
             logger.error(f"Statistics update failed: {str(e)}")
             return {
-                'operation': 'update_statistics',
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "operation": "update_statistics",
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     async def collect_performance_metrics(self) -> Dict[str, any]:
@@ -404,7 +446,7 @@ class DatabaseMaintenance:
                 (SELECT COUNT(*) FROM pg_stat_activity) as total_connections
             """
             db_metrics = await self.execute_query(size_query)
-            metrics['database'] = db_metrics[0] if db_metrics else {}
+            metrics["database"] = db_metrics[0] if db_metrics else {}
 
             # Table size metrics
             table_size_query = """
@@ -421,7 +463,7 @@ class DatabaseMaintenance:
             WHERE schemaname = 'public'
             ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
             """
-            metrics['tables'] = await self.execute_query(table_size_query)
+            metrics["tables"] = await self.execute_query(table_size_query)
 
             # Query performance metrics
             query_stats_query = """
@@ -437,9 +479,13 @@ class DatabaseMaintenance:
             LIMIT 10
             """
             try:
-                metrics['query_performance'] = await self.execute_query(query_stats_query)
+                metrics["query_performance"] = await self.execute_query(
+                    query_stats_query
+                )
             except Exception:
-                metrics['query_performance'] = []  # pg_stat_statements may not be enabled
+                metrics["query_performance"] = (
+                    []
+                )  # pg_stat_statements may not be enabled
 
             # Lock monitoring
             lock_query = """
@@ -458,10 +504,10 @@ class DatabaseMaintenance:
             WHERE l.granted = false
             ORDER BY a.query_start
             """
-            metrics['blocked_queries'] = await self.execute_query(lock_query)
+            metrics["blocked_queries"] = await self.execute_query(lock_query)
 
-            metrics['timestamp'] = datetime.utcnow().isoformat()
-            metrics['status'] = 'success'
+            metrics["timestamp"] = datetime.utcnow().isoformat()
+            metrics["status"] = "success"
 
             self.metrics = metrics
             return metrics
@@ -469,9 +515,9 @@ class DatabaseMaintenance:
         except Exception as e:
             logger.error(f"Performance metrics collection failed: {str(e)}")
             return {
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     # 5. Storage Monitoring and Cleanup
@@ -554,21 +600,21 @@ class DatabaseMaintenance:
             bloat_info = await self.execute_query(bloat_query)
 
             return {
-                'operation': 'storage_monitoring',
-                'storage_info': storage_info[0] if storage_info else {},
-                'tables_needing_vacuum': tables_needing_vacuum,
-                'bloat_analysis': bloat_info,
-                'timestamp': datetime.utcnow().isoformat(),
-                'status': 'success'
+                "operation": "storage_monitoring",
+                "storage_info": storage_info[0] if storage_info else {},
+                "tables_needing_vacuum": tables_needing_vacuum,
+                "bloat_analysis": bloat_info,
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": "success",
             }
 
         except Exception as e:
             logger.error(f"Storage monitoring failed: {str(e)}")
             return {
-                'operation': 'storage_monitoring',
-                'status': 'error',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "operation": "storage_monitoring",
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     # 6. Health Checks
@@ -578,26 +624,30 @@ class DatabaseMaintenance:
         """Perform comprehensive database health check"""
         try:
             health_status = {
-                'overall_health': 'healthy',
-                'checks': [],
-                'timestamp': datetime.utcnow().isoformat()
+                "overall_health": "healthy",
+                "checks": [],
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
             # Check 1: Database connectivity
             try:
                 await self.execute_query("SELECT 1")
-                health_status['checks'].append({
-                    'check': 'database_connectivity',
-                    'status': 'pass',
-                    'message': 'Database is accessible'
-                })
+                health_status["checks"].append(
+                    {
+                        "check": "database_connectivity",
+                        "status": "pass",
+                        "message": "Database is accessible",
+                    }
+                )
             except Exception as e:
-                health_status['checks'].append({
-                    'check': 'database_connectivity',
-                    'status': 'fail',
-                    'message': f'Database connectivity error: {str(e)}'
-                })
-                health_status['overall_health'] = 'unhealthy'
+                health_status["checks"].append(
+                    {
+                        "check": "database_connectivity",
+                        "status": "fail",
+                        "message": f"Database connectivity error: {str(e)}",
+                    }
+                )
+                health_status["overall_health"] = "unhealthy"
 
             # Check 2: Connection pool usage
             try:
@@ -610,57 +660,72 @@ class DatabaseMaintenance:
                 FROM pg_stat_activity
                 """
                 conn_stats = await self.execute_query(conn_query)
-                active_conns = conn_stats[0]['active_connections']
-                total_conns = conn_stats[0]['total_connections']
+                active_conns = conn_stats[0]["active_connections"]
+                total_conns = conn_stats[0]["total_connections"]
 
                 if active_conns > total_conns * 0.8:
-                    health_status['checks'].append({
-                        'check': 'connection_usage',
-                        'status': 'warning',
-                        'message': f'High connection usage: {active_conns}/{total_conns}'
-                    })
-                    if health_status['overall_health'] == 'healthy':
-                        health_status['overall_health'] = 'warning'
+                    health_status["checks"].append(
+                        {
+                            "check": "connection_usage",
+                            "status": "warning",
+                            "message": f"High connection usage: {active_conns}/{total_conns}",
+                        }
+                    )
+                    if health_status["overall_health"] == "healthy":
+                        health_status["overall_health"] = "warning"
                 else:
-                    health_status['checks'].append({
-                        'check': 'connection_usage',
-                        'status': 'pass',
-                        'message': f'Connection usage normal: {active_conns}/{total_conns}'
-                    })
+                    health_status["checks"].append(
+                        {
+                            "check": "connection_usage",
+                            "status": "pass",
+                            "message": f"Connection usage normal: {active_conns}/{total_conns}",
+                        }
+                    )
             except Exception as e:
-                health_status['checks'].append({
-                    'check': 'connection_usage',
-                    'status': 'fail',
-                    'message': f'Connection check error: {str(e)}'
-                })
-                health_status['overall_health'] = 'unhealthy'
+                health_status["checks"].append(
+                    {
+                        "check": "connection_usage",
+                        "status": "fail",
+                        "message": f"Connection check error: {str(e)}",
+                    }
+                )
+                health_status["overall_health"] = "unhealthy"
 
             # Check 3: Table bloat
             try:
                 bloat_result = await self.monitor_storage_usage()
-                high_bloat_tables = [t for t in bloat_result.get('bloat_analysis', [])
-                                  if t.get('approximate_bloat_percentage', 0) > 25]
+                high_bloat_tables = [
+                    t
+                    for t in bloat_result.get("bloat_analysis", [])
+                    if t.get("approximate_bloat_percentage", 0) > 25
+                ]
 
                 if high_bloat_tables:
-                    health_status['checks'].append({
-                        'check': 'table_bloat',
-                        'status': 'warning',
-                        'message': f'{len(high_bloat_tables)} tables have high bloat (>25%)'
-                    })
-                    if health_status['overall_health'] == 'healthy':
-                        health_status['overall_health'] = 'warning'
+                    health_status["checks"].append(
+                        {
+                            "check": "table_bloat",
+                            "status": "warning",
+                            "message": f"{len(high_bloat_tables)} tables have high bloat (>25%)",
+                        }
+                    )
+                    if health_status["overall_health"] == "healthy":
+                        health_status["overall_health"] = "warning"
                 else:
-                    health_status['checks'].append({
-                        'check': 'table_bloat',
-                        'status': 'pass',
-                        'message': 'Table bloat levels are acceptable'
-                    })
+                    health_status["checks"].append(
+                        {
+                            "check": "table_bloat",
+                            "status": "pass",
+                            "message": "Table bloat levels are acceptable",
+                        }
+                    )
             except Exception as e:
-                health_status['checks'].append({
-                    'check': 'table_bloat',
-                    'status': 'fail',
-                    'message': f'Bloat check error: {str(e)}'
-                })
+                health_status["checks"].append(
+                    {
+                        "check": "table_bloat",
+                        "status": "fail",
+                        "message": f"Bloat check error: {str(e)}",
+                    }
+                )
 
             # Check 4: Long-running queries
             try:
@@ -678,25 +743,31 @@ class DatabaseMaintenance:
                 long_queries = await self.execute_query(long_query_check)
 
                 if long_queries:
-                    health_status['checks'].append({
-                        'check': 'long_running_queries',
-                        'status': 'warning',
-                        'message': f'{len(long_queries)} queries running longer than 5 minutes'
-                    })
-                    if health_status['overall_health'] == 'healthy':
-                        health_status['overall_health'] = 'warning'
+                    health_status["checks"].append(
+                        {
+                            "check": "long_running_queries",
+                            "status": "warning",
+                            "message": f"{len(long_queries)} queries running longer than 5 minutes",
+                        }
+                    )
+                    if health_status["overall_health"] == "healthy":
+                        health_status["overall_health"] = "warning"
                 else:
-                    health_status['checks'].append({
-                        'check': 'long_running_queries',
-                        'status': 'pass',
-                        'message': 'No long-running queries detected'
-                    })
+                    health_status["checks"].append(
+                        {
+                            "check": "long_running_queries",
+                            "status": "pass",
+                            "message": "No long-running queries detected",
+                        }
+                    )
             except Exception as e:
-                health_status['checks'].append({
-                    'check': 'long_running_queries',
-                    'status': 'fail',
-                    'message': f'Long query check error: {str(e)}'
-                })
+                health_status["checks"].append(
+                    {
+                        "check": "long_running_queries",
+                        "status": "fail",
+                        "message": f"Long query check error: {str(e)}",
+                    }
+                )
 
             # Check 5: Replication lag (if applicable)
             try:
@@ -709,26 +780,30 @@ class DatabaseMaintenance:
                 """
                 replication_stats = await self.execute_query(replication_query)
 
-                health_status['checks'].append({
-                    'check': 'replication_status',
-                    'status': 'pass',
-                    'message': f'{len(replication_stats)} replica(s) connected'
-                })
+                health_status["checks"].append(
+                    {
+                        "check": "replication_status",
+                        "status": "pass",
+                        "message": f"{len(replication_stats)} replica(s) connected",
+                    }
+                )
             except Exception:
-                health_status['checks'].append({
-                    'check': 'replication_status',
-                    'status': 'info',
-                    'message': 'Replication not configured or check failed'
-                })
+                health_status["checks"].append(
+                    {
+                        "check": "replication_status",
+                        "status": "info",
+                        "message": "Replication not configured or check failed",
+                    }
+                )
 
             return health_status
 
         except Exception as e:
             logger.error(f"Health check failed: {str(e)}")
             return {
-                'overall_health': 'unhealthy',
-                'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                "overall_health": "unhealthy",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
     # 7. Utility Functions
@@ -744,7 +819,7 @@ class DatabaseMaintenance:
         ORDER BY tablename
         """
         result = await self.execute_query(query)
-        return [row['tablename'] for row in result]
+        return [row["tablename"] for row in result]
 
     async def get_table_statistics(self, table_name: str) -> Dict[str, any]:
         """Get detailed statistics for a specific table"""
@@ -769,7 +844,7 @@ class DatabaseMaintenance:
         WHERE schemaname = 'public' AND tablename = $1
         """
 
-        result = await self.execute_query(query, {'table': table_name})
+        result = await self.execute_query(query, {"table": table_name})
         return result[0] if result else {}
 
 
@@ -779,8 +854,9 @@ async def main():
     import os
 
     # Get database connection from environment or use default
-    db_url = os.getenv('DATABASE_URL',
-                      'postgresql://postgres:password@localhost:5432/psychsync')
+    db_url = os.getenv(
+        "DATABASE_URL", "postgresql://postgres:password@localhost:5432/psychsync"
+    )
 
     maintenance = DatabaseMaintenance(db_url)
 
@@ -791,14 +867,18 @@ async def main():
     print("\n1️⃣ Performing Health Check...")
     health_check = await maintenance.perform_health_check()
     print(f"   Overall Health: {health_check['overall_health'].upper()}")
-    for check in health_check['checks']:
-        status_icon = "✅" if check['status'] == 'pass' else "⚠️" if check['status'] == 'warning' else "❌"
+    for check in health_check["checks"]:
+        status_icon = (
+            "✅"
+            if check["status"] == "pass"
+            else "⚠️" if check["status"] == "warning" else "❌"
+        )
         print(f"   {status_icon} {check['check']}: {check['message']}")
 
     # 2. VACUUM and ANALYZE
     print("\n2️⃣ Running VACUUM ANALYZE...")
     vacuum_result = await maintenance.auto_vacuum_analyze()
-    if vacuum_result['status'] == 'success':
+    if vacuum_result["status"] == "success":
         print(f"   ✅ VACUUM ANALYZE completed in {vacuum_result['duration_seconds']}s")
         print(f"   📊 Processed {vacuum_result['tables_processed']} tables")
     else:
@@ -807,7 +887,7 @@ async def main():
     # 3. Update Statistics
     print("\n3️⃣ Updating Table Statistics...")
     stats_result = await maintenance.update_table_statistics()
-    if stats_result['status'] == 'success':
+    if stats_result["status"] == "success":
         print(f"   ✅ Statistics updated in {stats_result['duration_seconds']}s")
         print(f"   📊 Updated {stats_result['tables_updated']} tables")
     else:
@@ -816,12 +896,12 @@ async def main():
     # 4. Index Maintenance
     print("\n4️⃣ Analyzing Index Usage...")
     index_usage = await maintenance.analyze_index_usage()
-    unused_indexes = [idx for idx in index_usage if idx['idx_scan'] < 10]
+    unused_indexes = [idx for idx in index_usage if idx["idx_scan"] < 10]
 
     if unused_indexes:
         print(f"   ⚠️ Found {len(unused_indexes)} potentially unused indexes")
         index_rebuild_result = await maintenance.rebuild_unused_indexes()
-        if index_rebuild_result['status'] == 'success':
+        if index_rebuild_result["status"] == "success":
             print(f"   ✅ Rebuilt {index_rebuild_result['indexes_rebuilt']} indexes")
     else:
         print("   ✅ No unused indexes detected")
@@ -829,7 +909,7 @@ async def main():
     # 5. Partition Management
     print("\n5️⃣ Managing Partitions...")
     partition_result = await maintenance.manage_partitions()
-    if partition_result['status'] == 'success':
+    if partition_result["status"] == "success":
         print(f"   ✅ Created {partition_result['total_created']} new partitions")
         print(f"   🗑️ Dropped {partition_result['total_dropped']} old partitions")
     else:
@@ -838,33 +918,37 @@ async def main():
     # 6. Storage Monitoring
     print("\n6️⃣ Monitoring Storage Usage...")
     storage_result = await maintenance.monitor_storage_usage()
-    if storage_result['status'] == 'success':
-        db_size = storage_result['storage_info'].get('database_size', 'Unknown')
+    if storage_result["status"] == "success":
+        db_size = storage_result["storage_info"].get("database_size", "Unknown")
         print(f"   📊 Database size: {db_size}")
 
-        tables_needing_vacuum = storage_result.get('tables_needing_vacuum', [])
+        tables_needing_vacuum = storage_result.get("tables_needing_vacuum", [])
         if tables_needing_vacuum:
             print(f"   ⚠️ {len(tables_needing_vacuum)} tables need VACUUM")
             for table in tables_needing_vacuum[:3]:  # Show top 3
-                print(f"      - {table['tablename']}: {table['dead_tuple_percentage']}% dead tuples")
+                print(
+                    f"      - {table['tablename']}: {table['dead_tuple_percentage']}% dead tuples"
+                )
     else:
         print(f"   ❌ Storage monitoring failed: {storage_result['error']}")
 
     # 7. Performance Metrics
     print("\n7️⃣ Collecting Performance Metrics...")
     perf_metrics = await maintenance.collect_performance_metrics()
-    if perf_metrics['status'] == 'success':
-        active_conns = perf_metrics.get('database', {}).get('active_connections', 0)
-        total_conns = perf_metrics.get('database', {}).get('total_connections', 0)
+    if perf_metrics["status"] == "success":
+        active_conns = perf_metrics.get("database", {}).get("active_connections", 0)
+        total_conns = perf_metrics.get("database", {}).get("total_connections", 0)
         print(f"   🔌 Active connections: {active_conns}/{total_conns}")
 
-        blocked_queries = perf_metrics.get('blocked_queries', [])
+        blocked_queries = perf_metrics.get("blocked_queries", [])
         if blocked_queries:
             print(f"   ⚠️ {len(blocked_queries)} blocked queries detected")
         else:
             print("   ✅ No blocked queries")
     else:
-        print(f"   ❌ Metrics collection failed: {perf_metrics.get('error', 'Unknown error')}")
+        print(
+            f"   ❌ Metrics collection failed: {perf_metrics.get('error', 'Unknown error')}"
+        )
 
     print("\n" + "=" * 50)
     print("🎉 Database Maintenance Complete!")

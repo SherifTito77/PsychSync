@@ -4,10 +4,10 @@ Implements gzip compression and response optimization for API performance
 Expected improvement: 30-50% for API response size and transfer time
 """
 
-from collections.abc import Callable
 import gzip
 import json
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import Request, Response
@@ -83,7 +83,9 @@ class ResponseCompressionMiddleware(BaseHTTPMiddleware):
 
         return compressed_response
 
-    def _should_compress(self, request: Request, response: Response, supports_gzip: bool) -> bool:
+    def _should_compress(
+        self, request: Request, response: Response, supports_gzip: bool
+    ) -> bool:
         """Determine if response should be compressed"""
 
         # Client must support gzip
@@ -113,7 +115,9 @@ class ResponseCompressionMiddleware(BaseHTTPMiddleware):
 
         return True
 
-    async def _compress_response(self, response: Response, request: Request) -> Response:
+    async def _compress_response(
+        self, response: Response, request: Request
+    ) -> Response:
         """Compress response and create new response object"""
         try:
             # Get response body
@@ -121,17 +125,23 @@ class ResponseCompressionMiddleware(BaseHTTPMiddleware):
 
             # Apply field selection if requested
             fields = request.query_params.get("fields")
-            if fields and response.headers.get("content-type", "").startswith("application/json"):
+            if fields and response.headers.get("content-type", "").startswith(
+                "application/json"
+            ):
                 response_body = self._apply_field_selection(response_body, fields)
 
             # Compress the body
-            compressed_body = gzip.compress(response_body, compresslevel=self.compression_level)
+            compressed_body = gzip.compress(
+                response_body, compresslevel=self.compression_level
+            )
 
             # Only use compressed version if it's smaller
             if len(compressed_body) < len(response_body):
                 # Update metrics
                 self._metrics["responses_compressed"] += 1
-                self._metrics["bytes_saved"] += len(response_body) - len(compressed_body)
+                self._metrics["bytes_saved"] += len(response_body) - len(
+                    compressed_body
+                )
 
                 # Create new response with compressed body
                 compressed_response = Response(
@@ -143,7 +153,9 @@ class ResponseCompressionMiddleware(BaseHTTPMiddleware):
 
                 # Add compression headers
                 compressed_response.headers["content-encoding"] = "gzip"
-                compressed_response.headers["content-length"] = str(len(compressed_body))
+                compressed_response.headers["content-length"] = str(
+                    len(compressed_body)
+                )
                 compressed_response.headers["x-compressed"] = "true"
                 compressed_response.headers["x-compression-ratio"] = (
                     f"{(1 - len(compressed_body) / len(response_body)) * 100:.1f}%"
@@ -183,7 +195,9 @@ class ResponseCompressionMiddleware(BaseHTTPMiddleware):
             logger.warning(f"Field selection failed: {e}")
             return response_body
 
-    def _filter_dict_fields(self, data: dict[str, Any], fields: list[str]) -> dict[str, Any]:
+    def _filter_dict_fields(
+        self, data: dict[str, Any], fields: list[str]
+    ) -> dict[str, Any]:
         """Filter dictionary to only include requested fields"""
         filtered = {}
         for field in fields:
@@ -200,7 +214,10 @@ class ResponseCompressionMiddleware(BaseHTTPMiddleware):
             else 0
         )
         avg_compression_time = (
-            (self._metrics["compression_time_ms"] / self._metrics["responses_compressed"])
+            (
+                self._metrics["compression_time_ms"]
+                / self._metrics["responses_compressed"]
+            )
             if self._metrics["responses_compressed"] > 0
             else 0
         )
@@ -223,7 +240,11 @@ class ResponseOptimizationMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app):
         super().__init__(app)
-        self._metrics = {"responses_optimized": 0, "etags_generated": 0, "metadata_added": 0}
+        self._metrics = {
+            "responses_optimized": 0,
+            "etags_generated": 0,
+            "metadata_added": 0,
+        }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Optimize response format and add metadata"""
@@ -245,7 +266,9 @@ class ResponseOptimizationMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    async def _optimize_response(self, response: Response, request: Request) -> Response:
+    async def _optimize_response(
+        self, response: Response, request: Request
+    ) -> Response:
         """Optimize response with metadata and caching headers"""
         try:
             # Parse response data
@@ -280,10 +303,14 @@ class ResponseOptimizationMiddleware(BaseHTTPMiddleware):
 
                 # Add caching headers
                 optimized_response.headers["ETag"] = etag
-                optimized_response.headers["Cache-Control"] = "public, max-age=300"  # 5 minutes
+                optimized_response.headers["Cache-Control"] = (
+                    "public, max-age=300"  # 5 minutes
+                )
                 optimized_response.headers["X-Content-Type-Options"] = "nosniff"
                 optimized_response.headers["X-Frame-Options"] = "DENY"
-                optimized_response.headers["X-Optimized-Size"] = str(len(optimized_body))
+                optimized_response.headers["X-Optimized-Size"] = str(
+                    len(optimized_body)
+                )
 
                 return optimized_response
 
@@ -305,8 +332,8 @@ class ResponseOptimizationMiddleware(BaseHTTPMiddleware):
         return self._metrics.copy()
 
 
-from datetime import datetime
 import time
+from datetime import datetime
 from uuid import uuid4
 
 
@@ -369,7 +396,9 @@ class RequestTrackingMiddleware(BaseHTTPMiddleware):
         return self._request_metrics.copy()
 
 
-def setup_response_compression(app, min_size: int = 1024, compressible_types: list | None = None):
+def setup_response_compression(
+    app, min_size: int = 1024, compressible_types: list | None = None
+):
     """
     Set up response compression middleware for a FastAPI application
 

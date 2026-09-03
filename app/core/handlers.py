@@ -4,6 +4,7 @@ FastAPI exception handlers for consistent error responses
 """
 
 import logging
+import os
 
 from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -11,13 +12,24 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.core.exceptions import PsychSyncException, create_error_response, handle_database_error
+from app.core.exceptions import (
+    PsychSyncException,
+    create_error_response,
+    handle_database_error,
+)
 from app.core.response import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
 
-async def psychsync_exception_handler(request: Request, exc: PsychSyncException) -> JSONResponse:
+def _is_production() -> bool:
+    """Check if running in production (avoid circular import from settings)"""
+    return os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+
+async def psychsync_exception_handler(
+    request: Request, exc: PsychSyncException
+) -> JSONResponse:
     """Handler for PsychSync custom exceptions"""
     # Log the exception with context
     exc.log()
@@ -34,19 +46,28 @@ async def http_exception_handler(
     """Handler for FastAPI HTTP exceptions"""
     logger.warning(
         f"HTTPException: {exc.status_code} - {exc.detail}",
-        extra={"status_code": exc.status_code, "path": str(request.url), "method": request.method},
+        extra={
+            "status_code": exc.status_code,
+            "path": str(request.url),
+            "method": request.method,
+        },
     )
+
+    # Sanitize error detail for 5xx in production to prevent stack trace leakage
+    detail = str(exc.detail)
+    if exc.status_code >= 500 and _is_production():
+        detail = "An internal server error occurred. Please try again later."
 
     # Create standardized error response
     error_response = ErrorResponse(
-        message=str(exc.detail),
+        message=detail,
         error_code=f"HTTP_{exc.status_code}",
         data={"path": str(request.url), "method": request.method},
     )
 
     # Convert to dict with datetime serialization
-    from datetime import datetime
     import json
+    from datetime import datetime
 
     def datetime_converter(obj):
         if isinstance(obj, datetime):
@@ -66,7 +87,11 @@ async def validation_exception_handler(
     """Handler for request validation errors"""
     logger.warning(
         f"Validation error: {exc.errors()}",
-        extra={"errors": exc.errors(), "path": str(request.url), "method": request.method},
+        extra={
+            "errors": exc.errors(),
+            "path": str(request.url),
+            "method": request.method,
+        },
     )
 
     # Format validation errors for better client understanding
@@ -85,7 +110,11 @@ async def validation_exception_handler(
     error_response = ErrorResponse(
         message="Request validation failed",
         error_code="VALIDATION_ERROR",
-        data={"errors": formatted_errors, "path": str(request.url), "method": request.method},
+        data={
+            "errors": formatted_errors,
+            "path": str(request.url),
+            "method": request.method,
+        },
     )
 
     return JSONResponse(
@@ -94,7 +123,9 @@ async def validation_exception_handler(
     )
 
 
-async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+async def sqlalchemy_exception_handler(
+    request: Request, exc: SQLAlchemyError
+) -> JSONResponse:
     """Handler for SQLAlchemy database errors"""
     logger.error(
         f"Database error: {exc!s}",
@@ -111,7 +142,8 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -
     structured_exc = handle_database_error(exc, operation)
 
     return JSONResponse(
-        status_code=structured_exc.status_code, content=create_error_response(structured_exc)
+        status_code=structured_exc.status_code,
+        content=create_error_response(structured_exc),
     )
 
 
@@ -131,14 +163,15 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     # Create a generic internal server error response
     from app.core.exceptions import ErrorCode, PsychSyncException
 
+    details = {"path": str(request.url), "method": request.method}
+    # Only include error_type in non-production (prevents leaking internal class names)
+    if not _is_production():
+        details["error_type"] = type(exc).__name__
+
     generic_exc = PsychSyncException(
         message="An unexpected error occurred",
         error_code=ErrorCode.INTERNAL_SERVER_ERROR,
-        details={
-            "path": str(request.url),
-            "method": request.method,
-            "error_type": type(exc).__name__,
-        },
+        details=details,
     )
 
     return JSONResponse(

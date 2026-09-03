@@ -4,8 +4,7 @@ import os
 import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -18,10 +17,11 @@ from alembic import context
 # The '..' means "go up one directory from the current 'alembic' folder".
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+from app.core.config import get_database_url, settings
+
 # Import your application's Base metadata object.
 # Now using the consolidated database Base from core.database
 from app.core.database import Base, async_engine
-from app.core.config import settings, get_database_url
 
 # ----------------------------------------------------------------------
 # --- END OF CONFIGURATION SECTION ---
@@ -85,10 +85,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

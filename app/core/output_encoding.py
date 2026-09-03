@@ -373,7 +373,13 @@ class OutputEncoder:
         text = str(text)
 
         # XML escape sequences
-        replacements = {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;"}
+        replacements = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&apos;",
+        }
 
         for char, entity in replacements.items():
             text = text.replace(char, entity)
@@ -464,7 +470,9 @@ class OutputEncoder:
             text = re.sub(pattern, "", text, flags=re.IGNORECASE)
 
             # Remove dangerous attributes
-            text = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', "", text, flags=re.IGNORECASE)
+            text = re.sub(
+                r'\s*on\w+\s*=\s*["\'][^"\']*["\']', "", text, flags=re.IGNORECASE
+            )
 
             return text
 
@@ -580,7 +588,8 @@ class SafeResponse:
             elif isinstance(value, list):
                 # Sanitize lists
                 sanitized[key] = [
-                    OutputEncoder.encode_for_html(v) if isinstance(v, str) else v for v in value
+                    OutputEncoder.encode_for_html(v) if isinstance(v, str) else v
+                    for v in value
                 ]
             else:
                 # Keep other types as-is

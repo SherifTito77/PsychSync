@@ -15,13 +15,13 @@ Key Features:
 """
 
 import asyncio
+import logging
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from enum import Enum
-import logging
 from pathlib import Path
 from typing import Any
-import warnings
 
 import joblib
 import numpy as np
@@ -57,7 +57,7 @@ from sklearn.model_selection import (
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
@@ -353,17 +353,29 @@ class PredictionService:
         )
 
         if not data_result["success"]:
-            raise ValueError(f"Data collection failed: {data_result.get('error', 'Unknown error')}")
+            raise ValueError(
+                f"Data collection failed: {data_result.get('error', 'Unknown error')}"
+            )
 
         df = data_result["data"]
 
         # Prepare features and target
-        feature_cols = [col for col in df.columns if col != target_variable and col != "team_id"]
+        # Filter to only numeric columns to avoid median errors on categorical data
+        numeric_feature_cols = [
+            col
+            for col in df.columns
+            if col != target_variable
+            and col != "team_id"
+            and pd.api.types.is_numeric_dtype(df[col])
+        ]
+
+        if not numeric_feature_cols:
+            raise ValueError("No numeric feature columns available for training")
 
         if target_variable not in df.columns:
             raise ValueError(f"Target variable '{target_variable}' not found in data")
 
-        X = df[feature_cols].fillna(df[feature_cols].median())
+        X = df[numeric_feature_cols].fillna(df[numeric_feature_cols].median())
         y = df[target_variable].fillna(df[target_variable].median())
 
         # Determine target type
@@ -409,9 +421,11 @@ class PredictionService:
                         model_config["params"],
                         n_iter=20,
                         cv=cv_folds,
-                        scoring="neg_mean_squared_error"
-                        if target_type == TargetType.REGRESSION
-                        else "accuracy",
+                        scoring=(
+                            "neg_mean_squared_error"
+                            if target_type == TargetType.REGRESSION
+                            else "accuracy"
+                        ),
                         random_state=42,
                         n_jobs=-1,
                     )
@@ -422,7 +436,9 @@ class PredictionService:
                     best_params = {}
 
                 # Create full pipeline
-                full_pipeline = Pipeline([("preprocessor", pipeline), ("model", best_model)])
+                full_pipeline = Pipeline(
+                    [("preprocessor", pipeline), ("model", best_model)]
+                )
 
                 # Fit pipeline
                 full_pipeline.fit(X_train, y_train)
@@ -441,13 +457,15 @@ class PredictionService:
                     prediction_type=PredictionType.TEAM_PERFORMANCE,
                     target_type=target_type,
                     model=full_pipeline,
-                    feature_names=feature_cols,
+                    feature_names=numeric_feature_cols,
                     target_name=target_variable,
                     performance=performance,
                     hyperparameters=best_params,
-                    cross_val_score=np.mean(performance.cv_scores)
-                    if performance.cv_scores
-                    else None,
+                    cross_val_score=(
+                        np.mean(performance.cv_scores)
+                        if performance.cv_scores
+                        else None
+                    ),
                 )
 
                 trained_models[model_type.value] = prediction_model
@@ -526,7 +544,9 @@ class PredictionService:
         data_result = await self.data_service.collect_team_prediction_data(db, team_id)
 
         if not data_result["success"]:
-            raise ValueError(f"Prediction data collection failed: {data_result.get('error')}")
+            raise ValueError(
+                f"Prediction data collection failed: {data_result.get('error')}"
+            )
 
         # Extract features in correct order
         feature_data = []
@@ -572,17 +592,22 @@ class PredictionService:
         if include_feature_importance and model.performance.feature_importance:
             for feature_name in model.feature_names:
                 if feature_name in model.performance.feature_importance:
-                    feature_contributions[feature_name] = model.performance.feature_importance[
-                        feature_name
-                    ] * data_result["features"].get(feature_name, 0.0)
+                    feature_contributions[feature_name] = (
+                        model.performance.feature_importance[feature_name]
+                        * data_result["features"].get(feature_name, 0.0)
+                    )
 
         return PredictionResult(
             prediction=prediction,
             confidence=confidence,
-            prediction_interval=confidence_interval
-            if model.target_type == TargetType.REGRESSION
-            else None,
-            probabilities=prob_dict if model.target_type == TargetType.CLASSIFICATION else None,
+            prediction_interval=(
+                confidence_interval
+                if model.target_type == TargetType.REGRESSION
+                else None
+            ),
+            probabilities=(
+                prob_dict if model.target_type == TargetType.CLASSIFICATION else None
+            ),
             feature_contributions=feature_contributions,
             model_id=model.model_id,
             prediction_type=PredictionType.TEAM_PERFORMANCE,
@@ -654,7 +679,9 @@ class PredictionService:
             return valid_results
 
         # Add other prediction types as needed
-        raise NotImplementedError(f"Batch prediction not implemented for {prediction_type}")
+        raise NotImplementedError(
+            f"Batch prediction not implemented for {prediction_type}"
+        )
 
     async def evaluate_model_performance(
         self, model_id: str, test_data: dict[str, Any] | None = None, cv_folds: int = 5
@@ -679,7 +706,9 @@ class PredictionService:
         X_test = test_data["X"]
         y_test = test_data["y"]
 
-        return await self._evaluate_model(model.model, X_test, y_test, model.target_type, cv_folds)
+        return await self._evaluate_model(
+            model.model, X_test, y_test, model.target_type, cv_folds
+        )
 
     def _determine_target_type(self, y: pd.Series) -> TargetType:
         """Determine if target is regression or classification."""
@@ -699,17 +728,22 @@ class PredictionService:
 
         # Identify numeric and categorical columns
         numeric_features = X_train.select_dtypes(include=["int64", "float64"]).columns
-        categorical_features = X_train.select_dtypes(include=["object", "category"]).columns
+        categorical_features = X_train.select_dtypes(
+            include=["object", "category"]
+        ).columns
 
         # Create preprocessing steps
         numeric_transformer = Pipeline(
-            steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]
+            steps=[
+                ("imputer", SimpleImputer(strategy="median")),
+                ("scaler", StandardScaler()),
+            ]
         )
 
         categorical_transformer = Pipeline(
             steps=[
                 ("imputer", SimpleImputer(strategy="constant", fill_value="missing")),
-                ("onehot", pd.get_dummies),  # Simplified
+                ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
             ]
         )
 
@@ -727,7 +761,9 @@ class PredictionService:
             else:
                 selector = SelectKBest(score_func=f_classif, k=20)
 
-            pipeline = Pipeline([("preprocessor", preprocessor), ("feature_selection", selector)])
+            pipeline = Pipeline(
+                [("preprocessor", preprocessor), ("feature_selection", selector)]
+            )
         else:
             pipeline = preprocessor
 
@@ -786,8 +822,12 @@ class PredictionService:
         # Feature importance (if available)
         if hasattr(model, "feature_importances_"):
             # Get feature names from preprocessing pipeline
-            feature_names = [f"feature_{i}" for i in range(len(model.feature_importances_))]
-            performance.feature_importance = dict(zip(feature_names, model.feature_importances_))
+            feature_names = [
+                f"feature_{i}" for i in range(len(model.feature_importances_))
+            ]
+            performance.feature_importance = dict(
+                zip(feature_names, model.feature_importances_)
+            )
 
         return performance
 
@@ -797,6 +837,12 @@ class PredictionService:
         """Compare models and select the best one."""
 
         comparison_metrics = {}
+        if not model_performances:
+            return (
+                "none",
+                {},
+                "No models were trained. Check your data and model configuration.",
+            )
 
         if target_type == TargetType.REGRESSION:
             # Use R² score for regression (higher is better)
@@ -807,15 +853,24 @@ class PredictionService:
                     comparison_metrics[name] = perf.r2
 
             best_model = (
-                max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
+                max(scores, key=scores.get)
+                if scores
+                else list(model_performances.keys())[0]
             )
 
-            if scores[best_model] > 0.8:
-                recommendation = f"Excellent model: {best_model} with R² = {scores[best_model]:.3f}"
-            elif scores[best_model] > 0.6:
-                recommendation = f"Good model: {best_model} with R² = {scores[best_model]:.3f}"
+            if best_model in scores:
+                if scores[best_model] > 0.8:
+                    recommendation = f"Excellent model: {best_model} with R² = {scores[best_model]:.3f}"
+                elif scores[best_model] > 0.6:
+                    recommendation = (
+                        f"Good model: {best_model} with R² = {scores[best_model]:.3f}"
+                    )
+                else:
+                    recommendation = f"Fair model: {best_model} with R² = {scores[best_model]:.3f}. Consider feature engineering."
             else:
-                recommendation = f"Fair model: {best_model} with R² = {scores[best_model]:.3f}. Consider feature engineering."
+                recommendation = (
+                    "No valid regression metrics found for the trained models."
+                )
 
         else:
             # Use accuracy for classification
@@ -826,19 +881,22 @@ class PredictionService:
                     comparison_metrics[name] = perf.accuracy
 
             best_model = (
-                max(scores, key=scores.get) if scores else list(model_performances.keys())[0]
+                max(scores, key=scores.get)
+                if scores
+                else list(model_performances.keys())[0]
             )
 
-            if scores[best_model] > 0.9:
-                recommendation = (
-                    f"Excellent model: {best_model} with accuracy = {scores[best_model]:.3f}"
-                )
-            elif scores[best_model] > 0.8:
-                recommendation = (
-                    f"Good model: {best_model} with accuracy = {scores[best_model]:.3f}"
-                )
+            if best_model in scores:
+                if scores[best_model] > 0.9:
+                    recommendation = f"Excellent model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                elif scores[best_model] > 0.8:
+                    recommendation = f"Good model: {best_model} with accuracy = {scores[best_model]:.3f}"
+                else:
+                    recommendation = f"Fair model: {best_model} with accuracy = {scores[best_model]:.3f}. Consider more data or feature engineering."
             else:
-                recommendation = f"Fair model: {best_model} with accuracy = {scores[best_model]:.3f}. Consider more data or feature engineering."
+                recommendation = (
+                    "No valid classification metrics found for the trained models."
+                )
 
         return best_model, comparison_metrics, recommendation
 
@@ -897,7 +955,9 @@ class PredictionService:
                 f1=model_data["performance"].get("f1"),
                 auc=model_data["performance"].get("auc"),
                 cv_scores=model_data["performance"].get("cv_scores", []),
-                feature_importance=model_data["performance"].get("feature_importance", {}),
+                feature_importance=model_data["performance"].get(
+                    "feature_importance", {}
+                ),
             )
 
             # Reconstruct PredictionModel

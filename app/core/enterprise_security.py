@@ -4,13 +4,13 @@ Addresses SOC 2 Type II, ISO 27001, GDPR, HIPAA, and FedRAMP requirements
 """
 
 import base64
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import json
 import logging
 import os
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 
 from cryptography.fernet import Fernet
@@ -147,9 +147,14 @@ class EnterpriseSecurityManager:
             },
         }
 
-    def encrypt_sensitive_data(self, data: str, classification: DataClassification) -> str:
+    def encrypt_sensitive_data(
+        self, data: str, classification: DataClassification
+    ) -> str:
         """Encrypt sensitive data based on classification"""
-        if classification in [DataClassification.CONFIDENTIAL, DataClassification.RESTRICTED]:
+        if classification in [
+            DataClassification.CONFIDENTIAL,
+            DataClassification.RESTRICTED,
+        ]:
             fernet = Fernet(self.encryption_key)
             encrypted_data = fernet.encrypt(data.encode())
             return base64.b64encode(encrypted_data).decode()
@@ -159,7 +164,10 @@ class EnterpriseSecurityManager:
         self, encrypted_data: str, classification: DataClassification
     ) -> str:
         """Decrypt sensitive data based on classification"""
-        if classification in [DataClassification.CONFIDENTIAL, DataClassification.RESTRICTED]:
+        if classification in [
+            DataClassification.CONFIDENTIAL,
+            DataClassification.RESTRICTED,
+        ]:
             try:
                 fernet = Fernet(self.encryption_key)
                 decoded_data = base64.b64decode(encrypted_data.encode())
@@ -224,7 +232,9 @@ class EnterpriseSecurityManager:
                 resource_accessed=event.resource_accessed,
                 action=event.action,
                 outcome=event.outcome,
-                compliance_standards=json.dumps([std.value for std in event.compliance_standards]),
+                compliance_standards=json.dumps(
+                    [std.value for std in event.compliance_standards]
+                ),
                 metadata=json.dumps(event.metadata),
             )
 
@@ -254,7 +264,9 @@ class EnterpriseSecurityManager:
 
     def _trigger_security_alert(self, event: SecurityEvent):
         """Trigger security alert for critical events"""
-        alert_key = f"security_alert:{event.timestamp.strftime('%Y%m%d')}:{event.event_type}"
+        alert_key = (
+            f"security_alert:{event.timestamp.strftime('%Y%m%d')}:{event.event_type}"
+        )
 
         alert_count = self.redis.incr(alert_key)
         self.redis.expire(alert_key, 3600)  # 1 hour window
@@ -285,7 +297,9 @@ class EnterpriseSecurityManager:
         self.redis.setex(incident_key, timedelta(days=7), json.dumps(incident_data))
 
         # Notify security team (integration with notification system)
-        self.logger.critical(f"SECURITY INCIDENT ESCALATED: {json.dumps(incident_data)}")
+        self.logger.critical(
+            f"SECURITY INCIDENT ESCALATED: {json.dumps(incident_data)}"
+        )
 
     def perform_gdpr_data_erasure(self, user_id: str) -> dict[str, bool]:
         """Perform right to erasure under GDPR"""
@@ -489,7 +503,9 @@ class EnterpriseSecurityManager:
             self.logger.error(f"Access review failed: {e!s}")
             return {"error": str(e)}
 
-    def generate_compliance_report(self, standards: list[ComplianceStandard]) -> dict[str, Any]:
+    def generate_compliance_report(
+        self, standards: list[ComplianceStandard]
+    ) -> dict[str, Any]:
         """Generate compliance report for specified standards"""
         try:
             report = {
@@ -506,7 +522,9 @@ class EnterpriseSecurityManager:
                 status = self._check_standard_compliance(standard, config)
 
                 report["compliance_status"][standard.value] = status
-                report["metrics"][standard.value] = self._get_compliance_metrics(standard)
+                report["metrics"][standard.value] = self._get_compliance_metrics(
+                    standard
+                )
 
             # Generate overall recommendations
             for standard in standards:
@@ -520,7 +538,9 @@ class EnterpriseSecurityManager:
             self.logger.error(f"Compliance report generation failed: {e!s}")
             return {"error": str(e)}
 
-    def _check_standard_compliance(self, standard: ComplianceStandard, config: dict) -> dict:
+    def _check_standard_compliance(
+        self, standard: ComplianceStandard, config: dict
+    ) -> dict:
         """Check compliance status for a specific standard"""
         violations = []
 
@@ -552,10 +572,12 @@ class EnterpriseSecurityManager:
             encrypted_tables = ["users", "assessment_responses", "team_members"]
 
             for table in encrypted_tables:
-                result = self.db.execute(f"""
+                result = self.db.execute(
+                    f"""
                     SELECT COUNT(*) as count FROM {table}
                     WHERE email IS NOT NULL AND email NOT LIKE '%@%.com'
-                """)
+                """
+                )
 
                 unencrypted_count = result.fetchone()["count"]
                 if unencrypted_count > 0:
@@ -572,10 +594,12 @@ class EnterpriseSecurityManager:
 
         try:
             # Verify audit logging is enabled and functioning
-            recent_logs = self.db.execute("""
+            recent_logs = self.db.execute(
+                """
                 SELECT COUNT(*) as count FROM audit_logs
                 WHERE timestamp > NOW() - INTERVAL '24 hours'
-            """).fetchone()["count"]
+            """
+            ).fetchone()["count"]
 
             if recent_logs == 0:
                 violations.append("No audit logs found in last 24 hours")
@@ -591,11 +615,13 @@ class EnterpriseSecurityManager:
 
         try:
             # Verify MFA is enabled for admin users
-            admin_users_without_mfa = self.db.execute("""
+            admin_users_without_mfa = self.db.execute(
+                """
                 SELECT COUNT(*) as count FROM users
                 WHERE role IN ('admin', 'super_admin')
                 AND mfa_enabled = false
-            """).fetchone()["count"]
+            """
+            ).fetchone()["count"]
 
             if admin_users_without_mfa > 0:
                 violations.append(f"{admin_users_without_mfa} admin users without MFA")
@@ -611,36 +637,46 @@ class EnterpriseSecurityManager:
 
         try:
             # Common metrics
-            metrics["total_security_events"] = self.db.execute("""
+            metrics["total_security_events"] = self.db.execute(
+                """
                 SELECT COUNT(*) as count FROM audit_logs
                 WHERE timestamp > NOW() - INTERVAL '30 days'
-            """).fetchone()["count"]
+            """
+            ).fetchone()["count"]
 
-            metrics["failed_login_attempts"] = self.db.execute("""
+            metrics["failed_login_attempts"] = self.db.execute(
+                """
                 SELECT COUNT(*) as count FROM audit_logs
                 WHERE event_type = 'LOGIN_FAILED'
                 AND timestamp > NOW() - INTERVAL '30 days'
-            """).fetchone()["count"]
+            """
+            ).fetchone()["count"]
 
-            metrics["data_access_requests"] = self.db.execute("""
+            metrics["data_access_requests"] = self.db.execute(
+                """
                 SELECT COUNT(*) as count FROM audit_logs
                 WHERE event_type IN ('DATA_EXPORT', 'DATA_ERASURE')
                 AND timestamp > NOW() - INTERVAL '30 days'
-            """).fetchone()["count"]
+            """
+            ).fetchone()["count"]
 
             # Standard-specific metrics
             if standard == ComplianceStandard.GDPR:
-                metrics["data_erasure_requests"] = self.db.execute("""
+                metrics["data_erasure_requests"] = self.db.execute(
+                    """
                     SELECT COUNT(*) as count FROM audit_logs
                     WHERE event_type = 'GDPR_DATA_ERASURE'
                     AND timestamp > NOW() - INTERVAL '30 days'
-                """).fetchone()["count"]
+                """
+                ).fetchone()["count"]
 
-                metrics["data_export_requests"] = self.db.execute("""
+                metrics["data_export_requests"] = self.db.execute(
+                    """
                     SELECT COUNT(*) as count FROM audit_logs
                     WHERE event_type = 'GDPR_DATA_EXPORT'
                     AND timestamp > NOW() - INTERVAL '30 days'
-                """).fetchone()["count"]
+                """
+                ).fetchone()["count"]
 
         except Exception as e:
             self.logger.error(f"Failed to get compliance metrics: {e!s}")

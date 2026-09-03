@@ -20,7 +20,7 @@ import {
   ApiResponse
 } from '@/types/corporateIntegrations';
 
-const BASE_URL = '/api/v1/integrations/corporate';
+const BASE_URL = '/integrations/corporate';
 
 /**
  * Get all integrations for the organization

@@ -39,7 +39,9 @@ class QueryBuilder:
 
     # ==================== SELECT Queries ====================
 
-    def select_by_id(self, model: type, id_field: InstrumentedAttribute, record_id: int) -> Select:
+    def select_by_id(
+        self, model: type, id_field: InstrumentedAttribute, record_id: int
+    ) -> Select:
         """
         Build safe SELECT by ID query.
 
@@ -54,7 +56,9 @@ class QueryBuilder:
         """Build safe SELECT by multiple IDs"""
         return select(model).where(id_field.in_(record_ids))
 
-    def select_where(self, model: type, conditions: dict[InstrumentedAttribute, Any]) -> Select:
+    def select_where(
+        self, model: type, conditions: dict[InstrumentedAttribute, Any]
+    ) -> Select:
         """
         Build safe SELECT with WHERE clause.
 
@@ -74,7 +78,11 @@ class QueryBuilder:
         return query
 
     def select_where_like(
-        self, model: type, field: InstrumentedAttribute, pattern: str, case_sensitive: bool = False
+        self,
+        model: type,
+        field: InstrumentedAttribute,
+        pattern: str,
+        case_sensitive: bool = False,
     ) -> Select:
         """
         Build safe SELECT with LIKE clause.
@@ -87,7 +95,9 @@ class QueryBuilder:
             query = select(model).where(field.ilike(pattern))
         return query
 
-    def select_with_pagination(self, base_query: Select, limit: int, offset: int) -> Select:
+    def select_with_pagination(
+        self, base_query: Select, limit: int, offset: int
+    ) -> Select:
         """Add pagination to query"""
         # Validate limit and offset to prevent injection
         if not isinstance(limit, int) or limit < 0 or limit > 1000:
@@ -156,7 +166,11 @@ class QueryBuilder:
     # ==================== UPDATE Queries ====================
 
     def update_by_id(
-        self, model: type, id_field: InstrumentedAttribute, record_id: int, data: dict[str, Any]
+        self,
+        model: type,
+        id_field: InstrumentedAttribute,
+        record_id: int,
+        data: dict[str, Any],
     ) -> Update:
         """
         Build safe UPDATE query.
@@ -172,7 +186,10 @@ class QueryBuilder:
         return update(model).where(id_field == record_id).values(**data)
 
     def update_where(
-        self, model: type, conditions: dict[InstrumentedAttribute, Any], data: dict[str, Any]
+        self,
+        model: type,
+        conditions: dict[InstrumentedAttribute, Any],
+        data: dict[str, Any],
     ) -> Update:
         """Build safe UPDATE with WHERE clause"""
         # Validate field names
@@ -189,7 +206,9 @@ class QueryBuilder:
 
     # ==================== DELETE Queries ====================
 
-    def delete_by_id(self, model: type, id_field: InstrumentedAttribute, record_id: int) -> Delete:
+    def delete_by_id(
+        self, model: type, id_field: InstrumentedAttribute, record_id: int
+    ) -> Delete:
         """
         Build safe DELETE query.
 
@@ -197,7 +216,9 @@ class QueryBuilder:
         """
         return delete(model).where(id_field == record_id)
 
-    def delete_where(self, model: type, conditions: dict[InstrumentedAttribute, Any]) -> Delete:
+    def delete_where(
+        self, model: type, conditions: dict[InstrumentedAttribute, Any]
+    ) -> Delete:
         """Build safe DELETE with WHERE clause"""
         query = delete(model)
         for field, value in conditions.items():
@@ -284,7 +305,9 @@ class SecureQueryExecutor:
 
     # ==================== SELECT Execution ====================
 
-    async def fetch_one(self, query: Select, error_msg: str = "Record not found") -> Any:
+    async def fetch_one(
+        self, query: Select, error_msg: str = "Record not found"
+    ) -> Any:
         """Execute query and return single result"""
         result = await self.session.execute(query)
         record = result.scalar_one_or_none()
@@ -320,7 +343,9 @@ class SecureQueryExecutor:
 
         # Get paginated results
         offset = (page - 1) * per_page
-        paginated_query = self.builder.select_with_pagination(query, limit=per_page, offset=offset)
+        paginated_query = self.builder.select_with_pagination(
+            query, limit=per_page, offset=offset
+        )
 
         result = await self.session.execute(paginated_query)
         records = result.scalars().all()
@@ -336,7 +361,9 @@ class SecureQueryExecutor:
         await self.session.commit()
 
         # Return created record
-        return await self.fetch_one(select(model).where(model.id == result.inserted_primary_key[0]))
+        return await self.fetch_one(
+            select(model).where(model.id == result.inserted_primary_key[0])
+        )
 
     async def insert_many(self, model: type, records: list[dict[str, Any]]) -> int:
         """Insert multiple records and return count"""
@@ -349,7 +376,11 @@ class SecureQueryExecutor:
     # ==================== UPDATE Execution ====================
 
     async def update_one(
-        self, model: type, id_field: InstrumentedAttribute, record_id: int, data: dict[str, Any]
+        self,
+        model: type,
+        id_field: InstrumentedAttribute,
+        record_id: int,
+        data: dict[str, Any],
     ) -> bool:
         """Update record by ID and return success"""
         query = self.builder.update_by_id(model, id_field, record_id, data)
@@ -476,11 +507,15 @@ def example_usage():
 
             # Safe search
             builder = QueryBuilder(session)
-            search_query = builder.build_search_query(User, [User.email, User.username], "john")
+            search_query = builder.build_search_query(
+                User, [User.email, User.username], "john"
+            )
             results = await executor.fetch_all(search_query)
 
             # Safe pagination
-            records, total = await executor.fetch_paginated(select(User), page=2, per_page=20)
+            records, total = await executor.fetch_paginated(
+                select(User), page=2, per_page=20
+            )
 
     async def example_insert():
         async with async_session_maker() as session:
@@ -488,7 +523,12 @@ def example_usage():
 
             # Safe INSERT
             user = await executor.insert_one(
-                User, {"email": "user@example.com", "username": "testuser", "is_active": True}
+                User,
+                {
+                    "email": "user@example.com",
+                    "username": "testuser",
+                    "is_active": True,
+                },
             )
 
     async def example_update():
@@ -496,7 +536,9 @@ def example_usage():
             executor = SecureQueryExecutor(session)
 
             # Safe UPDATE
-            success = await executor.update_one(User, User.id, 123, {"is_active": False})
+            success = await executor.update_one(
+                User, User.id, 123, {"is_active": False}
+            )
 
     async def example_delete():
         async with async_session_maker() as session:

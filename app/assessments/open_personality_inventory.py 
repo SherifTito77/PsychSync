@@ -39,7 +39,7 @@ class OpenPersonalityInventory:
     Open Personality Inventory - 200-item comprehensive personality assessment.
     Free, open-source alternative to MMPI-2.
     """
-    
+
     def __init__(self):
         """Initialize OPI."""
         self.scales = {
@@ -49,20 +49,20 @@ class OpenPersonalityInventory:
             'trauma': list(range(51, 71)),  # 20 items
             'psychosis': list(range(71, 91)),  # 20 items
             'mania': list(range(91, 106)),  # 15 items
-            
+
             # Personality Scales (Big Five)
             'neuroticism': list(range(106, 126)),  # 20 items
             'extraversion': list(range(126, 146)),  # 20 items
             'openness': list(range(146, 161)),  # 15 items
             'agreeableness': list(range(161, 176)),  # 15 items
             'conscientiousness': list(range(176, 196)),  # 20 items
-            
+
             # Validity Scales
             'inconsistency': [(1, 101), (15, 115), (30, 130)],  # Item pairs
             'social_desirability': list(range(196, 201)),  # 5 items
             'infrequency': [5, 25, 45, 65, 85]  # Rarely endorsed items
         }
-        
+
         # T-score conversion (Mean=50, SD=10)
         self.normative_means = {
             'depression': 8.5,
@@ -76,7 +76,7 @@ class OpenPersonalityInventory:
             'agreeableness': 11.0,
             'conscientiousness': 12.5
         }
-        
+
         self.normative_sds = {
             'depression': 4.2,
             'anxiety': 4.5,
@@ -89,21 +89,21 @@ class OpenPersonalityInventory:
             'agreeableness': 3.5,
             'conscientiousness': 4.2
         }
-    
+
     def score_opi(self, responses: Dict[int, int]) -> OPIScore:
         """
         Score the Open Personality Inventory.
-        
+
         Args:
             responses: Dictionary of item_number (1-200) -> response (0-3)
-            
+
         Returns:
             OPIScore with all scale scores and interpretation
         """
         # Calculate clinical scales
         clinical_raw = {}
         clinical_t = {}
-        
+
         for scale, items in [('depression', self.scales['depression']),
                             ('anxiety', self.scales['anxiety']),
                             ('trauma', self.scales['trauma']),
@@ -112,37 +112,37 @@ class OpenPersonalityInventory:
             raw_score = sum(responses.get(i, 0) for i in items)
             clinical_raw[scale] = raw_score
             clinical_t[scale] = self._convert_to_t_score(raw_score, scale)
-        
+
         # Calculate personality scales
         personality_raw = {}
         personality_t = {}
-        
+
         for scale in ['neuroticism', 'extraversion', 'openness', 'agreeableness', 'conscientiousness']:
             items = self.scales[scale]
             raw_score = sum(responses.get(i, 0) for i in items)
             personality_raw[scale] = raw_score
             personality_t[scale] = self._convert_to_t_score(raw_score, scale)
-        
+
         # Calculate validity scales
         validity_scores = self._calculate_validity(responses)
-        
+
         # Identify elevated scales (T-score >= 65)
         elevated = [
             scale for scale, t_score in {**clinical_t, **personality_t}.items()
             if t_score >= 65
         ]
-        
+
         # Determine profile type
         profile_type = self._determine_profile_type(clinical_t, personality_t)
-        
+
         # Generate interpretation
         interpretation = self._generate_interpretation(
             clinical_t, personality_t, validity_scores, elevated
         )
-        
+
         # Generate recommendations
         recommendations = self._generate_recommendations(elevated, clinical_t)
-        
+
         return OPIScore(
             clinical_scales=clinical_t,
             personality_scales=personality_t,
@@ -153,20 +153,20 @@ class OpenPersonalityInventory:
             recommendations=recommendations,
             scored_at=datetime.utcnow().isoformat()
         )
-    
+
     def _convert_to_t_score(self, raw_score: float, scale: str) -> float:
         """Convert raw score to T-score (M=50, SD=10)."""
         if scale not in self.normative_means:
             return 50.0
-        
+
         mean = self.normative_means[scale]
         sd = self.normative_sds[scale]
-        
+
         z_score = (raw_score - mean) / sd
         t_score = 50 + (z_score * 10)
-        
+
         return round(t_score, 1)
-    
+
     def _calculate_validity(self, responses: Dict) -> Dict[str, float]:
         """Calculate validity scale scores."""
         # Inconsistency (comparing similar item pairs)
@@ -174,29 +174,29 @@ class OpenPersonalityInventory:
         for item1, item2 in self.scales['inconsistency']:
             if abs(responses.get(item1, 0) - responses.get(item2, 0)) >= 2:
                 inconsistency_count += 1
-        
+
         # Social desirability
         sd_items = self.scales['social_desirability']
         social_desirability = sum(responses.get(i, 0) for i in sd_items)
-        
+
         # Infrequency (rarely endorsed items)
         infrequency_count = sum(
             1 for i in self.scales['infrequency']
             if responses.get(i, 0) >= 2
         )
-        
+
         return {
             'inconsistency': inconsistency_count,
             'social_desirability': social_desirability,
             'infrequency': infrequency_count,
             'profile_valid': inconsistency_count <= 2 and infrequency_count <= 3
         }
-    
+
     def _determine_profile_type(self, clinical: Dict, personality: Dict) -> str:
         """Determine overall profile type."""
         high_clinical = [s for s, t in clinical.items() if t >= 65]
         high_personality = [s for s, t in personality.items() if t >= 65 or t <= 35]
-        
+
         if not high_clinical and not high_personality:
             return "Normal Limits"
         elif len(high_clinical) >= 3:
@@ -209,7 +209,7 @@ class OpenPersonalityInventory:
             return "Emotional Dysregulation Profile"
         else:
             return "Mixed Clinical Profile"
-    
+
     def _generate_interpretation(
         self,
         clinical: Dict,
@@ -219,7 +219,7 @@ class OpenPersonalityInventory:
     ) -> str:
         """Generate narrative interpretation."""
         interp = "Open Personality Inventory Results\n\n"
-        
+
         # Validity
         if not validity['profile_valid']:
             interp += "⚠️ VALIDITY CONCERNS: Profile may not be valid due to "
@@ -229,24 +229,24 @@ class OpenPersonalityInventory:
             if validity['infrequency'] > 3:
                 issues.append("unusual response patterns")
             interp += " and ".join(issues) + ".\n\n"
-        
+
         # Clinical scales
         interp += "CLINICAL SCALES:\n"
         for scale, t_score in clinical.items():
             level = self._interpret_t_score(t_score)
             interp += f"  {scale.title()}: T={t_score} ({level})\n"
-        
+
         # Personality scales
         interp += "\nPERSONALITY DIMENSIONS:\n"
         for scale, t_score in personality.items():
             level = self._interpret_t_score(t_score)
             interp += f"  {scale.title()}: T={t_score} ({level})\n"
-        
+
         # Summary
         interp += f"\nELEVATED SCALES: {', '.join(elevated) if elevated else 'None'}\n"
-        
+
         return interp
-    
+
     def _interpret_t_score(self, t_score: float) -> str:
         """Interpret T-score level."""
         if t_score < 40:
@@ -263,32 +263,32 @@ class OpenPersonalityInventory:
             return "High"
         else:
             return "Very High"
-    
+
     def _generate_recommendations(self, elevated: List[str], clinical: Dict) -> List[str]:
         """Generate clinical recommendations."""
         recs = []
-        
+
         if 'depression' in elevated:
             recs.append("Depression treatment recommended (psychotherapy, medication evaluation)")
-        
+
         if 'anxiety' in elevated:
             recs.append("Anxiety treatment indicated (CBT, exposure therapy)")
-        
+
         if 'trauma' in elevated:
             recs.append("Trauma-focused therapy recommended (EMDR, CPT, PE)")
-        
+
         if 'psychosis' in elevated:
             recs.append("⚠️ Psychiatric evaluation urgently recommended for psychotic symptoms")
-        
+
         if 'mania' in elevated:
             recs.append("⚠️ Bipolar disorder evaluation recommended")
-        
+
         if clinical.get('depression', 0) >= 70 or clinical.get('anxiety', 0) >= 70:
             recs.append("⚠️ Severe symptoms - consider intensive treatment")
-        
+
         if not recs:
             recs.append("Continue monitoring, maintain current supports")
-        
+
         return recs
 
 
@@ -395,7 +395,7 @@ def generate_opi_items() -> Dict:
             }
         ]
     }
-    
+
     return items
 
 
@@ -403,45 +403,44 @@ def generate_opi_items() -> Dict:
 if __name__ == "__main__":
     print("Open Personality Inventory (OPI) Demo")
     print("=" * 60)
-    
+
     opi = OpenPersonalityInventory()
-    
+
     # Simulate responses (for demo)
     np.random.seed(42)
     sample_responses = {
         i: np.random.randint(0, 4)
         for i in range(1, 201)
     }
-    
+
     # Elevate depression and anxiety scales
     for i in range(1, 26):  # Depression
         sample_responses[i] = np.random.choice([2, 3])
-    
+
     for i in range(26, 51):  # Anxiety
         sample_responses[i] = np.random.choice([2, 3])
-    
+
     # Score
     result = opi.score_opi(sample_responses)
-    
+
     print("\nClinical Scales (T-scores):")
     for scale, t_score in result.clinical_scales.items():
         print(f"  {scale.title()}: T={t_score}")
-    
+
     print("\nPersonality Scales (T-scores):")
     for scale, t_score in result.personality_scales.items():
         print(f"  {scale.title()}: T={t_score}")
-    
+
     print(f"\nProfile Type: {result.profile_type}")
     print(f"Profile Valid: {result.validity_scales['profile_valid']}")
-    
+
     print("\nElevated Scales:")
     for scale in result.elevated_scales:
         print(f"  • {scale.title()}")
-    
+
     print("\nRecommendations:")
     for rec in result.recommendations:
         print(f"  • {rec}")
-    
+
     print("\n" + "=" * 60)
     print("Demo complete!")
-    

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+
 class FullTextSearchService:
     """High-performance full-text search with PostgreSQL trigram search"""
 
@@ -27,7 +28,7 @@ class FullTextSearchService:
         query: str,
         organization_id: UUID | None = None,
         limit: int = 20,
-        include_inactive: bool = False
+        include_inactive: bool = False,
     ) -> list[dict[str, Any]]:
         """
         Full-text search for users with trigram similarity and relevance ranking
@@ -88,10 +89,12 @@ class FullTextSearchService:
                 "full_name": user.full_name,
                 "is_active": user.is_active,
                 "created_at": user.created_at,
-                "organization_id": str(user.organization_id) if user.organization_id else None,
+                "organization_id": (
+                    str(user.organization_id) if user.organization_id else None
+                ),
                 "last_login_at": user.last_login_at,
                 "relevance_score": float(user.relevance_score),
-                "search_type": "full_text"
+                "search_type": "full_text",
             }
             for user in users
         ]
@@ -103,7 +106,7 @@ class FullTextSearchService:
         organization_id: UUID | None = None,
         assessment_type: str | None = None,
         status: str | None = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> list[dict[str, Any]]:
         """
         Full-text search for assessments with relevance ranking
@@ -173,17 +176,13 @@ class FullTextSearchService:
                 "user_id": str(assessment.user_id) if assessment.user_id else None,
                 "user_name": assessment.user_name,
                 "relevance_score": float(assessment.relevance_score),
-                "search_type": "full_text"
+                "search_type": "full_text",
             }
             for assessment in assessments
         ]
 
     async def get_search_suggestions(
-        self,
-        db: AsyncSession,
-        query: str,
-        search_type: str = "users",
-        limit: int = 10
+        self, db: AsyncSession, query: str, search_type: str = "users", limit: int = 10
     ) -> list[dict[str, Any]]:
         """
         Get search suggestions based on partial matches
@@ -227,8 +226,8 @@ class FullTextSearchService:
                 "similarity_score": float(row.similarity_score),
                 "metadata": {
                     "email": getattr(row, "email", None),
-                    "assessment_type": getattr(row, "assessment_type", None)
-                }
+                    "assessment_type": getattr(row, "assessment_type", None),
+                },
             }
             for row in suggestions
         ]
@@ -239,43 +238,68 @@ class FullTextSearchService:
         """
         try:
             # Create GIN index for full-text search (users)
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_full_text_search
                 ON users USING gin(to_tsvector('english', coalesce(full_name, '') || ' ' || coalesce(email, '')))
-            """))
+            """
+                )
+            )
 
             # Create GIN index for full-text search (assessments)
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assessments_full_text_search
                 ON assessments USING gin(to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '') || ' ' || coalesce(assessment_type, '')))
-            """))
+            """
+                )
+            )
 
             # Create trigram extension if not exists
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE EXTENSION IF NOT EXISTS pg_trgm
-            """))
+            """
+                )
+            )
 
             # Create trigram indexes for fuzzy matching
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_name_trgm
                 ON users USING gin(full_name gin_trgm_ops)
-            """))
+            """
+                )
+            )
 
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email_trgm
                 ON users USING gin(email gin_trgm_ops)
-            """))
+            """
+                )
+            )
 
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assessments_title_trgm
                 ON assessments USING gin(title gin_trgm_ops)
-            """))
+            """
+                )
+            )
 
             logger.info("✅ Search indexes created/updated successfully")
 
         except Exception as e:
             logger.error(f"❌ Failed to create search indexes: {e}")
             raise
+
 
 class SearchService:
     """Unified search service with multiple search strategies"""
@@ -291,7 +315,7 @@ class SearchService:
         search_types: list[str] = None,
         organization_id: UUID | None = None,
         limit_per_type: int = 10,
-        **filters
+        **filters,
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Unified search across multiple entity types
@@ -309,14 +333,20 @@ class SearchService:
             try:
                 if search_type == "users":
                     results[search_type] = await self.fulltext.search_users(
-                        db, query, organization_id, limit_per_type,
-                        filters.get("include_inactive", False)
+                        db,
+                        query,
+                        organization_id,
+                        limit_per_type,
+                        filters.get("include_inactive", False),
                     )
                 elif search_type == "assessments":
                     results[search_type] = await self.fulltext.search_assessments(
-                        db, query, organization_id, limit_per_type,
+                        db,
+                        query,
+                        organization_id,
+                        limit_per_type,
                         filters.get("assessment_type"),
-                        filters.get("status")
+                        filters.get("status"),
                     )
             except Exception as e:
                 logger.error(f"Error searching {search_type}: {e}")
@@ -325,9 +355,7 @@ class SearchService:
         return results
 
     async def get_search_analytics(
-        self,
-        db: AsyncSession,
-        organization_id: UUID | None = None
+        self, db: AsyncSession, organization_id: UUID | None = None
     ) -> dict[str, Any]:
         """
         Get analytics about search performance and popular searches
@@ -344,31 +372,48 @@ class SearchService:
             if organization_id:
                 analytics_query += " WHERE organization_id = :org_id"
 
-            result = await db.execute(text(analytics_query), {"org_id": str(organization_id)} if organization_id else {})
+            result = await db.execute(
+                text(analytics_query),
+                {"org_id": str(organization_id)} if organization_id else {},
+            )
             stats = result.fetchone()
 
             return {
                 "total_users": stats.value if stats else 0,
                 "searchable_entities": 2,  # users and assessments
-                "indexed_fields": ["full_name", "email", "title", "description", "assessment_type"],
-                "search_types": ["users", "assessments"]
+                "indexed_fields": [
+                    "full_name",
+                    "email",
+                    "title",
+                    "description",
+                    "assessment_type",
+                ],
+                "search_types": ["users", "assessments"],
             }
         except Exception as e:
             logger.error(f"Error getting search analytics: {e}")
             return {"error": str(e)}
 
+
 # Singleton instance
 search_service = SearchService()
+
 
 # Convenience functions
 async def search_users(db: AsyncSession, query: str, **kwargs) -> list[dict[str, Any]]:
     """Search users with full-text optimization"""
     return await search_service.fulltext.search_users(db, query, **kwargs)
 
-async def search_assessments(db: AsyncSession, query: str, **kwargs) -> list[dict[str, Any]]:
+
+async def search_assessments(
+    db: AsyncSession, query: str, **kwargs
+) -> list[dict[str, Any]]:
     """Search assessments with full-text optimization"""
     return await search_service.fulltext.search_assessments(db, query, **kwargs)
 
-async def get_search_suggestions(db: AsyncSession, query: str, **kwargs) -> list[dict[str, Any]]:
+
+async def get_search_suggestions(
+    db: AsyncSession, query: str, **kwargs
+) -> list[dict[str, Any]]:
     """Get search suggestions based on partial matches"""
     return await search_service.fulltext.get_search_suggestions(db, query, **kwargs)

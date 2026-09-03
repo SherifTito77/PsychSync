@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -44,22 +48,22 @@ def request_data_export(client, auth_headers):
     response = client.post(
         "/data-export",
         json={},
-        params={'background_tasks': 'test_value', 'format': 'test_value'}
+        params={"background_tasks": "test_value", "format": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -67,12 +71,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -86,9 +91,7 @@ def download_export(client, auth_headers):
     Download exported data file
     """
     # TODO: Implement test logic
-    response = client.get("/download/{filename}",
-        params={'filename': 'test_value'}
-    )
+    response = client.get("/download/{filename}", params={"filename": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -96,16 +99,16 @@ def download_export(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -113,12 +116,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -132,23 +136,24 @@ def request_data_deletion(client, auth_headers):
     Request deletion of user data (GDPR Right to be Forgotten)
     """
     # TODO: Implement test logic
-    response = client.delete("/user-data",
-        params={'deletion_reason': 'test_value', 'soft_delete': 'test_value'}
+    response = client.delete(
+        "/user-data",
+        params={"deletion_reason": "test_value", "soft_delete": "test_value"},
     )
 
     assert response.status_code in [200, 204]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -156,12 +161,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -175,9 +181,7 @@ def get_privacy_policy(client):
     Get current or specific privacy policy version
     """
     # TODO: Implement test logic
-    response = client.get("/privacy-policy",
-        params={'version': 'test_value'}
-    )
+    response = client.get("/privacy-policy", params={"version": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -185,16 +189,16 @@ def get_privacy_policy(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -202,12 +206,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -221,8 +226,8 @@ def list_privacy_policy_versions(client):
     List all privacy policy versions
     """
     # TODO: Implement test logic
-    response = client.get("/privacy-policy/versions",
-        params={'include_inactive': 'test_value'}
+    response = client.get(
+        "/privacy-policy/versions", params={"include_inactive": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -231,16 +236,16 @@ def list_privacy_policy_versions(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -248,12 +253,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -267,25 +273,21 @@ def update_consent(client, auth_headers):
     Update user consent preferences
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/consent",
-        json={},
-        params={'consent_data': 'test_value'}
-    )
+    response = client.post("/consent", json={}, params={"consent_data": "test_value"})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -293,12 +295,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -312,9 +315,7 @@ def get_user_consents(client, auth_headers):
     Get user's current consent status and history
     """
     # TODO: Implement test logic
-    response = client.get("/consent",
-        params={'include_history': 'test_value'}
-    )
+    response = client.get("/consent", params={"include_history": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -322,16 +323,16 @@ def get_user_consents(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -339,12 +340,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -358,8 +360,9 @@ def check_consent(client, auth_headers):
     Check if user has valid consent for a specific purpose
     """
     # TODO: Implement test logic
-    response = client.get("/consent/check/{consent_type}",
-        params={'consent_type': 'test_value', 'granular_check': 'test_value'}
+    response = client.get(
+        "/consent/check/{consent_type}",
+        params={"consent_type": "test_value", "granular_check": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -368,16 +371,16 @@ def check_consent(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -385,12 +388,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -404,8 +408,14 @@ def get_user_audit_logs(client, auth_headers):
     Get user's audit logs (GDPR transparency requirement)
     """
     # TODO: Implement test logic
-    response = client.get("/audit-logs",
-        params={'page': 'test_value', 'limit': 'test_value', 'start_date': 'test_value', 'end_date': 'test_value'}
+    response = client.get(
+        "/audit-logs",
+        params={
+            "page": "test_value",
+            "limit": "test_value",
+            "start_date": "test_value",
+            "end_date": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -414,16 +424,16 @@ def get_user_audit_logs(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -431,12 +441,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -450,10 +461,7 @@ def get_user_data_summary(client, auth_headers):
     Get summary of user's stored data (GDPR transparency requirement)
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/data-summary"
-        
-    )
+    response = client.get("/data-summary")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -461,16 +469,16 @@ def get_user_data_summary(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -478,12 +486,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -498,9 +507,7 @@ def initiate_compliance_request(client, auth_headers):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/initiate-compliance-request",
-        json={},
-        params={'request_data': 'test_value'}
+        "/initiate-compliance-request", json={}, params={"request_data": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]

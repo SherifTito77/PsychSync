@@ -114,7 +114,9 @@ class UserRepository(ABC):
         """
 
     @abstractmethod
-    async def email_exists(self, email: str, exclude_user_id: str | None = None) -> bool:
+    async def email_exists(
+        self, email: str, exclude_user_id: str | None = None
+    ) -> bool:
         """
         Check if an email address already exists in the repository
 

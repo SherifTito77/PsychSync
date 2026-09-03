@@ -17,23 +17,21 @@ Author: Security Team
 Version: 1.0
 """
 
+import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import json
-import logging
 from typing import Any
 
-from app.services.data_encryption_service import (
-    DataEncryptionService,
-    EncryptionResult,
-)
+from app.services.data_encryption_service import DataEncryptionService, EncryptionResult
 
 logger = logging.getLogger(__name__)
 
 
 class FieldSensitivity(Enum):
     """Field sensitivity levels for encryption key selection"""
+
     PUBLIC = "public"  # No encryption needed
     INTERNAL = "internal"  # Basic encryption
     CONFIDENTIAL = "confidential"  # Standard encryption
@@ -44,6 +42,7 @@ class FieldSensitivity(Enum):
 @dataclass
 class FieldEncryptionMetadata:
     """Metadata for encrypted field"""
+
     field_name: str
     sensitivity: FieldSensitivity
     encrypted_value: str
@@ -85,27 +84,23 @@ class FieldLevelEncryptionService:
                 "ssn": FieldSensitivity.RESTRICTED,  # If added
                 "preferences": FieldSensitivity.INTERNAL,
             },
-
             # Organization model fields
             "Organization": {
                 "name": FieldSensitivity.INTERNAL,
                 "billing_info": FieldSensitivity.RESTRICTED,
                 "api_key": FieldSensitivity.CRITICAL,
             },
-
             # Team model fields
             "Team": {
                 "name": FieldSensitivity.INTERNAL,
                 "description": FieldSensitivity.INTERNAL,
             },
-
             # Assessment model fields
             "Assessment": {
                 "title": FieldSensitivity.INTERNAL,
                 "questions": FieldSensitivity.CONFIDENTIAL,
                 "scoring_algorithm": FieldSensitivity.INTERNAL,
             },
-
             # Response model fields
             "Response": {
                 "answers": FieldSensitivity.CONFIDENTIAL,
@@ -114,11 +109,7 @@ class FieldLevelEncryptionService:
             },
         }
 
-    def should_encrypt(
-        self,
-        model_name: str,
-        field_name: str
-    ) -> bool:
+    def should_encrypt(self, model_name: str, field_name: str) -> bool:
         """
         Check if field should be encrypted
 
@@ -135,9 +126,7 @@ class FieldLevelEncryptionService:
         return field_name in self.encryption_rules[model_name]
 
     def get_field_sensitivity(
-        self,
-        model_name: str,
-        field_name: str
+        self, model_name: str, field_name: str
     ) -> FieldSensitivity | None:
         """
         Get sensitivity level for a field
@@ -155,11 +144,7 @@ class FieldLevelEncryptionService:
         return self.encryption_rules[model_name][field_name]
 
     def encrypt_field(
-        self,
-        model_name: str,
-        field_name: str,
-        value: Any,
-        user_id: str | None = None
+        self, model_name: str, field_name: str, value: Any, user_id: str | None = None
     ) -> str:
         """
         Encrypt a field value
@@ -195,8 +180,7 @@ class FieldLevelEncryptionService:
         # Encrypt the value
         try:
             result: EncryptionResult = self.encryption_service.encrypt_pii(
-                value,
-                key_id=key_id
+                value, key_id=key_id
             )
 
             # Create metadata
@@ -206,7 +190,7 @@ class FieldLevelEncryptionService:
                 "algorithm": result.algorithm,
                 "nonce": result.nonce,
                 "sensitivity": sensitivity.value,
-                "encrypted_at": result.timestamp.isoformat()
+                "encrypted_at": result.timestamp.isoformat(),
             }
 
             # Log encryption event
@@ -216,8 +200,8 @@ class FieldLevelEncryptionService:
                     "model": model_name,
                     "field": field_name,
                     "sensitivity": sensitivity.value,
-                    "user_id": user_id
-                }
+                    "user_id": user_id,
+                },
             )
 
             return json.dumps(metadata)
@@ -231,7 +215,7 @@ class FieldLevelEncryptionService:
         model_name: str,
         field_name: str,
         encrypted_value: str,
-        user_id: str | None = None
+        user_id: str | None = None,
     ) -> Any:
         """
         Decrypt a field value
@@ -256,16 +240,12 @@ class FieldLevelEncryptionService:
 
             # Decrypt the value
             decrypted = self.encryption_service.decrypt_pii(
-                encrypted_data,
-                key_id=key_id
+                encrypted_data, key_id=key_id
             )
 
             # Log access
             self._log_field_access(
-                model_name,
-                field_name,
-                user_id,
-                metadata.get("sensitivity", "unknown")
+                model_name, field_name, user_id, metadata.get("sensitivity", "unknown")
             )
 
             return decrypted
@@ -274,10 +254,7 @@ class FieldLevelEncryptionService:
             logger.error(f"Field decryption failed: {e!s}")
             raise ValueError(f"Decryption failed: {e!s}")
 
-    def _get_key_for_sensitivity(
-        self,
-        sensitivity: FieldSensitivity
-    ) -> str:
+    def _get_key_for_sensitivity(self, sensitivity: FieldSensitivity) -> str:
         """
         Get appropriate encryption key for sensitivity level
 
@@ -297,11 +274,7 @@ class FieldLevelEncryptionService:
         return key_mapping.get(sensitivity, "internal_key_v1")
 
     def _log_field_access(
-        self,
-        model_name: str,
-        field_name: str,
-        user_id: str | None,
-        sensitivity: str
+        self, model_name: str, field_name: str, user_id: str | None, sensitivity: str
     ) -> None:
         """
         Log field access for audit trail
@@ -320,7 +293,7 @@ class FieldLevelEncryptionService:
         access_record = {
             "user_id": user_id,
             "accessed_at": datetime.utcnow().isoformat(),
-            "sensitivity": sensitivity
+            "sensitivity": sensitivity,
         }
 
         self.field_access_log[field_key].append(access_record)
@@ -335,15 +308,12 @@ class FieldLevelEncryptionService:
                 "model": model_name,
                 "field": field_name,
                 "user_id": user_id,
-                "sensitivity": sensitivity
-            }
+                "sensitivity": sensitivity,
+            },
         )
 
     def get_field_access_log(
-        self,
-        model_name: str,
-        field_name: str,
-        limit: int = 100
+        self, model_name: str, field_name: str, limit: int = 100
     ) -> list[dict]:
         """
         Get access log for a field
@@ -364,7 +334,7 @@ class FieldLevelEncryptionService:
         model_name: str,
         field_name: str,
         encrypted_value: str,
-        new_key_id: str | None = None
+        new_key_id: str | None = None,
     ) -> str:
         """
         Rotate encryption for a field (decrypt with old key, encrypt with new)
@@ -380,11 +350,7 @@ class FieldLevelEncryptionService:
         """
         try:
             # Decrypt with current key
-            decrypted = self.decrypt_field(
-                model_name,
-                field_name,
-                encrypted_value
-            )
+            decrypted = self.decrypt_field(model_name, field_name, encrypted_value)
 
             # Get sensitivity
             sensitivity = self.get_field_sensitivity(model_name, field_name)
@@ -395,8 +361,7 @@ class FieldLevelEncryptionService:
 
             # Encrypt with new key
             result: EncryptionResult = self.encryption_service.encrypt_pii(
-                decrypted,
-                key_id=new_key_id
+                decrypted, key_id=new_key_id
             )
 
             # Create new metadata
@@ -407,7 +372,7 @@ class FieldLevelEncryptionService:
                 "nonce": result.nonce,
                 "sensitivity": sensitivity.value,
                 "encrypted_at": result.timestamp.isoformat(),
-                "rotated": True
+                "rotated": True,
             }
 
             logger.info(
@@ -416,8 +381,8 @@ class FieldLevelEncryptionService:
                     "model": model_name,
                     "field": field_name,
                     "old_key_id": json.loads(encrypted_value).get("key_id"),
-                    "new_key_id": new_key_id
-                }
+                    "new_key_id": new_key_id,
+                },
             )
 
             return json.dumps(metadata)
@@ -427,10 +392,7 @@ class FieldLevelEncryptionService:
             raise
 
     def bulk_encrypt_fields(
-        self,
-        model_name: str,
-        data: dict[str, Any],
-        user_id: str | None = None
+        self, model_name: str, data: dict[str, Any], user_id: str | None = None
     ) -> dict[str, str]:
         """
         Encrypt multiple fields in a record
@@ -449,10 +411,7 @@ class FieldLevelEncryptionService:
             if self.should_encrypt(model_name, field_name):
                 try:
                     encrypted_fields[field_name] = self.encrypt_field(
-                        model_name,
-                        field_name,
-                        value,
-                        user_id
+                        model_name, field_name, value, user_id
                     )
                 except Exception as e:
                     logger.error(f"Failed to encrypt {field_name}: {e!s}")
@@ -463,7 +422,7 @@ class FieldLevelEncryptionService:
         self,
         model_name: str,
         encrypted_data: dict[str, str],
-        user_id: str | None = None
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Decrypt multiple fields in a record
@@ -482,10 +441,7 @@ class FieldLevelEncryptionService:
             if self.should_encrypt(model_name, field_name):
                 try:
                     decrypted_fields[field_name] = self.decrypt_field(
-                        model_name,
-                        field_name,
-                        encrypted_value,
-                        user_id
+                        model_name, field_name, encrypted_value, user_id
                     )
                 except Exception as e:
                     logger.error(f"Failed to decrypt {field_name}: {e!s}")
@@ -503,5 +459,6 @@ def get_field_encryption_service() -> FieldLevelEncryptionService:
     global field_encryption_service
     if field_encryption_service is None:
         from app.main import encryption_service
+
         field_encryption_service = FieldLevelEncryptionService(encryption_service)
     return field_encryption_service

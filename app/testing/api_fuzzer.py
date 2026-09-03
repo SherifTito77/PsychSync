@@ -20,19 +20,19 @@ Usage:
     python app/testing/api_fuzzer.py --target http://localhost:8000 --threads 10
 """
 
+import argparse
 import asyncio
-import aiohttp
+import json
 import random
 import string
-import json
-import uuid
-from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from enum import Enum
-import argparse
 import sys
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
+import aiohttp
 
 # =============================================================================
 # Fuzzing Strategy Classes

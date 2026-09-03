@@ -6,17 +6,17 @@ Comprehensive smoke tests to verify deployment health and critical functionality
 These tests run after deployment to ensure the system is working correctly.
 """
 
-import asyncio
-import aiohttp
 import argparse
+import asyncio
 import json
 import sys
 import time
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
+import aiohttp
 import requests
 from requests.exceptions import RequestException
 
@@ -75,7 +75,7 @@ class SmokeTestSuite:
                 try:
                     response_data = await response.json()
                     details["response_data"] = response_data
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     response_text = await response.text()
                     details["response_text"] = response_text[:500]  # Limit length
 

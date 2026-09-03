@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from datetime import datetime, timedelta
+
 from app.core.database import AsyncSessionLocal
 from app.db.models.ab_testing import ABExperiment, ABVariant
 from app.db.models.feature_requests import FeatureRequest
@@ -21,11 +22,11 @@ from app.db.models.user import User
 async def seed_experiments():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -49,8 +50,8 @@ Returns:
             config={
                 "hypothesis": "Green CTA button will increase click-through rate by 5%",
                 "variants": ["control", "variant_a", "variant_b"],
-                "traffic_split": {"control": 0.5, "variant_a": 0.25, "variant_b": 0.25}
-            }
+                "traffic_split": {"control": 0.5, "variant_a": 0.25, "variant_b": 0.25},
+            },
         )
         db.add(experiment1)
         await db.flush()
@@ -60,19 +61,19 @@ Returns:
             experiment_id=experiment1.id,
             name="control",
             traffic_split=0.5,
-            is_control=True
+            is_control=True,
         )
         variant1_a = ABVariant(
             experiment_id=experiment1.id,
             name="variant_a",
             traffic_split=0.25,
-            is_control=False
+            is_control=False,
         )
         variant1_b = ABVariant(
             experiment_id=experiment1.id,
             name="variant_b",
             traffic_split=0.25,
-            is_control=False
+            is_control=False,
         )
         db.add_all([variant1_control, variant1_a, variant1_b])
 
@@ -86,8 +87,8 @@ Returns:
             config={
                 "hypothesis": "Reducing fields will increase email verification rate by 12%",
                 "target_metrics": ["email_verification_rate", "time_to_verify"],
-                "sample_size": 24000
-            }
+                "sample_size": 24000,
+            },
         )
         db.add(experiment2)
         await db.flush()
@@ -97,19 +98,19 @@ Returns:
             experiment_id=experiment2.id,
             name="control",
             traffic_split=0.5,
-            is_control=True
+            is_control=True,
         )
         variant2_a = ABVariant(
             experiment_id=experiment2.id,
             name="variant_a",
             traffic_split=0.25,
-            is_control=False
+            is_control=False,
         )
         variant2_b = ABVariant(
             experiment_id=experiment2.id,
             name="variant_b",
             traffic_split=0.25,
-            is_control=False
+            is_control=False,
         )
         db.add_all([variant2_control, variant2_a, variant2_b])
 
@@ -125,11 +126,11 @@ Returns:
 async def seed_feature_requests():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -159,7 +160,7 @@ Returns:
             effort="M",
             value="V2",
             source_type="internal",
-            submitted_by=test_user[0] if test_user else None
+            submitted_by=test_user[0] if test_user else None,
         )
         # Calculate RICE score
         fr1.reach_score = 3.0  # >1000 users would use
@@ -182,7 +183,7 @@ Returns:
             value="V2",
             source_type="customer",
             submitted_by=test_user[0] if test_user else None,
-            opportunity_id="DEAL-001"
+            opportunity_id="DEAL-001",
         )
         fr2.reach_score = 2.0  # 500-1000 users
         fr2.impact_score = 2.0  # High impact
@@ -204,7 +205,7 @@ Returns:
             value="V1",
             source_type="customer",
             submitted_by=test_user[0] if test_user else None,
-            target_release="Q2 2025"
+            target_release="Q2 2025",
         )
         fr3.reach_score = 1.0  # <500 users initially
         fr3.impact_score = 3.0  # Massive impact for enterprise
@@ -225,11 +226,11 @@ Returns:
 async def main():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 

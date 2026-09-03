@@ -3,10 +3,10 @@ Enterprise Sales and Customer Success Service
 B2B infrastructure for enterprise account management and customer success
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -325,7 +325,8 @@ class EnterpriseSalesService:
                 customer_success_manager=customer_success_manager,
                 contract_value=contract_value,
                 contract_start=datetime.utcnow(),
-                contract_end=datetime.utcnow() + timedelta(days=contract_term_months * 30),
+                contract_end=datetime.utcnow()
+                + timedelta(days=contract_term_months * 30),
                 users_licensed=users_licensed,
                 users_active=0,
                 sla_tier=sla_tier,
@@ -354,23 +355,33 @@ class EnterpriseSalesService:
         """Calculate comprehensive customer health score"""
         try:
             # Get organization data
-            organization = db.query(Organization).filter(Organization.id == organization_id).first()
+            organization = (
+                db.query(Organization)
+                .filter(Organization.id == organization_id)
+                .first()
+            )
 
             if not organization:
                 raise ValueError(f"Organization {organization_id} not found")
 
             # Get usage metrics
             usage_metrics = await self._calculate_usage_metrics(organization_id, db)
-            adoption_metrics = await self._calculate_adoption_metrics(organization_id, db)
+            adoption_metrics = await self._calculate_adoption_metrics(
+                organization_id, db
+            )
             support_metrics = await self._calculate_support_metrics(organization_id, db)
 
             # Calculate component scores
             usage_score = min(100, usage_metrics["usage_frequency"] * 100)
-            adoption_score = min(100, adoption_metrics["feature_adoption_percentage"] * 100)
+            adoption_score = min(
+                100, adoption_metrics["feature_adoption_percentage"] * 100
+            )
             support_score = max(
                 0, 100 - (support_metrics["open_tickets"] * 10)
             )  # Penalty for tickets
-            nps_score = support_metrics.get("nps_score", 70)  # Default NPS if not available
+            nps_score = support_metrics.get(
+                "nps_score", 70
+            )  # Default NPS if not available
             engagement_score = min(100, usage_metrics["team_engagement"] * 100)
 
             # Weighted health score calculation
@@ -401,7 +412,9 @@ class EnterpriseSalesService:
             key_risks = self._identify_health_risks(
                 usage_metrics, adoption_metrics, support_metrics
             )
-            opportunities = self._identify_growth_opportunities(usage_metrics, adoption_metrics)
+            opportunities = self._identify_growth_opportunities(
+                usage_metrics, adoption_metrics
+            )
 
             # Create health metrics
             health_metrics = CustomerHealthMetrics(
@@ -424,7 +437,9 @@ class EnterpriseSalesService:
             return health_metrics
 
         except Exception as e:
-            logger.error(f"Failed to calculate customer health for org {organization_id}: {e!s}")
+            logger.error(
+                f"Failed to calculate customer health for org {organization_id}: {e!s}"
+            )
             raise
 
     async def generate_expansion_opportunities(
@@ -432,7 +447,11 @@ class EnterpriseSalesService:
     ) -> list[dict[str, Any]]:
         """Identify expansion and upsell opportunities"""
         try:
-            organization = db.query(Organization).filter(Organization.id == organization_id).first()
+            organization = (
+                db.query(Organization)
+                .filter(Organization.id == organization_id)
+                .first()
+            )
 
             if not organization:
                 raise ValueError(f"Organization {organization_id} not found")
@@ -449,7 +468,8 @@ class EnterpriseSalesService:
                         "type": "license_expansion",
                         "description": "Approaching user limit - consider additional licenses",
                         "potential_value": (
-                            usage_metrics["active_users"] - usage_metrics["licensed_users"]
+                            usage_metrics["active_users"]
+                            - usage_metrics["licensed_users"]
                         )
                         * 50,
                         "priority": "high",
@@ -458,7 +478,9 @@ class EnterpriseSalesService:
                 )
 
             # Feature upgrade opportunities
-            adoption_metrics = await self._calculate_adoption_metrics(organization_id, db)
+            adoption_metrics = await self._calculate_adoption_metrics(
+                organization_id, db
+            )
 
             # Advanced analytics upgrade
             if (
@@ -476,7 +498,10 @@ class EnterpriseSalesService:
                 )
 
             # Clinical module opportunity
-            if "healthcare" in organization.name.lower() or "clinic" in organization.name.lower():
+            if (
+                "healthcare" in organization.name.lower()
+                or "clinic" in organization.name.lower()
+            ):
                 opportunities.append(
                     {
                         "type": "clinical_module",
@@ -489,7 +514,10 @@ class EnterpriseSalesService:
 
             # Custom integration opportunity
             tech_stack = await self._analyze_tech_stack(organization_id)
-            if tech_stack.get("has_sso", False) and organization.subscription_tier != "enterprise":
+            if (
+                tech_stack.get("has_sso", False)
+                and organization.subscription_tier != "enterprise"
+            ):
                 opportunities.append(
                     {
                         "type": "enterprise_integration",
@@ -528,7 +556,9 @@ class EnterpriseSalesService:
             sla_metrics = self.sla_metrics[sla_tier]
 
             # Calculate actual uptime (this would integrate with monitoring systems)
-            actual_uptime = await self._calculate_actual_uptime(date_range_start, date_range_end)
+            actual_uptime = await self._calculate_actual_uptime(
+                date_range_start, date_range_end
+            )
 
             # Calculate support response times (this would integrate with support systems)
             support_metrics = await self._calculate_support_metrics(
@@ -544,7 +574,9 @@ class EnterpriseSalesService:
             breaches = []
 
             if uptime_breach > 0:
-                uptime_credit = (uptime_breach / 100) * sla_metrics.compensation_percentage
+                uptime_credit = (
+                    uptime_breach / 100
+                ) * sla_metrics.compensation_percentage
                 total_compensation += uptime_credit
                 breaches.append(
                     {
@@ -590,31 +622,44 @@ class EnterpriseSalesService:
             raise
 
     async def schedule_qbr(
-        self, organization_id: int, qbr_type: str = "quarterly", attendees: list[str] = None
+        self,
+        organization_id: int,
+        qbr_type: str = "quarterly",
+        attendees: list[str] = None,
     ) -> dict[str, Any]:
         """Schedule Quarterly Business Review"""
         try:
             # Get account information
-            health_metrics = await self.calculate_customer_health(organization_id, db=None)
-            opportunities = await self.generate_expansion_opportunities(organization_id, db=None)
+            health_metrics = await self.calculate_customer_health(
+                organization_id, db=None
+            )
+            opportunities = await self.generate_expansion_opportunities(
+                organization_id, db=None
+            )
 
             # Prepare QBR content
             qbr_content = {
                 "account_health": health_metrics,
                 "usage_highlights": await self._get_usage_highlights(organization_id),
-                "value_realization": await self._calculate_value_realization(organization_id),
+                "value_realization": await self._calculate_value_realization(
+                    organization_id
+                ),
                 "expansion_opportunities": opportunities,
                 "success_stories": await self._get_success_stories(organization_id),
-                "recommendations": await self._generate_recommendations(organization_id),
+                "recommendations": await self._generate_recommendations(
+                    organization_id
+                ),
             }
 
             # Schedule QBR meeting (this would integrate with calendaring)
             qbr_scheduled = {
                 "organization_id": organization_id,
                 "qbr_type": qbr_type,
-                "scheduled_date": datetime.utcnow() + timedelta(weeks=2),  # Schedule 2 weeks out
+                "scheduled_date": datetime.utcnow()
+                + timedelta(weeks=2),  # Schedule 2 weeks out
                 "duration_minutes": 60,
-                "attendees": attendees or ["Customer Success Manager", "Account Executive"],
+                "attendees": attendees
+                or ["Customer Success Manager", "Account Executive"],
                 "meeting_link": f"https://zoom.us/meeting/qbr_{organization_id}_{int(datetime.utcnow().timestamp())}",
                 "preparation_required": True,
                 "content_package": qbr_content,
@@ -624,7 +669,9 @@ class EnterpriseSalesService:
             return qbr_scheduled
 
         except Exception as e:
-            logger.error(f"Failed to schedule QBR for organization {organization_id}: {e!s}")
+            logger.error(
+                f"Failed to schedule QBR for organization {organization_id}: {e!s}"
+            )
             raise
 
     async def _schedule_success_plays(self, account: EnterpriseAccount, play_type: str):
@@ -641,7 +688,9 @@ class EnterpriseSalesService:
                     "timeline": play["timeline"],
                     "owner": play["owner"],
                     "template": play["template"],
-                    "scheduled_date": self._calculate_schedule_date(account, play["timeline"]),
+                    "scheduled_date": self._calculate_schedule_date(
+                        account, play["timeline"]
+                    ),
                     "status": "scheduled",
                 }
 
@@ -662,7 +711,9 @@ class EnterpriseSalesService:
         }
         return mapping.get(tier, SLATier.BASIC)
 
-    async def _calculate_usage_metrics(self, organization_id: int, db: Session) -> dict[str, Any]:
+    async def _calculate_usage_metrics(
+        self, organization_id: int, db: Session
+    ) -> dict[str, Any]:
         """Calculate detailed usage metrics"""
         # This would integrate with analytics systems
         # Mock implementation for demonstration
@@ -687,7 +738,9 @@ class EnterpriseSalesService:
             "team_features_usage": 0.45,
         }
 
-    async def _calculate_support_metrics(self, organization_id: int, db: Session) -> dict[str, Any]:
+    async def _calculate_support_metrics(
+        self, organization_id: int, db: Session
+    ) -> dict[str, Any]:
         """Calculate support ticket metrics"""
         # This would integrate with support systems (Zendesk, etc.)
         return {
@@ -737,7 +790,9 @@ class EnterpriseSalesService:
 
         return opportunities
 
-    def _calculate_schedule_date(self, account: EnterpriseAccount, timeline: str) -> datetime:
+    def _calculate_schedule_date(
+        self, account: EnterpriseAccount, timeline: str
+    ) -> datetime:
         """Calculate schedule date based on timeline string"""
         now = datetime.utcnow()
 

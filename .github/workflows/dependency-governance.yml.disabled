@@ -88,7 +88,7 @@ jobs:
         run: |
           python3 << 'EOF'
           import re
-          
+
           # Parse allow-list
           allowed = {}
           with open('allowed-dependencies.txt', 'r') as f:
@@ -98,7 +98,7 @@ jobs:
                       if match:
                           pkg, min_ver, max_ver = match.groups()
                           allowed[pkg] = (min_ver, max_ver)
-          
+
           # Check requirements.txt
           violations = []
           with open('requirements.txt', 'r') as f:
@@ -112,7 +112,7 @@ jobs:
                               min_ver, max_ver = allowed[pkg]
                               if ver < min_ver or ver > max_ver:
                                   violations.append(f"{pkg}=={ver} (allowed: {min_ver}-{max_ver})")
-          
+
           if violations:
               print("::error::Dependency versions outside allow-list range:")
               for v in violations:
@@ -133,19 +133,19 @@ jobs:
           node << 'EOF'
           const pkg = require('./package.json');
           const allowlist = require('./allowed-dependencies.json');
-          
+
           const violations = [];
-          
+
           function checkDeps(deps, allowlistDeps) {
               Object.entries(deps || {}).forEach(([name, version]) => {
                   // Remove ^ or ~ from version
                   const cleanVer = version.replace(/^[\^~]/, '');
-                  
+
                   // Check if in allowlist
                   const allowed = Object.values(allowlistDeps || {}).find(
                       cat => cat[name] || cat[name.replace('@types/', '')]
                   );
-                  
+
                   if (allowed) {
                       const dep = allowed[name] || allowed[name.replace('@types/', '')];
                       if (dep) {
@@ -157,10 +157,10 @@ jobs:
                   }
               });
           }
-          
+
           checkDeps(pkg.dependencies, allowlist.allowedDependencies);
           checkDeps(pkg.devDependencies, allowlist.allowedDependencies);
-          
+
           if (violations.length > 0) {
               console.log('::error::Dependency versions outside allow-list range:');
               violations.forEach(v => console.log(`  - ${v}`));
@@ -190,20 +190,20 @@ jobs:
           node << 'EOF'
           const pkg = require('./package.json');
           const allowlist = require('./allowed-dependencies.json');
-          
+
           const allDeps = {
               ...pkg.dependencies,
               ...pkg.devDependencies
           };
-          
+
           const blocked = {
               dangerous: allowlist.blockedDependencies?.dangerous || [],
               deprecated: allowlist.blockedDependencies?.deprecated || [],
               vulnerableHistory: allowlist.blockedDependencies?.vulnerableHistory || []
           };
-          
+
           const violations = [];
-          
+
           Object.keys(allDeps).forEach(dep => {
               // Check all blocked categories
               Object.entries(blocked).forEach(([category, blockedList]) => {
@@ -214,7 +214,7 @@ jobs:
                   });
               });
           });
-          
+
           if (violations.length > 0) {
               console.log('::error::Blocked dependencies found:');
               violations.forEach(v => console.log(`  ✗ ${v}`));
@@ -383,18 +383,18 @@ jobs:
         run: |
           echo "## 📦 Dependency Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Count Python dependencies
           PY_COUNT=$(grep -E '^[a-zA-Z0-9_-]+' allowed-dependencies.txt | grep -v '^#' | wc -l | tr -d ' ')
           echo "### Python Dependencies" >> $GITHUB_STEP_SUMMARY
           echo "- **Total Approved**: $PY_COUNT" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -f "requirements.txt" ]; then
               CURRENT_PY=$(grep -E '^[a-zA-Z0-9_-]+' requirements.txt | grep -v '^#' | wc -l | tr -d ' ')
               echo "- **Currently Used**: $CURRENT_PY" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Count JavaScript dependencies
           echo "### JavaScript Dependencies" >> $GITHUB_STEP_SUMMARY
           if [ -f "frontend/package.json" ]; then
@@ -404,7 +404,7 @@ jobs:
               cd ..
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Governance status
           echo "### ✅ Governance Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

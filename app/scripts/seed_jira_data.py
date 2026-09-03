@@ -12,10 +12,9 @@ Usage:
 import asyncio
 import logging
 import random
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-
-import sys
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -25,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.db.models.jira_integration import JiraIssue, JiraBugSummary, JiraSprintMetrics
+from app.db.models.jira_integration import JiraBugSummary, JiraIssue, JiraSprintMetrics
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -156,11 +155,11 @@ SAMPLE_SPRINTS = [
 async def seed_jira_issues(db: AsyncSession) -> list[JiraIssue]:
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -192,9 +191,17 @@ Returns:
             assignee_name=bug_data["assignee_name"],
             created_at=created_date,
             updated_at=created_date + timedelta(hours=random.randint(1, 48)),
-            resolved_at=created_date + timedelta(days=random.randint(1, 14)) if bug_data["status"] in ["Resolved", "Closed"] else None,
+            resolved_at=(
+                created_date + timedelta(days=random.randint(1, 14))
+                if bug_data["status"] in ["Resolved", "Closed"]
+                else None
+            ),
             time_estimate=random.randint(3600, 14400),  # 1-4 hours in seconds
-            time_spent=random.randint(1800, 10800) if bug_data["status"] in ["Resolved", "Closed"] else None,
+            time_spent=(
+                random.randint(1800, 10800)
+                if bug_data["status"] in ["Resolved", "Closed"]
+                else None
+            ),
             sprint_id="sprint-42" if random.random() > 0.5 else "sprint-43",
             sprint_name="Sprint 42" if random.random() > 0.5 else "Sprint 43",
             project_key=project_key,
@@ -217,11 +224,11 @@ Returns:
 async def seed_bug_summaries(db: AsyncSession) -> list[JiraBugSummary]:
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -297,11 +304,11 @@ Returns:
 async def seed_sprint_metrics(db: AsyncSession) -> list[JiraSprintMetrics]:
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -340,11 +347,11 @@ Returns:
 async def seed_all_data():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 

@@ -4,27 +4,28 @@ Communication Analysis API Endpoints
 Provides insights into behavioral patterns and communication analytics
 """
 
-from typing import List, Dict, Any, Optional
-
-from app.middleware.rate_limiter import check_rate_limit
+import asyncio
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional
 
-from app.api.deps import get_current_user, get_db
-from app.db.models.user import User
-from app.services.nlp_analysis_service import nlp_analysis_service
-from app.services.communication_pattern_service import communication_pattern_service
-from app.services.culture_health_service import culture_health_service
-from app.services.coaching_recommendation_service import coaching_recommendation_service
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_async_db, get_current_active_user
+from app.core.logging_config import logger
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
+from app.db.models.coaching_recommendations import CoachingRecommendation
 from app.db.models.communication_analysis import CommunicationAnalysis
 from app.db.models.communication_patterns import CommunicationPatterns
-from app.db.models.culture_metrics import CultureMetrics
-from app.db.models.coaching_recommendations import CoachingRecommendation
-from app.core.logging_config import logger
+from app.db.models.user import User
+from app.services.coaching_recommendation_service import coaching_recommendation_service
+from app.services.communication_pattern_service import communication_pattern_service
+from app.services.culture_health_service import culture_health_service
+from app.services.nlp_analysis_service import nlp_analysis_service
 
 router = APIRouter()
+
 
 # Pydantic models for responses
 class SentimentAnalysisResponse(BaseModel):
@@ -32,10 +33,12 @@ class SentimentAnalysisResponse(BaseModel):
     confidence: float
     label: str
 
+
 class EmotionAnalysisResponse(BaseModel):
     emotions: Dict[str, float]
     dominant_emotion: str
     emotional_intensity: float
+
 
 class BehavioralIndicatorsResponse(BaseModel):
     communication_style: str
@@ -44,6 +47,7 @@ class BehavioralIndicatorsResponse(BaseModel):
     collaboration_score: float
     conflict_tendency: float
     burnout_risk: float
+
 
 class CommunicationPatternsResponse(BaseModel):
     period_start: datetime
@@ -56,6 +60,7 @@ class CommunicationPatternsResponse(BaseModel):
     burnout_risk_score: float
     network_centrality_score: float
 
+
 class CultureHealthResponse(BaseModel):
     psychological_safety_score: float
     collaboration_score: float
@@ -65,6 +70,7 @@ class CultureHealthResponse(BaseModel):
     health_level: str
     risk_factors: List[str]
     strengths: List[str]
+
 
 class CoachingRecommendationResponse(BaseModel):
     id: str
@@ -77,6 +83,7 @@ class CoachingRecommendationResponse(BaseModel):
     confidence_score: float
     created_at: datetime
 
+
 class InsightsSummaryResponse(BaseModel):
     analysis_period_days: int
     total_emails_analyzed: int
@@ -86,46 +93,48 @@ class InsightsSummaryResponse(BaseModel):
     recommendations_count: int
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/sentiment/summary", response_model=Dict[str, Any])
 async def get_sentiment_summary(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get sentiment analysis summary for user's communications
     """
     try:
-        insights = await nlp_analysis_service.generate_insights_summary(db, current_user.id, days_back)
-        return {
-            "success": True,
-            "data": insights
-        }
+        insights = await nlp_analysis_service.generate_insights_summary(
+            db, current_user.id, days_back
+        )
+        return {"success": True, "data": insights}
     except Exception as e:
         logger.error(f"Error getting sentiment summary: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate sentiment summary"
+            detail="Failed to generate sentiment summary",
         ) from e
+
 
 @router.get("/patterns/analysis", response_model=CommunicationPatternsResponse)
 async def get_communication_patterns(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get detailed communication patterns analysis
     """
     try:
         # Generate current patterns if not available
-        patterns = await communication_pattern_service.analyze_user_patterns(db, current_user.id, days_back)
+        patterns = await communication_pattern_service.analyze_user_patterns(
+            db, current_user.id, days_back
+        )
 
         if not patterns:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No communication patterns available"
+                detail="No communication patterns available",
             )
 
         return CommunicationPatternsResponse(
@@ -137,7 +146,7 @@ async def get_communication_patterns(
             leadership_indicators_score=patterns.leadership_indicators_score,
             collaboration_score=patterns.collaboration_score,
             burnout_risk_score=patterns.burnout_risk_score,
-            network_centrality_score=patterns.network_centrality_score
+            network_centrality_score=patterns.network_centrality_score,
         )
     except HTTPException:
         raise
@@ -145,14 +154,15 @@ async def get_communication_patterns(
         logger.error(f"Error getting communication patterns: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze communication patterns"
+            detail="Failed to analyze communication patterns",
         ) from e
+
 
 @router.get("/patterns/behavioral", response_model=BehavioralIndicatorsResponse)
 async def get_behavioral_indicators(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get behavioral indicators based on communication analysis
@@ -166,11 +176,13 @@ async def get_behavioral_indicators(
         if not emails:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No email data available for analysis"
+                detail="No email data available for analysis",
             )
 
         # Analyze patterns
-        behavioral_indicators = communication_pattern_service.analyze_communication_patterns(emails)
+        behavioral_indicators = (
+            communication_pattern_service.analyze_communication_patterns(emails)
+        )
 
         return BehavioralIndicatorsResponse(
             communication_style=behavioral_indicators.communication_style,
@@ -178,7 +190,7 @@ async def get_behavioral_indicators(
             leadership_indicators=behavioral_indicators.leadership_indicators,
             collaboration_score=behavioral_indicators.collaboration_score,
             conflict_tendency=behavioral_indicators.conflict_tendency,
-            burnout_risk=behavioral_indicators.burnout_risk
+            burnout_risk=behavioral_indicators.burnout_risk,
         )
     except HTTPException:
         raise
@@ -186,15 +198,18 @@ async def get_behavioral_indicators(
         logger.error(f"Error getting behavioral indicators: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze behavioral indicators"
+            detail="Failed to analyze behavioral indicators",
         ) from e
+
 
 @router.get("/culture/team", response_model=CultureHealthResponse)
 async def get_team_culture_health(
-    team_id: Optional[str] = Query(None, description="Team ID (optional, uses user's team if not provided)"),
+    team_id: Optional[str] = Query(
+        None, description="Team ID (optional, uses user's team if not provided)"
+    ),
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get culture health analysis for team
@@ -202,22 +217,24 @@ async def get_team_culture_health(
     try:
         # Determine team ID
         target_team_id = team_id
-        if not target_team_id and hasattr(current_user, 'team_id'):
+        if not target_team_id and hasattr(current_user, "team_id"):
             target_team_id = current_user.team_id
 
         if not target_team_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Team ID required for culture analysis"
+                detail="Team ID required for culture analysis",
             )
 
         # Generate or get culture metrics
-        culture_metrics = await culture_health_service.analyze_team_culture(db, target_team_id, days_back)
+        culture_metrics = await culture_health_service.analyze_team_culture(
+            db, target_team_id, days_back
+        )
 
         if not culture_metrics:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No culture data available for team"
+                detail="No culture data available for team",
             )
 
         return CultureHealthResponse(
@@ -226,9 +243,13 @@ async def get_team_culture_health(
             innovation_score=culture_metrics.innovation_score,
             trust_level=culture_metrics.trust_level,
             overall_health_score=culture_metrics.overall_health_score,
-            health_level=culture_metrics.health_level.value if hasattr(culture_metrics.health_level, 'value') else str(culture_metrics.health_level),
+            health_level=(
+                culture_metrics.health_level.value
+                if hasattr(culture_metrics.health_level, "value")
+                else str(culture_metrics.health_level)
+            ),
             risk_factors=culture_metrics.risk_factors_identified,
-            strengths=culture_metrics.strength_indicators
+            strengths=culture_metrics.strength_indicators,
         )
     except HTTPException:
         raise
@@ -236,14 +257,15 @@ async def get_team_culture_health(
         logger.error(f"Error getting team culture health: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze team culture"
+            detail="Failed to analyze team culture",
         ) from e
+
 
 @router.get("/culture/organization", response_model=CultureHealthResponse)
 async def get_organization_culture_health(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get culture health analysis for organization
@@ -252,16 +274,18 @@ async def get_organization_culture_health(
         if not current_user.organization_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User must belong to an organization"
+                detail="User must belong to an organization",
             )
 
         # Generate or get culture metrics
-        culture_metrics = await culture_health_service.analyze_organization_culture(db, current_user.organization_id, days_back)
+        culture_metrics = await culture_health_service.analyze_organization_culture(
+            db, current_user.organization_id, days_back
+        )
 
         if not culture_metrics:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No culture data available for organization"
+                detail="No culture data available for organization",
             )
 
         return CultureHealthResponse(
@@ -270,9 +294,13 @@ async def get_organization_culture_health(
             innovation_score=culture_metrics.innovation_score,
             trust_level=culture_metrics.trust_level,
             overall_health_score=culture_metrics.overall_health_score,
-            health_level=culture_metrics.health_level.value if hasattr(culture_metrics.health_level, 'value') else str(culture_metrics.health_level),
+            health_level=(
+                culture_metrics.health_level.value
+                if hasattr(culture_metrics.health_level, "value")
+                else str(culture_metrics.health_level)
+            ),
             risk_factors=culture_metrics.risk_factors_identified,
-            strengths=culture_metrics.strength_indicators
+            strengths=culture_metrics.strength_indicators,
         )
     except HTTPException:
         raise
@@ -280,21 +308,28 @@ async def get_organization_culture_health(
         logger.error(f"Error getting organization culture health: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze organization culture"
+            detail="Failed to analyze organization culture",
         ) from e
 
-@router.get("/coaching/recommendations", response_model=List[CoachingRecommendationResponse])
+
+@router.get(
+    "/coaching/recommendations", response_model=List[CoachingRecommendationResponse]
+)
 async def get_coaching_recommendations(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get personalized coaching recommendations
     """
     try:
         # Generate recommendations if not available
-        recommendations = await coaching_recommendation_service.generate_user_recommendations(db, current_user.id, days_back)
+        recommendations = (
+            await coaching_recommendation_service.generate_user_recommendations(
+                db, current_user.id, days_back
+            )
+        )
 
         if not recommendations:
             return []
@@ -305,22 +340,38 @@ async def get_coaching_recommendations(
         await db.commit()
 
         # Get all recommendations for the user
-        all_recommendations = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.user_id == current_user.id,
-            CoachingRecommendation.expires_at > datetime.utcnow()
-        ).order_by(CoachingRecommendation.created_at.desc()).limit(20).all()
+        loop = asyncio.get_event_loop()
+        all_recommendations = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation)
+            .filter(
+                CoachingRecommendation.user_id == current_user.id,
+                CoachingRecommendation.expires_at > datetime.utcnow(),
+            )
+            .order_by(CoachingRecommendation.created_at.desc())
+            .limit(20)
+            .all(),
+        )
 
         return [
             CoachingRecommendationResponse(
                 id=str(rec.id),
-                recommendation_type=rec.recommendation_type.value if hasattr(rec.recommendation_type, 'value') else str(rec.recommendation_type),
-                priority=rec.priority.value if hasattr(rec.priority, 'value') else str(rec.priority),
+                recommendation_type=(
+                    rec.recommendation_type.value
+                    if hasattr(rec.recommendation_type, "value")
+                    else str(rec.recommendation_type)
+                ),
+                priority=(
+                    rec.priority.value
+                    if hasattr(rec.priority, "value")
+                    else str(rec.priority)
+                ),
                 title=rec.title,
                 description=rec.description,
                 actionable_steps=rec.actionable_steps,
                 resources=rec.resources or [],
                 confidence_score=rec.confidence_score,
-                created_at=rec.created_at
+                created_at=rec.created_at,
             )
             for rec in all_recommendations
         ]
@@ -328,33 +379,49 @@ async def get_coaching_recommendations(
         logger.error(f"Error getting coaching recommendations: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate coaching recommendations"
+            detail="Failed to generate coaching recommendations",
         ) from e
+
 
 @router.get("/insights/summary", response_model=InsightsSummaryResponse)
 async def get_insights_summary(
     days_back: int = Query(default=30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get comprehensive insights summary combining all analysis types
     """
     try:
         # Get various analyses
-        sentiment_insights = await nlp_analysis_service.generate_insights_summary(db, current_user.id, days_back)
+        sentiment_insights = await nlp_analysis_service.generate_insights_summary(
+            db, current_user.id, days_back
+        )
 
         # Get communication patterns
-        patterns = db.query(CommunicationPatterns).filter(
-            CommunicationPatterns.user_id == current_user.id,
-            CommunicationPatterns.period_start >= datetime.utcnow() - timedelta(days=days_back)
-        ).all()
+        loop = asyncio.get_event_loop()
+        patterns = await loop.run_in_executor(
+            None,
+            lambda: db.query(CommunicationPatterns)
+            .filter(
+                CommunicationPatterns.user_id == current_user.id,
+                CommunicationPatterns.period_start
+                >= datetime.utcnow() - timedelta(days=days_back),
+            )
+            .all(),
+        )
 
         # Get coaching recommendations count
-        recommendations_count = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.user_id == current_user.id,
-            CoachingRecommendation.created_at >= datetime.utcnow() - timedelta(days=days_back)
-        ).count()
+        recommendations_count = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation)
+            .filter(
+                CoachingRecommendation.user_id == current_user.id,
+                CoachingRecommendation.created_at
+                >= datetime.utcnow() - timedelta(days=days_back),
+            )
+            .count(),
+        )
 
         # Build summary
         summary = InsightsSummaryResponse(
@@ -363,7 +430,7 @@ async def get_insights_summary(
             sentiment_analysis=sentiment_insights.get("sentiment_analysis", {}),
             conflict_analysis=sentiment_insights.get("conflict_analysis", {}),
             behavioral_patterns=sentiment_insights.get("behavioral_patterns", {}),
-            recommendations_count=recommendations_count
+            recommendations_count=recommendations_count,
         )
 
         return summary
@@ -371,29 +438,35 @@ async def get_insights_summary(
         logger.error(f"Error getting insights summary: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate insights summary"
+            detail="Failed to generate insights summary",
         ) from e
+
 
 @router.post("/coaching/{recommendation_id}/complete")
 async def complete_recommendation(
     recommendation_id: str,
     completion_notes: Optional[str] = Query(None, description="Notes about completion"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Mark a coaching recommendation as completed
     """
     try:
-        recommendation = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.id == recommendation_id,
-            CoachingRecommendation.user_id == current_user.id
-        ).first()
+        loop = asyncio.get_event_loop()
+        recommendation = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation)
+            .filter(
+                CoachingRecommendation.id == recommendation_id,
+                CoachingRecommendation.user_id == current_user.id,
+            )
+            .first(),
+        )
 
         if not recommendation:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Recommendation not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Recommendation not found"
             )
 
         # Mark as completed
@@ -403,46 +476,49 @@ async def complete_recommendation(
 
         await db.commit()
 
-        return {
-            "success": True,
-            "message": "Recommendation marked as completed"
-        }
+        return {"success": True, "message": "Recommendation marked as completed"}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error completing recommendation: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to complete recommendation"
+            detail="Failed to complete recommendation",
         ) from e
+
 
 @router.get("/coaching/effectiveness")
 async def get_coaching_effectiveness(
     days_back: int = Query(default=90, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get analysis of coaching recommendation effectiveness
     """
     try:
-        effectiveness = await coaching_recommendation_service.get_recommendation_effectiveness(db, current_user.id, days_back)
-        return {
-            "success": True,
-            "data": effectiveness
-        }
+        effectiveness = (
+            await coaching_recommendation_service.get_recommendation_effectiveness(
+                db, current_user.id, days_back
+            )
+        )
+        return {"success": True, "data": effectiveness}
     except Exception as e:
         logger.error(f"Error getting coaching effectiveness: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze coaching effectiveness"
+            detail="Failed to analyze coaching effectiveness",
         ) from e
+
 
 @router.post("/analysis/trigger")
 async def trigger_analysis(
-    analysis_type: str = Query(..., description="Type of analysis to trigger: 'patterns', 'culture', 'recommendations'"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    analysis_type: str = Query(
+        ...,
+        description="Type of analysis to trigger: 'patterns', 'culture', 'recommendations'",
+    ),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Manually trigger analysis for the user
@@ -452,7 +528,9 @@ async def trigger_analysis(
 
         if analysis_type in ["patterns", "all"]:
             # Trigger communication patterns analysis
-            patterns = await communication_pattern_service.analyze_user_patterns(db, current_user.id, 30)
+            patterns = await communication_pattern_service.analyze_user_patterns(
+                db, current_user.id, 30
+            )
             if patterns:
                 db.add(patterns)
                 await db.commit()
@@ -462,16 +540,26 @@ async def trigger_analysis(
 
         if analysis_type in ["recommendations", "all"]:
             # Generate coaching recommendations
-            recommendations = await coaching_recommendation_service.generate_user_recommendations(db, current_user.id, 30)
+            recommendations = (
+                await coaching_recommendation_service.generate_user_recommendations(
+                    db, current_user.id, 30
+                )
+            )
             for rec in recommendations:
                 db.add(rec)
             await db.commit()
-            results["recommendations"] = f"Generated {len(recommendations)} recommendations"
+            results["recommendations"] = (
+                f"Generated {len(recommendations)} recommendations"
+            )
 
         if analysis_type in ["culture", "all"] and current_user.organization_id:
             # Trigger organization culture analysis (admin only)
             if current_user.role == "admin":
-                culture_metrics = await culture_health_service.analyze_organization_culture(db, current_user.organization_id, 30)
+                culture_metrics = (
+                    await culture_health_service.analyze_organization_culture(
+                        db, current_user.organization_id, 30
+                    )
+                )
                 if culture_metrics:
                     db.add(culture_metrics)
                     await db.commit()
@@ -484,46 +572,67 @@ async def trigger_analysis(
         return {
             "success": True,
             "message": f"Analysis triggered for {analysis_type}",
-            "results": results
+            "results": results,
         }
     except Exception as e:
         logger.error(f"Error triggering analysis: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to trigger analysis"
+            detail="Failed to trigger analysis",
         ) from e
+
 
 @router.get("/dashboard/metrics")
 async def get_dashboard_metrics(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get key metrics for dashboard display
     """
     try:
         # Get recent patterns
-        recent_patterns = db.query(CommunicationPatterns).filter(
-            CommunicationPatterns.user_id == current_user.id,
-            CommunicationPatterns.period_end >= datetime.utcnow() - timedelta(days=7)
-        ).first()
+        loop = asyncio.get_event_loop()
+        recent_patterns = await loop.run_in_executor(
+            None,
+            lambda: db.query(CommunicationPatterns)
+            .filter(
+                CommunicationPatterns.user_id == current_user.id,
+                CommunicationPatterns.period_end
+                >= datetime.utcnow() - timedelta(days=7),
+            )
+            .first(),
+        )
 
         # Get active recommendations
-        active_recommendations = db.query(CoachingRecommendation).filter(
-            CoachingRecommendation.user_id == current_user.id,
-            CoachingRecommendation.status != "completed",
-            CoachingRecommendation.expires_at > datetime.utcnow()
-        ).count()
+        active_recommendations = await loop.run_in_executor(
+            None,
+            lambda: db.query(CoachingRecommendation)
+            .filter(
+                CoachingRecommendation.user_id == current_user.id,
+                CoachingRecommendation.status != "completed",
+                CoachingRecommendation.expires_at > datetime.utcnow(),
+            )
+            .count(),
+        )
 
         # Get recent sentiment trend
-        recent_analyses = db.query(CommunicationAnalysis).filter(
-            CommunicationAnalysis.user_id == current_user.id,
-            CommunicationAnalysis.analysis_timestamp >= datetime.utcnow() - timedelta(days=7)
-        ).all()
+        recent_analyses = await loop.run_in_executor(
+            None,
+            lambda: db.query(CommunicationAnalysis)
+            .filter(
+                CommunicationAnalysis.user_id == current_user.id,
+                CommunicationAnalysis.analysis_timestamp
+                >= datetime.utcnow() - timedelta(days=7),
+            )
+            .all(),
+        )
 
         sentiment_trend = "stable"
         if recent_analyses:
-            sentiment_scores = [float(a.sentiment_score) for a in recent_analyses if a.sentiment_score]
+            sentiment_scores = [
+                float(a.sentiment_score) for a in recent_analyses if a.sentiment_score
+            ]
             if len(sentiment_scores) > 5:
                 recent_avg = sum(sentiment_scores[-3:]) / 3
                 earlier_avg = sum(sentiment_scores[:3]) / 3
@@ -533,23 +642,30 @@ async def get_dashboard_metrics(
                     sentiment_trend = "declining"
 
         metrics = {
-            "sentiment_score": recent_patterns.avg_sentiment_score if recent_patterns else None,
-            "leadership_indicators": recent_patterns.leadership_indicators_score if recent_patterns else None,
-            "collaboration_score": recent_patterns.collaboration_score if recent_patterns else None,
-            "burnout_risk": recent_patterns.burnout_risk_score if recent_patterns else None,
+            "sentiment_score": (
+                recent_patterns.avg_sentiment_score if recent_patterns else None
+            ),
+            "leadership_indicators": (
+                recent_patterns.leadership_indicators_score if recent_patterns else None
+            ),
+            "collaboration_score": (
+                recent_patterns.collaboration_score if recent_patterns else None
+            ),
+            "burnout_risk": (
+                recent_patterns.burnout_risk_score if recent_patterns else None
+            ),
             "active_recommendations": active_recommendations,
             "sentiment_trend": sentiment_trend,
             "emails_analyzed_this_week": len(recent_analyses),
-            "last_analysis_date": recent_patterns.period_end if recent_patterns else None
+            "last_analysis_date": (
+                recent_patterns.period_end if recent_patterns else None
+            ),
         }
 
-        return {
-            "success": True,
-            "data": metrics
-        }
+        return {"success": True, "data": metrics}
     except Exception as e:
         logger.error(f"Error getting dashboard metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get dashboard metrics"
+            detail="Failed to get dashboard metrics",
         ) from e

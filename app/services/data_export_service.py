@@ -12,16 +12,16 @@ Comprehensive User Data Export Service
 """
 
 import csv
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import json
 import logging
 import os
-from pathlib import Path
 import tempfile
-from typing import Any, BinaryIO
 import xml.etree.ElementTree as ET
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any, BinaryIO
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -247,7 +247,9 @@ class DataExportService:
     ) -> list[ExportRequest]:
         """Get user's export history"""
         user_exports = [
-            export for export in self.active_exports.values() if export.user_id == user_id
+            export
+            for export in self.active_exports.values()
+            if export.user_id == user_id
         ]
 
         if status:
@@ -295,7 +297,9 @@ class DataExportService:
         for export_id, export_request in list(self.active_exports.items()):
             if now > export_request.expires_at:
                 # Delete file
-                if export_request.file_path and os.path.exists(export_request.file_path):
+                if export_request.file_path and os.path.exists(
+                    export_request.file_path
+                ):
                     os.unlink(export_request.file_path)
 
                 # Remove from active exports
@@ -306,7 +310,11 @@ class DataExportService:
         return cleaned_count
 
     async def _gather_export_data(
-        self, db: AsyncSession, user_id: str, scope: ExportScope, filters: dict[str, Any]
+        self,
+        db: AsyncSession,
+        user_id: str,
+        scope: ExportScope,
+        filters: dict[str, Any],
     ) -> dict[str, Any]:
         """Gather data based on export scope"""
         export_data = {
@@ -322,13 +330,17 @@ class DataExportService:
             export_data["profile"] = await self._get_user_profile(db, user_id)
 
         if scope in [ExportScope.ASSESSMENTS, ExportScope.ALL]:
-            export_data["assessments"] = await self._get_user_assessments(db, user_id, filters)
+            export_data["assessments"] = await self._get_user_assessments(
+                db, user_id, filters
+            )
 
         if scope in [ExportScope.TEAM_DATA, ExportScope.ALL]:
             export_data["team_data"] = await self._get_user_team_data(db, user_id)
 
         if scope in [ExportScope.ACTIVITY_LOG, ExportScope.ALL]:
-            export_data["activity_log"] = await self._get_user_activity(db, user_id, filters)
+            export_data["activity_log"] = await self._get_user_activity(
+                db, user_id, filters
+            )
 
         if scope in [ExportScope.SETTINGS, ExportScope.ALL]:
             export_data["settings"] = await self._get_user_settings(db, user_id)
@@ -354,9 +366,9 @@ class DataExportService:
             "role": user.role.value if user.role else None,
             "is_active": user.is_active,
             "is_verified": user.is_verified,
-            "email_verified_at": user.email_verified_at.isoformat()
-            if user.email_verified_at
-            else None,
+            "email_verified_at": (
+                user.email_verified_at.isoformat() if user.email_verified_at else None
+            ),
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "updated_at": user.updated_at.isoformat() if user.updated_at else None,
         }
@@ -394,8 +406,12 @@ class DataExportService:
                 "status": assessment.status.value if assessment.status else None,
                 "estimated_duration_minutes": assessment.estimated_duration_minutes,
                 "instructions": assessment.instructions,
-                "created_at": assessment.created_at.isoformat() if assessment.created_at else None,
-                "updated_at": assessment.updated_at.isoformat() if assessment.updated_at else None,
+                "created_at": (
+                    assessment.created_at.isoformat() if assessment.created_at else None
+                ),
+                "updated_at": (
+                    assessment.updated_at.isoformat() if assessment.updated_at else None
+                ),
                 "responses": [],
             }
 
@@ -404,9 +420,11 @@ class DataExportService:
                 response_data = {
                     "id": str(response.id),
                     "score": response.score,
-                    "completed_at": response.completed_at.isoformat()
-                    if response.completed_at
-                    else None,
+                    "completed_at": (
+                        response.completed_at.isoformat()
+                        if response.completed_at
+                        else None
+                    ),
                     "response_data": response.response_data,
                 }
                 assessment_data["responses"].append(response_data)
@@ -415,7 +433,9 @@ class DataExportService:
 
         return export_data
 
-    async def _get_user_team_data(self, db: AsyncSession, user_id: str) -> list[dict[str, Any]]:
+    async def _get_user_team_data(
+        self, db: AsyncSession, user_id: str
+    ) -> list[dict[str, Any]]:
         """Get user team membership data"""
         result = await db.execute(
             select(TeamMember)
@@ -430,7 +450,9 @@ class DataExportService:
                 "team_id": str(membership.team_id) if membership.team_id else None,
                 "team_name": membership.team.name if membership.team else None,
                 "role": membership.role.value if membership.role else None,
-                "joined_at": membership.joined_at.isoformat() if membership.joined_at else None,
+                "joined_at": (
+                    membership.joined_at.isoformat() if membership.joined_at else None
+                ),
                 "is_active": membership.is_active,
             }
             export_data.append(team_data)
@@ -452,7 +474,9 @@ class DataExportService:
             }
         ]
 
-    async def _get_user_settings(self, db: AsyncSession, user_id: str) -> dict[str, Any]:
+    async def _get_user_settings(
+        self, db: AsyncSession, user_id: str
+    ) -> dict[str, Any]:
         """Get user settings and preferences"""
         # This would need to be implemented based on your user settings system
         # For now, return placeholder data
@@ -460,16 +484,27 @@ class DataExportService:
             "theme": "light",
             "language": "en",
             "notifications_enabled": True,
-            "email_preferences": {"marketing": False, "security": True, "updates": True},
+            "email_preferences": {
+                "marketing": False,
+                "security": True,
+                "updates": True,
+            },
         }
 
     async def _export_json(self, data: dict[str, Any], file_path: str):
         """Export data as JSON"""
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False, default=str)
+        import aiofiles
+
+        # ✅ NON-BLOCKING - async file I/O
+        async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(data, indent=2, ensure_ascii=False, default=str))
 
     async def _export_csv(self, data: dict[str, Any], file_path: str):
         """Export data as CSV"""
+        import io
+
+        import aiofiles
+
         # For CSV, we'll flatten the data structure
         csv_data = []
 
@@ -485,15 +520,20 @@ class DataExportService:
 
         # Write to CSV
         if csv_data:
-            with open(file_path, "w", newline="", encoding="utf-8") as f:
-                if csv_data:
-                    fieldnames = set()
-                    for item in csv_data:
-                        fieldnames.update(item.keys())
+            # ✅ NON-BLOCKING - prepare CSV in memory, then write async
+            output = io.StringIO()
+            if csv_data:
+                fieldnames = set()
+                for item in csv_data:
+                    fieldnames.update(item.keys())
 
-                    writer = csv.DictWriter(f, fieldnames=list(fieldnames))
-                    writer.writeheader()
-                    writer.writerows(csv_data)
+                writer = csv.DictWriter(output, fieldnames=list(fieldnames))
+                writer.writeheader()
+                writer.writerows(csv_data)
+
+            # Write the entire CSV content asynchronously
+            async with aiofiles.open(file_path, "w", newline="", encoding="utf-8") as f:
+                await f.write(output.getvalue())
 
     async def _export_xml(self, data: dict[str, Any], file_path: str):
         """Export data as XML"""
@@ -556,8 +596,11 @@ class DataExportService:
 
         except ImportError:
             # Fallback: save as text file with .pdf extension
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, default=str)
+            import aiofiles
+
+            # ✅ NON-BLOCKING - async file I/O
+            async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(data, indent=2, default=str))
 
     async def _export_excel(self, data: dict[str, Any], file_path: str):
         """Export data as Excel spreadsheet"""
@@ -611,7 +654,12 @@ class DataExportService:
 # Background task for export execution
 @task("execute_data_export")
 async def execute_data_export_task(
-    export_id: str, user_id: str, format: str, scope: str, filters: dict[str, Any], **kwargs
+    export_id: str,
+    user_id: str,
+    format: str,
+    scope: str,
+    filters: dict[str, Any],
+    **kwargs,
 ) -> dict[str, Any]:
     """Background task for executing data exports"""
     export_service = DataExportService()

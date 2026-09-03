@@ -62,10 +62,10 @@ const SocialStylesPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      const response = await apiClient.get('/assessment-questions/social-styles');
+      const response = await apiClient.get('/assessments/assessment-questions/social-styles');
 
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
+      if (response.data && (response.data as any).success) {
+        const backendAssessment = (response.data as any).assessment;
         const socialStylesAssessment: SocialStylesAssessment = {
           id: backendAssessment.id,
           title: backendAssessment.title,

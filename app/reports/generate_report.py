@@ -65,7 +65,9 @@ class PDFReportGenerator:
         )
 
         self.styles.add(
-            ParagraphStyle(name="BodyText", parent=self.styles["Normal"], fontSize=11, spaceAfter=6)
+            ParagraphStyle(
+                name="BodyText", parent=self.styles["Normal"], fontSize=11, spaceAfter=6
+            )
         )
 
     def generate_client_progress_report(
@@ -102,7 +104,9 @@ class PDFReportGenerator:
 
         # Report metadata
         report_date = datetime.now().strftime("%B %d, %Y")
-        elements.append(Paragraph(f"Report Date: {report_date}", self.styles["BodyText"]))
+        elements.append(
+            Paragraph(f"Report Date: {report_date}", self.styles["BodyText"])
+        )
         elements.append(Spacer(1, 20))
 
         # Client Information Section
@@ -144,8 +148,14 @@ class PDFReportGenerator:
             ["Total Sessions:", str(session_summary.get("total_sessions", 0))],
             ["Sessions Attended:", str(session_summary.get("attended", 0))],
             ["Attendance Rate:", f"{session_summary.get('attendance_rate', 0):.1f}%"],
-            ["Homework Completion:", f"{session_summary.get('homework_completion', 0):.1f}%"],
-            ["Treatment Duration:", f"{session_summary.get('duration_weeks', 0)} weeks"],
+            [
+                "Homework Completion:",
+                f"{session_summary.get('homework_completion', 0):.1f}%",
+            ],
+            [
+                "Treatment Duration:",
+                f"{session_summary.get('duration_weeks', 0)} weeks",
+            ],
         ]
 
         summary_table = Table(summary_data, colWidths=[2 * inch, 4 * inch])
@@ -174,7 +184,9 @@ class PDFReportGenerator:
 
         if not assessment_scores.empty:
             # Create table from DataFrame
-            score_data = [assessment_scores.columns.tolist()] + assessment_scores.values.tolist()
+            score_data = [
+                assessment_scores.columns.tolist()
+            ] + assessment_scores.values.tolist()
 
             score_table = Table(score_data)
             score_table.setStyle(
@@ -194,7 +206,9 @@ class PDFReportGenerator:
 
             elements.append(score_table)
         else:
-            elements.append(Paragraph("No assessment data available.", self.styles["BodyText"]))
+            elements.append(
+                Paragraph("No assessment data available.", self.styles["BodyText"])
+            )
 
         elements.append(Spacer(1, 20))
 
@@ -215,13 +229,15 @@ class PDFReportGenerator:
             """
 
             if pct_change >= 50:
-                progress_text += (
-                    "Excellent progress. Client has achieved significant symptom reduction."
-                )
+                progress_text += "Excellent progress. Client has achieved significant symptom reduction."
             elif pct_change >= 25:
-                progress_text += "Good progress. Client is responding well to treatment."
+                progress_text += (
+                    "Good progress. Client is responding well to treatment."
+                )
             elif pct_change >= 10:
-                progress_text += "Moderate progress. Continue current treatment approach."
+                progress_text += (
+                    "Moderate progress. Continue current treatment approach."
+                )
             else:
                 progress_text += "Limited progress. Consider treatment adjustment."
 
@@ -269,12 +285,16 @@ class PDFReportGenerator:
         elements = []
 
         # Title
-        elements.append(Paragraph("Treatment Outcomes Summary", self.styles["CustomTitle"]))
+        elements.append(
+            Paragraph("Treatment Outcomes Summary", self.styles["CustomTitle"])
+        )
         elements.append(Spacer(1, 20))
 
         # Report period
         report_date = datetime.now().strftime("%B %d, %Y")
-        elements.append(Paragraph(f"Report Date: {report_date}", self.styles["BodyText"]))
+        elements.append(
+            Paragraph(f"Report Date: {report_date}", self.styles["BodyText"])
+        )
         elements.append(Spacer(1, 20))
 
         # Summary statistics
@@ -381,16 +401,33 @@ class ExcelExporter:
                         "Total Assessments",
                     ],
                     "Value": [
-                        assessment_data["score"].iloc[0],
-                        assessment_data["score"].iloc[-1],
-                        assessment_data["score"].iloc[0] - assessment_data["score"].iloc[-1],
                         (
-                            (assessment_data["score"].iloc[0] - assessment_data["score"].iloc[-1])
+                            assessment_data["score"].iloc[0]
+                            if not assessment_data.empty
+                            else 0
+                        ),
+                        (
+                            assessment_data["score"].iloc[-1]
+                            if not assessment_data.empty
+                            else 0
+                        ),
+                        (
+                            assessment_data["score"].iloc[0]
+                            - assessment_data["score"].iloc[-1]
+                            if len(assessment_data) >= 2
+                            else 0
+                        ),
+                        (
+                            (
+                                assessment_data["score"].iloc[0]
+                                - assessment_data["score"].iloc[-1]
+                            )
                             / assessment_data["score"].iloc[0]
                             * 100
-                        )
-                        if assessment_data["score"].iloc[0] > 0
-                        else 0,
+                            if assessment_data["score"].iloc[0] != 0
+                            and len(assessment_data) >= 2
+                            else 0
+                        ),
                         len(assessment_data),
                     ],
                 }
@@ -495,7 +532,9 @@ class ReportBuilder:
             # Add content based on type
             if section["type"] == "text":
                 elements.append(Paragraph(str(section["content"]), styles["Normal"]))
-            elif section["type"] == "table" and isinstance(section["content"], pd.DataFrame):
+            elif section["type"] == "table" and isinstance(
+                section["content"], pd.DataFrame
+            ):
                 df = section["content"]
                 table_data = [df.columns.tolist()] + df.values.tolist()
                 table = Table(table_data)
@@ -522,8 +561,12 @@ class ReportBuilder:
             for i, section in enumerate(self.sections):
                 sheet_name = section["title"][:31]  # Excel sheet name limit
 
-                if section["type"] == "table" and isinstance(section["content"], pd.DataFrame):
-                    section["content"].to_excel(writer, sheet_name=sheet_name, index=False)
+                if section["type"] == "table" and isinstance(
+                    section["content"], pd.DataFrame
+                ):
+                    section["content"].to_excel(
+                        writer, sheet_name=sheet_name, index=False
+                    )
                 else:
                     # Convert to DataFrame
                     df = pd.DataFrame({"Content": [str(section["content"])]})
@@ -537,7 +580,9 @@ class ReportBuilder:
         for section in self.sections:
             html += f"<h2>{section['title']}</h2>"
 
-            if section["type"] == "table" and isinstance(section["content"], pd.DataFrame):
+            if section["type"] == "table" and isinstance(
+                section["content"], pd.DataFrame
+            ):
                 html += section["content"].to_html(index=False)
             else:
                 html += f"<p>{section['content']}</p>"
@@ -585,7 +630,10 @@ if __name__ == "__main__":
 
     try:
         pdf_generator.generate_client_progress_report(
-            client_info, assessment_scores, session_summary, "client_progress_report.pdf"
+            client_info,
+            assessment_scores,
+            session_summary,
+            "client_progress_report.pdf",
         )
         print("   ✓ PDF report generated: client_progress_report.pdf")
     except Exception as e:
@@ -596,9 +644,22 @@ if __name__ == "__main__":
     session_data = pd.DataFrame(
         {
             "session_number": range(1, 11),
-            "date": pd.date_range("2024-01-15", periods=10, freq="W").strftime("%Y-%m-%d"),
+            "date": pd.date_range("2024-01-15", periods=10, freq="W").strftime(
+                "%Y-%m-%d"
+            ),
             "attended": [True] * 9 + [False],
-            "homework_completed": [True, True, False, True, True, True, True, True, True, False],
+            "homework_completed": [
+                True,
+                True,
+                False,
+                True,
+                True,
+                True,
+                True,
+                True,
+                True,
+                False,
+            ],
         }
     )
 
@@ -618,7 +679,9 @@ if __name__ == "__main__":
             "client_id": "C001",
             "records": len(assessment_scores),
         }
-        CSVExporter.export_with_metadata(assessment_scores, metadata, "assessment_scores.csv")
+        CSVExporter.export_with_metadata(
+            assessment_scores, metadata, "assessment_scores.csv"
+        )
         print("   ✓ CSV export completed: assessment_scores.csv")
     except Exception as e:
         print(f"   ✗ Error exporting CSV: {e}")

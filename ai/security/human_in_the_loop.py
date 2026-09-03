@@ -17,17 +17,18 @@ Resources:
 - OECD AI Principles: https://www.oecd.org/ai/
 """
 
-from typing import Dict, List, Any, Optional, Callable
-from enum import Enum
-from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
 import json
-import uuid
 import threading
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 
 class ApprovalStatus(Enum):
     """Status of approval request"""
+
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
@@ -37,6 +38,7 @@ class ApprovalStatus(Enum):
 
 class RiskLevel(Enum):
     """Risk level of operation"""
+
     LOW = "low"  # Routine operations
     MEDIUM = "medium"  # Requires review
     HIGH = "high"  # Requires explicit approval
@@ -46,6 +48,7 @@ class RiskLevel(Enum):
 @dataclass
 class ApprovalRequest:
     """Approval request for sensitive AI operation"""
+
     request_id: str
     operation_type: str
     risk_level: RiskLevel
@@ -106,23 +109,20 @@ class ApprovalWorkflow:
             "sentiment_analysis": RiskLevel.LOW,
             "personality_assessment": RiskLevel.LOW,
             "basic_analytics": RiskLevel.LOW,
-
             # Medium risk operations
             "clinical_assessment": RiskLevel.MEDIUM,
             "behavioral_analysis": RiskLevel.MEDIUM,
             "data_export": RiskLevel.MEDIUM,
-
             # High risk operations
             "file_write": RiskLevel.HIGH,
             "database_write": RiskLevel.HIGH,
             "api_integration": RiskLevel.HIGH,
             "bulk_operations": RiskLevel.HIGH,
-
             # Critical risk operations
             "system_command": RiskLevel.CRITICAL,
             "delete_data": RiskLevel.CRITICAL,
             "user_management": RiskLevel.CRITICAL,
-            "security_config": RiskLevel.CRITICAL
+            "security_config": RiskLevel.CRITICAL,
         }
 
     def add_risk_rule(self, operation_type: str, risk_level: RiskLevel) -> None:
@@ -145,11 +145,7 @@ class ApprovalWorkflow:
         """
         self.approvers[user_id] = approver_ids
 
-    def get_required_approvers(
-        self,
-        operation_type: str,
-        risk_level: RiskLevel
-    ) -> int:
+    def get_required_approvers(self, operation_type: str, risk_level: RiskLevel) -> int:
         """
         Get number of approvers required based on risk level
 
@@ -175,7 +171,7 @@ class ApprovalWorkflow:
         requester_id: str,
         operation_details: Dict[str, Any],
         justification: Optional[str] = None,
-        timeout_minutes: int = 60
+        timeout_minutes: int = 60,
     ) -> ApprovalRequest:
         """
         Create approval request for operation
@@ -206,7 +202,7 @@ class ApprovalWorkflow:
             timeout_minutes=timeout_minutes,
             approvers=approvers,
             operation_details=operation_details,
-            justification=justification
+            justification=justification,
         )
 
         # Store request
@@ -216,10 +212,7 @@ class ApprovalWorkflow:
         return request
 
     def approve_request(
-        self,
-        request_id: str,
-        approver_id: str,
-        comments: Optional[str] = None
+        self, request_id: str, approver_id: str, comments: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Approve a request
@@ -238,7 +231,7 @@ class ApprovalWorkflow:
             if not request:
                 return {
                     "success": False,
-                    "error": "Request not found or already processed"
+                    "error": "Request not found or already processed",
                 }
 
             # Check if expired
@@ -246,32 +239,25 @@ class ApprovalWorkflow:
                 request.status = ApprovalStatus.TIMEOUT
                 self.completed_requests.append(request)
                 del self.pending_requests[request_id]
-                return {
-                    "success": False,
-                    "error": "Request has expired"
-                }
+                return {"success": False, "error": "Request has expired"}
 
             # Check if approver is authorized
             if approver_id not in request.approvers:
                 return {
                     "success": False,
-                    "error": "Approver not authorized for this request"
+                    "error": "Approver not authorized for this request",
                 }
 
             # Check if already approved/denied
             if approver_id in request.approvals_received:
-                return {
-                    "success": False,
-                    "error": "Already approved by this approver"
-                }
+                return {"success": False, "error": "Already approved by this approver"}
 
             # Record approval
             request.approvals_received[approver_id] = True
 
             # Check if all approvals received
             required = self.get_required_approvers(
-                request.operation_type,
-                request.risk_level
+                request.operation_type, request.risk_level
             )
 
             if len(request.approvals_received) >= required:
@@ -283,20 +269,17 @@ class ApprovalWorkflow:
                 return {
                     "success": True,
                     "status": "approved",
-                    "message": "Request approved"
+                    "message": "Request approved",
                 }
             else:
                 return {
                     "success": True,
                     "status": "pending",
-                    "message": f"Approval recorded. {required - len(request.approvals_received)} more approval(s) needed."
+                    "message": f"Approval recorded. {required - len(request.approvals_received)} more approval(s) needed.",
                 }
 
     def deny_request(
-        self,
-        request_id: str,
-        approver_id: str,
-        reason: Optional[str] = None
+        self, request_id: str, approver_id: str, reason: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Deny a request
@@ -315,14 +298,14 @@ class ApprovalWorkflow:
             if not request:
                 return {
                     "success": False,
-                    "error": "Request not found or already processed"
+                    "error": "Request not found or already processed",
                 }
 
             # Check if approver is authorized
             if approver_id not in request.approvers:
                 return {
                     "success": False,
-                    "error": "Approver not authorized for this request"
+                    "error": "Approver not authorized for this request",
                 }
 
             # Record denial
@@ -334,11 +317,7 @@ class ApprovalWorkflow:
             self.completed_requests.append(request)
             del self.pending_requests[request_id]
 
-            return {
-                "success": True,
-                "status": "denied",
-                "message": "Request denied"
-            }
+            return {"success": True, "status": "denied", "message": "Request denied"}
 
     def check_approval_status(self, request_id: str) -> Dict[str, Any]:
         """
@@ -361,12 +340,14 @@ class ApprovalWorkflow:
                             "status": completed.status.value,
                             "approvals_received": len(completed.approvals_received),
                             "denials": len(completed.denials),
-                            "responded_at": completed.responded_at.isoformat() if completed.responded_at else None
+                            "responded_at": (
+                                completed.responded_at.isoformat()
+                                if completed.responded_at
+                                else None
+                            ),
                         }
 
-                return {
-                    "error": "Request not found"
-                }
+                return {"error": "Request not found"}
 
             # Check if expired
             if request.is_expired():
@@ -376,7 +357,7 @@ class ApprovalWorkflow:
 
                 return {
                     "status": ApprovalStatus.TIMEOUT.value,
-                    "message": "Request has expired"
+                    "message": "Request has expired",
                 }
 
             return {
@@ -387,7 +368,9 @@ class ApprovalWorkflow:
                 "approvals_received": len(request.approvals_received),
                 "denials": len(request.denials),
                 "requested_at": request.requested_at.isoformat(),
-                "expires_at": (request.requested_at + timedelta(minutes=request.timeout_minutes)).isoformat()
+                "expires_at": (
+                    request.requested_at + timedelta(minutes=request.timeout_minutes)
+                ).isoformat(),
             }
 
     def cancel_request(self, request_id: str, user_id: str) -> Dict[str, Any]:
@@ -407,15 +390,12 @@ class ApprovalWorkflow:
             if not request:
                 return {
                     "success": False,
-                    "error": "Request not found or already processed"
+                    "error": "Request not found or already processed",
                 }
 
             # Check if user is requester
             if request.requester_id != user_id:
-                return {
-                    "success": False,
-                    "error": "Only requester can cancel"
-                }
+                return {"success": False, "error": "Only requester can cancel"}
 
             # Cancel request
             request.status = ApprovalStatus.CANCELLED
@@ -425,10 +405,12 @@ class ApprovalWorkflow:
             return {
                 "success": True,
                 "status": "cancelled",
-                "message": "Request cancelled"
+                "message": "Request cancelled",
             }
 
-    def get_pending_requests(self, user_id: Optional[str] = None) -> List[ApprovalRequest]:
+    def get_pending_requests(
+        self, user_id: Optional[str] = None
+    ) -> List[ApprovalRequest]:
         """
         Get pending approval requests
 
@@ -451,16 +433,15 @@ class ApprovalWorkflow:
             # Filter by user if specified
             if user_id:
                 requests = [
-                    r for r in self.pending_requests.values()
+                    r
+                    for r in self.pending_requests.values()
                     if r.requester_id == user_id or user_id in r.approvers
                 ]
 
             return list(self.pending_requests.values())
 
     def get_approval_history(
-        self,
-        user_id: Optional[str] = None,
-        limit: int = 100
+        self, user_id: Optional[str] = None, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
         Get approval history
@@ -477,7 +458,8 @@ class ApprovalWorkflow:
 
             if user_id:
                 history = [
-                    r for r in history
+                    r
+                    for r in history
                     if r.requester_id == user_id or user_id in r.approvers
                 ]
 
@@ -492,7 +474,9 @@ class ApprovalWorkflow:
                     "requester": r.requester_id,
                     "status": r.status.value,
                     "requested_at": r.requested_at.isoformat(),
-                    "responded_at": r.responded_at.isoformat() if r.responded_at else None
+                    "responded_at": (
+                        r.responded_at.isoformat() if r.responded_at else None
+                    ),
                 }
                 for r in history[:limit]
             ]
@@ -535,10 +519,10 @@ if __name__ == "__main__":
         operation_details={
             "filepath": "results/export.json",
             "operation": "write",
-            "data_size": "1.2MB"
+            "data_size": "1.2MB",
         },
         justification="Need to export assessment results for compliance",
-        timeout_minutes=60
+        timeout_minutes=60,
     )
 
     print(f"Request ID: {request.request_id}")
@@ -553,7 +537,9 @@ if __name__ == "__main__":
 
     status = workflow.check_approval_status(request.request_id)
     print(f"Current Status: {status['status']}")
-    print(f"Approvals Received: {status['approvals_received']}/{status['approvers_required']}")
+    print(
+        f"Approvals Received: {status['approvals_received']}/{status['approvers_required']}"
+    )
 
     # Approve request
     print("\n4. Approving Request")
@@ -562,7 +548,7 @@ if __name__ == "__main__":
     result = workflow.approve_request(
         request_id=request.request_id,
         approver_id="manager_456",
-        comments="Approved for compliance export"
+        comments="Approved for compliance export",
     )
 
     print(f"Approval Result: {result['success']}")
@@ -576,16 +562,13 @@ if __name__ == "__main__":
     deny_request = workflow.create_approval_request(
         operation_type="system_command",
         requester_id="user_123",
-        operation_details={
-            "command": "rm -rf /data",
-            "reason": "Testing"
-        }
+        operation_details={"command": "rm -rf /data", "reason": "Testing"},
     )
 
     result = workflow.deny_request(
         request_id=deny_request.request_id,
         approver_id="admin_789",
-        reason="Unsafe operation - not approved"
+        reason="Unsafe operation - not approved",
     )
 
     print(f"Deny Result: {result['success']}")
@@ -598,7 +581,9 @@ if __name__ == "__main__":
     history = workflow.get_approval_history(limit=5)
     print(f"Total Requests: {len(history)}")
     for entry in history:
-        print(f"  {entry['operation_type']} - {entry['status']} ({entry['risk_level']})")
+        print(
+            f"  {entry['operation_type']} - {entry['status']} ({entry['risk_level']})"
+        )
 
     print("\n" + "=" * 60)
     print("Demo complete!")

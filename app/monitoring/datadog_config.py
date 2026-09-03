@@ -3,11 +3,11 @@ PsychSync Datadog Configuration for APM and Log Management
 Comprehensive application performance monitoring and centralized logging
 """
 
-from contextlib import asynccontextmanager
-from functools import wraps
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
+from functools import wraps
 from typing import Any
 
 from ddtrace import Span, config, tracer
@@ -138,11 +138,16 @@ def _configure_filters() -> None:
     def filter_sensitive_urls(span: Span):
         if span.get_tag("http.url"):
             url = span.get_tag("http.url")
-            if any(sensitive in url.lower() for sensitive in ["password", "token", "secret"]):
+            if any(
+                sensitive in url.lower()
+                for sensitive in ["password", "token", "secret"]
+            ):
                 # Replace sensitive parameters
                 import re
 
-                url = re.sub(r"([?&])(password|token|secret|key)=[^&]*", r"\1\2=[FILTERED]", url)
+                url = re.sub(
+                    r"([?&])(password|token|secret|key)=[^&]*", r"\1\2=[FILTERED]", url
+                )
                 span.set_tag("http.url", url)
 
     # Configure header filtering
@@ -182,7 +187,11 @@ class DatadogTracingMiddleware:
                 {
                     "component": "fastapi",
                     "span.kind": "server",
-                    **{tag.split(":")[0]: tag.split(":")[1] for tag in CUSTOM_TAGS if ":" in tag},
+                    **{
+                        tag.split(":")[0]: tag.split(":")[1]
+                        for tag in CUSTOM_TAGS
+                        if ":" in tag
+                    },
                 }
             )
 
@@ -288,7 +297,9 @@ class DatadogLogger:
                 "%(asctime)s %(levelname)s [%(name)s] [%(dd.service)s] [%(dd.trace_id)s] [%(dd.span_id)s] - %(message)s"
             )
         else:
-            formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] - %(message)s")
+            formatter = logging.Formatter(
+                "%(asctime)s %(levelname)s [%(name)s] - %(message)s"
+            )
 
         # Create handler if none exists
         if not self.logger.handlers:

@@ -104,21 +104,21 @@ class OpenCognitiveAssessmentBattery:
         domain_scores = {}
         domain_percentiles = {}
 
-        domain_scores["working_memory"] = task_scores.get("digit_span", 0) + task_scores.get(
-            "letter_number", 0
-        )
+        domain_scores["working_memory"] = task_scores.get(
+            "digit_span", 0
+        ) + task_scores.get("letter_number", 0)
 
-        domain_scores["processing_speed"] = task_scores.get("symbol_coding", 0) + task_scores.get(
-            "cancellation", 0
-        )
+        domain_scores["processing_speed"] = task_scores.get(
+            "symbol_coding", 0
+        ) + task_scores.get("cancellation", 0)
 
-        domain_scores["verbal_reasoning"] = task_scores.get("similarities", 0) + task_scores.get(
-            "vocabulary", 0
-        )
+        domain_scores["verbal_reasoning"] = task_scores.get(
+            "similarities", 0
+        ) + task_scores.get("vocabulary", 0)
 
-        domain_scores["visual_spatial"] = task_scores.get("block_design", 0) + task_scores.get(
-            "matrix_reasoning", 0
-        )
+        domain_scores["visual_spatial"] = task_scores.get(
+            "block_design", 0
+        ) + task_scores.get("matrix_reasoning", 0)
 
         # Convert to percentiles
         for domain, score in domain_scores.items():
@@ -139,11 +139,18 @@ class OpenCognitiveAssessmentBattery:
 
         # Generate interpretation
         interpretation = self._generate_interpretation(
-            domain_scores, domain_percentiles, composite_percentile, ability_level, age, validity
+            domain_scores,
+            domain_percentiles,
+            composite_percentile,
+            ability_level,
+            age,
+            validity,
         )
 
         # Generate recommendations
-        recommendations = self._generate_recommendations(domain_percentiles, weaknesses, validity)
+        recommendations = self._generate_recommendations(
+            domain_percentiles, weaknesses, validity
+        )
 
         return OCABScore(
             domain_scores=domain_scores,
@@ -181,7 +188,9 @@ class OpenCognitiveAssessmentBattery:
             return "Borderline"
         return "Extremely Low"
 
-    def _identify_profile(self, domain_percentiles: dict) -> tuple[list[str], list[str]]:
+    def _identify_profile(
+        self, domain_percentiles: dict
+    ) -> tuple[list[str], list[str]]:
         """Identify cognitive strengths and weaknesses."""
         strengths = []
         weaknesses = []
@@ -210,9 +219,7 @@ class OpenCognitiveAssessmentBattery:
             interp += f"⚠️ VALIDITY CONCERN: {validity}\n"
             interp += "Results should be interpreted with caution.\n\n"
 
-        interp += (
-            f"Overall Cognitive Ability: {ability_level} ({composite_percentile}th percentile)\n\n"
-        )
+        interp += f"Overall Cognitive Ability: {ability_level} ({composite_percentile}th percentile)\n\n"
 
         interp += "DOMAIN SCORES:\n"
         for domain, score in domain_scores.items():
@@ -221,8 +228,12 @@ class OpenCognitiveAssessmentBattery:
             interp += f"  {domain.replace('_', ' ').title()}: {score}/{max_score} ({percentile}th percentile)\n"
 
         interp += "\n⚠️ IMPORTANT DISCLAIMER:\n"
-        interp += "This is a brief cognitive SCREENING tool, not a comprehensive IQ test.\n"
-        interp += "For diagnostic purposes or comprehensive assessment, refer to licensed\n"
+        interp += (
+            "This is a brief cognitive SCREENING tool, not a comprehensive IQ test.\n"
+        )
+        interp += (
+            "For diagnostic purposes or comprehensive assessment, refer to licensed\n"
+        )
         interp += "neuropsychologist for full battery (WAIS-IV, WISC-V, etc.).\n"
 
         return interp
@@ -266,7 +277,9 @@ class OpenCognitiveAssessmentBattery:
         # General recommendations
         if any(p <= 16 for p in domain_percentiles.values()):
             recs.append("⚠️ Significant cognitive concerns identified")
-            recs.append("STRONGLY RECOMMEND: Comprehensive neuropsychological evaluation")
+            recs.append(
+                "STRONGLY RECOMMEND: Comprehensive neuropsychological evaluation"
+            )
 
         if not recs:
             recs.append("Cognitive functioning within normal limits")
@@ -365,7 +378,9 @@ if __name__ == "__main__":
     print("\nDomain Scores:")
     for domain, score in result.domain_scores.items():
         percentile = result.domain_percentiles[domain]
-        print(f"  {domain.replace('_', ' ').title()}: {score}/20 ({percentile}th percentile)")
+        print(
+            f"  {domain.replace('_', ' ').title()}: {score}/20 ({percentile}th percentile)"
+        )
 
     print(f"\nComposite Score: {result.composite_score}/20")
     print(f"Estimated Ability: {result.estimated_ability_level}")

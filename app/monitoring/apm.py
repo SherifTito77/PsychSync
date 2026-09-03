@@ -9,16 +9,16 @@ Application Performance Monitoring (APM) System
 """
 
 import asyncio
+import time
 from collections import defaultdict, deque
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-import time
 from typing import Any
 
-from fastapi import Request, Response
 import psutil
+from fastapi import Request, Response
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -90,7 +90,9 @@ class MetricsCollector:
                 self.endpoint_stats[endpoint].append(metric.value)
                 # Keep only last 1000 measurements per endpoint
                 if len(self.endpoint_stats[endpoint]) > 1000:
-                    self.endpoint_stats[endpoint] = self.endpoint_stats[endpoint][-1000:]
+                    self.endpoint_stats[endpoint] = self.endpoint_stats[endpoint][
+                        -1000:
+                    ]
 
     async def add_request_trace(self, trace: RequestTrace):
         """Add a request trace"""
@@ -113,9 +115,13 @@ class MetricsCollector:
             # Filter recent metrics
             recent_metrics = [m for m in self.metrics if m.timestamp >= cutoff_time]
 
-            recent_traces = [t for t in self.request_traces if t.timestamp >= cutoff_time]
+            recent_traces = [
+                t for t in self.request_traces if t.timestamp >= cutoff_time
+            ]
 
-            recent_db_metrics = [d for d in self.db_metrics if d.timestamp >= cutoff_time]
+            recent_db_metrics = [
+                d for d in self.db_metrics if d.timestamp >= cutoff_time
+            ]
 
             # Calculate aggregates
             total_requests = len(recent_traces)
@@ -150,7 +156,9 @@ class MetricsCollector:
                 "requests": {
                     "total": total_requests,
                     "errors": error_requests,
-                    "error_rate": error_requests / total_requests if total_requests > 0 else 0,
+                    "error_rate": (
+                        error_requests / total_requests if total_requests > 0 else 0
+                    ),
                     "avg_response_time_ms": round(avg_response_time, 2),
                     "requests_per_minute": round(total_requests / minutes, 2),
                 },
@@ -170,7 +178,9 @@ class MetricsCollector:
                     "disk_total_gb": round(disk_info.total / (1024**3), 2),
                 },
                 "top_errors": dict(
-                    sorted(self.error_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                    sorted(self.error_counts.items(), key=lambda x: x[1], reverse=True)[
+                        :5
+                    ]
                 ),
             }
 
@@ -191,14 +201,18 @@ class MetricsCollector:
                 if recent_durations:
                     endpoint_stats[endpoint] = {
                         "count": len(recent_durations),
-                        "avg_duration_ms": round(sum(recent_durations) / len(recent_durations), 2),
+                        "avg_duration_ms": round(
+                            sum(recent_durations) / len(recent_durations), 2
+                        ),
                         "min_duration_ms": round(min(recent_durations), 2),
                         "max_duration_ms": round(max(recent_durations), 2),
                         "p95_duration_ms": round(
-                            sorted(recent_durations)[int(len(recent_durations) * 0.95)], 2
+                            sorted(recent_durations)[int(len(recent_durations) * 0.95)],
+                            2,
                         ),
                         "p99_duration_ms": round(
-                            sorted(recent_durations)[int(len(recent_durations) * 0.99)], 2
+                            sorted(recent_durations)[int(len(recent_durations) * 0.99)],
+                            2,
                         ),
                     }
 
@@ -216,7 +230,9 @@ class APMMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Start request tracing
         start_time = time.time()
-        trace_id = request.headers.get("x-request-id", f"trace_{int(time.time() * 1000000)}")
+        trace_id = request.headers.get(
+            "x-request-id", f"trace_{int(time.time() * 1000000)}"
+        )
 
         # Initialize trace data
         trace_data = RequestTrace(
@@ -345,11 +361,15 @@ class DatabaseAPM:
         """Register SQLAlchemy event listeners for database monitoring"""
 
         @event.listens_for(engine, "before_cursor_execute")
-        def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        def before_cursor_execute(
+            conn, cursor, statement, parameters, context, executemany
+        ):
             context._query_start_time = time.time()
 
         @event.listens_for(engine, "after_cursor_execute")
-        def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        def after_cursor_execute(
+            conn, cursor, statement, parameters, context, executemany
+        ):
             if hasattr(context, "_query_start_time"):
                 duration_ms = (time.time() - context._query_start_time) * 1000
 
@@ -357,7 +377,11 @@ class DatabaseAPM:
                 asyncio.create_task(
                     self.metrics_collector.add_db_metric(
                         DatabaseMetric(
-                            query=statement[:200] + "..." if len(statement) > 200 else statement,
+                            query=(
+                                statement[:200] + "..."
+                                if len(statement) > 200
+                                else statement
+                            ),
                             duration_ms=duration_ms,
                             timestamp=datetime.utcnow(),
                             success=True,
@@ -375,9 +399,11 @@ class DatabaseAPM:
                 asyncio.create_task(
                     self.metrics_collector.add_db_metric(
                         DatabaseMetric(
-                            query=str(context.statement)[:200] + "..."
-                            if len(str(context.statement)) > 200
-                            else str(context.statement),
+                            query=(
+                                str(context.statement)[:200] + "..."
+                                if len(str(context.statement)) > 200
+                                else str(context.statement)
+                            ),
                             duration_ms=duration_ms,
                             timestamp=datetime.utcnow(),
                             success=False,
@@ -393,11 +419,17 @@ class CustomMetrics:
     def __init__(self, metrics_collector: MetricsCollector):
         self.metrics_collector = metrics_collector
 
-    async def increment_counter(self, name: str, value: float = 1.0, tags: dict[str, Any] = None):
+    async def increment_counter(
+        self, name: str, value: float = 1.0, tags: dict[str, Any] = None
+    ):
         """Increment a counter metric"""
         await self.metrics_collector.add_metric(
             PerformanceMetric(
-                name=name, value=value, unit="count", timestamp=datetime.utcnow(), tags=tags or {}
+                name=name,
+                value=value,
+                unit="count",
+                timestamp=datetime.utcnow(),
+                tags=tags or {},
             )
         )
 
@@ -405,15 +437,25 @@ class CustomMetrics:
         """Record a gauge metric"""
         await self.metrics_collector.add_metric(
             PerformanceMetric(
-                name=name, value=value, unit="value", timestamp=datetime.utcnow(), tags=tags or {}
+                name=name,
+                value=value,
+                unit="value",
+                timestamp=datetime.utcnow(),
+                tags=tags or {},
             )
         )
 
-    async def record_histogram(self, name: str, value: float, tags: dict[str, Any] = None):
+    async def record_histogram(
+        self, name: str, value: float, tags: dict[str, Any] = None
+    ):
         """Record a histogram metric"""
         await self.metrics_collector.add_metric(
             PerformanceMetric(
-                name=name, value=value, unit="value", timestamp=datetime.utcnow(), tags=tags or {}
+                name=name,
+                value=value,
+                unit="value",
+                timestamp=datetime.utcnow(),
+                tags=tags or {},
             )
         )
 

@@ -8,15 +8,25 @@ from ..base import Base
 class Analytics(Base):
     __tablename__ = "analytics"
 
-    id = sa.Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()"))
+    id = sa.Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Entity being analyzed (user, team, organization, or assessment)
-    entity_type = sa.Column(sa.String(50), nullable=False)  # 'user', 'team', 'organization', 'assessment'
+    entity_type = sa.Column(
+        sa.String(50), nullable=False
+    )  # 'user', 'team', 'organization', 'assessment'
     entity_id = sa.Column(UUID(as_uuid=True), nullable=False, index=True)
 
     # Analytics type and category
-    analytics_type = sa.Column(sa.String(100), nullable=False)  # 'personality', 'performance', 'engagement', 'wellness'
-    category = sa.Column(sa.String(100), nullable=True)  # Specific category within the type
+    analytics_type = sa.Column(
+        sa.String(100), nullable=False
+    )  # 'personality', 'performance', 'engagement', 'wellness'
+    category = sa.Column(
+        sa.String(100), nullable=True
+    )  # Specific category within the type
 
     # Raw data and processed results
     raw_data = sa.Column(JSONB, nullable=True)  # Original data points
@@ -37,21 +47,33 @@ class Analytics(Base):
     sample_size = sa.Column(sa.Integer, nullable=True)  # Number of data points
 
     # Processing metadata
-    algorithm_version = sa.Column(sa.String(50), nullable=True)  # Version of analytics algorithm used
-    processing_time_ms = sa.Column(sa.Integer, nullable=True)  # Time taken to generate analytics
+    algorithm_version = sa.Column(
+        sa.String(50), nullable=True
+    )  # Version of analytics algorithm used
+    processing_time_ms = sa.Column(
+        sa.Integer, nullable=True
+    )  # Time taken to generate analytics
 
     # Status and quality indicators
-    status = sa.Column(sa.String(20), nullable=False, default="pending")  # 'pending', 'processing', 'completed', 'error'
+    status = sa.Column(
+        sa.String(20), nullable=False, default="pending"
+    )  # 'pending', 'processing', 'completed', 'error'
     data_quality_score = sa.Column(sa.Float, nullable=True)  # 0-1 quality of input data
     completeness_score = sa.Column(sa.Float, nullable=True)  # 0-1 completeness of data
 
     # User interactions
-    view_count = sa.Column(sa.Integer, default=0)  # How many times this analytics was viewed
+    view_count = sa.Column(
+        sa.Integer, default=0
+    )  # How many times this analytics was viewed
     last_viewed_at = sa.Column(sa.TIMESTAMP(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
-    updated_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
+    created_at = sa.Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
+    updated_at = sa.Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
 
     # Relationships
     creator_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=True)
@@ -60,14 +82,22 @@ class Analytics(Base):
     def __repr__(self):
         return f"<Analytics(id={self.id}, entity_type={self.entity_type}, entity_id={self.entity_id}, type={self.analytics_type})>"
 
+
 class AnalyticsEvent(Base):
     """Track events that trigger analytics updates"""
+
     __tablename__ = "analytics_events"
 
-    id = sa.Column(UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()"))
+    id = sa.Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Event information
-    event_type = sa.Column(sa.String(100), nullable=False)  # 'assessment_completed', 'user_joined', 'team_changed'
+    event_type = sa.Column(
+        sa.String(100), nullable=False
+    )  # 'assessment_completed', 'user_joined', 'team_changed'
     entity_type = sa.Column(sa.String(50), nullable=False)
     entity_id = sa.Column(UUID(as_uuid=True), nullable=False)
 
@@ -79,7 +109,9 @@ class AnalyticsEvent(Base):
     processed_at = sa.Column(sa.TIMESTAMP(timezone=True), nullable=True)
 
     # Timestamps
-    created_at = sa.Column(sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False)
+    created_at = sa.Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
 
     def __repr__(self):
         return f"<AnalyticsEvent(id={self.id}, event_type={self.event_type}, entity_type={self.entity_type})>"
@@ -94,11 +126,21 @@ class AnalyticsEvent(Base):
 
 from datetime import datetime
 from uuid import uuid4
+
 from sqlalchemy import (
-    Column, String, Integer, BigInteger, Float, Boolean, DateTime, Date,
-    ForeignKey, Index, Text
+    BigInteger,
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 
 class DimUser(Base):
@@ -110,10 +152,16 @@ class DimUser(Base):
 
     Grain: One row per user version (tracks changes over time)
     """
+
     __tablename__ = "dim_user"
 
     # Surrogate key
-    user_key = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_key = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Natural key
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -141,10 +189,10 @@ class DimUser(Base):
 
     # Indexes for analytics queries
     __table_args__ = (
-        Index('idx_dim_user_tenant', 'tenant_id'),
-        Index('idx_dim_user_team', 'team_id'),
-        Index('idx_dim_user_current', 'is_current'),
-        Index('idx_dim_user_scd', 'user_id', 'valid_from', 'valid_to'),
+        Index("idx_dim_user_tenant", "tenant_id"),
+        Index("idx_dim_user_team", "team_id"),
+        Index("idx_dim_user_current", "is_current"),
+        Index("idx_dim_user_scd", "user_id", "valid_from", "valid_to"),
     )
 
     def __repr__(self):
@@ -160,10 +208,16 @@ class DimAssessment(Base):
 
     Grain: One row per assessment version
     """
+
     __tablename__ = "dim_assessment"
 
     # Surrogate key
-    assessment_key = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    assessment_key = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Natural key
     assessment_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -197,13 +251,15 @@ class DimAssessment(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_dim_assessment_tenant', 'tenant_id'),
-        Index('idx_dim_assessment_framework', 'framework_code'),
-        Index('idx_dim_assessment_current', 'is_current'),
+        Index("idx_dim_assessment_tenant", "tenant_id"),
+        Index("idx_dim_assessment_framework", "framework_code"),
+        Index("idx_dim_assessment_current", "is_current"),
     )
 
     def __repr__(self):
-        return f"<DimAssessment(assessment_key={self.assessment_key}, name={self.name})>"
+        return (
+            f"<DimAssessment(assessment_key={self.assessment_key}, name={self.name})>"
+        )
 
 
 class DimTeam(Base):
@@ -215,10 +271,16 @@ class DimTeam(Base):
 
     Grain: One row per team version
     """
+
     __tablename__ = "dim_team"
 
     # Surrogate key
-    team_key = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    team_key = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Natural key
     team_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -250,8 +312,8 @@ class DimTeam(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_dim_team_tenant', 'tenant_id'),
-        Index('idx_dim_team_current', 'is_current'),
+        Index("idx_dim_team_tenant", "tenant_id"),
+        Index("idx_dim_team_current", "is_current"),
     )
 
     def __repr__(self):
@@ -267,6 +329,7 @@ class DimDate(Base):
 
     Grain: One row per day
     """
+
     __tablename__ = "dim_date"
 
     # Surrogate key
@@ -300,9 +363,9 @@ class DimDate(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_dim_date_full_date', 'full_date'),
-        Index('idx_dim_date_year_month', 'year', 'month_number'),
-        Index('idx_dim_date_quarter', 'year', 'quarter'),
+        Index("idx_dim_date_full_date", "full_date"),
+        Index("idx_dim_date_year_month", "year", "month_number"),
+        Index("idx_dim_date_quarter", "year", "quarter"),
     )
 
     def __repr__(self):
@@ -318,6 +381,7 @@ class DimFramework(Base):
 
     Grain: One row per framework
     """
+
     __tablename__ = "dim_framework"
 
     # Surrogate key (not primary key - framework_code is the natural key referenced by foreign keys)
@@ -357,17 +421,24 @@ class FactAssessmentCompletion(Base):
 
     Grain: One row per assessment completion
     """
+
     __tablename__ = "fact_assessment_completion"
 
     # Surrogate key
     completion_key = Column(BigInteger, primary_key=True, autoincrement=True)
 
     # Foreign keys to dimensions
-    user_key = Column(UUID(as_uuid=True), ForeignKey('dim_user.user_key'), nullable=False)
-    assessment_key = Column(UUID(as_uuid=True), ForeignKey('dim_assessment.assessment_key'), nullable=False)
-    team_key = Column(UUID(as_uuid=True), ForeignKey('dim_team.team_key'))
-    date_key = Column(Integer, ForeignKey('dim_date.date_key'), nullable=False)
-    framework_key = Column(String(50), ForeignKey('dim_framework.framework_code'), nullable=False)
+    user_key = Column(
+        UUID(as_uuid=True), ForeignKey("dim_user.user_key"), nullable=False
+    )
+    assessment_key = Column(
+        UUID(as_uuid=True), ForeignKey("dim_assessment.assessment_key"), nullable=False
+    )
+    team_key = Column(UUID(as_uuid=True), ForeignKey("dim_team.team_key"))
+    date_key = Column(Integer, ForeignKey("dim_date.date_key"), nullable=False)
+    framework_key = Column(
+        String(50), ForeignKey("dim_framework.framework_code"), nullable=False
+    )
 
     # Tenant scoping
     tenant_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -401,22 +472,22 @@ class FactAssessmentCompletion(Base):
     additional_metrics = Column(JSONB)  # {trait_scores: {}, rankings: [], etc.}
 
     # Relationships
-    user = relationship('DimUser')
-    assessment = relationship('DimAssessment')
-    team = relationship('DimTeam')
-    date = relationship('DimDate')
-    framework = relationship('DimFramework')
+    user = relationship("DimUser")
+    assessment = relationship("DimAssessment")
+    team = relationship("DimTeam")
+    date = relationship("DimDate")
+    framework = relationship("DimFramework")
 
     # Indexes for analytics queries
     __table_args__ = (
-        Index('idx_fact_completion_tenant_date', 'tenant_id', 'date_key'),
-        Index('idx_fact_completion_user', 'user_id', 'completed_at'),
-        Index('idx_fact_completion_team', 'team_id', 'completed_at'),
-        Index('idx_fact_completion_assessment', 'assessment_id'),
-        Index('idx_fact_completion_framework', 'framework_key'),
-        Index('idx_fact_completion_complete', 'is_complete', 'is_valid'),
+        Index("idx_fact_completion_tenant_date", "tenant_id", "date_key"),
+        Index("idx_fact_completion_user", "user_id", "completed_at"),
+        Index("idx_fact_completion_team", "team_id", "completed_at"),
+        Index("idx_fact_completion_assessment", "assessment_id"),
+        Index("idx_fact_completion_framework", "framework_key"),
+        Index("idx_fact_completion_complete", "is_complete", "is_valid"),
         # Composite index for common analytics queries
-        Index('idx_fact_completion_analytics', 'tenant_id', 'team_key', 'date_key'),
+        Index("idx_fact_completion_analytics", "tenant_id", "team_key", "date_key"),
     )
 
     def __repr__(self):
@@ -432,14 +503,17 @@ class FactTeamMetrics(Base):
 
     Grain: One row per team per day
     """
+
     __tablename__ = "fact_team_metrics"
 
     # Surrogate key
     metric_key = Column(BigInteger, primary_key=True, autoincrement=True)
 
     # Foreign keys to dimensions
-    team_key = Column(UUID(as_uuid=True), ForeignKey('dim_team.team_key'), nullable=False)
-    date_key = Column(Integer, ForeignKey('dim_date.date_key'), nullable=False)
+    team_key = Column(
+        UUID(as_uuid=True), ForeignKey("dim_team.team_key"), nullable=False
+    )
+    date_key = Column(Integer, ForeignKey("dim_date.date_key"), nullable=False)
 
     # Tenant scoping
     tenant_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -474,15 +548,86 @@ class FactTeamMetrics(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
-    team = relationship('DimTeam')
-    date = relationship('DimDate')
+    team = relationship("DimTeam")
+    date = relationship("DimDate")
 
     # Indexes
     __table_args__ = (
-        Index('idx_fact_team_metrics_tenant_date', 'tenant_id', 'date_key'),
-        Index('idx_fact_team_metrics_team_date', 'team_id', 'date_key'),
-        Index('idx_fact_team_metrics_team', 'team_id'),
+        Index("idx_fact_team_metrics_tenant_date", "tenant_id", "date_key"),
+        Index("idx_fact_team_metrics_team_date", "team_id", "date_key"),
+        Index("idx_fact_team_metrics_team", "team_id"),
     )
 
     def __repr__(self):
         return f"<FactTeamMetrics(metric_key={self.metric_key}, team_id={self.team_id}, metric_date={self.metric_date})>"
+
+
+class UnifiedAnalyticsEvent(Base):
+    """Unified analytics event table for tracking all platform events"""
+
+    __tablename__ = "unified_analytics_events"
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
+    event_name = Column(String(255), nullable=False)
+    event_type = Column(String(100), nullable=False)
+    timestamp = Column(sa.TIMESTAMP(timezone=True), nullable=False)
+    session_id = Column(String(255), nullable=True)
+    user_id = Column(String(255), nullable=True)
+    batch_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    processed = Column(Boolean, default=False, nullable=False)
+    event_data = Column(JSONB, nullable=True)
+    created_at = Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
+
+    __table_args__ = (
+        Index("idx_unified_event_created_at", "created_at"),
+        Index("idx_unified_event_processed", "processed"),
+        Index("idx_unified_event_batch", "batch_id"),
+    )
+
+    def __repr__(self):
+        return f"<UnifiedAnalyticsEvent(id={self.id}, event_name={self.event_name})>"
+
+
+class AssessmentTrend(Base):
+    """Tracks longitudinal assessment score trends per user and assessment type"""
+
+    __tablename__ = "assessment_trends"
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
+    user_id = Column(String(255), nullable=False, index=True)
+    assessment_type = Column(String(100), nullable=False)
+    trend_direction = Column(String(50), nullable=True)
+    slope = Column(sa.Float, nullable=True)
+    r_squared = Column(sa.Float, nullable=True)
+    mean_score = Column(sa.Float, nullable=True)
+    median_score = Column(sa.Float, nullable=True)
+    total_assessments = Column(sa.Integer, nullable=True)
+    score_change_30d = Column(sa.Float, nullable=True)
+    score_change_90d = Column(sa.Float, nullable=True)
+    data_points_used = Column(sa.Integer, nullable=True)
+    date_range_start = Column(sa.TIMESTAMP(timezone=True), nullable=True)
+    date_range_end = Column(sa.TIMESTAMP(timezone=True), nullable=True)
+    calculated_at = Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_assessment_trend_user_type", "user_id", "assessment_type", unique=True
+        ),
+    )
+
+    def __repr__(self):
+        return f"<AssessmentTrend(user_id={self.user_id}, type={self.assessment_type}, direction={self.trend_direction})>"

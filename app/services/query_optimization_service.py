@@ -3,6 +3,7 @@ Advanced Query Optimization Service
 Eliminates N+1 query patterns with optimized loading strategies
 Expected improvement: 40-60% for complex query performance
 """
+
 import logging
 from typing import Any, TypeVar
 from uuid import UUID
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 # Generic type for model classes
 ModelType = TypeVar("ModelType")
 
+
 class QueryOptimizer:
     """
     Advanced query optimization service that eliminates N+1 patterns
@@ -40,7 +42,7 @@ class QueryOptimizer:
         organization_id: UUID | None = None,
         is_active: bool | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[User]:
         """
         Get users with preloaded organization data (eliminates N+1)
@@ -68,7 +70,7 @@ class QueryOptimizer:
                 selectinload(User.organization),
                 selectinload(User.teams)
                 .selectinload(Team.members)
-                .joinedload(TeamMember.user)
+                .joinedload(TeamMember.user),
             )
             .where(User.id == user_id)
         )
@@ -81,22 +83,16 @@ class QueryOptimizer:
     # =============================================================================
 
     async def get_teams_with_members_and_users(
-        self,
-        organization_id: UUID | None = None,
-        limit: int = 50,
-        offset: int = 0
+        self, organization_id: UUID | None = None, limit: int = 50, offset: int = 0
     ) -> list[Team]:
         """
         Get teams with all members and user data preloaded
         Eliminates N+1 queries for team listing
         """
-        query = (
-            select(Team)
-            .options(
-                selectinload(Team.members)
-                .joinedload(TeamMember.user)
-                .selectinload(User.organization)
-            )
+        query = select(Team).options(
+            selectinload(Team.members)
+            .joinedload(TeamMember.user)
+            .selectinload(User.organization)
         )
 
         if organization_id:
@@ -118,8 +114,7 @@ class QueryOptimizer:
                 selectinload(Team.members)
                 .joinedload(TeamMember.user)
                 .selectinload(User.organization),
-                selectinload(Team.assessments)
-                .selectinload(Assessment.responses)
+                selectinload(Team.assessments).selectinload(Assessment.responses),
             )
             .where(Team.id == team_id)
         )
@@ -137,17 +132,10 @@ class QueryOptimizer:
             select(Team)
             .join(TeamMember, Team.id == TeamMember.team_id)
             .options(
-                selectinload(Team.members)
-                .joinedload(TeamMember.user),
-                selectinload(Team.assessments)
-                .selectinload(Assessment.responses)
+                selectinload(Team.members).joinedload(TeamMember.user),
+                selectinload(Team.assessments).selectinload(Assessment.responses),
             )
-            .where(
-                and_(
-                    TeamMember.user_id == user_id,
-                    TeamMember.is_active == True
-                )
-            )
+            .where(and_(TeamMember.user_id == user_id, TeamMember.is_active == True))
             .order_by(Team.created_at.desc())
         )
 
@@ -163,20 +151,16 @@ class QueryOptimizer:
         organization_id: UUID | None = None,
         team_id: UUID | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[Assessment]:
         """
         Get assessments with preloaded response data and user information
         Eliminates N+1 queries for assessment analytics
         """
-        query = (
-            select(Assessment)
-            .options(
-                selectinload(Assessment.responses)
-                .joinedload(AssessmentResponse.user),
-                selectinload(Assessment.team),
-                selectinload(Assessment.organization)
-            )
+        query = select(Assessment).options(
+            selectinload(Assessment.responses).joinedload(AssessmentResponse.user),
+            selectinload(Assessment.team),
+            selectinload(Assessment.organization),
         )
 
         if organization_id:
@@ -189,7 +173,9 @@ class QueryOptimizer:
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def get_user_assessment_history(self, user_id: UUID) -> list[AssessmentResponse]:
+    async def get_user_assessment_history(
+        self, user_id: UUID
+    ) -> list[AssessmentResponse]:
         """
         Get user's complete assessment history with assessment data preloaded
         Optimized for user profile and analytics
@@ -197,10 +183,8 @@ class QueryOptimizer:
         query = (
             select(AssessmentResponse)
             .options(
-                joinedload(AssessmentResponse.assessment)
-                .selectinload(Assessment.team),
-                joinedload(AssessmentResponse.user)
-                .selectinload(User.organization)
+                joinedload(AssessmentResponse.assessment).selectinload(Assessment.team),
+                joinedload(AssessmentResponse.user).selectinload(User.organization),
             )
             .where(AssessmentResponse.user_id == user_id)
             .order_by(AssessmentResponse.created_at.desc())
@@ -213,7 +197,9 @@ class QueryOptimizer:
     # ORGANIZATION OPTIMIZED QUERIES
     # =============================================================================
 
-    async def get_organization_with_stats(self, organization_id: UUID) -> Organization | None:
+    async def get_organization_with_stats(
+        self, organization_id: UUID
+    ) -> Organization | None:
         """
         Get organization with preloaded statistics and summary data
         Uses subqueries for efficient aggregation
@@ -258,10 +244,7 @@ class QueryOptimizer:
     # =============================================================================
 
     async def get_paginated_results(
-        self,
-        query: Select,
-        page: int = 1,
-        page_size: int = 20
+        self, query: Select, page: int = 1, page_size: int = 20
     ) -> tuple[list[Any], int]:
         """
         Execute paginated query with total count for efficient pagination
@@ -292,8 +275,7 @@ class QueryOptimizer:
         from datetime import datetime
 
         stmt = (
-            User.__table__
-            .update()
+            User.__table__.update()
             .where(User.id.in_(user_ids))
             .values(last_login=datetime.utcnow())
         )
@@ -308,15 +290,9 @@ class QueryOptimizer:
         """
         query = (
             select(
-                TeamMember.team_id,
-                func.count(TeamMember.user_id).label("member_count")
+                TeamMember.team_id, func.count(TeamMember.user_id).label("member_count")
             )
-            .where(
-                and_(
-                    TeamMember.team_id.in_(team_ids),
-                    TeamMember.is_active == True
-                )
-            )
+            .where(and_(TeamMember.team_id.in_(team_ids), TeamMember.is_active == True))
             .group_by(TeamMember.team_id)
         )
 
@@ -338,25 +314,20 @@ class QueryOptimizer:
             result = await self.db.execute(explain_query)
             plan = result.scalar()
 
-            return {
-                "execution_plan": plan,
-                "query": str(query),
-                "optimized": True
-            }
+            return {"execution_plan": plan, "query": str(query), "optimized": True}
         except Exception as e:
             logger.error(f"Query analysis failed: {e}")
-            return {
-                "error": str(e),
-                "query": str(query),
-                "optimized": False
-            }
+            return {"error": str(e), "query": str(query), "optimized": False}
 
 
 # =============================================================================
-    # HELPER FUNCTIONS
-    # =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
 
-async def get_optimized_user_profile(db: AsyncSession, user_id: UUID) -> dict[str, Any] | None:
+
+async def get_optimized_user_profile(
+    db: AsyncSession, user_id: UUID
+) -> dict[str, Any] | None:
     """
     Get complete user profile with all related data in optimal queries
     Returns formatted user data for API responses
@@ -379,25 +350,31 @@ async def get_optimized_user_profile(db: AsyncSession, user_id: UUID) -> dict[st
         "last_login": user.last_login,
         "organization": {
             "id": str(user.organization.id) if user.organization else None,
-            "name": user.organization.name if user.organization else None
+            "name": user.organization.name if user.organization else None,
         },
         "teams": [
             {
                 "id": str(team.id),
                 "name": team.name,
                 "role": next(
-                    (member.role for member in team.members
-                     if member.user_id == user_id), None
-                )
+                    (
+                        member.role
+                        for member in team.members
+                        if member.user_id == user_id
+                    ),
+                    None,
+                ),
             }
             for team in user.teams
-        ]
+        ],
     }
 
     return user_data
 
 
-async def get_optimized_team_dashboard(db: AsyncSession, team_id: UUID) -> dict[str, Any] | None:
+async def get_optimized_team_dashboard(
+    db: AsyncSession, team_id: UUID
+) -> dict[str, Any] | None:
     """
     Get comprehensive team dashboard data with optimized queries
     Returns formatted team data for API responses
@@ -426,7 +403,7 @@ async def get_optimized_team_dashboard(db: AsyncSession, team_id: UUID) -> dict[
                 "first_name": member.user.first_name,
                 "last_name": member.user.last_name,
                 "role": member.role,
-                "is_active": member.is_active
+                "is_active": member.is_active,
             }
             for member in team.members
         ],
@@ -436,10 +413,10 @@ async def get_optimized_team_dashboard(db: AsyncSession, team_id: UUID) -> dict[
                 "title": assessment.title,
                 "assessment_type": assessment.assessment_type,
                 "response_count": len(assessment.responses),
-                "created_at": assessment.created_at
+                "created_at": assessment.created_at,
             }
             for assessment in team.assessments
-        ]
+        ],
     }
 
     return team_data

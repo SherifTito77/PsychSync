@@ -9,41 +9,54 @@ Comprehensive test configuration with database fixtures and enhanced setup
 """
 
 import asyncio
+import hashlib
+import json
+import os
+import tempfile
+from datetime import datetime, timedelta
+from typing import Any, AsyncGenerator, Dict, Generator, List, Optional
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 import pytest_asyncio
-from typing import Generator, AsyncGenerator, Dict, Any, Optional, List
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
-import json
-import tempfile
-import os
-import hashlib
 
 # Set test environment before importing application modules
-os.environ['ENVIRONMENT'] = 'testing'
-os.environ['TESTING'] = 'True'
-os.environ['DATABASE_URL'] = 'postgresql+asyncpg://sheriftito@localhost:5432/psychsync_test'
-os.environ['REDIS_URL'] = 'redis://localhost:6379/1'  # Test database
+os.environ["ENVIRONMENT"] = "testing"
+os.environ["TESTING"] = "True"
 
-from fastapi.testclient import TestClient
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy import create_engine
-from faker import Faker
+_db_user = os.environ.get("PSYCHSYNC_TEST_DB_USER", "postgres")
+_db_host = os.environ.get("PSYCHSYNC_TEST_DB_HOST", "localhost")
+_db_port = os.environ.get("PSYCHSYNC_TEST_DB_PORT", "5432")
+_db_name = os.environ.get("PSYCHSYNC_TEST_DB_NAME", "psychsync_test")
+DATABASE_URL = f"postgresql+asyncpg://{_db_user}@{_db_host}:{_db_port}/{_db_name}"
+
+_redis_host = os.environ.get("PSYCHSYNC_TEST_REDIS_HOST", "localhost")
+_redis_port = os.environ.get("PSYCHSYNC_TEST_REDIS_PORT", "6379")
+_redis_db = os.environ.get("PSYCHSYNC_TEST_REDIS_DB", "1")
+REDIS_URL = f"redis://{_redis_host}:{_redis_port}/{_redis_db}"
+
+os.environ["DATABASE_URL"] = DATABASE_URL
+os.environ["REDIS_URL"] = REDIS_URL
+
 import redis.asyncio as redis
 from aiofiles import tempfile as aiotempfile
+from faker import Faker
+from fastapi.testclient import TestClient
+from httpx import AsyncClient
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from app.main import app
-from app.core.database import Base, get_async_db
 from app.core.config import settings
-from app.core.security import create_access_token
-from app.db.models.user import User, UserRole
-from app.db.models.team import Team, TeamMember, TeamRole
-from app.db.models.organization import Organization
+from app.core.database import Base, get_async_db
 from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
+from app.db.models.organization import Organization
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User, UserRole
+from app.main import app
 from app.schemas.user import UserCreate
+from app.services.security import create_access_token
 from app.services.team_service import TeamService
 
 
@@ -52,12 +65,13 @@ def get_test_password_hash(password: str) -> str:
     """Simple SHA256 hash for test passwords only"""
     return hashlib.sha256(password.encode()).hexdigest()
 
+
 # Initialize Faker
 fake = Faker()
 
 # Test Database Configuration
-SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg://sheriftito@localhost:5432/psychsync_test"
-SQLALCHEMY_SYNC_DATABASE_URL = "postgresql://sheriftito@localhost:5432/psychsync_test"
+SQLALCHEMY_TEST_DATABASE_URL = DATABASE_URL
+SQLALCHEMY_SYNC_DATABASE_URL = f"postgresql://{_db_user}@{_db_host}:{_db_port}/{_db_name}"
 
 # Create async test engine
 test_engine = create_async_engine(
@@ -77,15 +91,11 @@ sync_test_engine = create_engine(
 
 # Create session factories
 TestSessionLocal = async_sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=test_engine
+    autocommit=False, autoflush=False, bind=test_engine
 )
 
 SyncTestSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=sync_test_engine
+    autocommit=False, autoflush=False, bind=sync_test_engine
 )
 
 
@@ -143,9 +153,12 @@ async def client(test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_async_db] = lambda: test_db
 
     from httpx import ASGITransport
+
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(transport=transport, base_url="http://test", follow_redirects=False) as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", follow_redirects=False
+    ) as ac:
         yield ac
 
     app.dependency_overrides.clear()
@@ -156,6 +169,7 @@ def sync_client(test_db_sync: Session) -> Generator[TestClient, None, None]:
     """
     Create a synchronous test client for non-async tests
     """
+
     def override_get_db():
         try:
             yield test_db_sync
@@ -176,24 +190,20 @@ def sample_user_data():
     return {
         "email": fake.email(),
         "full_name": fake.name(),
-        "password": "SecureP@ss99!"  # Meets validation: no common patterns, has uppercase, lowercase, number, special char
+        "password": "SecureP@ss99!",  # Meets validation: no common patterns, has uppercase, lowercase, number, special char
     }
 
 
 @pytest.fixture
 def sample_organization_data():
     """Generate sample organization data for testing"""
-    return {
-        "name": fake.company()
-    }
+    return {"name": fake.company()}
 
 
 @pytest.fixture
 def sample_team_data():
     """Generate sample team data for testing"""
-    return {
-        "name": f"Team {fake.company()}"
-    }
+    return {"name": f"Team {fake.company()}"}
 
 
 @pytest.fixture
@@ -206,7 +216,7 @@ async def test_user(test_db: AsyncSession, sample_user_data: Dict[str, Any]) -> 
     user = User(
         email=sample_user_data["email"],
         full_name=sample_user_data["full_name"],
-        password_hash=password_hash
+        password_hash=password_hash,
     )
     test_db.add(user)
     await test_db.commit()
@@ -221,11 +231,7 @@ async def test_admin(test_db: AsyncSession) -> User:
     password_hash = get_test_password_hash("AdminSec99!")
 
     # Create admin directly in database
-    admin = User(
-        email=fake.email(),
-        full_name=fake.name(),
-        password_hash=password_hash
-    )
+    admin = User(email=fake.email(), full_name=fake.name(), password_hash=password_hash)
     test_db.add(admin)
     await test_db.commit()
     await test_db.refresh(admin)
@@ -233,7 +239,9 @@ async def test_admin(test_db: AsyncSession) -> User:
 
 
 @pytest.fixture
-async def test_organization(test_db: AsyncSession, sample_organization_data: Dict[str, Any]) -> Organization:
+async def test_organization(
+    test_db: AsyncSession, sample_organization_data: Dict[str, Any]
+) -> Organization:
     """Create a test organization in the database"""
     org = Organization(**sample_organization_data)
     test_db.add(org)
@@ -243,7 +251,11 @@ async def test_organization(test_db: AsyncSession, sample_organization_data: Dic
 
 
 @pytest.fixture
-async def test_team(test_db: AsyncSession, sample_team_data: Dict[str, Any], test_organization: Organization) -> Team:
+async def test_team(
+    test_db: AsyncSession,
+    sample_team_data: Dict[str, Any],
+    test_organization: Organization,
+) -> Team:
     """Create a test team in the database"""
     team_data = sample_team_data.copy()
     team_data["organization_id"] = test_organization.id
@@ -258,8 +270,7 @@ async def test_team(test_db: AsyncSession, sample_team_data: Dict[str, Any], tes
 async def auth_headers(test_user: User) -> Dict[str, str]:
     """Generate authentication headers for a test user"""
     access_token = await create_access_token(
-        subject=str(test_user.id),
-        user_id=str(test_user.id)
+        subject=str(test_user.id), user_id=str(test_user.id)
     )
     return {"Authorization": f"Bearer {access_token}"}
 
@@ -268,8 +279,7 @@ async def auth_headers(test_user: User) -> Dict[str, str]:
 async def admin_auth_headers(test_admin: User) -> Dict[str, str]:
     """Generate authentication headers for a test admin"""
     access_token = await create_access_token(
-        subject=str(test_admin.id),
-        user_id=str(test_admin.id)
+        subject=str(test_admin.id), user_id=str(test_admin.id)
     )
     return {"Authorization": f"Bearer {access_token}"}
 
@@ -278,7 +288,7 @@ async def admin_auth_headers(test_admin: User) -> Dict[str, str]:
 async def test_redis():
     """Create a test Redis connection"""
     try:
-        redis_client = redis.from_url("redis://localhost:6379/1", decode_responses=True)
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
         # Test connection
         await redis_client.ping()
         yield redis_client
@@ -293,7 +303,7 @@ async def test_redis():
 @pytest.fixture
 def mock_email_service():
     """Mock email service for testing"""
-    with patch('app.services.email_service.send_email') as mock_send:
+    with patch("app.services.email_service.send_email") as mock_send:
         mock_send.return_value = True
         yield mock_send
 
@@ -301,11 +311,11 @@ def mock_email_service():
 @pytest.fixture
 def mock_ai_service():
     """Mock AI processing service for testing"""
-    with patch('app.services.nlp_service.process_text') as mock_process:
+    with patch("app.services.nlp_service.process_text") as mock_process:
         mock_process.return_value = {
             "personality_traits": {},
             "confidence_score": 0.85,
-            "recommendations": []
+            "recommendations": [],
         }
         yield mock_process
 
@@ -313,6 +323,7 @@ def mock_ai_service():
 @pytest.fixture
 def performance_monitor():
     """Monitor performance during tests"""
+
     class PerformanceMonitor:
         def __init__(self):
             self.start_time = None
@@ -321,14 +332,18 @@ def performance_monitor():
 
         def start(self):
             import time
+
             import psutil
+
             self.start_time = time.time()
             process = psutil.Process()
             self.memory_usage.append(process.memory_info().rss)
 
         def stop(self):
             import time
+
             import psutil
+
             self.end_time = time.time()
             process = psutil.Process()
             self.memory_usage.append(process.memory_info().rss)
@@ -357,7 +372,7 @@ def user_factory():
             "email": fake.email(),
             "full_name": fake.name(),
             "password": "SecureP@ss99!",  # Meets validation
-            **kwargs
+            **kwargs,
         }
         # Hash the password
         password_hash = get_test_password_hash(user_data["password"])
@@ -366,7 +381,7 @@ def user_factory():
         user = User(
             email=user_data["email"],
             full_name=user_data["full_name"],
-            password_hash=password_hash
+            password_hash=password_hash,
         )
         test_db.add(user)
         await test_db.commit()
@@ -386,10 +401,7 @@ def assessment_factory():
     created_assessments = []
 
     async def create_assessment(
-        test_db: AsyncSession,
-        organization_id: int,
-        created_by_id: int,
-        **kwargs
+        test_db: AsyncSession, organization_id: int, created_by_id: int, **kwargs
     ) -> Assessment:
         assessment_data = {
             "title": fake.sentence(),
@@ -398,7 +410,7 @@ def assessment_factory():
             "status": AssessmentStatus.DRAFT,
             "organization_id": organization_id,
             "created_by_id": created_by_id,
-            **kwargs
+            **kwargs,
         }
         assessment = Assessment(**assessment_data)
         test_db.add(assessment)
@@ -424,8 +436,8 @@ def load_test_config():
         "target_endpoints": [
             "/api/v1/health",
             "/api/v1/users/me",
-            "/api/v1/assessments"
-        ]
+            "/api/v1/assessments",
+        ],
     }
 
 
@@ -436,7 +448,7 @@ def stress_test_config():
         "max_concurrent_requests": 100,
         "duration": 60,  # seconds
         "memory_limit_mb": 512,
-        "response_time_limit_ms": 2000
+        "response_time_limit_ms": 2000,
     }
 
 
@@ -450,28 +462,28 @@ def security_test_vectors():
             "1' OR '1'='1",
             "admin'--",
             "UNION SELECT * FROM users",
-            "'; INSERT INTO users VALUES('hacker','pass'); --"
+            "'; INSERT INTO users VALUES('hacker','pass'); --",
         ],
         "xss": [
             "<script>alert('xss')</script>",
             "<img src=x onerror=alert('xss')>",
             "javascript:alert('xss')",
             "';alert('xss');//",
-            "<svg onload=alert('xss')>"
+            "<svg onload=alert('xss')>",
         ],
         "path_traversal": [
             "../../../etc/passwd",
             "..\\..\\..\\windows\\system32",
             "....//....//....//etc/passwd",
-            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd"
+            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
         ],
         "command_injection": [
             "; ls -la",
             "| cat /etc/passwd",
             "& echo 'hack'",
             "`whoami`",
-            "$(id)"
-        ]
+            "$(id)",
+        ],
     }
 
 
@@ -479,6 +491,7 @@ def security_test_vectors():
 @pytest.fixture
 def error_simulation():
     """Simulate various error conditions"""
+
     class ErrorSimulator:
         def __init__(self):
             self.enabled_errors = {}
@@ -532,5 +545,5 @@ def test_environment_config():
         "REDIS_URL": "redis://localhost:6379/1",
         "SECRET_KEY": "test-secret-key-for-testing-only",
         "EMAIL_VERIFICATION_ENABLED": "False",
-        "RATE_LIMIT_ENABLED": "False"  # Disable for testing
+        "RATE_LIMIT_ENABLED": "False",  # Disable for testing
     }

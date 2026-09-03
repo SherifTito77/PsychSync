@@ -12,11 +12,11 @@ Key Features:
 - Cross-user behavioral similarity analysis
 """
 
+import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 import numpy as np
@@ -142,7 +142,9 @@ class BehavioralPatternRecognizer:
     Advanced behavioral pattern recognition engine.
     """
 
-    def __init__(self, db_session: Session, config: PatternConfig | None = None):
+    def __init__(
+        self, db_session: Session | None = None, config: PatternConfig | None = None
+    ):
         self.db = db_session
         self.config = config or PatternConfig()
         self.redis_client: redis.Redis | None = None
@@ -207,7 +209,9 @@ class BehavioralPatternRecognizer:
             analysis = {
                 "user_id": user_id,
                 "analysis_period": {
-                    "start": (datetime.utcnow() - timedelta(hours=time_window)).isoformat(),
+                    "start": (
+                        datetime.utcnow() - timedelta(hours=time_window)
+                    ).isoformat(),
                     "end": datetime.utcnow().isoformat(),
                     "hours": time_window,
                 },
@@ -240,7 +244,9 @@ class BehavioralPatternRecognizer:
             analysis["anomalies"] = await self._detect_anomalies(events, user_id)
 
             # Generate behavioral profile
-            analysis["behavioral_profile"] = await self._generate_behavioral_profile(events)
+            analysis["behavioral_profile"] = await self._generate_behavioral_profile(
+                events
+            )
 
             # Generate insights and recommendations
             analysis["insights"] = await self._generate_insights(
@@ -318,8 +324,14 @@ class BehavioralPatternRecognizer:
                         confidence=dow_counts.iloc[0] / len(df),
                         support=len(df),
                         users=[user_id],
-                        time_window={"start": df["timestamp"].min(), "end": df["timestamp"].max()},
-                        metadata={"peak_days": peak_days, "day_distribution": dow_counts.to_dict()},
+                        time_window={
+                            "start": df["timestamp"].min(),
+                            "end": df["timestamp"].max(),
+                        },
+                        metadata={
+                            "peak_days": peak_days,
+                            "day_distribution": dow_counts.to_dict(),
+                        },
                     )
                 )
 
@@ -368,7 +380,10 @@ class BehavioralPatternRecognizer:
 
             for event in sorted_events:
                 # Start new sequence if gap > 30 minutes
-                if last_timestamp and (event.timestamp - last_timestamp).total_seconds() > 1800:
+                if (
+                    last_timestamp
+                    and (event.timestamp - last_timestamp).total_seconds() > 1800
+                ):
                     if len(current_sequence) >= 3:
                         sequences.append(current_sequence)
                     current_sequence = [event.event_type]
@@ -406,7 +421,10 @@ class BehavioralPatternRecognizer:
                                     "start": events[0].timestamp,
                                     "end": events[-1].timestamp,
                                 },
-                                metadata={"sequence": seq_key.split(" -> "), "frequency": count},
+                                metadata={
+                                    "sequence": seq_key.split(" -> "),
+                                    "frequency": count,
+                                },
                             )
                         )
 
@@ -425,7 +443,9 @@ class BehavioralPatternRecognizer:
             # Count event types
             event_counts = {}
             for event in events:
-                event_counts[event.event_type] = event_counts.get(event.event_type, 0) + 1
+                event_counts[event.event_type] = (
+                    event_counts.get(event.event_type, 0) + 1
+                )
 
             if not event_counts:
                 return patterns
@@ -444,7 +464,10 @@ class BehavioralPatternRecognizer:
                             confidence=frequency,
                             support=count,
                             users=[user_id],
-                            time_window={"start": events[0].timestamp, "end": events[-1].timestamp},
+                            time_window={
+                                "start": events[0].timestamp,
+                                "end": events[-1].timestamp,
+                            },
                             metadata={
                                 "event_type": event_type,
                                 "frequency": frequency,
@@ -473,8 +496,14 @@ class BehavioralPatternRecognizer:
                             confidence=1.0 - cv,
                             support=len(daily_counts),
                             users=[user_id],
-                            time_window={"start": events[0].timestamp, "end": events[-1].timestamp},
-                            metadata={"coefficient_of_variation": cv, "daily_counts": daily_counts},
+                            time_window={
+                                "start": events[0].timestamp,
+                                "end": events[-1].timestamp,
+                            },
+                            metadata={
+                                "coefficient_of_variation": cv,
+                                "daily_counts": daily_counts,
+                            },
                         )
                     )
 
@@ -543,7 +572,8 @@ class BehavioralPatternRecognizer:
             social_events = [
                 e
                 for e in events
-                if "team" in e.event_type.lower() or "collaboration" in e.event_type.lower()
+                if "team" in e.event_type.lower()
+                or "collaboration" in e.event_type.lower()
             ]
 
             if len(social_events) >= self.config.min_pattern_support:
@@ -556,14 +586,23 @@ class BehavioralPatternRecognizer:
                         confidence=len(social_events) / len(events),
                         support=len(social_events),
                         users=[user_id],
-                        time_window={"start": events[0].timestamp, "end": events[-1].timestamp},
-                        metadata={"social_events": len(social_events), "total_events": len(events)},
+                        time_window={
+                            "start": events[0].timestamp,
+                            "end": events[-1].timestamp,
+                        },
+                        metadata={
+                            "social_events": len(social_events),
+                            "total_events": len(events),
+                        },
                     )
                 )
 
                 # Time-based social patterns
                 social_df = pd.DataFrame(
-                    [{"timestamp": e.timestamp, "hour": e.timestamp.hour} for e in social_events]
+                    [
+                        {"timestamp": e.timestamp, "hour": e.timestamp.hour}
+                        for e in social_events
+                    ]
                 )
 
                 if not social_df.empty:
@@ -577,7 +616,10 @@ class BehavioralPatternRecognizer:
                             confidence=social_hours.iloc[0] / len(social_events),
                             support=len(social_events),
                             users=[user_id],
-                            time_window={"start": events[0].timestamp, "end": events[-1].timestamp},
+                            time_window={
+                                "start": events[0].timestamp,
+                                "end": events[-1].timestamp,
+                            },
                             metadata={
                                 "peak_hour": peak_social_hour,
                                 "hour_distribution": social_hours.to_dict(),
@@ -633,8 +675,12 @@ class BehavioralPatternRecognizer:
                 if len(performance_events) >= 10:
                     # Split events into halves to check improvement
                     mid_point = len(performance_events) // 2
-                    early_durations = [e.duration_ms for e in performance_events[:mid_point]]
-                    late_durations = [e.duration_ms for e in performance_events[mid_point:]]
+                    early_durations = [
+                        e.duration_ms for e in performance_events[:mid_point]
+                    ]
+                    late_durations = [
+                        e.duration_ms for e in performance_events[mid_point:]
+                    ]
 
                     early_avg = np.mean(early_durations)
                     late_avg = np.mean(late_durations)
@@ -691,7 +737,9 @@ class BehavioralPatternRecognizer:
                     earlier_avg = np.mean(activities[-14:-7])  # Previous week
 
                     decline_rate = (
-                        (earlier_avg - recent_avg) / earlier_avg if earlier_avg > 0 else 0
+                        (earlier_avg - recent_avg) / earlier_avg
+                        if earlier_avg > 0
+                        else 0
                     )
 
                     if decline_rate > 0.3:  # 30% decline in activity
@@ -730,7 +778,10 @@ class BehavioralPatternRecognizer:
                             confidence=failure_rate,
                             support=len(failed_events),
                             users=[user_id],
-                            time_window={"start": events[0].timestamp, "end": events[-1].timestamp},
+                            time_window={
+                                "start": events[0].timestamp,
+                                "end": events[-1].timestamp,
+                            },
                             metadata={
                                 "failure_rate": failure_rate,
                                 "failed_events": len(failed_events),
@@ -770,7 +821,10 @@ class BehavioralPatternRecognizer:
                         confidence=len(learning_events) / len(events),
                         support=len(learning_events),
                         users=[user_id],
-                        time_window={"start": events[0].timestamp, "end": events[-1].timestamp},
+                        time_window={
+                            "start": events[0].timestamp,
+                            "end": events[-1].timestamp,
+                        },
                         metadata={
                             "learning_events": len(learning_events),
                             "total_events": len(events),
@@ -780,7 +834,9 @@ class BehavioralPatternRecognizer:
 
             # Skill progression pattern
             skill_events = [
-                e for e in events if "skill" in e.properties or "assessment" in e.event_type.lower()
+                e
+                for e in events
+                if "skill" in e.properties or "assessment" in e.event_type.lower()
             ]
             if len(skill_events) >= 5:
                 # Look for score improvements
@@ -817,7 +873,9 @@ class BehavioralPatternRecognizer:
 
         return patterns
 
-    async def _detect_anomalies(self, events: list[BehavioralEvent], user_id: str) -> list[Anomaly]:
+    async def _detect_anomalies(
+        self, events: list[BehavioralEvent], user_id: str
+    ) -> list[Anomaly]:
         """Detect behavioral anomalies using statistical and ML methods."""
         anomalies = []
 
@@ -831,7 +889,9 @@ class BehavioralPatternRecognizer:
                 return anomalies
 
             # Statistical anomaly detection
-            statistical_anomalies = await self._detect_statistical_anomalies(features, user_id)
+            statistical_anomalies = await self._detect_statistical_anomalies(
+                features, user_id
+            )
             anomalies.extend(statistical_anomalies)
 
             # ML-based anomaly detection
@@ -857,7 +917,8 @@ class BehavioralPatternRecognizer:
                     "day_of_week": event.timestamp.weekday(),
                     "duration_ms": event.duration_ms or 0,
                     "success": 1 if event.success else 0,
-                    "event_type_encoded": hash(event.event_type) % 1000,  # Simple encoding
+                    "event_type_encoded": hash(event.event_type)
+                    % 1000,  # Simple encoding
                 }
 
                 # Add numeric properties
@@ -887,7 +948,9 @@ class BehavioralPatternRecognizer:
 
                 # Z-score based outlier detection
                 z_scores = np.abs(stats.zscore(values))
-                outlier_indices = np.where(z_scores > self.config.statistical_threshold)[0]
+                outlier_indices = np.where(
+                    z_scores > self.config.statistical_threshold
+                )[0]
 
                 for idx in outlier_indices:
                     actual_idx = values.index[idx]
@@ -896,9 +959,11 @@ class BehavioralPatternRecognizer:
                             anomaly_id=f"statistical_{column}_{actual_idx}_{user_id}",
                             user_id=user_id,
                             anomaly_type=AnomalyType.STATISTICAL,
-                            severity=PatternSeverity.MEDIUM
-                            if z_scores[idx] < 4
-                            else PatternSeverity.HIGH,
+                            severity=(
+                                PatternSeverity.MEDIUM
+                                if z_scores[idx] < 4
+                                else PatternSeverity.HIGH
+                            ),
                             description=f"Statistical outlier in {column}: value {values.iloc[idx]} (z-score: {z_scores[idx]:.2f})",
                             confidence=min(0.9, z_scores[idx] / 5),
                             detected_at=datetime.utcnow(),
@@ -915,7 +980,9 @@ class BehavioralPatternRecognizer:
 
         return anomalies
 
-    async def _detect_ml_anomalies(self, features: pd.DataFrame, user_id: str) -> list[Anomaly]:
+    async def _detect_ml_anomalies(
+        self, features: pd.DataFrame, user_id: str
+    ) -> list[Anomaly]:
         """Detect anomalies using machine learning methods."""
         anomalies = []
 
@@ -954,7 +1021,9 @@ class BehavioralPatternRecognizer:
                         confidence=min(0.9, abs(anomaly_scores[idx]) * 2),
                         detected_at=datetime.utcnow(),
                         baseline_metrics={"ml_score_normal_range": "[-0.1, 0.1]"},
-                        observed_metrics={"ml_anomaly_score": float(anomaly_scores[idx])},
+                        observed_metrics={
+                            "ml_anomaly_score": float(anomaly_scores[idx])
+                        },
                         recommendations=[
                             "Review recent user activity for unusual patterns",
                             "Consider security implications if anomaly score is very low",
@@ -1008,7 +1077,9 @@ class BehavioralPatternRecognizer:
 
         return anomalies
 
-    async def _generate_behavioral_profile(self, events: list[BehavioralEvent]) -> dict[str, Any]:
+    async def _generate_behavioral_profile(
+        self, events: list[BehavioralEvent]
+    ) -> dict[str, Any]:
         """Generate comprehensive behavioral profile for the user."""
         try:
             if not events:
@@ -1035,21 +1106,27 @@ class BehavioralPatternRecognizer:
             profile = {
                 "activity_level": {
                     "total_events": total_events,
-                    "success_rate": successful_events / total_events if total_events > 0 else 0,
+                    "success_rate": (
+                        successful_events / total_events if total_events > 0 else 0
+                    ),
                     "avg_session_duration_ms": avg_duration,
                 },
                 "behavioral_preferences": {
                     "most_common_actions": sorted(
                         event_types.items(), key=lambda x: x[1], reverse=True
                     )[:5],
-                    "activity_diversity": len(event_types) / total_events
-                    if total_events > 0
-                    else 0,
+                    "activity_diversity": (
+                        len(event_types) / total_events if total_events > 0 else 0
+                    ),
                 },
                 "temporal_patterns": {
-                    "most_active_hours": pd.Series(hours).mode().tolist() if hours else [],
+                    "most_active_hours": (
+                        pd.Series(hours).mode().tolist() if hours else []
+                    ),
                     "most_active_days": pd.Series(days).mode().tolist() if days else [],
-                    "activity_regularity": len(set(events[e].timestamp.date() for e in events))
+                    "activity_regularity": len(
+                        set(events[e].timestamp.date() for e in events)
+                    )
                     / min(30, len(events)),
                 },
             }
@@ -1148,7 +1225,9 @@ class BehavioralPatternRecognizer:
                 )
 
             # Learning-based recommendations
-            learning_patterns = [p for p in patterns if p.pattern_type == PatternType.LEARNING]
+            learning_patterns = [
+                p for p in patterns if p.pattern_type == PatternType.LEARNING
+            ]
             if learning_patterns:
                 recommendations.extend(
                     [
@@ -1159,7 +1238,9 @@ class BehavioralPatternRecognizer:
                 )
 
             # Anomaly-based recommendations
-            critical_anomalies = [a for a in anomalies if a.severity == PatternSeverity.CRITICAL]
+            critical_anomalies = [
+                a for a in anomalies if a.severity == PatternSeverity.CRITICAL
+            ]
             if critical_anomalies:
                 recommendations.extend(
                     [
@@ -1185,8 +1266,12 @@ class BehavioralPatternRecognizer:
             risk_factors = []
 
             # High-severity anomalies increase risk
-            critical_anomalies = [a for a in anomalies if a.severity == PatternSeverity.CRITICAL]
-            high_anomalies = [a for a in anomalies if a.severity == PatternSeverity.HIGH]
+            critical_anomalies = [
+                a for a in anomalies if a.severity == PatternSeverity.CRITICAL
+            ]
+            high_anomalies = [
+                a for a in anomalies if a.severity == PatternSeverity.HIGH
+            ]
 
             risk_score += len(critical_anomalies) * 0.4
             risk_score += len(high_anomalies) * 0.2
@@ -1235,7 +1320,9 @@ class BehavioralPatternRecognizer:
                 "requires_intervention": False,
             }
 
-    async def _get_user_events(self, user_id: str, time_window_hours: int) -> list[BehavioralEvent]:
+    async def _get_user_events(
+        self, user_id: str, time_window_hours: int
+    ) -> list[BehavioralEvent]:
         """Get user events within the specified time window."""
         # Note: This would be implemented with actual database queries
         # For now, return empty list to be implemented with real data
@@ -1264,7 +1351,9 @@ class BehavioralPatternRecognizer:
             if self.redis_client:
                 cache_key = f"behavioral_analysis:{user_id}"
                 await self.redis_client.setex(
-                    cache_key, self.config.cache_ttl_hours * 3600, json.dumps(analysis, default=str)
+                    cache_key,
+                    self.config.cache_ttl_hours * 3600,
+                    json.dumps(analysis, default=str),
                 )
 
         except Exception as e:

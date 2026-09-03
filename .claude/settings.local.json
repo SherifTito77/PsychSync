@@ -50,7 +50,9 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(git filter-branch:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Write(frontend/**)",
+      "Edit(frontend/**)"
     ]
   },
   "outputStyle": "Learning"

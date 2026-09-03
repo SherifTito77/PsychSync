@@ -10,11 +10,11 @@ This module provides enterprise-grade database connection management with:
 """
 
 import asyncio
+import logging
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
-import logging
-import time
 
 import asyncpg
 
@@ -143,7 +143,9 @@ class AdvancedDatabaseManager:
                 logger.info(f"✅ Database pool initialized for {config.role.value}")
 
             except Exception as e:
-                logger.error(f"❌ Failed to initialize {config.role.value} database: {e}")
+                logger.error(
+                    f"❌ Failed to initialize {config.role.value} database: {e}"
+                )
                 raise
 
         self.initialized = True
@@ -181,8 +183,12 @@ class AdvancedDatabaseManager:
         """Setup connection after creation"""
         await conn.execute("SET session_preload_libraries = 'pg_stat_statements'")
         await conn.execute("SET pg_stat_statements.track = 'all'")
-        await conn.execute("SET log_statement = 'none'")  # Disable query logging for performance
-        await conn.execute("SET log_min_duration_statement = '1000'")  # Log slow queries only
+        await conn.execute(
+            "SET log_statement = 'none'"
+        )  # Disable query logging for performance
+        await conn.execute(
+            "SET log_min_duration_statement = '1000'"
+        )  # Log slow queries only
 
         # Set row-level security context
         await conn.execute("SET app.current_user_id = ''")
@@ -241,7 +247,9 @@ class AdvancedDatabaseManager:
         finally:
             await conn.release()
 
-    async def execute_query(self, query: str, *args, role: DatabaseRole = DatabaseRole.PRIMARY):
+    async def execute_query(
+        self, query: str, *args, role: DatabaseRole = DatabaseRole.PRIMARY
+    ):
         """Execute query with metrics collection"""
         start_time = time.time()
 
@@ -260,7 +268,9 @@ class AdvancedDatabaseManager:
             self._update_metrics(role, (time.time() - start_time) * 1000, error=True)
             raise
 
-    async def execute_command(self, command: str, *args, role: DatabaseRole = DatabaseRole.PRIMARY):
+    async def execute_command(
+        self, command: str, *args, role: DatabaseRole = DatabaseRole.PRIMARY
+    ):
         """Execute command with metrics collection"""
         start_time = time.time()
 
@@ -293,7 +303,9 @@ class AdvancedDatabaseManager:
 
         # Update average query time (exponential moving average)
         alpha = 0.1  # Smoothing factor
-        metrics.avg_query_time_ms = alpha * query_time_ms + (1 - alpha) * metrics.avg_query_time_ms
+        metrics.avg_query_time_ms = (
+            alpha * query_time_ms + (1 - alpha) * metrics.avg_query_time_ms
+        )
 
     async def get_pool_metrics(self, role: DatabaseRole) -> PoolMetrics:
         """Get current pool metrics"""
@@ -306,8 +318,12 @@ class AdvancedDatabaseManager:
         # Update connection metrics
         metrics.total_connections = pool.get_size()
         metrics.idle_connections = pool.get_idle_size()
-        metrics.active_connections = metrics.total_connections - metrics.idle_connections
-        metrics.usage_percent = (metrics.active_connections / metrics.max_connections) * 100
+        metrics.active_connections = (
+            metrics.total_connections - metrics.idle_connections
+        )
+        metrics.usage_percent = (
+            metrics.active_connections / metrics.max_connections
+        ) * 100
 
         return metrics
 
@@ -338,7 +354,10 @@ class EnhancedConnection:
     """Enhanced database connection with automatic resource management"""
 
     def __init__(
-        self, connection: asyncpg.Connection, role: DatabaseRole, manager: AdvancedDatabaseManager
+        self,
+        connection: asyncpg.Connection,
+        role: DatabaseRole,
+        manager: AdvancedDatabaseManager,
     ):
         self.conn = connection
         self.role = role
@@ -365,7 +384,9 @@ class EnhancedConnection:
         """Get transaction context"""
         return self.conn.transaction()
 
-    async def set_user_context(self, user_id: str, client_ip: str = None, user_agent: str = None):
+    async def set_user_context(
+        self, user_id: str, client_ip: str = None, user_agent: str = None
+    ):
         """Set user context for row-level security"""
         await self.conn.execute("SET app.current_user_id = $1", user_id)
         if client_ip:

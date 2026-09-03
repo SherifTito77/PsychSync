@@ -12,10 +12,9 @@ Usage:
 import asyncio
 import logging
 import random
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-
-import sys
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -220,15 +219,15 @@ SAMPLE_PULL_REQUESTS = [
 async def get_test_user(db: AsyncSession) -> User | None:
     """Retrieve resource(s).
 
-Args:
-    db: Database session
-    **kwargs: Filter criteria
+    Args:
+        db: Database session
+        **kwargs: Filter criteria
 
-Returns:
-    Resource object or list of resources
+    Returns:
+        Resource object or list of resources
 
-Raises:
-    NotFoundError: If resource doesn't exist
+    Raises:
+        NotFoundError: If resource doesn't exist
     """
     """Retrieve resource(s).
 
@@ -243,20 +242,18 @@ Raises:
     NotFoundError: If resource doesn't exist
     """
     """Get a test user for PR associations"""
-    result = await db.execute(
-        select(User).where(User.email == "admin@psychsync.test")
-    )
+    result = await db.execute(select(User).where(User.email == "admin@psychsync.test"))
     return result.scalar_one_or_none()
 
 
 async def seed_code_quality_metrics(db: AsyncSession) -> list[CodeQualityMetric]:
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -312,7 +309,9 @@ Returns:
         from app.crud.crud_code_quality import code_quality_metric as crud_metric
 
         metric.quality_score = crud_metric._calculate_quality_score(metric)
-        metric.quality_grade = crud_metric._calculate_quality_grade(metric.quality_score)
+        metric.quality_grade = crud_metric._calculate_quality_grade(
+            metric.quality_score
+        )
 
         db.add(metric)
         await db.flush()
@@ -323,14 +322,16 @@ Returns:
     return metrics
 
 
-async def seed_code_quality_issues(db: AsyncSession, metric: CodeQualityMetric) -> list[CodeQualityIssue]:
+async def seed_code_quality_issues(
+    db: AsyncSession, metric: CodeQualityMetric
+) -> list[CodeQualityIssue]:
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -371,11 +372,11 @@ Returns:
 async def seed_pull_requests(db: AsyncSession, author_id: str | None = None) -> int:
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -411,13 +412,18 @@ Returns:
 
         # Convert dates to strings
         created_at = pr_data["created_at"].isoformat()
-        merged_at = pr_data.get("merged_at").isoformat() if pr_data.get("merged_at") else None
-        closed_at = pr_data.get("closed_at").isoformat() if pr_data.get("closed_at") else None
+        merged_at = (
+            pr_data.get("merged_at").isoformat() if pr_data.get("merged_at") else None
+        )
+        closed_at = (
+            pr_data.get("closed_at").isoformat() if pr_data.get("closed_at") else None
+        )
 
         # Use JSONB for arrays and objects
         import json
 
-        insert_query = text("""
+        insert_query = text(
+            """
             INSERT INTO pull_request_quality (
                 pr_number, pr_title, source_branch, target_branch, author_id, author_name,
                 created_at, merged_at, closed_at, analyzed_at, files_changed, lines_added,
@@ -437,46 +443,52 @@ Returns:
                 :coverage_delta, :critical_issues_count, :major_issues_count, :minor_issues_count,
                 :ai_recommendations, :merge_confidence, :repository, :is_merged
             )
-        """)
+        """
+        )
 
         try:
-            await db.execute(insert_query, {
-                "pr_number": pr_data["pr_number"],
-                "pr_title": pr_data["pr_title"],
-                "source_branch": pr_data["source_branch"],
-                "target_branch": pr_data["target_branch"],
-                "author_id": author_id,
-                "author_name": pr_data["author_name"],
-                "created_at": created_at,
-                "merged_at": merged_at,
-                "closed_at": closed_at,
-                "files_changed": pr_data["files_changed"],
-                "lines_added": pr_data["lines_added"],
-                "lines_deleted": pr_data["lines_deleted"],
-                "commits_count": pr_data["commits_count"],
-                "overall_score": pr_data["overall_score"],
-                "code_quality_score": pr_data["code_quality_score"],
-                "test_coverage_score": pr_data["test_coverage_score"],
-                "documentation_score": pr_data["documentation_score"],
-                "risk_level": pr_data["risk_level"],
-                "risk_factors": json.dumps(pr_data["risk_factors"]),
-                "complexity_increase": pr_data["complexity_increase"],
-                "new_debt_added": pr_data["new_debt_added"],
-                "duplication_added": pr_data.get("duplication_added"),
-                "review_count": pr_data["review_count"],
-                "review_time_hours": pr_data["review_time_hours"],
-                "approval_count": pr_data["approval_count"],
-                "request_changes_count": pr_data.get("request_changes_count", 0),
-                "tests_added": pr_data["tests_added"],
-                "coverage_delta": pr_data["coverage_delta"],
-                "critical_issues_count": pr_data.get("critical_issues_count", 0),
-                "major_issues_count": pr_data.get("major_issues_count", 0),
-                "minor_issues_count": pr_data.get("minor_issues_count", 0),
-                "ai_recommendations": json.dumps(ai_recommendations) if ai_recommendations else None,
-                "merge_confidence": merge_confidence,
-                "repository": "psychsync",
-                "is_merged": 1.0 if pr_data["is_merged"] else 0.0,
-            })
+            await db.execute(
+                insert_query,
+                {
+                    "pr_number": pr_data["pr_number"],
+                    "pr_title": pr_data["pr_title"],
+                    "source_branch": pr_data["source_branch"],
+                    "target_branch": pr_data["target_branch"],
+                    "author_id": author_id,
+                    "author_name": pr_data["author_name"],
+                    "created_at": created_at,
+                    "merged_at": merged_at,
+                    "closed_at": closed_at,
+                    "files_changed": pr_data["files_changed"],
+                    "lines_added": pr_data["lines_added"],
+                    "lines_deleted": pr_data["lines_deleted"],
+                    "commits_count": pr_data["commits_count"],
+                    "overall_score": pr_data["overall_score"],
+                    "code_quality_score": pr_data["code_quality_score"],
+                    "test_coverage_score": pr_data["test_coverage_score"],
+                    "documentation_score": pr_data["documentation_score"],
+                    "risk_level": pr_data["risk_level"],
+                    "risk_factors": json.dumps(pr_data["risk_factors"]),
+                    "complexity_increase": pr_data["complexity_increase"],
+                    "new_debt_added": pr_data["new_debt_added"],
+                    "duplication_added": pr_data.get("duplication_added"),
+                    "review_count": pr_data["review_count"],
+                    "review_time_hours": pr_data["review_time_hours"],
+                    "approval_count": pr_data["approval_count"],
+                    "request_changes_count": pr_data.get("request_changes_count", 0),
+                    "tests_added": pr_data["tests_added"],
+                    "coverage_delta": pr_data["coverage_delta"],
+                    "critical_issues_count": pr_data.get("critical_issues_count", 0),
+                    "major_issues_count": pr_data.get("major_issues_count", 0),
+                    "minor_issues_count": pr_data.get("minor_issues_count", 0),
+                    "ai_recommendations": (
+                        json.dumps(ai_recommendations) if ai_recommendations else None
+                    ),
+                    "merge_confidence": merge_confidence,
+                    "repository": "psychsync",
+                    "is_merged": 1.0 if pr_data["is_merged"] else 0.0,
+                },
+            )
             prs_created += 1
         except Exception as e:
             logger.warning(f"Could not create PR {pr_data['pr_number']}: {e}")
@@ -488,11 +500,11 @@ Returns:
 async def seed_all_data():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 

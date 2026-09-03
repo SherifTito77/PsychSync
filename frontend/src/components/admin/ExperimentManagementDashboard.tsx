@@ -94,9 +94,9 @@ export const ExperimentManagementDashboard: React.FC = () => {
   const loadExperiments = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/v1/ab/experiments');
+      const response = await apiClient.get('/ab/experiments');
       setExperiments((response.data as any).experiments || []);
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
@@ -105,9 +105,9 @@ export const ExperimentManagementDashboard: React.FC = () => {
 
   const loadFeatureRequests = async () => {
     try {
-      const response = await apiClient.get('/api/v1/feature-requests');
+      const response = await apiClient.get('/feature-requests');
       setFeatureRequests((response.data as any).requests || []);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to load feature requests:', err);
     }
   };
@@ -117,7 +117,7 @@ export const ExperimentManagementDashboard: React.FC = () => {
       const response = await apiClient.get(`/api/v1/ab/experiments/${experimentId}/results`);
       setResults(response.data as ExperimentResults);
       setSelectedExperiment(experimentId);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to load results:', err);
     }
   };
@@ -126,7 +126,7 @@ export const ExperimentManagementDashboard: React.FC = () => {
     try {
       await apiClient.put(`/api/v1/ab/experiments/${experimentId}`, { status });
       await loadExperiments();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to update experiment:', err);
     }
   };

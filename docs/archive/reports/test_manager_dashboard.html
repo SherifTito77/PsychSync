@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Manager Dashboard</title></head>
+<body>
+<h1>Testing Manager Dashboard API</h1>
+<button onclick="testDashboard()">Test API</button>
+<pre id="result"></pre>
+
+<script>
+async function testDashboard() {
+  const result = document.getElementById('result');
+  result.textContent = 'Loading...';
+
+  try {
+    // First login to get cookie
+    const loginResponse = await fetch('http://localhost:8000/api/v1/simple-login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'include',
+      body: JSON.stringify({
+        email: 'sherif.tito.77@gmail.com',
+        password: 'testpass123'
+      })
+    });
+
+    result.textContent += '\n\nLogin response: ' + await loginResponse.text() + '\n\n';
+
+    // Now call the dashboard
+    const response = await fetch('http://localhost:8000/api/v1/health-monitoring/manager-dashboard?days=30', {
+      credentials: 'include',
+      headers: {'Content-Type': 'application/json'}
+    });
+
+    const data = await response.json();
+    result.textContent += 'Dashboard response status: ' + response.status + '\n';
+    result.textContent += 'Dashboard data: ' + JSON.stringify(data, null, 2);
+  } catch (error) {
+    result.textContent = 'Error: ' + error.message + '\n' + error.stack;
+  }
+}
+</script>
+</body>
+</html>

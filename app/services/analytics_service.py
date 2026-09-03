@@ -2,9 +2,9 @@
 Analytics Service for PsychSync
 """
 
-from datetime import datetime
 import json
 import logging
+from datetime import datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -57,4 +57,8 @@ class AnalyticsService:
 
         except Exception as e:
             self.logger.error(f"Failed to track onboarding event: {e}")
-            return {"success": False, "error": str(e), "timestamp": datetime.utcnow().isoformat()}
+            return {
+                "success": False,
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat(),
+            }

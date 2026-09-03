@@ -179,7 +179,7 @@ export const useWellnessForm = (onPlanGenerated: (plan: WellnessPlan) => void) =
       domain: domain,
       title: `Improve ${domain} wellness`,
       description: `Enhance your ${domain} wellbeing through targeted actions`,
-      priority: index === 0 ? 'high' : 'medium',
+      priority: (index === 0 ? 'high' : 'medium') as 'urgent' | 'high' | 'medium' | 'low',
       target_date: getEstimatedCompletionDate(timeframe),
       current_score: 50,
       target_score: 80,

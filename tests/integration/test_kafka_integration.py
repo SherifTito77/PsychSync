@@ -8,26 +8,26 @@ Run with:
     pytest tests/integration/test_kafka_integration.py -v
 """
 
-import pytest
 import asyncio
 from datetime import datetime
 from uuid import uuid4
 
-from app.events.producer import KafkaEventProducer
-from app.events.consumer import KafkaEventConsumer
-from app.events.schemas import EventFactory, EventType
+import pytest
 
+from app.events.consumer import KafkaEventConsumer
+from app.events.producer import KafkaEventProducer
+from app.events.schemas import EventFactory, EventType
 
 # ============================================================================
 # FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
 async def kafka_producer():
     """Create a Kafka event producer for testing."""
     producer = KafkaEventProducer(
-        bootstrap_servers="localhost:9092",
-        client_id="test-producer"
+        bootstrap_servers="localhost:9092", client_id="test-producer"
     )
     await producer.start()
     yield producer
@@ -40,7 +40,7 @@ async def kafka_consumer():
     consumer = KafkaEventConsumer(
         topics=["test-events"],
         group_id="test-consumer-group",
-        auto_offset_reset="latest"
+        auto_offset_reset="latest",
     )
     await consumer.start()
     yield consumer
@@ -50,6 +50,7 @@ async def kafka_consumer():
 # ============================================================================
 # PRODUCER TESTS
 # ============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -61,21 +62,18 @@ async def test_producer_publish_assessment_event(kafka_producer):
         user_id=str(uuid4()),
         framework_code="MBTI",
         team_id=str(uuid4()),
-        tenant_id=str(uuid4())
+        tenant_id=str(uuid4()),
     )
 
     # Publish event
-    metadata = await kafka_producer.publish(
-        topic="assessment-events",
-        event=event
-    )
+    metadata = await kafka_producer.publish(topic="assessment-events", event=event)
 
     # Verify metadata
     assert metadata is not None
-    assert 'topic' in metadata
-    assert 'partition' in metadata
-    assert 'offset' in metadata
-    assert metadata['topic'] == "assessment-events"
+    assert "topic" in metadata
+    assert "partition" in metadata
+    assert "offset" in metadata
+    assert metadata["topic"] == "assessment-events"
 
 
 @pytest.mark.integration
@@ -88,16 +86,13 @@ async def test_producer_publish_user_event(kafka_producer):
         full_name="Test User",
         organization_id=str(uuid4()),
         registration_method="email",
-        tenant_id=str(uuid4())
+        tenant_id=str(uuid4()),
     )
 
-    metadata = await kafka_producer.publish(
-        topic="user-events",
-        event=event
-    )
+    metadata = await kafka_producer.publish(topic="user-events", event=event)
 
     assert metadata is not None
-    assert metadata['topic'] == "user-events"
+    assert metadata["topic"] == "user-events"
 
 
 @pytest.mark.integration
@@ -110,7 +105,7 @@ async def test_producer_publish_multiple_events(kafka_producer):
             user_id=str(uuid4()),
             framework_code="BigFive",
             team_id=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
         EventFactory.assessment_completed(
             assessment_id=str(uuid4()),
@@ -120,22 +115,21 @@ async def test_producer_publish_multiple_events(kafka_producer):
             max_score=100.0,
             results={"type": "INTJ"},
             team_id=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
         EventFactory.team_created(
             team_id=str(uuid4()),
             name="Test Team",
             organization_id=str(uuid4()),
             created_by=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
     ]
 
     # Publish all events
     for event in events:
         metadata = await kafka_producer.publish(
-            topic=event.type.value.split('.')[0] + "-events",
-            event=event
+            topic=event.type.value.split(".")[0] + "-events", event=event
         )
         assert metadata is not None
 
@@ -152,7 +146,7 @@ async def test_producer_event_schema_validation(kafka_producer):
         max_score=100.0,
         results={"type": "Type 1"},
         team_id=str(uuid4()),
-        tenant_id=str(uuid4())
+        tenant_id=str(uuid4()),
     )
 
     # Verify CloudEvents attributes
@@ -167,6 +161,7 @@ async def test_producer_event_schema_validation(kafka_producer):
 # ============================================================================
 # CONSUMER TESTS
 # ============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -186,10 +181,7 @@ async def test_consumer_start_stop(kafka_consumer):
 @pytest.mark.asyncio
 async def test_consumer_register_handler():
     """Test registering event handlers."""
-    consumer = KafkaEventConsumer(
-        topics=["test-events"],
-        group_id="test-handler-group"
-    )
+    consumer = KafkaEventConsumer(topics=["test-events"], group_id="test-handler-group")
 
     # Create a mock handler
     class MockHandler:
@@ -208,6 +200,7 @@ async def test_consumer_register_handler():
 # END-TO-END TESTS
 # ============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_end_to_end_event_flow():
@@ -223,9 +216,7 @@ async def test_end_to_end_event_flow():
 
     # Start consumer
     consumer = KafkaEventConsumer(
-        topics=[test_topic],
-        group_id=test_group,
-        auto_offset_reset="earliest"
+        topics=[test_topic], group_id=test_group, auto_offset_reset="earliest"
     )
 
     # Track received events
@@ -240,8 +231,7 @@ async def test_end_to_end_event_flow():
 
     # Start producer and publish event
     producer = KafkaEventProducer(
-        bootstrap_servers="localhost:9092",
-        client_id="test-e2e-producer"
+        bootstrap_servers="localhost:9092", client_id="test-e2e-producer"
     )
     await producer.start()
 
@@ -250,7 +240,7 @@ async def test_end_to_end_event_flow():
         user_id=user_id,
         framework_code="MBTI",
         team_id=team_id,
-        tenant_id=tenant_id
+        tenant_id=tenant_id,
     )
 
     await producer.publish(topic=test_topic, event=event)
@@ -264,7 +254,7 @@ async def test_end_to_end_event_flow():
 
     # Verify event was received
     assert len(received_events) > 0
-    assert received_events[0].data['assessment_id'] == assessment_id
+    assert received_events[0].data["assessment_id"] == assessment_id
 
 
 @pytest.mark.integration
@@ -275,8 +265,7 @@ async def test_multiple_event_types():
 
     # Create producer
     producer = KafkaEventProducer(
-        bootstrap_servers="localhost:9092",
-        client_id="test-multi-producer"
+        bootstrap_servers="localhost:9092", client_id="test-multi-producer"
     )
     await producer.start()
 
@@ -287,7 +276,7 @@ async def test_multiple_event_types():
             user_id=str(uuid4()),
             framework_code="MBTI",
             team_id=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
         EventFactory.user_registered(
             user_id=str(uuid4()),
@@ -295,14 +284,14 @@ async def test_multiple_event_types():
             full_name="Test User",
             organization_id=str(uuid4()),
             registration_method="email",
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
         EventFactory.team_created(
             team_id=str(uuid4()),
             name="Test Team",
             organization_id=str(uuid4()),
             created_by=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
     ]
 
@@ -319,6 +308,7 @@ async def test_multiple_event_types():
 # ERROR HANDLING TESTS
 # ============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_producer_connection_error():
@@ -326,7 +316,7 @@ async def test_producer_connection_error():
     # Try to connect to non-existent Kafka
     producer = KafkaEventProducer(
         bootstrap_servers="localhost:9999",  # Wrong port
-        client_id="test-error-producer"
+        client_id="test-error-producer",
     )
 
     with pytest.raises(Exception):
@@ -338,8 +328,7 @@ async def test_producer_connection_error():
 async def test_consumer_invalid_topic():
     """Test consumer handles invalid topics."""
     consumer = KafkaEventConsumer(
-        topics=["non-existent-topic"],
-        group_id="test-invalid-topic-group"
+        topics=["non-existent-topic"], group_id="test-invalid-topic-group"
     )
 
     # Should start without error (Kafka auto-creates topics)
@@ -350,6 +339,7 @@ async def test_consumer_invalid_topic():
 # ============================================================================
 # PERFORMANCE TESTS
 # ============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -364,12 +354,9 @@ async def test_producer_throughput(kafka_producer):
             user_id=str(uuid4()),
             framework_code="MBTI",
             team_id=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         )
-        await kafka_producer.publish(
-            topic="assessment-events",
-            event=event
-        )
+        await kafka_producer.publish(topic="assessment-events", event=event)
 
     elapsed = (datetime.now() - start_time).total_seconds()
     throughput = num_events / elapsed

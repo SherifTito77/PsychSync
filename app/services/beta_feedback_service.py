@@ -3,13 +3,13 @@ Beta User Feedback Collection Service
 Comprehensive system for collecting, analyzing, and managing beta user feedback
 """
 
+import logging
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from statistics import mean
 from typing import Any
-import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -222,8 +222,12 @@ class BetaFeedbackService:
                 id=str(uuid.uuid4()),
                 user_id=user_id,
                 user_segment=user_segment,
-                feedback_type=FeedbackType(feedback_data.get("feedback_type", "general_feedback")),
-                category=FeedbackCategory(feedback_data.get("category", "functionality")),
+                feedback_type=FeedbackType(
+                    feedback_data.get("feedback_type", "general_feedback")
+                ),
+                category=FeedbackCategory(
+                    feedback_data.get("category", "functionality")
+                ),
                 title=feedback_data.get("title", ""),
                 description=feedback_data.get("description", ""),
                 priority=FeedbackPriority(feedback_data.get("priority", "medium")),
@@ -285,9 +289,13 @@ class BetaFeedbackService:
 
         session = self.feedback_sessions[session_id]
         session.end_time = datetime.utcnow()
-        session.session_duration = (session.end_time - session.start_time).total_seconds()
+        session.session_duration = (
+            session.end_time - session.start_time
+        ).total_seconds()
 
-        logger.info(f"Ended feedback session: {session_id} (duration: {session.session_duration}s)")
+        logger.info(
+            f"Ended feedback session: {session_id} (duration: {session.session_duration}s)"
+        )
         return session
 
     async def get_user_feedback(
@@ -361,7 +369,9 @@ class BetaFeedbackService:
         ]
 
         return sorted(
-            high_priority, key=lambda x: (priority_order[x.priority], x.timestamp), reverse=True
+            high_priority,
+            key=lambda x: (priority_order[x.priority], x.timestamp),
+            reverse=True,
         )
 
     async def analyze_feedback_data(
@@ -414,7 +424,10 @@ class BetaFeedbackService:
             )
 
         top_categories = sorted(
-            [{"category": cat, "count": count} for cat, count in category_counts.items()],
+            [
+                {"category": cat, "count": count}
+                for cat, count in category_counts.items()
+            ],
             key=lambda x: x["count"],
             reverse=True,
         )[:10]
@@ -435,7 +448,9 @@ class BetaFeedbackService:
                     if f.satisfaction_rating and f.satisfaction_rating >= 4
                 ]
             ),
-            "neutral": len([f for f in filtered_feedback if f.satisfaction_rating == 3]),
+            "neutral": len(
+                [f for f in filtered_feedback if f.satisfaction_rating == 3]
+            ),
             "negative": len(
                 [
                     f
@@ -449,7 +464,9 @@ class BetaFeedbackService:
         patterns = await self._identify_feedback_patterns(filtered_feedback)
 
         # Generate recommendations
-        recommendations = await self._generate_recommendations(filtered_feedback, patterns)
+        recommendations = await self._generate_recommendations(
+            filtered_feedback, patterns
+        )
 
         return FeedbackAnalysis(
             analysis_period={"start": start_date, "end": end_date},
@@ -500,7 +517,9 @@ class BetaFeedbackService:
         if feature_requests:
             feature_clusters = {}
             for feedback in feature_requests:
-                key_words = self._extract_key_words(feedback.description + " " + feedback.title)
+                key_words = self._extract_key_words(
+                    feedback.description + " " + feedback.title
+                )
                 for word in key_words:
                     if word in feature_clusters:
                         feature_clusters[word].append(feedback)
@@ -564,7 +583,9 @@ class BetaFeedbackService:
 
         words = text.lower().replace("-", " ").replace("_", " ").split()
         key_words = [
-            word.strip(".,!?;:") for word in words if len(word) > 3 and word not in common_words
+            word.strip(".,!?;:")
+            for word in words
+            if len(word) > 3 and word not in common_words
         ]
 
         return list(set(key_words))  # Remove duplicates
@@ -576,7 +597,9 @@ class BetaFeedbackService:
         recommendations = []
 
         # High-priority issues
-        critical_issues = [f for f in feedback_list if f.priority == FeedbackPriority.CRITICAL]
+        critical_issues = [
+            f for f in feedback_list if f.priority == FeedbackPriority.CRITICAL
+        ]
         if critical_issues:
             recommendations.append(
                 f"URGENT: Address {len(critical_issues)} critical issues reported by users. "
@@ -594,7 +617,9 @@ class BetaFeedbackService:
             )
 
         # Frequent bugs
-        bug_reports = [f for f in feedback_list if f.feedback_type == FeedbackType.BUG_REPORT]
+        bug_reports = [
+            f for f in feedback_list if f.feedback_type == FeedbackType.BUG_REPORT
+        ]
         if len(bug_reports) > len(feedback_list) * 0.4:  # More than 40% bug reports
             recommendations.append(
                 f"High number of bug reports ({len(bug_reports)}). "
@@ -613,7 +638,9 @@ class BetaFeedbackService:
         if feature_requests:
             top_requested = {}
             for feedback in feature_requests:
-                key_words = self._extract_key_words(feedback.description + " " + feedback.title)
+                key_words = self._extract_key_words(
+                    feedback.description + " " + feedback.title
+                )
                 for word in key_words:
                     if word in top_requested:
                         top_requested[word] += 1
@@ -664,17 +691,23 @@ class BetaFeedbackService:
         # Type breakdown
         for feedback in filtered_feedback:
             feedback_type = feedback.feedback_type.value
-            summary["by_type"][feedback_type] = summary["by_type"].get(feedback_type, 0) + 1
+            summary["by_type"][feedback_type] = (
+                summary["by_type"].get(feedback_type, 0) + 1
+            )
 
         # Priority breakdown
         for feedback in filtered_feedback:
             priority = feedback.priority.value
-            summary["by_priority"][priority] = summary["by_priority"].get(priority, 0) + 1
+            summary["by_priority"][priority] = (
+                summary["by_priority"].get(priority, 0) + 1
+            )
 
         # Category breakdown
         for feedback in filtered_feedback:
             category = feedback.category.value
-            summary["by_category"][category] = summary["by_category"].get(category, 0) + 1
+            summary["by_category"][category] = (
+                summary["by_category"].get(category, 0) + 1
+            )
 
         # Average satisfaction
         satisfaction_scores = [
@@ -687,12 +720,15 @@ class BetaFeedbackService:
         recent_issues = [
             f
             for f in filtered_feedback
-            if f.feedback_type in [FeedbackType.BUG_REPORT, FeedbackType.USABILITY_ISSUE]
+            if f.feedback_type
+            in [FeedbackType.BUG_REPORT, FeedbackType.USABILITY_ISSUE]
         ]
         if recent_issues:
             issue_words = {}
             for feedback in recent_issues:
-                words = self._extract_key_words(feedback.description + " " + feedback.title)
+                words = self._extract_key_words(
+                    feedback.description + " " + feedback.title
+                )
                 for word in words:
                     issue_words[word] = issue_words.get(word, 0) + 1
 
@@ -742,7 +778,10 @@ class BetaFeedbackService:
         return cohort
 
     async def get_cohort_feedback(
-        self, cohort_id: str, start_date: datetime | None = None, end_date: datetime | None = None
+        self,
+        cohort_id: str,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> list[FeedbackSubmission]:
         """Get feedback from specific beta cohort"""
         if cohort_id not in self.beta_cohorts:
@@ -826,10 +865,12 @@ class BetaFeedbackService:
                     "feedback_from_cohort": len(cohort_feedback),
                     "engagement_metrics": {
                         "active_users": len(set(f.user_id for f in cohort_feedback)),
-                        "average_feedback_per_user": len(cohort_feedback)
-                        / len(set(f.user_id for f in cohort_feedback))
-                        if cohort_feedback
-                        else 0,
+                        "average_feedback_per_user": (
+                            len(cohort_feedback)
+                            / len(set(f.user_id for f in cohort_feedback))
+                            if cohort_feedback
+                            else 0
+                        ),
                     },
                     "target_progress": {
                         "total_feedback_progress": len(cohort_feedback)
@@ -847,13 +888,17 @@ class BetaFeedbackService:
 
         return report
 
-    async def _generate_action_items(self, analysis: FeedbackAnalysis) -> list[dict[str, Any]]:
+    async def _generate_action_items(
+        self, analysis: FeedbackAnalysis
+    ) -> list[dict[str, Any]]:
         """Generate specific action items based on feedback analysis"""
         action_items = []
 
         # Critical issues
         critical_feedback = [
-            f for f in self.feedback_storage.values() if f.priority == FeedbackPriority.CRITICAL
+            f
+            for f in self.feedback_storage.values()
+            if f.priority == FeedbackPriority.CRITICAL
         ]
         for feedback in critical_feedback[:5]:  # Top 5 critical issues
             action_items.append(
@@ -876,7 +921,9 @@ class BetaFeedbackService:
         ]
         feature_demand = {}
         for feedback in feature_requests:
-            key_words = self._extract_key_words(feedback.description + " " + feedback.title)
+            key_words = self._extract_key_words(
+                feedback.description + " " + feedback.title
+            )
             for word in key_words:
                 if word not in feature_demand:
                     feature_demand[word] = []

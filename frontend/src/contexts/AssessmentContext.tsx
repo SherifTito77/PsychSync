@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '@/services/api';
 
@@ -43,6 +43,7 @@ interface AssessmentContextValue<T extends AssessmentQuestion> {
   handleNext: () => void;
   handlePrevious: () => void;
   handleSubmit: (endpoint: string, transformData?: (answers: Record<number, string>) => any) => Promise<void>;
+  setError: (error: string | null) => void;
   clearError: () => void;
   resetAssessment: () => void;
 }
@@ -102,23 +103,9 @@ export function AssessmentProvider<T extends AssessmentQuestion>({ children }: A
    * @param endpoint - API endpoint to submit to (e.g., '/assessments/mbti/submit')
    * @param transformData - Optional function to transform answers before submission
    *
-   * TODO(human): Implement the submission logic below
-   *
-   * Requirements:
-   * 1. Set isSubmitting to true before calling API
-   * 2. Call apiClient.post(endpoint, transformedData)
-   * 3. On success: set results data and navigate to results page
-   * 4. On error: set error message and set isSubmitting to false
-   * 5. Handle different response formats for different assessment types
-   *
-   * Guidance:
-   * - The transformData function allows each assessment type to format answers differently
-   * - Some assessments might need answers grouped by dimension/trait
-   * - Consider saving results to localStorage for persistence
-   * - Error messages should be user-friendly, not technical
-   * - The navigate function is available from useNavigate() hook
+   * ✅ MEMOIZED: Prevents unnecessary re-renders of consumers
    */
-  const handleSubmit = async (
+  const handleSubmit = useCallback(async (
     endpoint: string,
     transformData?: (answers: Record<number, string>) => any
   ): Promise<void> => {
@@ -133,8 +120,9 @@ export function AssessmentProvider<T extends AssessmentQuestion>({ children }: A
       const response = await apiClient.post(endpoint, submissionData);
 
       // Handle success response
-      if (response.data && response.data.success) {
-        const resultsData = response.data.results || response.data.data;
+      const responseData = response.data as { success?: boolean; results?: any; data?: any; message?: string };
+      if (responseData && responseData.success) {
+        const resultsData = responseData.results || responseData.data;
 
         // Set results state
         setResults(resultsData);
@@ -161,10 +149,10 @@ export function AssessmentProvider<T extends AssessmentQuestion>({ children }: A
         }
       } else {
         // Handle API success = false case
-        const errorMessage = response.data?.message || 'Submission failed. Please try again.';
+        const errorMessage = responseData.message || 'Submission failed. Please try again.';
         setError(errorMessage);
       }
-    } catch (err: any) {
+    } catch (err) {
       // Handle API errors
       console.error('Assessment submission error:', err);
 
@@ -192,7 +180,7 @@ export function AssessmentProvider<T extends AssessmentQuestion>({ children }: A
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [answers, assessment, navigate]);  // ✅ Only actual dependencies
 
   /**
    * Clear the current error message
@@ -215,7 +203,8 @@ export function AssessmentProvider<T extends AssessmentQuestion>({ children }: A
     setError(null);
   }, []);
 
-  const value: AssessmentContextValue<T> = {
+  // ✅ MEMOIZED: Context value only changes when dependencies change
+  const value: AssessmentContextValue<T> = useMemo(() => ({
     // State
     assessment,
     currentQuestion,
@@ -232,9 +221,26 @@ export function AssessmentProvider<T extends AssessmentQuestion>({ children }: A
     handleNext,
     handlePrevious,
     handleSubmit,
+    setError,
     clearError,
     resetAssessment,
-  };
+  }), [
+    assessment,
+    currentQuestion,
+    answers,
+    isLoading,
+    isSubmitting,
+    results,
+    error,
+    setAssessment,
+    setCurrentQuestion,
+    handleAnswer,
+    handleNext,
+    handlePrevious,
+    handleSubmit,  // ✅ Now memoized
+    clearError,
+    resetAssessment,
+  ]);
 
   return (
     <AssessmentContext.Provider value={value}>

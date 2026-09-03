@@ -12,11 +12,11 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
 
 from app.api.v1.deps import get_current_active_user, get_db
-from app.db.models.jira_integration import JiraIssue, JiraBugSummary, JiraSprintMetrics
+from app.db.models.jira_integration import JiraBugSummary, JiraIssue, JiraSprintMetrics
 from app.db.models.user import User
 from app.schemas.jira_integration import (
     BugTrendData,
@@ -31,11 +31,26 @@ router = APIRouter(prefix="/jira_integration", tags=["jira_integration"])
 
 @router.get(
     "/issues",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[JiraIssue],
 )
-async def get_jira_issues(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+async def get_jira_issues(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
     project_key: str | None = Query(None, description="Filter by project key"),
     issue_type: str | None = Query(None, description="Filter by issue type"),
     status: str | None = Query(None, description="Filter by status"),
@@ -76,10 +91,25 @@ async def get_jira_issues(    skip: int = Query(0, ge=0),
 
 @router.get(
     "/bugs/summary/latest",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=JiraBugSummary,
 )
-async def get_latest_bug_summary(    project_key: str = Query(..., description="Project key"),
+async def get_latest_bug_summary(
+    project_key: str = Query(..., description="Project key"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> JiraBugSummary:
@@ -88,25 +118,45 @@ async def get_latest_bug_summary(    project_key: str = Query(..., description="
 
     Returns the most recent daily bug summary
     """
-    query = select(JiraBugSummary).where(
-        JiraBugSummary.project_key == project_key
-    ).order_by(JiraBugSummary.summary_date.desc()).limit(1)
+    query = (
+        select(JiraBugSummary)
+        .where(JiraBugSummary.project_key == project_key)
+        .order_by(JiraBugSummary.summary_date.desc())
+        .limit(1)
+    )
 
     result = await db.execute(query)
     summary = result.scalar_one_or_none()
 
     if not summary:
-        raise HTTPException(status_code=404, detail="No bug summary found for this project")
+        raise HTTPException(
+            status_code=404, detail="No bug summary found for this project"
+        )
 
     return summary
 
 
 @router.get(
     "/bugs/summary",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[JiraBugSummary],
 )
-async def get_bug_summaries(    project_key: str = Query(..., description="Project key"),
+async def get_bug_summaries(
+    project_key: str = Query(..., description="Project key"),
     days: int = Query(30, ge=1, le=365, description="Number of days to fetch"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -118,12 +168,16 @@ async def get_bug_summaries(    project_key: str = Query(..., description="Proje
     """
     start_date = datetime.utcnow() - timedelta(days=days)
 
-    query = select(JiraBugSummary).where(
-        and_(
-            JiraBugSummary.project_key == project_key,
-            JiraBugSummary.summary_date >= start_date
+    query = (
+        select(JiraBugSummary)
+        .where(
+            and_(
+                JiraBugSummary.project_key == project_key,
+                JiraBugSummary.summary_date >= start_date,
+            )
         )
-    ).order_by(JiraBugSummary.summary_date.desc())
+        .order_by(JiraBugSummary.summary_date.desc())
+    )
 
     result = await db.execute(query)
     summaries = result.scalars().all()
@@ -133,10 +187,25 @@ async def get_bug_summaries(    project_key: str = Query(..., description="Proje
 
 @router.get(
     "/bugs/trends",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[BugTrendData],
 )
-async def get_bug_trends(    project_key: str = Query(..., description="Project key"),
+async def get_bug_trends(
+    project_key: str = Query(..., description="Project key"),
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -149,12 +218,16 @@ async def get_bug_trends(    project_key: str = Query(..., description="Project 
     start_date = datetime.utcnow() - timedelta(days=days)
 
     # Get summaries
-    query = select(JiraBugSummary).where(
-        and_(
-            JiraBugSummary.project_key == project_key,
-            JiraBugSummary.summary_date >= start_date
+    query = (
+        select(JiraBugSummary)
+        .where(
+            and_(
+                JiraBugSummary.project_key == project_key,
+                JiraBugSummary.summary_date >= start_date,
+            )
         )
-    ).order_by(JiraBugSummary.summary_date)
+        .order_by(JiraBugSummary.summary_date)
+    )
 
     result = await db.execute(query)
     summaries = result.scalars().all()
@@ -166,25 +239,44 @@ async def get_bug_trends(    project_key: str = Query(..., description="Project 
         if summary.total_bugs > 0:
             resolution_rate = (summary.resolved_bugs / summary.total_bugs) * 100
 
-        trends.append(BugTrendData(
-            date=summary.summary_date,
-            new_bugs=summary.new_bugs,
-            resolved_bugs=summary.resolved_bugs,
-            total_bugs=summary.total_bugs,
-            critical_bugs=summary.critical_bugs,
-            resolution_rate=round(resolution_rate, 2),
-        ))
+        trends.append(
+            BugTrendData(
+                date=summary.summary_date,
+                new_bugs=summary.new_bugs,
+                resolved_bugs=summary.resolved_bugs,
+                total_bugs=summary.total_bugs,
+                critical_bugs=summary.critical_bugs,
+                resolution_rate=round(resolution_rate, 2),
+            )
+        )
 
     return trends
 
 
 @router.get(
     "/sprints",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[JiraSprintMetrics],
 )
-async def get_sprints(    project_key: str = Query(..., description="Project key"),
-    state: str | None = Query(None, description="Filter by state: active, closed, future"),
+async def get_sprints(
+    project_key: str = Query(..., description="Project key"),
+    state: str | None = Query(
+        None, description="Filter by state: active, closed, future"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> list[JiraSprintMetrics]:
@@ -209,10 +301,25 @@ async def get_sprints(    project_key: str = Query(..., description="Project key
 
 @router.get(
     "/sprints/{sprint_id}",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=JiraSprintMetrics,
 )
-async def get_sprint_details(    sprint_id: str,
+async def get_sprint_details(
+    sprint_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> JiraSprintMetrics:
@@ -221,9 +328,7 @@ async def get_sprint_details(    sprint_id: str,
 
     Returns comprehensive sprint performance data
     """
-    query = select(JiraSprintMetrics).where(
-        JiraSprintMetrics.sprint_id == sprint_id
-    )
+    query = select(JiraSprintMetrics).where(JiraSprintMetrics.sprint_id == sprint_id)
 
     result = await db.execute(query)
     sprint = result.scalar_one_or_none()
@@ -236,10 +341,25 @@ async def get_sprint_details(    sprint_id: str,
 
 @router.get(
     "/reports/performance",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=EngineeringPerformanceReport,
 )
-async def get_performance_report(    project_key: str = Query(..., description="Project key"),
+async def get_performance_report(
+    project_key: str = Query(..., description="Project key"),
     days: int = Query(7, ge=1, le=90, description="Number of days to report on"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -257,7 +377,7 @@ async def get_performance_report(    project_key: str = Query(..., description="
         and_(
             JiraIssue.project_key == project_key,
             JiraIssue.is_bug == 1.0,
-            JiraIssue.created_at >= start_date
+            JiraIssue.created_at >= start_date,
         )
     )
 
@@ -266,7 +386,9 @@ async def get_performance_report(    project_key: str = Query(..., description="
 
     # Calculate metrics
     total_bugs_created = len(bugs)
-    total_bugs_resolved = len([b for b in bugs if b.resolved_at and b.resolved_at <= end_date])
+    total_bugs_resolved = len(
+        [b for b in bugs if b.resolved_at and b.resolved_at <= end_date]
+    )
 
     bugs_by_severity = {
         "critical": len([b for b in bugs if b.severity == "critical"]),
@@ -290,7 +412,7 @@ async def get_performance_report(    project_key: str = Query(..., description="
         and_(
             JiraSprintMetrics.project_key == project_key,
             JiraSprintMetrics.start_date >= start_date,
-            JiraSprintMetrics.state == "closed"
+            JiraSprintMetrics.state == "closed",
         )
     )
 
@@ -298,22 +420,31 @@ async def get_performance_report(    project_key: str = Query(..., description="
     sprints = list(sprints_result.scalars().all())
 
     sprints_completed = len(sprints)
-    avg_velocity = int(sum([s.team_velocity or 0 for s in sprints]) / len(sprints)) if sprints else 0
-    completion_rate = sum([s.completion_rate or 0 for s in sprints]) / len(sprints) if sprints else 0.0
+    avg_velocity = (
+        int(sum([s.team_velocity or 0 for s in sprints]) / len(sprints))
+        if sprints
+        else 0
+    )
+    completion_rate = (
+        sum([s.completion_rate or 0 for s in sprints]) / len(sprints)
+        if sprints
+        else 0.0
+    )
 
     # Get top contributors (by assigned issues)
-    contributors_query = select(
-        JiraIssue.assignee_name,
-        func.count(JiraIssue.id).label('count')
-    ).where(
-        and_(
-            JiraIssue.project_key == project_key,
-            JiraIssue.assignee_name.isnot(None),
-            JiraIssue.created_at >= start_date
+    contributors_query = (
+        select(JiraIssue.assignee_name, func.count(JiraIssue.id).label("count"))
+        .where(
+            and_(
+                JiraIssue.project_key == project_key,
+                JiraIssue.assignee_name.isnot(None),
+                JiraIssue.created_at >= start_date,
+            )
         )
-    ).group_by(JiraIssue.assignee_name).order_by(
-        func.count(JiraIssue.id).desc()
-    ).limit(5)
+        .group_by(JiraIssue.assignee_name)
+        .order_by(func.count(JiraIssue.id).desc())
+        .limit(5)
+    )
 
     contributors_result = await db.execute(contributors_query)
     top_contributors = [
@@ -327,13 +458,19 @@ async def get_performance_report(    project_key: str = Query(..., description="
     ai_recommendations = []
 
     if bugs_by_severity["critical"] > 0:
-        ai_concerns.append(f"{bugs_by_severity['critical']} critical bugs need immediate attention")
+        ai_concerns.append(
+            f"{bugs_by_severity['critical']} critical bugs need immediate attention"
+        )
 
     if avg_resolution_time > 48:
-        ai_concerns.append(f"Average resolution time ({avg_resolution_time:.1f}h) exceeds 48h target")
+        ai_concerns.append(
+            f"Average resolution time ({avg_resolution_time:.1f}h) exceeds 48h target"
+        )
 
     if completion_rate < 80:
-        ai_concerns.append(f"Sprint completion rate ({completion_rate:.1f}%) is below 80% target")
+        ai_concerns.append(
+            f"Sprint completion rate ({completion_rate:.1f}%) is below 80% target"
+        )
 
     if total_bugs_created > total_bugs_resolved:
         ai_concerns.append("Bug backlog is growing - more bugs created than resolved")
@@ -344,21 +481,31 @@ async def get_performance_report(    project_key: str = Query(..., description="
     if sprints_completed > 0:
         ai_highlights.append(f"Completed {sprints_completed} sprint(s) in the period")
 
-    resolution_rate = (total_bugs_resolved / total_bugs_created * 100) if total_bugs_created > 0 else 0
+    resolution_rate = (
+        (total_bugs_resolved / total_bugs_created * 100)
+        if total_bugs_created > 0
+        else 0
+    )
     if resolution_rate > 80:
         ai_highlights.append(f"Strong bug resolution rate: {resolution_rate:.1f}%")
 
     # Recommendations
     if bugs_by_severity["critical"] > 2:
-        ai_recommendations.append("Consider scheduling a bug sprint to address critical issues")
+        ai_recommendations.append(
+            "Consider scheduling a bug sprint to address critical issues"
+        )
 
     if avg_resolution_time > 72:
         ai_recommendations.append("Review bug triage process to reduce resolution time")
 
     if completion_rate < 70:
-        ai_recommendations.append("Improve sprint planning accuracy and commitment estimation")
+        ai_recommendations.append(
+            "Improve sprint planning accuracy and commitment estimation"
+        )
 
-    ai_summary = f"Engineering performance report for {project_key} covering {days} days. "
+    ai_summary = (
+        f"Engineering performance report for {project_key} covering {days} days. "
+    )
 
     if total_bugs_created > 0:
         ai_summary += f"Team addressed {total_bugs_resolved} of {total_bugs_created} bugs ({resolution_rate:.1f}% resolution rate). "
@@ -392,9 +539,24 @@ async def get_performance_report(    project_key: str = Query(..., description="
     "/health",
     summary="Health check endpoint",
     description="Check API and database connectivity status",
-    responses={200: {'description': 'System is healthy', 'content': {'application/json': {'example': {'status': 'healthy', 'database': 'connected', 'redis': 'connected', 'timestamp': '2025-01-13T10:00:00Z'}}}}},
+    responses={
+        200: {
+            "description": "System is healthy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "database": "connected",
+                        "redis": "connected",
+                        "timestamp": "2025-01-13T10:00:00Z",
+                    }
+                }
+            },
+        }
+    },
 )
-async def health_check(    current_user: User = Depends(get_current_active_user),
+async def health_check(
+    current_user: User = Depends(get_current_active_user),
 ) -> dict[str, str]:
     """Health check endpoint for Jira integration"""
     return {

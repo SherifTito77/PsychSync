@@ -8,7 +8,8 @@ Compliance: OWASP SQLi, NIST SSDF PO.3.1, HIPAA §164.312(e)(1)
 """
 
 import pytest
-from app.services.llm_sanitization import LLMSanitizer, ContentType
+
+from app.services.llm_sanitization import ContentType, LLMSanitizer
 
 
 class TestSQLInjectionPrevention:
@@ -25,11 +26,19 @@ class TestSQLInjectionPrevention:
 
     def test_blocks_union_select(self, sanitizer):
         """Verify UNION SELECT injection is blocked"""
-        malicious = "SELECT name FROM users WHERE id = 1 UNION SELECT password FROM admin"
+        malicious = (
+            "SELECT name FROM users WHERE id = 1 UNION SELECT password FROM admin"
+        )
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "UNION SELECT" not in result.sanitized or "UNION SELECT NOT ALLOWED" in result.sanitized.upper()
-        assert "[UNION SELECT NOT ALLOWED]" in result.sanitized or "BLOCKED" in result.sanitized.upper()
+        assert (
+            "UNION SELECT" not in result.sanitized
+            or "UNION SELECT NOT ALLOWED" in result.sanitized.upper()
+        )
+        assert (
+            "[UNION SELECT NOT ALLOWED]" in result.sanitized
+            or "BLOCKED" in result.sanitized.upper()
+        )
         assert len(result.warnings) > 0
 
     def test_blocks_union_select_case_variant(self, sanitizer):
@@ -37,16 +46,28 @@ class TestSQLInjectionPrevention:
         malicious = "select * from users union select * from admin"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "union select" not in result.sanitized.lower() or "NOT ALLOWED" in result.sanitized.upper()
-        assert "BLOCKED" in result.sanitized.upper() or "NOT ALLOWED" in result.sanitized.upper()
+        assert (
+            "union select" not in result.sanitized.lower()
+            or "NOT ALLOWED" in result.sanitized.upper()
+        )
+        assert (
+            "BLOCKED" in result.sanitized.upper()
+            or "NOT ALLOWED" in result.sanitized.upper()
+        )
 
     def test_blocks_union_all_select(self, sanitizer):
         """Verify UNION ALL SELECT injection is blocked"""
         malicious = "SELECT id FROM users UNION ALL SELECT credit_card FROM payments"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "UNION ALL SELECT" not in result.sanitized or "NOT ALLOWED" in result.sanitized.upper()
-        assert "BLOCKED" in result.sanitized.upper() or "NOT ALLOWED" in result.sanitized.upper()
+        assert (
+            "UNION ALL SELECT" not in result.sanitized
+            or "NOT ALLOWED" in result.sanitized.upper()
+        )
+        assert (
+            "BLOCKED" in result.sanitized.upper()
+            or "NOT ALLOWED" in result.sanitized.upper()
+        )
 
     # ========================================================================
     # Comment Injection Tests
@@ -58,7 +79,9 @@ class TestSQLInjectionPrevention:
         result = sanitizer.sanitize(malicious, content_type="sql")
 
         # Should warn about comment injection
-        assert any("comment" in w.lower() or "dangerous" in w.lower() for w in result.warnings)
+        assert any(
+            "comment" in w.lower() or "dangerous" in w.lower() for w in result.warnings
+        )
 
     def test_blocks_block_comment(self, sanitizer):
         """Verify /* */ block comment injection is blocked"""
@@ -66,14 +89,18 @@ class TestSQLInjectionPrevention:
         result = sanitizer.sanitize(malicious, content_type="sql")
 
         # Should warn about comment injection
-        assert any("comment" in w.lower() or "dangerous" in w.lower() for w in result.warnings)
+        assert any(
+            "comment" in w.lower() or "dangerous" in w.lower() for w in result.warnings
+        )
 
     def test_blocks_comment_with_newline(self, sanitizer):
         """Verify comment injection with newline is blocked"""
         malicious = "SELECT * FROM users WHERE id = 1 --\nDROP TABLE users"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert any("comment" in w.lower() or "dangerous" in w.lower() for w in result.warnings)
+        assert any(
+            "comment" in w.lower() or "dangerous" in w.lower() for w in result.warnings
+        )
 
     # ========================================================================
     # Semicolon Chaining Tests
@@ -84,7 +111,10 @@ class TestSQLInjectionPrevention:
         malicious = "SELECT * FROM users; DROP TABLE users"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[DROP TABLE NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[DROP TABLE NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
         assert len(result.warnings) > 0
 
     def test_blocks_semicolon_delete(self, sanitizer):
@@ -92,14 +122,20 @@ class TestSQLInjectionPrevention:
         malicious = "SELECT * FROM users; DELETE FROM users"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[DELETE FROM NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[DELETE FROM NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
 
     def test_blocks_semicolon_execute(self, sanitizer):
         """Verify semicolon chaining with EXECUTE is blocked"""
         malicious = "SELECT * FROM users; EXECUTE('DROP TABLE users')"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[CHAINED COMMANDS NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[CHAINED COMMANDS NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
 
     # ========================================================================
     # Dangerous Statement Tests
@@ -107,7 +143,9 @@ class TestSQLInjectionPrevention:
 
     def test_blocks_insert_statement(self, sanitizer):
         """Verify INSERT statements are blocked"""
-        malicious = "INSERT INTO users (username, password) VALUES ('hacker', 'password')"
+        malicious = (
+            "INSERT INTO users (username, password) VALUES ('hacker', 'password')"
+        )
         result = sanitizer.sanitize(malicious, content_type="sql")
 
         assert "[INSERT" in result.sanitized or "BLOCKED" in result.sanitized
@@ -134,7 +172,10 @@ class TestSQLInjectionPrevention:
         malicious = "DROP TABLE users"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[DROP TABLE NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[DROP TABLE NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
         assert len(result.warnings) > 0
 
     def test_blocks_create_table(self, sanitizer):
@@ -142,7 +183,10 @@ class TestSQLInjectionPrevention:
         malicious = "CREATE TABLE hacked (data TEXT)"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[CREATE TABLE NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[CREATE TABLE NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
         assert len(result.warnings) > 0
 
     def test_blocks_alter_table(self, sanitizer):
@@ -150,7 +194,10 @@ class TestSQLInjectionPrevention:
         malicious = "ALTER TABLE users ADD COLUMN password TEXT"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[ALTER TABLE NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[ALTER TABLE NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
         assert len(result.warnings) > 0
 
     def test_blocks_truncate_table(self, sanitizer):
@@ -158,7 +205,10 @@ class TestSQLInjectionPrevention:
         malicious = "TRUNCATE TABLE users"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[TRUNCATE TABLE NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[TRUNCATE TABLE NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
         assert len(result.warnings) > 0
 
     # ========================================================================
@@ -239,15 +289,22 @@ class TestSQLInjectionPrevention:
         malicious = "SELECT * FROM users WHERE id = 1; WAITFOR DELAY '00:00:10'"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[CHAINED COMMANDS NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[CHAINED COMMANDS NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
 
     def test_blocks_boolean_based_sqli(self, sanitizer):
         """Verify boolean-based blind SQL injection is blocked"""
         malicious = "SELECT * FROM users WHERE id = 1 AND 1=1 UNION SELECT NULL"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "UNION SELECT" not in result.sanitized or "NOT ALLOWED" in result.sanitized
-        assert "NOT ALLOWED" in result.sanitized or "blocked" in result.sanitized.lower()
+        assert (
+            "UNION SELECT" not in result.sanitized or "NOT ALLOWED" in result.sanitized
+        )
+        assert (
+            "NOT ALLOWED" in result.sanitized or "blocked" in result.sanitized.lower()
+        )
 
     def test_blocks_stored_procedure_injection(self, sanitizer):
         """Verify stored procedure injection is blocked"""
@@ -255,7 +312,10 @@ class TestSQLInjectionPrevention:
         malicious = "SELECT * FROM users WHERE id = 1; EXECUTE xp_cmdshell('dir')"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "CHAINED COMMANDS NOT ALLOWED" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "CHAINED COMMANDS NOT ALLOWED" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
         assert len(result.warnings) > 0
 
     def test_blocks_second_order_injection(self, sanitizer):
@@ -263,7 +323,10 @@ class TestSQLInjectionPrevention:
         malicious = "SELECT username FROM users WHERE id = 1; INSERT INTO logs VALUES ('hacked')"
         result = sanitizer.sanitize(malicious, content_type="sql")
 
-        assert "[INSERT STATEMENTS NOT ALLOWED]" in result.sanitized or "NOT ALLOWED" in result.sanitized
+        assert (
+            "[INSERT STATEMENTS NOT ALLOWED]" in result.sanitized
+            or "NOT ALLOWED" in result.sanitized
+        )
 
     # ========================================================================
     # SQL in Different Contexts
@@ -286,7 +349,10 @@ class TestSQLInjectionPrevention:
         result = sanitizer.sanitize(code_with_sql, content_type="code")
 
         # Should detect as CODE with SQL patterns
-        assert result.content_type == ContentType.CODE or result.content_type == ContentType.SQL
+        assert (
+            result.content_type == ContentType.CODE
+            or result.content_type == ContentType.SQL
+        )
 
     # ========================================================================
     # Warnings and Modifications
@@ -361,7 +427,10 @@ class TestSQLInjectionPreventionStrict:
         result = sanitizer.sanitize(malicious, content_type="sql", strict_mode=True)
 
         # Should warn that query must start with SELECT
-        assert any("start with SELECT" in w or "must start" in w.lower() for w in result.warnings)
+        assert any(
+            "start with SELECT" in w or "must start" in w.lower()
+            for w in result.warnings
+        )
 
 
 class TestSQLValidationHelpers:
@@ -377,7 +446,9 @@ class TestSQLValidationHelpers:
         assert reason == ""
 
         # Dangerous query (comment injection)
-        is_safe, reason = validate_sql_query("SELECT * FROM users WHERE id = 1 -- DROP TABLE")
+        is_safe, reason = validate_sql_query(
+            "SELECT * FROM users WHERE id = 1 -- DROP TABLE"
+        )
         assert is_safe is False
         assert "comment" in reason.lower()
 
@@ -387,7 +458,9 @@ class TestSQLValidationHelpers:
         assert "chaining" in reason.lower() or "statement" in reason.lower()
 
         # Dangerous query (UNION SELECT)
-        is_safe, reason = validate_sql_query("SELECT * FROM users UNION SELECT * FROM admin")
+        is_safe, reason = validate_sql_query(
+            "SELECT * FROM users UNION SELECT * FROM admin"
+        )
         assert is_safe is False
         assert "union" in reason.lower()
 

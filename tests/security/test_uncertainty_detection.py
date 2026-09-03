@@ -12,21 +12,22 @@ Author: PsychSync Security Team
 Version: 1.0.0
 """
 
-import pytest
-from datetime import datetime
 import sys
+from datetime import datetime
 from pathlib import Path
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from ai.security.uncertainty_detection import (
-    SemanticUncertaintyDetector,
     HumanReviewQueue,
+    SemanticUncertaintyDetector,
     TaskCategory,
-    UncertaintyThreshold,
     UncertaintyReport,
     UncertaintySignals,
+    UncertaintyThreshold,
 )
 
 
@@ -36,8 +37,7 @@ class TestUncertaintySignals:
     def setup_method(self):
         """Set up test fixtures."""
         self.detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=False
+            enable_logging=False, cache_results=False
         )
 
     def test_semantic_variance_detection(self):
@@ -49,11 +49,11 @@ class TestUncertaintySignals:
             "bipolar disorder, but it's uncertain and appears unclear."
         )
         report = self.detector.check_uncertainty(
-            high_uncertainty,
-            TaskCategory.CLINICAL_ASSESSMENT
+            high_uncertainty, TaskCategory.CLINICAL_ASSESSMENT
         )
-        assert report.signals.semantic_variance > 0.3, \
-            f"Expected high variance, got {report.signals.semantic_variance}"
+        assert (
+            report.signals.semantic_variance > 0.3
+        ), f"Expected high variance, got {report.signals.semantic_variance}"
 
         # Low uncertainty
         low_uncertainty = (
@@ -61,11 +61,11 @@ class TestUncertaintySignals:
             "of depression with a score of 18 out of 27."
         )
         report = self.detector.check_uncertainty(
-            low_uncertainty,
-            TaskCategory.CLINICAL_ASSESSMENT
+            low_uncertainty, TaskCategory.CLINICAL_ASSESSMENT
         )
-        assert report.signals.semantic_variance < 0.2, \
-            f"Expected low variance, got {report.signals.semantic_variance}"
+        assert (
+            report.signals.semantic_variance < 0.2
+        ), f"Expected low variance, got {report.signals.semantic_variance}"
 
     def test_token_probability_analysis(self):
         """Test analysis of token-level probabilities."""
@@ -74,7 +74,7 @@ class TestUncertaintySignals:
         report = self.detector.check_uncertainty(
             "The patient is depressed",
             TaskCategory.GENERAL_ASSISTANCE,
-            token_probabilities=high_confidence
+            token_probabilities=high_confidence,
         )
         assert report.signals.low_confidence_tokens == 0.0
 
@@ -83,28 +83,25 @@ class TestUncertaintySignals:
         report = self.detector.check_uncertainty(
             "The patient is depressed",
             TaskCategory.GENERAL_ASSISTANCE,
-            token_probabilities=mixed_confidence
+            token_probabilities=mixed_confidence,
         )
-        assert report.signals.low_confidence_tokens == 0.4, \
-            f"Expected 0.4, got {report.signals.low_confidence_tokens}"
+        assert (
+            report.signals.low_confidence_tokens == 0.4
+        ), f"Expected 0.4, got {report.signals.low_confidence_tokens}"
 
     def test_knowledge_gap_detection(self):
         """Test detection of claims outside knowledge base."""
         output = "The patient's score is 42 on the GDS-15 scale"
-        context = {
-            'scale': 'GDS-15',
-            'max_score': 15  # Actual max is 15, not 42
-        }
+        context = {"scale": "GDS-15", "max_score": 15}  # Actual max is 15, not 42
 
         report = self.detector.check_uncertainty(
-            output,
-            TaskCategory.CLINICAL_ASSESSMENT,
-            additional_context=context
+            output, TaskCategory.CLINICAL_ASSESSMENT, additional_context=context
         )
 
         # Should detect that 42 is not in context
-        assert report.signals.knowledge_gap_score > 0, \
-            "Should detect knowledge gap for score outside context"
+        assert (
+            report.signals.knowledge_gap_score > 0
+        ), "Should detect knowledge gap for score outside context"
 
     def test_contradiction_detection(self):
         """Test detection of internal contradictions."""
@@ -115,12 +112,12 @@ class TestUncertaintySignals:
         )
 
         report = self.detector.check_uncertainty(
-            contradictory,
-            TaskCategory.CLINICAL_ASSESSMENT
+            contradictory, TaskCategory.CLINICAL_ASSESSMENT
         )
 
-        assert report.signals.contradiction_score > 0.1, \
-            f"Expected contradiction detection, got {report.signals.contradiction_score}"
+        assert (
+            report.signals.contradiction_score > 0.1
+        ), f"Expected contradiction detection, got {report.signals.contradiction_score}"
 
     def test_hallucination_pattern_detection_fake_citations(self):
         """Test detection of fake academic citations."""
@@ -130,14 +127,15 @@ class TestUncertaintySignals:
         )
 
         report = self.detector.check_uncertainty(
-            fake_citation,
-            TaskCategory.CLINICAL_ASSESSMENT
+            fake_citation, TaskCategory.CLINICAL_ASSESSMENT
         )
 
-        assert report.signals.hallucination_risk > 0.2, \
-            f"Expected high hallucination risk, got {report.signals.hallucination_risk}"
-        assert len(report.flagged_claims) > 0, \
-            "Expected flagged claims for fake citation"
+        assert (
+            report.signals.hallucination_risk > 0.2
+        ), f"Expected high hallucination risk, got {report.signals.hallucination_risk}"
+        assert (
+            len(report.flagged_claims) > 0
+        ), "Expected flagged claims for fake citation"
 
     def test_hallucination_pattern_detection_fake_stats(self):
         """Test detection of fake statistics without confidence intervals."""
@@ -147,12 +145,12 @@ class TestUncertaintySignals:
         )
 
         report = self.detector.check_uncertainty(
-            fake_stats,
-            TaskCategory.CLINICAL_ASSESSMENT
+            fake_stats, TaskCategory.CLINICAL_ASSESSMENT
         )
 
-        assert report.signals.hallucination_risk > 0.1, \
-            "Expected to flag over-specific statistics"
+        assert (
+            report.signals.hallucination_risk > 0.1
+        ), "Expected to flag over-specific statistics"
 
     def test_specificity_mismatch_detection(self):
         """Test detection of certainty language with uncertain content."""
@@ -162,12 +160,12 @@ class TestUncertaintySignals:
         )
 
         report = self.detector.check_uncertainty(
-            mismatch,
-            TaskCategory.CLINICAL_ASSESSMENT
+            mismatch, TaskCategory.CLINICAL_ASSESSMENT
         )
 
-        assert report.signals.specificity_mismatch > 0.3, \
-            f"Expected specificity mismatch, got {report.signals.specificity_mismatch}"
+        assert (
+            report.signals.specificity_mismatch > 0.3
+        ), f"Expected specificity mismatch, got {report.signals.specificity_mismatch}"
 
 
 class TestConfabulationBenchmarks:
@@ -181,8 +179,7 @@ class TestConfabulationBenchmarks:
     def setup_method(self):
         """Set up test fixtures."""
         self.detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=False
+            enable_logging=False, cache_results=False
         )
 
     def test_benchmark_fake_citations(self):
@@ -203,13 +200,13 @@ class TestConfabulationBenchmarks:
 
         for case in test_cases:
             report = self.detector.check_uncertainty(
-                case,
-                TaskCategory.CLINICAL_ASSESSMENT
+                case, TaskCategory.CLINICAL_ASSESSMENT
             )
 
             # Should detect citation as potential hallucination
-            assert report.signals.hallucination_risk > 0.1, \
-                f"Failed to detect fake citation in: {case}"
+            assert (
+                report.signals.hallucination_risk > 0.1
+            ), f"Failed to detect fake citation in: {case}"
 
     def test_benchmark_fake_statistics(self):
         """
@@ -226,13 +223,13 @@ class TestConfabulationBenchmarks:
 
         for case in test_cases:
             report = self.detector.check_uncertainty(
-                case,
-                TaskCategory.CLINICAL_ASSESSMENT
+                case, TaskCategory.CLINICAL_ASSESSMENT
             )
 
             # Should flag specific numbers without verification
-            assert report.signals.hallucination_risk > 0.05, \
-                f"Failed to flag suspicious stats in: {case}"
+            assert (
+                report.signals.hallucination_risk > 0.05
+            ), f"Failed to flag suspicious stats in: {case}"
 
     def test_benchmark_internal_contradictions(self):
         """
@@ -249,14 +246,14 @@ class TestConfabulationBenchmarks:
 
         for case in test_cases:
             report = self.detector.check_uncertainty(
-                case,
-                TaskCategory.CLINICAL_ASSESSMENT
+                case, TaskCategory.CLINICAL_ASSESSMENT
             )
 
             # Should detect contradictions
-            assert report.signals.contradiction_score > 0.05 or \
-                   report.signals.specificity_mismatch > 0.1, \
-                f"Failed to detect contradiction in: {case}"
+            assert (
+                report.signals.contradiction_score > 0.05
+                or report.signals.specificity_mismatch > 0.1
+            ), f"Failed to detect contradiction in: {case}"
 
     def test_benchmark_knowledge_boundary_violations(self):
         """
@@ -278,16 +275,16 @@ class TestConfabulationBenchmarks:
             report = self.detector.check_uncertainty(
                 case,
                 TaskCategory.CLINICAL_ASSESSMENT,
-                additional_context={'patient_name': 'John Doe'}
+                additional_context={"patient_name": "John Doe"},
             )
 
             # Should flag as uncertain without verification
             total_risk = (
-                report.signals.knowledge_gap_score +
-                report.signals.hallucination_risk
+                report.signals.knowledge_gap_score + report.signals.hallucination_risk
             )
-            assert total_risk > 0.1, \
-                f"Failed to detect knowledge boundary violation in: {case}"
+            assert (
+                total_risk > 0.1
+            ), f"Failed to detect knowledge boundary violation in: {case}"
 
     def test_benchmark_over_specificity(self):
         """
@@ -304,17 +301,14 @@ class TestConfabulationBenchmarks:
 
         for case in test_cases:
             report = self.detector.check_uncertainty(
-                case,
-                TaskCategory.CLINICAL_ASSESSMENT
+                case, TaskCategory.CLINICAL_ASSESSMENT
             )
 
             # Should flag over-specific language
             total_risk = (
-                report.signals.hallucination_risk +
-                report.signals.specificity_mismatch
+                report.signals.hallucination_risk + report.signals.specificity_mismatch
             )
-            assert total_risk > 0.1, \
-                f"Failed to detect over-specificity in: {case}"
+            assert total_risk > 0.1, f"Failed to detect over-specificity in: {case}"
 
 
 class TestTaskCategoryThresholds:
@@ -323,8 +317,7 @@ class TestTaskCategoryThresholds:
     def setup_method(self):
         """Set up test fixtures."""
         self.detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=False
+            enable_logging=False, cache_results=False
         )
 
     def test_clinical_assessment_strict_threshold(self):
@@ -335,8 +328,7 @@ class TestTaskCategoryThresholds:
         )
 
         report = self.detector.check_uncertainty(
-            uncertain_output,
-            TaskCategory.CLINICAL_ASSESSMENT
+            uncertain_output, TaskCategory.CLINICAL_ASSESSMENT
         )
 
         # Clinical threshold is 0.10 (very strict)
@@ -353,8 +345,7 @@ class TestTaskCategoryThresholds:
         )
 
         report = self.detector.check_uncertainty(
-            same_uncertain_output,
-            TaskCategory.GENERAL_ASSISTANCE
+            same_uncertain_output, TaskCategory.GENERAL_ASSISTANCE
         )
 
         # General threshold is 0.60 (permissive)
@@ -367,10 +358,7 @@ class TestTaskCategoryThresholds:
         """Test that team optimization has medium uncertainty threshold."""
         output = "Team members might work well together"
 
-        report = self.detector.check_uncertainty(
-            output,
-            TaskCategory.TEAM_OPTIMIZATION
-        )
+        report = self.detector.check_uncertainty(output, TaskCategory.TEAM_OPTIMIZATION)
 
         assert report.task_category == "team"
         assert report.threshold_used == 0.40  # Medium threshold
@@ -382,8 +370,7 @@ class TestHumanReviewQueue:
     def setup_method(self):
         """Set up test fixtures."""
         self.detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=False
+            enable_logging=False, cache_results=False
         )
         self.queue = HumanReviewQueue(max_queue_size=10)
 
@@ -392,15 +379,14 @@ class TestHumanReviewQueue:
         output = "The patient definitely might have depression"
 
         report = self.detector.check_uncertainty(
-            output,
-            TaskCategory.CLINICAL_ASSESSMENT
+            output, TaskCategory.CLINICAL_ASSESSMENT
         )
 
         ticket_id = self.queue.queue_for_review(
             report=report,
             llm_input="Assess patient depression",
             llm_output=output,
-            metadata={'patient_id': '123'}
+            metadata={"patient_id": "123"},
         )
 
         assert ticket_id.startswith("REVIEW-")
@@ -410,14 +396,12 @@ class TestHumanReviewQueue:
         """Test that reviews are prioritized correctly."""
         # High uncertainty (clinical)
         high_report = self.detector.check_uncertainty(
-            "Patient definitely might have condition",
-            TaskCategory.CLINICAL_ASSESSMENT
+            "Patient definitely might have condition", TaskCategory.CLINICAL_ASSESSMENT
         )
 
         # Lower uncertainty (general)
         low_report = self.detector.check_uncertainty(
-            "Team might work well",
-            TaskCategory.GENERAL_ASSISTANCE
+            "Team might work well", TaskCategory.GENERAL_ASSISTANCE
         )
 
         # Queue in reverse order
@@ -426,15 +410,14 @@ class TestHumanReviewQueue:
 
         # High priority should come first
         pending = self.queue.get_pending_reviews()
-        assert pending[0]['uncertainty_score'] >= pending[1]['uncertainty_score']
+        assert pending[0]["uncertainty_score"] >= pending[1]["uncertainty_score"]
 
     def test_queue_capacity_limit(self):
         """Test that queue respects capacity limit."""
         # Fill queue beyond capacity
         for i in range(15):
             report = self.detector.check_uncertainty(
-                f"Output {i}",
-                TaskCategory.GENERAL_ASSISTANCE
+                f"Output {i}", TaskCategory.GENERAL_ASSISTANCE
             )
             self.queue.queue_for_review(report, "", "")
 
@@ -448,15 +431,13 @@ class TestUncertaintyReport:
     def setup_method(self):
         """Set up test fixtures."""
         self.detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=False
+            enable_logging=False, cache_results=False
         )
 
     def test_report_serialization(self):
         """Test that reports can be serialized to JSON."""
         report = self.detector.check_uncertainty(
-            "Test output",
-            TaskCategory.GENERAL_ASSISTANCE
+            "Test output", TaskCategory.GENERAL_ASSISTANCE
         )
 
         # Should not raise exception
@@ -467,28 +448,27 @@ class TestUncertaintyReport:
     def test_report_contains_all_fields(self):
         """Test that report contains all required fields."""
         report = self.detector.check_uncertainty(
-            "Test output",
-            TaskCategory.CLINICAL_ASSESSMENT
+            "Test output", TaskCategory.CLINICAL_ASSESSMENT
         )
 
         # Check all required fields
-        assert hasattr(report, 'overall_score')
-        assert hasattr(report, 'signals')
-        assert hasattr(report, 'exceeds_threshold')
-        assert hasattr(report, 'requires_human_review')
-        assert hasattr(report, 'task_category')
-        assert hasattr(report, 'threshold_used')
-        assert hasattr(report, 'flagged_claims')
-        assert hasattr(report, 'recommendations')
-        assert hasattr(report, 'timestamp')
-        assert hasattr(report, 'report_hash')
+        assert hasattr(report, "overall_score")
+        assert hasattr(report, "signals")
+        assert hasattr(report, "exceeds_threshold")
+        assert hasattr(report, "requires_human_review")
+        assert hasattr(report, "task_category")
+        assert hasattr(report, "threshold_used")
+        assert hasattr(report, "flagged_claims")
+        assert hasattr(report, "recommendations")
+        assert hasattr(report, "timestamp")
+        assert hasattr(report, "report_hash")
 
     def test_report_recommendations(self):
         """Test that report generates meaningful recommendations."""
         # Create high uncertainty report
         report = self.detector.check_uncertainty(
             "The patient definitely might possibly have condition, et al. (2022)",
-            TaskCategory.CLINICAL_ASSESSMENT
+            TaskCategory.CLINICAL_ASSESSMENT,
         )
 
         # Should have recommendations
@@ -497,8 +477,7 @@ class TestUncertaintyReport:
         # Should include human review warning
         if report.requires_human_review:
             review_warnings = [
-                r for r in report.recommendations
-                if "REQUIRE HUMAN REVIEW" in r
+                r for r in report.recommendations if "REQUIRE HUMAN REVIEW" in r
             ]
             assert len(review_warnings) > 0
 
@@ -509,8 +488,7 @@ class TestIntegrationWorkflows:
     def setup_method(self):
         """Set up test fixtures."""
         self.detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=False
+            enable_logging=False, cache_results=False
         )
         self.queue = HumanReviewQueue()
 
@@ -532,8 +510,7 @@ class TestIntegrationWorkflows:
 
         # Step 1 & 2: Check uncertainty
         report = self.detector.check_uncertainty(
-            llm_output,
-            TaskCategory.CLINICAL_ASSESSMENT
+            llm_output, TaskCategory.CLINICAL_ASSESSMENT
         )
 
         # Step 3: Queue for review if needed
@@ -541,7 +518,7 @@ class TestIntegrationWorkflows:
             ticket_id = self.queue.queue_for_review(
                 report=report,
                 llm_input="Assess patient for depression",
-                llm_output=llm_output
+                llm_output=llm_output,
             )
             assert ticket_id is not None
 
@@ -550,8 +527,9 @@ class TestIntegrationWorkflows:
         assert report.task_category == "clinical"
 
         # Verify hallucinations were detected
-        assert report.signals.hallucination_risk > 0, \
-            "Should detect fake citation and statistics"
+        assert (
+            report.signals.hallucination_risk > 0
+        ), "Should detect fake citation and statistics"
 
     def test_team_optimization_workflow(self):
         """Test workflow for team optimization recommendations."""
@@ -561,13 +539,14 @@ class TestIntegrationWorkflows:
         )
 
         report = self.detector.check_uncertainty(
-            llm_output,
-            TaskCategory.TEAM_OPTIMIZATION
+            llm_output, TaskCategory.TEAM_OPTIMIZATION
         )
 
         # Should flag over-specific statistics
-        assert report.signals.hallucination_risk > 0 or \
-               report.signals.specificity_mismatch > 0
+        assert (
+            report.signals.hallucination_risk > 0
+            or report.signals.specificity_mismatch > 0
+        )
 
     def test_uncertainty_vs_confidence_boundary(self):
         """
@@ -582,8 +561,7 @@ class TestIntegrationWorkflows:
             "though it's unclear and uncertain according to Johnson et al. (2024)."
         )
         report_uncertain = self.detector.check_uncertainty(
-            uncertain,
-            TaskCategory.CLINICAL_ASSESSMENT
+            uncertain, TaskCategory.CLINICAL_ASSESSMENT
         )
 
         # Confident output
@@ -592,17 +570,18 @@ class TestIntegrationWorkflows:
             "indicating moderately severe depression."
         )
         report_confident = self.detector.check_uncertainty(
-            confident,
-            TaskCategory.CLINICAL_ASSESSMENT
+            confident, TaskCategory.CLINICAL_ASSESSMENT
         )
 
         # Uncertain should have higher score
-        assert report_uncertain.overall_score > report_confident.overall_score, \
-            "Uncertain output should have higher uncertainty score"
+        assert (
+            report_uncertain.overall_score > report_confident.overall_score
+        ), "Uncertain output should have higher uncertainty score"
 
         # Uncertain should require review
-        assert report_uncertain.requires_human_review is True, \
-            "Uncertain output should require human review"
+        assert (
+            report_uncertain.requires_human_review is True
+        ), "Uncertain output should require human review"
 
 
 class TestPerformance:
@@ -610,28 +589,20 @@ class TestPerformance:
 
     def test_caching_improves_performance(self):
         """Test that caching improves repeated check performance."""
-        detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=True
-        )
+        detector = SemanticUncertaintyDetector(enable_logging=False, cache_results=True)
 
         output = "Test output for caching"
 
         # First check (not cached)
         import time
+
         start = time.time()
-        report1 = detector.check_uncertainty(
-            output,
-            TaskCategory.GENERAL_ASSISTANCE
-        )
+        report1 = detector.check_uncertainty(output, TaskCategory.GENERAL_ASSISTANCE)
         first_time = time.time() - start
 
         # Second check (cached)
         start = time.time()
-        report2 = detector.check_uncertainty(
-            output,
-            TaskCategory.GENERAL_ASSISTANCE
-        )
+        report2 = detector.check_uncertainty(output, TaskCategory.GENERAL_ASSISTANCE)
         cached_time = time.time() - start
 
         # Reports should be identical
@@ -643,17 +614,11 @@ class TestPerformance:
 
     def test_cache_clear(self):
         """Test cache clearing functionality."""
-        detector = SemanticUncertaintyDetector(
-            enable_logging=False,
-            cache_results=True
-        )
+        detector = SemanticUncertaintyDetector(enable_logging=False, cache_results=True)
 
         # Add some items to cache
         for i in range(5):
-            detector.check_uncertainty(
-                f"Output {i}",
-                TaskCategory.GENERAL_ASSISTANCE
-            )
+            detector.check_uncertainty(f"Output {i}", TaskCategory.GENERAL_ASSISTANCE)
 
         assert len(detector._cache) == 5
 

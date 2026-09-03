@@ -8,11 +8,11 @@ are correctly installed and ready for production use.
 Run this before deploying to production.
 """
 
-import sys
-import os
-from pathlib import Path
-import subprocess
 import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 # Colors for output
 GREEN = "\033[92m"
@@ -72,7 +72,7 @@ def check_directory_exists(dirpath, description):
 def check_file_content(filepath, required_strings, description):
     """Check if file contains required strings"""
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             content = f.read()
 
         missing = []
@@ -96,10 +96,17 @@ def run_tests():
     print_info("Running test suite...")
     try:
         result = subprocess.run(
-            ["python", "-m", "pytest", "tests/integration/test_security_metrics.py", "-v", "--tb=short"],
+            [
+                "python",
+                "-m",
+                "pytest",
+                "tests/integration/test_security_metrics.py",
+                "-v",
+                "--tb=short",
+            ],
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=120,
         )
 
         if result.returncode == 0:
@@ -180,13 +187,17 @@ def verify_monitoring_system():
             "def calculate_security_score",
             "def get_compliance_status",
         ]
-        checks.append(check_file_content(metrics_file, required, "Security Metrics Module"))
+        checks.append(
+            check_file_content(metrics_file, required, "Security Metrics Module")
+        )
 
     # Check Prometheus exporter
     prometheus_file = "app/monitoring/prometheus_metrics.py"
     if os.path.exists(prometheus_file):
         required = ["generate_prometheus_metrics", "psychsync_security_score"]
-        checks.append(check_file_content(prometheus_file, required, "Prometheus Exporter"))
+        checks.append(
+            check_file_content(prometheus_file, required, "Prometheus Exporter")
+        )
 
     return all(checks)
 
@@ -214,7 +225,7 @@ def verify_api_endpoints():
         "metrics_endpoint",
     ]
 
-    with open(monitoring_file, 'r') as f:
+    with open(monitoring_file, "r") as f:
         content = f.read()
 
     checks = []
@@ -237,7 +248,10 @@ def verify_observability_integration():
     # Check Prometheus configuration
     prometheus_files = [
         ("deploy/prometheus/prometheus.yml", "Prometheus Configuration"),
-        ("deploy/prometheus/alerts/psychsync_security_alerts.yml", "Prometheus Alert Rules"),
+        (
+            "deploy/prometheus/alerts/psychsync_security_alerts.yml",
+            "Prometheus Alert Rules",
+        ),
     ]
 
     for filepath, description in prometheus_files:
@@ -246,11 +260,13 @@ def verify_observability_integration():
     # Check Grafana dashboard
     grafana_dashboard = "deploy/grafana/dashboards/psychsync-security-dashboard.json"
     if os.path.exists(grafana_dashboard):
-        with open(grafana_dashboard, 'r') as f:
+        with open(grafana_dashboard, "r") as f:
             dashboard = json.load(f)
 
-        if 'dashboard' in dashboard:
-            print_success(f"Grafana Dashboard: {len(dashboard['dashboard'].get('panels', []))} panels")
+        if "dashboard" in dashboard:
+            print_success(
+                f"Grafana Dashboard: {len(dashboard['dashboard'].get('panels', []))} panels"
+            )
             checks.append(True)
         else:
             print_error("Invalid Grafana dashboard format")
@@ -292,7 +308,7 @@ def verify_tests():
         return False
 
     # Check for test classes
-    with open(test_file, 'r') as f:
+    with open(test_file, "r") as f:
         content = f.read()
 
     required_classes = [
@@ -333,10 +349,7 @@ def verify_demo_script():
     print_info("Running demo script...")
     try:
         result = subprocess.run(
-            ["python", demo_script],
-            capture_output=True,
-            text=True,
-            timeout=30
+            ["python", demo_script], capture_output=True, text=True, timeout=30
         )
 
         if result.returncode == 0:

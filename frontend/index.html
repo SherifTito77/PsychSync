@@ -44,8 +44,11 @@
     <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 
+    <!-- Permissions Policy -->
+    <meta http-equiv="Permissions-Policy" content="camera=*, microphone=*, display-capture=*, autoplay=*" />
+
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:8000 http://localhost:8011 https: ws: wss:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://meet.jit.si; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; frame-src 'self' https://meet.jit.si; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://localhost:8011 https: ws: wss: https://meet.jit.si wss://meet.jit.si; media-src 'self' https://meet.jit.si blob:;" />
 
     <title>PsychSync - Personality Assessment Platform</title>
 

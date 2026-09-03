@@ -178,11 +178,11 @@ export const DEFAULT_REQUIREMENTS = {
   requiredSkills: ['Leadership', 'Communication', 'Technical'],
   skillWeights: { 'Leadership': 0.3, 'Communication': 0.2, 'Technical': 0.25 },
   personalityBalance: {
-    'Openness': [0.4, 0.8],
-    'Conscientiousness': [0.5, 0.9],
-    'Extraversion': [0.3, 0.7],
-    'Agreeableness': [0.4, 0.8],
-    'Neuroticism': [0.1, 0.4]
+    'Openness': [0.4, 0.8] as [number, number],
+    'Conscientiousness': [0.5, 0.9] as [number, number],
+    'Extraversion': [0.3, 0.7] as [number, number],
+    'Agreeableness': [0.4, 0.8] as [number, number],
+    'Neuroticism': [0.1, 0.4] as [number, number]
   },
   objectives: ['Performance', 'Collaboration', 'Innovation'],
   experienceDistribution: { 'Junior': 1, 'Mid': 3, 'Senior': 1 },

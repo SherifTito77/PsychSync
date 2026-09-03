@@ -101,20 +101,31 @@ def sanitize_html(input_value: str, allowed_tags: list[str] = None) -> str:
             # Basic HTML sanitization without bleach
             # Remove script tags and dangerous attributes
             sanitized = re.sub(
-                r"<script[^>]*>.*?</script>", "", input_value, flags=re.IGNORECASE | re.DOTALL
+                r"<script[^>]*>.*?</script>",
+                "",
+                input_value,
+                flags=re.IGNORECASE | re.DOTALL,
             )
             sanitized = re.sub(
-                r"<iframe[^>]*>.*?</iframe>", "", sanitized, flags=re.IGNORECASE | re.DOTALL
+                r"<iframe[^>]*>.*?</iframe>",
+                "",
+                sanitized,
+                flags=re.IGNORECASE | re.DOTALL,
             )
             sanitized = re.sub(
-                r"<object[^>]*>.*?</object>", "", sanitized, flags=re.IGNORECASE | re.DOTALL
+                r"<object[^>]*>.*?</object>",
+                "",
+                sanitized,
+                flags=re.IGNORECASE | re.DOTALL,
             )
             sanitized = re.sub(r"<embed[^>]*>", "", sanitized, flags=re.IGNORECASE)
             sanitized = re.sub(r"<link[^>]*>", "", sanitized, flags=re.IGNORECASE)
             sanitized = re.sub(r"<meta[^>]*>", "", sanitized, flags=re.IGNORECASE)
 
             # Remove dangerous attributes
-            sanitized = re.sub(r'on\w+\s*=\s*["\'][^"\']*["\']', "", sanitized, flags=re.IGNORECASE)
+            sanitized = re.sub(
+                r'on\w+\s*=\s*["\'][^"\']*["\']', "", sanitized, flags=re.IGNORECASE
+            )
             sanitized = re.sub(r"javascript\s*:", "", sanitized, flags=re.IGNORECASE)
             sanitized = re.sub(r"vbscript\s*:", "", sanitized, flags=re.IGNORECASE)
             sanitized = re.sub(r"data\s*:", "", sanitized, flags=re.IGNORECASE)
@@ -171,7 +182,9 @@ def sanitize_string(input_value: str | Any) -> str:
 
 
 def sanitize_dict(
-    input_dict: dict[str, Any], html_fields: list[str] = None, text_fields: list[str] = None
+    input_dict: dict[str, Any],
+    html_fields: list[str] = None,
+    text_fields: list[str] = None,
 ) -> dict[str, Any]:
     """
     Sanitize a dictionary of input values
@@ -201,11 +214,11 @@ def sanitize_dict(
             sanitized[key] = sanitize_dict(value, html_fields, text_fields)
         elif isinstance(value, list):
             sanitized[key] = [
-                sanitize_html(item)
-                if isinstance(item, str) and key in html_fields
-                else sanitize_string(item)
-                if isinstance(item, str)
-                else item
+                (
+                    sanitize_html(item)
+                    if isinstance(item, str) and key in html_fields
+                    else sanitize_string(item) if isinstance(item, str) else item
+                )
                 for item in value
             ]
         else:
@@ -244,7 +257,9 @@ def validate_uuid(uuid_string: str) -> bool:
     if not isinstance(uuid_string, str):
         return False
 
-    uuid_pattern = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    uuid_pattern = (
+        r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    )
     return re.match(uuid_pattern, uuid_string.strip()) is not None
 
 

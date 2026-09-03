@@ -27,6 +27,11 @@ const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
+
+  if (IS_DEV) {
+    console.warn('VITE_API_URL is not set in environment, defaulting to http://localhost:8000');
+  }
+
   // Fallback based on environment
   switch (ENV) {
     case 'production':

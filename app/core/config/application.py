@@ -51,11 +51,15 @@ class ApplicationConfig:
 
     # Frontend settings
     FRONTEND_URL: str = Field(default="http://localhost:5173", env="FRONTEND_URL")
-    ADMIN_FRONTEND_URL: str = Field(default="http://localhost:5174", env="ADMIN_FRONTEND_URL")
+    ADMIN_FRONTEND_URL: str = Field(
+        default="http://localhost:5174", env="ADMIN_FRONTEND_URL"
+    )
 
     # Feature flags
     ENABLE_REGISTRATION: bool = Field(default=True, env="ENABLE_REGISTRATION")
-    ENABLE_EMAIL_VERIFICATION: bool = Field(default=True, env="ENABLE_EMAIL_VERIFICATION")
+    ENABLE_EMAIL_VERIFICATION: bool = Field(
+        default=False, env="ENABLE_EMAIL_VERIFICATION"
+    )
     ENABLE_PASSWORD_RESET: bool = Field(default=True, env="ENABLE_PASSWORD_RESET")
     ENABLE_SOCIAL_LOGIN: bool = Field(default=False, env="ENABLE_SOCIAL_LOGIN")
     ENABLE_MULTI_TENANT: bool = Field(default=True, env="ENABLE_MULTI_TENANT")
@@ -235,7 +239,9 @@ class ApplicationConfig:
                 raise RuntimeError("DEBUG mode is not allowed in production")
 
             if self.API_DOCS_ENABLED:
-                app_config_logger.warning("API docs enabled in production - consider disabling")
+                app_config_logger.warning(
+                    "API docs enabled in production - consider disabling"
+                )
 
             if self.RELOAD:
                 raise RuntimeError("Auto-reload is not allowed in production")

@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -41,10 +45,7 @@ def get_cache_summary(client):
     Retrieve resource(s).
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/entries/summary"
-        
-    )
+    response = client.get("/entries/summary")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -52,16 +53,16 @@ def get_cache_summary(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -69,12 +70,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -88,8 +90,13 @@ def get_cache_entries(client):
     Get cache entries with optional filtering
     """
     # TODO: Implement test logic
-    response = client.get("/entries",
-        params={'skip': 'test_value', 'limit': 'test_value', 'cache_type': 'test_value'}
+    response = client.get(
+        "/entries",
+        params={
+            "skip": "test_value",
+            "limit": "test_value",
+            "cache_type": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -98,16 +105,16 @@ def get_cache_entries(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -115,12 +122,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -134,8 +142,9 @@ def get_low_hit_rate_entries(client):
     Get cache entries with low hit rate (candidates for removal)
     """
     # TODO: Implement test logic
-    response = client.get("/entries/low_hit_rate",
-        params={'threshold': 'test_value', 'skip': 'test_value', 'limit': 'test_value'}
+    response = client.get(
+        "/entries/low_hit_rate",
+        params={"threshold": "test_value", "skip": "test_value", "limit": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -144,16 +153,16 @@ def get_low_hit_rate_entries(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -161,12 +170,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -180,25 +190,21 @@ def create_cache_entry(client):
     Create a new cache entry
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/entries",
-        json={},
-        params={'entry_data': 'test_value'}
-    )
+    response = client.post("/entries", json={}, params={"entry_data": "test_value"})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -206,12 +212,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -225,8 +232,13 @@ def get_cache_performance(client):
     Get cache performance metrics
     """
     # TODO: Implement test logic
-    response = client.get("/performance",
-        params={'skip': 'test_value', 'limit': 'test_value', 'cache_type': 'test_value'}
+    response = client.get(
+        "/performance",
+        params={
+            "skip": "test_value",
+            "limit": "test_value",
+            "cache_type": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -235,16 +247,16 @@ def get_cache_performance(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -252,12 +264,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -271,8 +284,9 @@ def get_optimizations(client):
     Get cache optimization suggestions
     """
     # TODO: Implement test logic
-    response = client.get("/optimizations",
-        params={'skip': 'test_value', 'limit': 'test_value', 'effort': 'test_value'}
+    response = client.get(
+        "/optimizations",
+        params={"skip": "test_value", "limit": "test_value", "effort": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -281,16 +295,16 @@ def get_optimizations(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -298,12 +312,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -318,24 +333,22 @@ def create_optimization(client):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/optimizations",
-        json={},
-        params={'optimization_data': 'test_value'}
+        "/optimizations", json={}, params={"optimization_data": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -343,12 +356,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -365,22 +379,22 @@ def apply_optimization(client):
     response = client.put(
         "/optimizations/{optimization_id}/apply",
         json={},
-        params={'optimization_id': 'test_value'}
+        params={"optimization_id": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -388,12 +402,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -407,10 +422,7 @@ def get_latest_report(client):
     Retrieve resource(s).
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/reports/latest"
-        
-    )
+    response = client.get("/reports/latest")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure

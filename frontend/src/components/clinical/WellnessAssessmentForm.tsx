@@ -316,7 +316,7 @@ const WellnessAssessmentForm: React.FC = () => {
 
         return {
           questionId,
-          value,
+          value: value as number,
           domain,
           category,
           timestamp: new Date()
@@ -361,16 +361,16 @@ const WellnessAssessmentForm: React.FC = () => {
         wellness_level: aiAnalysis.wellnessLevel,
         domain_scores: Object.entries(aiAnalysis.domainScores).reduce((acc, [domain, score]) => {
           acc[domain] = {
-            score: score.score,
-            level: score.level,
+            score: (score as any).score,
+            level: (score as any).level,
             weight: 1.0
           };
           return acc;
         }, {} as Record<string, any>),
         domain_insights: Object.entries(aiAnalysis.domainScores).reduce((acc, [domain, score]) => {
           acc[domain] = {
-            score: score.score,
-            level: score.level,
+            score: (score as any).score,
+            level: (score as any).level,
             strengths: aiAnalysis.strengths
               .filter(s => s.domains.includes(domain))
               .map(s => s.strength),
@@ -453,7 +453,7 @@ const WellnessAssessmentForm: React.FC = () => {
           <CardContent className="p-6">
             <h3 className="text-red-800 font-semibold mb-2">Error</h3>
             <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={fetchWellnessQuestions} variant="outline">
+            <Button onClick={initializeAssessment} variant="outline">
               Try Again
             </Button>
           </CardContent>

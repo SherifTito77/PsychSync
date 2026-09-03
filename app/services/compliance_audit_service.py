@@ -3,14 +3,23 @@ Enhanced Compliance Audit Service
 Provides comprehensive audit logging for GDPR compliance and security monitoring
 """
 
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import json
 import logging
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
@@ -61,17 +70,23 @@ class ComplianceAudit(Base):
 
     __tablename__ = "compliance_audit_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
 
     # Core audit fields
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
     session_id = Column(String(255), nullable=True, index=True)
     action = Column(String(100), nullable=False, index=True)
     resource_type = Column(String(100), nullable=False, index=True)
     resource_id = Column(String(255), nullable=True, index=True)
 
     # Timestamps
-    timestamp = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(
+        DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True
+    )
 
     # Request context
     ip_address = Column(String(45), nullable=True, index=True)
@@ -87,10 +102,14 @@ class ComplianceAudit(Base):
     # Compliance fields
     legal_basis = Column(String(100), nullable=True)  # GDPR legal basis
     retention_period = Column(Integer, nullable=True)  # Days to retain
-    data_subject_id = Column(String(255), nullable=True, index=True)  # Data subject identifier
+    data_subject_id = Column(
+        String(255), nullable=True, index=True
+    )  # Data subject identifier
 
     # Security fields
-    risk_level = Column(String(20), default="low", index=True)  # low, medium, high, critical
+    risk_level = Column(
+        String(20), default="low", index=True
+    )  # low, medium, high, critical
     success = Column(Boolean, default=True, index=True)
     error_message = Column(Text, nullable=True)
 
@@ -101,7 +120,9 @@ class ComplianceAudit(Base):
     impact_level = Column(String(20), default="low")  # low, medium, high
 
     # Hashing for integrity
-    data_hash = Column(String(64), nullable=True, index=True)  # SHA-256 hash of key fields
+    data_hash = Column(
+        String(64), nullable=True, index=True
+    )  # SHA-256 hash of key fields
 
     # Indexes for performance
     __table_args__ = (
@@ -204,7 +225,9 @@ class ComplianceAuditService:
                 data_classification=data_classification,
                 impact_level=impact_level,
                 risk_level=risk_level,
-                retention_period=self._determine_retention_period(action, data_classification),
+                retention_period=self._determine_retention_period(
+                    action, data_classification
+                ),
             )
 
             # Calculate integrity hash
@@ -263,13 +286,19 @@ class ComplianceAuditService:
                     query = query.filter(ComplianceAudit.action == filters["action"])
 
                 if filters.get("resource_type"):
-                    query = query.filter(ComplianceAudit.resource_type == filters["resource_type"])
+                    query = query.filter(
+                        ComplianceAudit.resource_type == filters["resource_type"]
+                    )
 
                 if filters.get("ip_address"):
-                    query = query.filter(ComplianceAudit.ip_address == filters["ip_address"])
+                    query = query.filter(
+                        ComplianceAudit.ip_address == filters["ip_address"]
+                    )
 
                 if filters.get("risk_level"):
-                    query = query.filter(ComplianceAudit.risk_level == filters["risk_level"])
+                    query = query.filter(
+                        ComplianceAudit.risk_level == filters["risk_level"]
+                    )
 
                 if filters.get("data_subject_id"):
                     query = query.filter(
@@ -277,10 +306,14 @@ class ComplianceAuditService:
                     )
 
                 if filters.get("start_date"):
-                    query = query.filter(ComplianceAudit.timestamp >= filters["start_date"])
+                    query = query.filter(
+                        ComplianceAudit.timestamp >= filters["start_date"]
+                    )
 
                 if filters.get("end_date"):
-                    query = query.filter(ComplianceAudit.timestamp <= filters["end_date"])
+                    query = query.filter(
+                        ComplianceAudit.timestamp <= filters["end_date"]
+                    )
 
                 if filters.get("success") is not None:
                     query = query.filter(ComplianceAudit.success == filters["success"])
@@ -344,7 +377,10 @@ class ComplianceAuditService:
         logs = (
             db.query(ComplianceAudit)
             .filter(
-                and_(ComplianceAudit.user_id == user_id, ComplianceAudit.timestamp >= start_date)
+                and_(
+                    ComplianceAudit.user_id == user_id,
+                    ComplianceAudit.timestamp >= start_date,
+                )
             )
             .all()
         )
@@ -374,9 +410,11 @@ class ComplianceAuditService:
             "period_days": days,
             "total_actions": total_actions,
             "failed_actions": failed_actions,
-            "success_rate": ((total_actions - failed_actions) / total_actions * 100)
-            if total_actions > 0
-            else 0,
+            "success_rate": (
+                ((total_actions - failed_actions) / total_actions * 100)
+                if total_actions > 0
+                else 0
+            ),
             "actions_by_type": actions_by_type,
             "actions_by_risk": actions_by_risk,
             "recent_activity": [
@@ -400,7 +438,10 @@ class ComplianceAuditService:
         logs = (
             db.query(ComplianceAudit)
             .filter(
-                and_(ComplianceAudit.timestamp >= start_date, ComplianceAudit.timestamp <= end_date)
+                and_(
+                    ComplianceAudit.timestamp >= start_date,
+                    ComplianceAudit.timestamp <= end_date,
+                )
             )
             .all()
         )
@@ -418,7 +459,9 @@ class ComplianceAuditService:
                 "high_risk_actions": sum(
                     1 for log in logs if log.risk_level in ["high", "critical"]
                 ),
-                "gdpr_actions": sum(1 for log in logs if log.action.startswith("gdpr_")),
+                "gdpr_actions": sum(
+                    1 for log in logs if log.action.startswith("gdpr_")
+                ),
             },
             "actions_by_type": {},
             "actions_by_risk_level": {},
@@ -464,7 +507,9 @@ class ComplianceAuditService:
                 )
 
         # Add recommendations
-        report_data["recommendations"] = self._generate_compliance_recommendations(report_data)
+        report_data["recommendations"] = self._generate_compliance_recommendations(
+            report_data
+        )
 
         return report_data
 
@@ -501,17 +546,13 @@ class ComplianceAuditService:
     def _calculate_data_hash(self, audit_log: ComplianceAudit) -> str:
         """Calculate SHA-256 hash for data integrity"""
 
-        data_string = (
-            f"{audit_log.action}{audit_log.resource_type}{audit_log.timestamp}{audit_log.user_id}"
-        )
+        data_string = f"{audit_log.action}{audit_log.resource_type}{audit_log.timestamp}{audit_log.user_id}"
         return hashlib.sha256(data_string.encode()).hexdigest()
 
     async def _trigger_security_alert(self, audit_log: ComplianceAudit):
         """Trigger security alert for high-risk actions"""
         try:
-            alert_message = (
-                f"High-risk action detected: {audit_log.action} by user {audit_log.user_id}"
-            )
+            alert_message = f"High-risk action detected: {audit_log.action} by user {audit_log.user_id}"
             logger.warning(alert_message)
 
             # Here you could integrate with:
@@ -549,7 +590,9 @@ class ComplianceAuditService:
         except Exception as e:
             logger.error(f"Failed to log to external system: {e!s}")
 
-    def _generate_compliance_recommendations(self, report_data: dict[str, Any]) -> list[str]:
+    def _generate_compliance_recommendations(
+        self, report_data: dict[str, Any]
+    ) -> list[str]:
         """Generate compliance recommendations based on report data"""
 
         recommendations = []
@@ -592,7 +635,9 @@ class ComplianceAuditService:
 
             # Delete old logs (in production, this would be more sophisticated)
             deleted_count = (
-                db.query(ComplianceAudit).filter(ComplianceAudit.timestamp < cutoff_date).delete()
+                db.query(ComplianceAudit)
+                .filter(ComplianceAudit.timestamp < cutoff_date)
+                .delete()
             )
 
             db.commit()

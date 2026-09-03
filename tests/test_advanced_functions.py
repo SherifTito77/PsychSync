@@ -4,38 +4,65 @@ Tests all fabricated advanced functions with edge cases and performance benchmar
 Coverage target: 95%+ for all advanced functions
 """
 
-import pytest
 import asyncio
+import gzip
 import json
 import time
-import gzip
 import zlib
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 import redis.asyncio as redis
+
+from app.services.intelligent_cache import (
+    CacheEntry,
+    CacheLevel,
+    IntelligentCache,
+    MemoryCache,
+    cache_warm,
+    cached,
+    intelligent_cache,
+)
 
 # Import advanced functions
 from app.services.request_processor import (
-    RequestProcessor, RequestContext, ProcessingResult,
-    request_processor, process_request, deduplicate_request
-)
-from app.services.intelligent_cache import (
-    IntelligentCache, MemoryCache, CacheEntry, CacheLevel,
-    intelligent_cache, cached, cache_warm
+    ProcessingResult,
+    RequestContext,
+    RequestProcessor,
+    deduplicate_request,
+    process_request,
+    request_processor,
 )
 from app.services.response_transformer import (
-    ResponseTransformer, TransformationConfig, ResponseMetadata,
-    response_transformer, transform_response
+    ResponseMetadata,
+    ResponseTransformer,
+    TransformationConfig,
+    response_transformer,
+    transform_response,
 )
 from app.services.validation_framework import (
-    RequestValidator, ValidationResult, ValidationError, ValidationRule,
-    request_validator, validate, field_validator
+    RequestValidator,
+    ValidationError,
+    ValidationResult,
+    ValidationRule,
+    field_validator,
+    request_validator,
+    validate,
 )
+
 
 # Mock FastAPI objects
 class MockRequest:
-    def __init__(self, method="GET", path="/test", headers=None, query_params=None, json_data=None):
+    def __init__(
+        self,
+        method="GET",
+        path="/test",
+        headers=None,
+        query_params=None,
+        json_data=None,
+    ):
         self.method = method
         self.url = Mock()
         self.url.path = path
@@ -49,7 +76,9 @@ class MockRequest:
     async def json(self):
         return self._json
 
+
 # ==================== REQUEST PROCESSOR TESTS ====================
+
 
 class TestRequestProcessor:
     """Test suite for RequestProcessor"""
@@ -71,7 +100,7 @@ class TestRequestProcessor:
             method="POST",
             path="/api/v1/users",
             headers={"User-Agent": "test-client"},
-            query_params={"page": "1", "size": "20"}
+            query_params={"page": "1", "size": "20"},
         )
 
         context = processor.create_request_context(request)
@@ -107,8 +136,8 @@ class TestRequestProcessor:
 
         async with processor.process_request(request) as context:
             assert context is not None
-            assert hasattr(context, 'request_id')
-            assert hasattr(context, 'processing_start_time')
+            assert hasattr(context, "request_id")
+            assert hasattr(context, "processing_start_time")
             assert processor.stats["active_concurrent"] == 1
 
         # After context exit
@@ -131,8 +160,7 @@ class TestRequestProcessor:
 
         # Test with different compression types
         compressed, compression_type = await processor.compress_response(
-            large_data,
-            [processor.CompressionType.GZIP]
+            large_data, [processor.CompressionType.GZIP]
         )
         assert compression_type == processor.CompressionType.GZIP
 
@@ -146,7 +174,7 @@ class TestRequestProcessor:
             method="GET",
             path="/api/v1/test",
             query_params={},
-            headers={}
+            headers={},
         )
 
         data = {"message": "Hello World"}
@@ -173,7 +201,7 @@ class TestRequestProcessor:
             method="GET",
             path="/api/v1/users",
             query_params={"id": "123"},
-            headers={}
+            headers={},
         )
 
         cache_key = processor.create_deduplication_key(context)
@@ -200,7 +228,9 @@ class TestRequestProcessor:
         assert "cache_hit_rate_percent" in stats
         assert "avg_processing_time_ms" in stats
 
+
 # ==================== INTELLIGENT CACHE TESTS ====================
+
 
 class TestIntelligentCache:
     """Test suite for IntelligentCache"""
@@ -330,6 +360,7 @@ class TestIntelligentCache:
     @pytest.mark.asyncio
     async def test_cache_warming(self, cache):
         """Test cache warming functionality"""
+
         # Register cache warmer
         async def sample_warmer():
             return {"user_1": "data_1", "user_2": "data_2"}
@@ -363,7 +394,9 @@ class TestIntelligentCache:
         assert "hit_rate_percent" in overall
         assert "hit_rate_classification" in overall
 
+
 # ==================== RESPONSE TRANSFORMER TESTS ====================
+
 
 class TestResponseTransformer:
     """Test suite for ResponseTransformer"""
@@ -376,7 +409,9 @@ class TestResponseTransformer:
     def test_client_type_detection(self, transformer):
         """Test client type detection"""
         # Mobile client
-        request = MockRequest(headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS)"})
+        request = MockRequest(
+            headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS)"}
+        )
         client_type = transformer.detect_client_type(request)
         assert client_type.value == "mobile"
 
@@ -411,7 +446,7 @@ class TestResponseTransformer:
         """Test transformation configuration creation"""
         request = MockRequest(
             headers={"User-Agent": "Mozilla/5.0 (iPhone)"},
-            query_params={"pretty": "true", "fields": "id,name"}
+            query_params={"pretty": "true", "fields": "id,name"},
         )
 
         config = transformer.create_transformation_config(request)
@@ -426,14 +461,14 @@ class TestResponseTransformer:
         config = TransformationConfig(
             case_style=TransformationRule.CAMEL_CASE,
             filter_fields=["user_id", "user_name"],
-            pretty_print=True
+            pretty_print=True,
         )
 
         data = {
             "user_id": 123,
             "user_name": "John Doe",
             "email_address": "john@example.com",
-            "created_at": "2024-01-01"
+            "created_at": "2024-01-01",
         }
 
         result = await transformer._apply_transformations(data, config)
@@ -487,7 +522,7 @@ class TestResponseTransformer:
             format=ResponseFormat.JSON,
             client_type=ClientType.WEB,
             include_metadata=True,
-            pretty_print=True
+            pretty_print=True,
         )
 
         metadata = ResponseMetadata(
@@ -495,7 +530,7 @@ class TestResponseTransformer:
             timestamp=datetime.utcnow(),
             processing_time_ms=150.5,
             format=ResponseFormat.JSON,
-            client_type=ClientType.WEB
+            client_type=ClientType.WEB,
         )
 
         data = {"message": "Hello World"}
@@ -505,7 +540,9 @@ class TestResponseTransformer:
         assert "X-Request-ID" in response.headers
         assert response.headers["X-Request-ID"] == "test-123"
 
+
 # ==================== VALIDATION FRAMEWORK TESTS ====================
+
 
 class TestRequestValidator:
     """Test suite for RequestValidator"""
@@ -521,7 +558,7 @@ class TestRequestValidator:
             field_name="email",
             rule_type=ValidationRule.EMAIL,
             level=ValidationLevel.ERROR,
-            message="Invalid email format"
+            message="Invalid email format",
         )
 
         assert "email" in validator.validation_rules
@@ -531,6 +568,7 @@ class TestRequestValidator:
 
     def test_global_validator_addition(self, validator):
         """Test adding global validator"""
+
         def dummy_validator(data, request):
             return True
 
@@ -542,6 +580,7 @@ class TestRequestValidator:
 
     def test_field_cleaner_addition(self, validator):
         """Test adding field cleaner"""
+
         def dummy_cleaner(value):
             return str(value).strip()
 
@@ -579,6 +618,7 @@ class TestRequestValidator:
     @pytest.mark.asyncio
     async def test_validation_with_cleaning(self, validator):
         """Test validation with data cleaning"""
+
         # Add cleaner
         def uppercase_cleaner(value):
             return str(value).upper()
@@ -603,26 +643,38 @@ class TestRequestValidator:
         assert is_valid is False
 
         # UUID validator
-        is_valid = await validator._validate_uuid("550e8400-e29b-41d4-a716-446655440000", {})
+        is_valid = await validator._validate_uuid(
+            "550e8400-e29b-41d4-a716-446655440000", {}
+        )
         assert is_valid is True
 
         is_valid = await validator._validate_uuid("invalid-uuid", {})
         assert is_valid is False
 
         # Pattern validator
-        is_valid = await validator._validate_pattern("test123", {"pattern": r"^[a-z]+[0-9]+$"})
+        is_valid = await validator._validate_pattern(
+            "test123", {"pattern": r"^[a-z]+[0-9]+$"}
+        )
         assert is_valid is True
 
-        is_valid = await validator._validate_pattern("Test123", {"pattern": r"^[a-z]+[0-9]+$"})
+        is_valid = await validator._validate_pattern(
+            "Test123", {"pattern": r"^[a-z]+[0-9]+$"}
+        )
         assert is_valid is False
 
     @pytest.mark.asyncio
     async def test_validation_scopes(self, validator):
         """Test validation scopes"""
         # Add rules for different scopes
-        validator.add_field_rule("email", ValidationRule.EMAIL, level=ValidationLevel.ERROR)
-        validator.add_field_rule("age", ValidationRule.RANGE, level=ValidationLevel.WARNING,
-                                params={"min_value": 0, "max_value": 120})
+        validator.add_field_rule(
+            "email", ValidationRule.EMAIL, level=ValidationLevel.ERROR
+        )
+        validator.add_field_rule(
+            "age",
+            ValidationRule.RANGE,
+            level=ValidationLevel.WARNING,
+            params={"min_value": 0, "max_value": 120},
+        )
 
         data = {"email": "test@example.com", "age": 150}
 
@@ -631,7 +683,9 @@ class TestRequestValidator:
         assert result.is_valid is True  # Email is valid, age not checked in basic scope
 
         # Comprehensive scope - should check all rules
-        result = await validator.validate_request(data, scope=ValidationScope.COMPREHENSIVE)
+        result = await validator.validate_request(
+            data, scope=ValidationScope.COMPREHENSIVE
+        )
         assert len(result.warnings) > 0  # Age should trigger warning
 
     def test_validation_statistics(self, validator):
@@ -649,7 +703,7 @@ class TestRequestValidator:
         field_definitions = {
             "name": {"type": str, "required": True},
             "age": {"type": int, "required": False, "default": 0},
-            "email": {"type": str, "required": True}
+            "email": {"type": str, "required": True},
         }
 
         schema_class = validator.create_pydantic_schema(field_definitions)
@@ -660,7 +714,9 @@ class TestRequestValidator:
         assert instance.age == 0
         assert instance.email == "john@example.com"
 
+
 # ==================== BUILT-IN CLEANERS AND VALIDATORS ====================
+
 
 class TestBuiltInUtilities:
     """Test built-in cleaners and validators"""
@@ -706,20 +762,16 @@ class TestBuiltInUtilities:
         from app.services.validation_framework import validate_business_rules
 
         # Valid date range
-        data = {
-            "start_date": "2024-01-01T00:00:00",
-            "end_date": "2024-01-02T00:00:00"
-        }
+        data = {"start_date": "2024-01-01T00:00:00", "end_date": "2024-01-02T00:00:00"}
         assert validate_business_rules(data) is True
 
         # Invalid date range
-        data = {
-            "start_date": "2024-01-02T00:00:00",
-            "end_date": "2024-01-01T00:00:00"
-        }
+        data = {"start_date": "2024-01-02T00:00:00", "end_date": "2024-01-01T00:00:00"}
         assert validate_business_rules(data) is False
 
+
 # ==================== INTEGRATION TESTS ====================
+
 
 class TestAdvancedFunctionIntegration:
     """Integration tests for all advanced functions"""
@@ -731,13 +783,16 @@ class TestAdvancedFunctionIntegration:
         request = MockRequest(
             method="POST",
             path="/api/v1/users",
-            headers={"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS)", "Content-Type": "application/json"},
+            headers={
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS)",
+                "Content-Type": "application/json",
+            },
             query_params={"format": "json", "pretty": "true"},
             json_data={
                 "name": "  John Doe  ",
                 "email": "JOHN.DOE@EXAMPLE.COM",
-                "age": 25
-            }
+                "age": 25,
+            },
         )
 
         # Initialize services
@@ -758,9 +813,7 @@ class TestAdvancedFunctionIntegration:
 
             # 2. Data validation and cleaning
             validation_result = await validator.validate_request(
-                request._json,
-                request,
-                scope=ValidationScope.COMPREHENSIVE
+                request._json, request, scope=ValidationScope.COMPREHENSIVE
             )
 
             assert validation_result.is_valid is True
@@ -798,7 +851,7 @@ class TestAdvancedFunctionIntegration:
             request = MockRequest(
                 method="GET",
                 path=f"/api/v1/items/{i}",
-                query_params={"id": f"550e8400-e29b-41d4-a716-44665544{i:04d}"}
+                query_params={"id": f"550e8400-e29b-41d4-a716-44665544{i:04d}"},
             )
 
             # Create processing task
@@ -814,14 +867,18 @@ class TestAdvancedFunctionIntegration:
         # Performance assertions
         assert duration < 5.0  # Should complete within 5 seconds
         assert len(contexts) == 100
-        assert all(isinstance(ctx, RequestContext) for ctx in contexts if not isinstance(ctx, Exception))
+        assert all(
+            isinstance(ctx, RequestContext)
+            for ctx in contexts
+            if not isinstance(ctx, Exception)
+        )
 
         # Test validation performance
         validation_tasks = []
         for i in range(50):
             data = {
                 "id": f"550e8400-e29b-41d4-a716-44665544{i:04d}",
-                "name": f"Item {i}"
+                "name": f"Item {i}",
             }
             task = validator.validate_request(data)
             validation_tasks.append(task)
@@ -847,18 +904,22 @@ class TestAdvancedFunctionIntegration:
 
         # Test transformation with malformed data
         config = TransformationConfig(format=ResponseFormat.JSON)
-        malformed_data = {"unserializable": object()}  # Object that can't be JSON serialized
+        malformed_data = {
+            "unserializable": object()
+        }  # Object that can't be JSON serialized
 
         # Should handle gracefully
         response = await transformer.transform_response(malformed_data, config)
         assert response.status_code == 500  # Should return error response
 
         # Test cache with Redis failure
-        with patch('redis.asyncio.from_url', side_effect=Exception("Redis down")):
+        with patch("redis.asyncio.from_url", side_effect=Exception("Redis down")):
             cache_result = await cache.get("test_key")
             assert cache_result is None  # Should handle Redis failure gracefully
 
+
 # ==================== PERFORMANCE BENCHMARKS ====================
+
 
 class TestPerformanceBenchmarks:
     """Performance benchmarks for advanced functions"""
@@ -881,7 +942,9 @@ class TestPerformanceBenchmarks:
         avg_time = (end_time - start_time) / iterations * 1000
 
         # Should complete in under 5ms per request on average
-        assert avg_time < 5.0, f"Request processor too slow: {avg_time:.2f}ms per request"
+        assert (
+            avg_time < 5.0
+        ), f"Request processor too slow: {avg_time:.2f}ms per request"
 
     @pytest.mark.asyncio
     async def test_cache_performance(self):
@@ -913,10 +976,12 @@ class TestPerformanceBenchmarks:
         """Benchmark response transformer performance"""
         transformer = ResponseTransformer()
 
-        data = {"message": "Hello World", "data": [{"id": i, "name": f"Item {i}"} for i in range(100)]}
+        data = {
+            "message": "Hello World",
+            "data": [{"id": i, "name": f"Item {i}"} for i in range(100)],
+        }
         config = TransformationConfig(
-            format=ResponseFormat.JSON,
-            case_style=TransformationRule.CAMEL_CASE
+            format=ResponseFormat.JSON, case_style=TransformationRule.CAMEL_CASE
         )
 
         iterations = 100
@@ -929,7 +994,9 @@ class TestPerformanceBenchmarks:
         avg_time = (end_time - start_time) / iterations * 1000
 
         # Should complete in under 10ms per transformation
-        assert avg_time < 10.0, f"Transformer too slow: {avg_time:.2f}ms per transformation"
+        assert (
+            avg_time < 10.0
+        ), f"Transformer too slow: {avg_time:.2f}ms per transformation"
 
     @pytest.mark.asyncio
     async def test_validator_performance(self):
@@ -955,7 +1022,9 @@ class TestPerformanceBenchmarks:
         # Should complete in under 2ms per validation
         assert avg_time < 2.0, f"Validator too slow: {avg_time:.2f}ms per validation"
 
+
 # ==================== CONFIGURATION AND FIXTURES ====================
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -964,42 +1033,44 @@ def event_loop():
     yield loop
     loop.close()
 
+
 # Configuration for pytest
 def pytest_configure(config):
     """Configure pytest with custom markers"""
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line(
         "markers", "benchmark: marks tests as performance benchmarks"
     )
+
 
 # Custom assertions for better test readability
 def assert_valid_context(context):
     """Assert that request context is valid"""
     assert context is not None
-    assert hasattr(context, 'request_id')
-    assert hasattr(context, 'timestamp')
-    assert hasattr(context, 'priority')
+    assert hasattr(context, "request_id")
+    assert hasattr(context, "timestamp")
+    assert hasattr(context, "priority")
     assert context.request_id is not None
     assert context.timestamp is not None
 
+
 def assert_valid_validation_result(result, should_be_valid=True):
     """Assert that validation result is as expected"""
-    assert hasattr(result, 'is_valid')
-    assert hasattr(result, 'errors')
-    assert hasattr(result, 'warnings')
-    assert hasattr(result, 'cleaned_data')
+    assert hasattr(result, "is_valid")
+    assert hasattr(result, "errors")
+    assert hasattr(result, "warnings")
+    assert hasattr(result, "cleaned_data")
     assert result.is_valid == should_be_valid
+
 
 def assert_valid_cache_entry(entry):
     """Assert that cache entry is valid"""
     assert entry is not None
-    assert hasattr(entry, 'key')
-    assert hasattr(entry, 'value')
-    assert hasattr(entry, 'created_at')
+    assert hasattr(entry, "key")
+    assert hasattr(entry, "value")
+    assert hasattr(entry, "created_at")
     assert entry.key is not None
     assert entry.created_at is not None

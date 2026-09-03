@@ -3,11 +3,11 @@ Comprehensive Revenue Generation Infrastructure
 Enterprise-grade billing, subscription management, and revenue optimization
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-import logging
 from typing import Any
 
 import stripe
@@ -250,7 +250,9 @@ class RevenueGenerationService:
 
             subscription = self.stripe.Subscription.create(**subscription_data)
 
-            logger.info(f"Created subscription {subscription.id} for customer {customer_id}")
+            logger.info(
+                f"Created subscription {subscription.id} for customer {customer_id}"
+            )
             return subscription
 
         except Exception as e:
@@ -281,14 +283,18 @@ class RevenueGenerationService:
 
             if immediate:
                 # Cancel immediately
-                cancelled_subscription = self.stripe.Subscription.delete(subscription_id)
+                cancelled_subscription = self.stripe.Subscription.delete(
+                    subscription_id
+                )
                 logger.info(f"Immediately cancelled subscription {subscription_id}")
             else:
                 # Cancel at period end
                 cancelled_subscription = self.stripe.Subscription.modify(
                     subscription_id, cancel_at_period_end=True
                 )
-                logger.info(f"Scheduled subscription {subscription_id} to cancel at period end")
+                logger.info(
+                    f"Scheduled subscription {subscription_id} to cancel at period end"
+                )
 
             return cancelled_subscription
 
@@ -407,7 +413,9 @@ class RevenueGenerationService:
                 if usage_report["charges"]["additional_team_members"] > 0:
                     self.stripe.InvoiceItem.create(
                         customer=customer_id,
-                        amount=int(usage_report["charges"]["additional_team_members"] * 100),
+                        amount=int(
+                            usage_report["charges"]["additional_team_members"] * 100
+                        ),
                         currency="usd",
                         description="Additional team members beyond limit",
                     )
@@ -433,7 +441,9 @@ class RevenueGenerationService:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to create usage invoice for customer {customer_id}: {e!s}")
+            logger.error(
+                f"Failed to create usage invoice for customer {customer_id}: {e!s}"
+            )
             raise
 
     async def get_subscription_analytics(
@@ -459,7 +469,12 @@ class RevenueGenerationService:
                     "average_revenue_per_user": 0.0,
                     "customer_lifetime_value": 0.0,
                 },
-                "tier_distribution": {"free": 0, "professional": 0, "enterprise": 0, "clinical": 0},
+                "tier_distribution": {
+                    "free": 0,
+                    "professional": 0,
+                    "enterprise": 0,
+                    "clinical": 0,
+                },
                 "billing_cycle_distribution": {"monthly": 0, "yearly": 0},
                 "revenue_breakdown": {
                     "subscription_revenue": 0.0,
@@ -504,7 +519,9 @@ class RevenueGenerationService:
                 {
                     "duration": duration,
                     "max_redemptions": 1000,  # Limit to prevent abuse
-                    "redeem_by": int((datetime.utcnow() + timedelta(days=90)).timestamp()),
+                    "redeem_by": int(
+                        (datetime.utcnow() + timedelta(days=90)).timestamp()
+                    ),
                 }
             )
 
@@ -562,7 +579,9 @@ class RevenueGenerationService:
             return response
 
         except Exception as e:
-            logger.error(f"Failed to handle payment failure for invoice {invoice_id}: {e!s}")
+            logger.error(
+                f"Failed to handle payment failure for invoice {invoice_id}: {e!s}"
+            )
             raise
 
     async def validate_feature_access(
@@ -679,7 +698,9 @@ class RevenueGenerationService:
 
             refund = self.stripe.Refund.create(**refund_params)
 
-            logger.info(f"Refund processed: {refund.id} for payment {payment_intent_id}")
+            logger.info(
+                f"Refund processed: {refund.id} for payment {payment_intent_id}"
+            )
 
             return {
                 "refund_id": refund.id,

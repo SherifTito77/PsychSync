@@ -25,8 +25,10 @@ from starlette.responses import JSONResponse
 # WAF Rules Engine
 # =============================================================================
 
+
 class WAFRule:
     """Base WAF rule"""
+
     name: str
     description: str
     severity: str  # low, medium, high, critical
@@ -36,6 +38,7 @@ class WAFRule:
 
 class WAFViolation:
     """WAF rule violation"""
+
     rule_name: str
     severity: str
     matched_pattern: str
@@ -68,12 +71,7 @@ class WebApplicationFirewall:
         self.stats = {
             "total_requests_checked": 0,
             "requests_blocked": 0,
-            "violations_by_severity": {
-                "low": 0,
-                "medium": 0,
-                "high": 0,
-                "critical": 0
-            }
+            "violations_by_severity": {"low": 0, "medium": 0, "high": 0, "critical": 0},
         }
 
     # ========================================================================
@@ -89,87 +87,83 @@ class WebApplicationFirewall:
                 name="SQLI-001",
                 description="SQL Union-Based Injection",
                 severity="critical",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="SQLI-002",
                 description="SQL Boolean-Based Injection",
                 severity="critical",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="SQLI-003",
                 description="SQL Error-Based Injection",
                 severity="critical",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="SQLI-004",
                 description="SQL Stacked Queries",
                 severity="critical",
-                rule_type="regex"
+                rule_type="regex",
             ),
-
             # XSS Rules
             WAFRule(
                 name="XSS-001",
                 description="Cross-Site Scripting - Script Tag",
                 severity="high",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="XSS-002",
                 description="Cross-Site Scripting - Event Handler",
                 severity="high",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="XSS-003",
                 description="Cross-Site Scripting - JavaScript Protocol",
                 severity="high",
-                rule_type="regex"
+                rule_type="regex",
             ),
-
             # Path Traversal Rules
             WAFRule(
                 name="PATH-001",
                 description="Path Traversal - ../ Sequence",
                 severity="high",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="PATH-002",
                 description="Path Traversal - Encoded Dots",
                 severity="high",
-                rule_type="regex"
+                rule_type="regex",
             ),
-
             # Command Injection Rules
             WAFRule(
                 name="CMD-001",
                 description="Command Injection - Unix Commands",
                 severity="critical",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="CMD-002",
                 description="Command Injection - Windows Commands",
                 severity="critical",
-                rule_type="regex"
+                rule_type="regex",
             ),
-
             # SSRF Rules
             WAFRule(
                 name="SSRF-001",
                 description="Server-Side Request Forgery - Internal IPs",
                 severity="high",
-                rule_type="regex"
+                rule_type="regex",
             ),
             WAFRule(
                 name="SSRF-002",
                 description="Server-Side Request Forgery - Localhost",
                 severity="high",
-                rule_type="regex"
+                rule_type="regex",
             ),
         ]
 
@@ -177,7 +171,9 @@ class WebApplicationFirewall:
     # Request Inspection
     # ========================================================================
 
-    async def check_request(self, request: Request, body: bytes | None = None) -> tuple[bool, WAFViolation | None]:
+    async def check_request(
+        self, request: Request, body: bytes | None = None
+    ) -> tuple[bool, WAFViolation | None]:
         """
         Check request against all WAF rules
 
@@ -245,15 +241,17 @@ class WebApplicationFirewall:
             "cookies": dict(request.cookies),
             "client": {
                 "host": request.client.host if request.client else "unknown",
-                "port": request.client.port if request.client else None
-            }
+                "port": request.client.port if request.client else None,
+            },
         }
 
         # Try to parse JSON body
-        if body and request.headers.get("content-type", "").startswith("application/json"):
+        if body and request.headers.get("content-type", "").startswith(
+            "application/json"
+        ):
             try:
                 data["json"] = json.loads(data["body"])
-            except:
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
                 pass
 
         return data
@@ -271,26 +269,21 @@ class WebApplicationFirewall:
             r"['\"]\s*;\s*union\s+(all\s+)?select",
             r"union\s+select.*from",
             r"\d+\s*union\s+select",
-
             # Boolean-based
             r"\bor\s+1\s*=\s*1",
             r"\band\s+1\s*=\s*1",
             r"['\"]\s+or\s+['\"][\w-]+['\"]\s*=\s*['\"]",
             r"admin['\"]\s*(--|#|/\*|')",
-
             # Error-based
             r"convert\s*\(|cast\s*\(|group_concat\(",
             r"row\s*\(\s*\d+\s*\)",
             r"count\s*\(\s*\*\s*\)",
-
             # Stacked queries
             r";\s*(drop|alter|create|delete|insert|update)\s",
-
             # Time-based blind
             r"waitfor\s+delay\s+['\"]?\d+",
             r"sleep\s*\(\s*\d+\s*\)",
             r"benchmark\s*\(",
-
             # Common functions
             r"@@version",
             r"version\s*\(\)",
@@ -323,7 +316,7 @@ class WebApplicationFirewall:
                         severity="critical",
                         matched_pattern=matches[0] if matches else "",
                         request_data=data,
-                        timestamp=datetime.utcnow().isoformat()
+                        timestamp=datetime.utcnow().isoformat(),
                     )
                     self.stats["violations_by_severity"]["critical"] += 1
                     return violation
@@ -337,22 +330,17 @@ class WebApplicationFirewall:
             # Script tags
             r"<script[^>]*>.*?</script>",
             r"<script[^>]*>",
-
             # Event handlers
             r"on\w+\s*=\s*['\"][^'\"]*javascript:",
-
             # JavaScript protocol
             r"javascript:",
-
             # Common XSS payloads
             r"<iframe[^>]*>",
             r"<embed[^>]*>",
             r"<object[^>]*>",
             r"<link[^>]*>",
-
             # Expression (IE)
             r"expression\s*\(",
-
             # Common payload strings
             r"alert\s*\(",
             r"document\.cookie",
@@ -379,7 +367,7 @@ class WebApplicationFirewall:
                         severity="high",
                         matched_pattern=matches[0] if matches else "",
                         request_data=data,
-                        timestamp=datetime.utcnow().isoformat()
+                        timestamp=datetime.utcnow().isoformat(),
                     )
                     self.stats["violations_by_severity"]["high"] += 1
                     return violation
@@ -404,7 +392,9 @@ class WebApplicationFirewall:
             r"web\.config",
         ]
 
-        combined_pattern = "|".join(f"(?:{pattern})" for pattern in path_traversal_patterns)
+        combined_pattern = "|".join(
+            f"(?:{pattern})" for pattern in path_traversal_patterns
+        )
 
         fields_to_check = [
             data.get("path", ""),
@@ -421,7 +411,7 @@ class WebApplicationFirewall:
                         severity="high",
                         matched_pattern=matches[0] if matches else "",
                         request_data=data,
-                        timestamp=datetime.utcnow().isoformat()
+                        timestamp=datetime.utcnow().isoformat(),
                     )
                     self.stats["violations_by_severity"]["high"] += 1
                     return violation
@@ -437,11 +427,9 @@ class WebApplicationFirewall:
             r"\|\s*(ls|cat|wget|curl|nc|netcat)",
             r"`\s*(ls|cat|wget|curl)`",
             r"\$\([^)]*\)",
-
             # Windows commands
             r";\s*(dir|type|cmd|powershell|whoami)\b",
             r"\|\s*(dir|type|cmd|powershell)",
-
             # Metacharacters
             r";\s*\w+",
             r"\|\s*\w+",
@@ -450,7 +438,9 @@ class WebApplicationFirewall:
             r"\$[^$]+",
         ]
 
-        combined_pattern = "|".join(f"(?:{pattern})" for pattern in cmd_injection_patterns)
+        combined_pattern = "|".join(
+            f"(?:{pattern})" for pattern in cmd_injection_patterns
+        )
 
         fields_to_check = [
             data.get("path", ""),
@@ -467,7 +457,7 @@ class WebApplicationFirewall:
                         severity="critical",
                         matched_pattern=matches[0] if matches else "",
                         request_data=data,
-                        timestamp=datetime.utcnow().isoformat()
+                        timestamp=datetime.utcnow().isoformat(),
                     )
                     self.stats["violations_by_severity"]["critical"] += 1
                     return violation
@@ -483,7 +473,6 @@ class WebApplicationFirewall:
             r"https?://10\.",
             r"https?://172\.(1[6-9]|2[0-9]|3[01])\.",
             r"https?://192\.168\.",
-
             # Internal hostname
             r"https?://internal",
             r"https?://localhost",
@@ -507,7 +496,7 @@ class WebApplicationFirewall:
                         severity="high",
                         matched_pattern=matches[0] if matches else "",
                         request_data=data,
-                        timestamp=datetime.utcnow().isoformat()
+                        timestamp=datetime.utcnow().isoformat(),
                     )
                     self.stats["violations_by_severity"]["high"] += 1
                     return violation
@@ -531,7 +520,7 @@ class WebApplicationFirewall:
                 severity="medium",
                 matched_pattern=f"Body size {body_size} exceeds {MAX_BODY_SIZE}",
                 request_data=data,
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.utcnow().isoformat(),
             )
             self.stats["violations_by_severity"]["medium"] += 1
             return violation
@@ -542,7 +531,7 @@ class WebApplicationFirewall:
                 severity="low",
                 matched_pattern=f"Query size {query_size} exceeds {MAX_QUERY_SIZE}",
                 request_data=data,
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.utcnow().isoformat(),
             )
             self.stats["violations_by_severity"]["low"] += 1
             return violation
@@ -553,7 +542,7 @@ class WebApplicationFirewall:
                 severity="low",
                 matched_pattern=f"Header size {header_size} exceeds {MAX_HEADER_SIZE}",
                 request_data=data,
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.utcnow().isoformat(),
             )
             self.stats["violations_by_severity"]["low"] += 1
             return violation
@@ -573,7 +562,7 @@ class WebApplicationFirewall:
                 severity="medium",
                 matched_pattern=f"Method {method} not allowed",
                 request_data=data,
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.utcnow().isoformat(),
             )
             self.stats["violations_by_severity"]["medium"] += 1
             return violation
@@ -604,7 +593,7 @@ class WebApplicationFirewall:
                     severity="low",
                     matched_pattern=f"Content-Type {base_content_type} not allowed",
                     request_data=data,
-                    timestamp=datetime.utcnow().isoformat()
+                    timestamp=datetime.utcnow().isoformat(),
                 )
                 self.stats["violations_by_severity"]["low"] += 1
                 return violation
@@ -622,11 +611,12 @@ class WebApplicationFirewall:
             "requests_blocked": self.stats["requests_blocked"],
             "block_rate": (
                 self.stats["requests_blocked"] / self.stats["total_requests_checked"]
-                if self.stats["total_requests_checked"] > 0 else 0
+                if self.stats["total_requests_checked"] > 0
+                else 0
             ),
             "violations_by_severity": self.stats["violations_by_severity"],
             "active_rules": len([r for r in self.rules if r.enabled]),
-            "total_rules": len(self.rules)
+            "total_rules": len(self.rules),
         }
 
 
@@ -669,8 +659,8 @@ async def waf_middleware(request: Request, call_next):
             status_code=status.HTTP_403_FORBIDDEN,
             content={
                 "detail": "Request blocked by Web Application Firewall",
-                "rule": violation.rule_name
-            }
+                "rule": violation.rule_name,
+            },
         )
 
     # Allow request to proceed

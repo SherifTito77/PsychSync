@@ -5,10 +5,10 @@ Advanced prediction system for forecasting future growth trajectories using
 machine learning, ensemble methods, and uncertainty quantification.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 import numpy as np
@@ -134,11 +134,15 @@ class TrajectoryPredictor:
                 PredictionMethod.GAUSSIAN_PROCESS,
             ]
 
-        self.logger.info(f"Generating comprehensive forecast for trajectory {trajectory_id}")
+        self.logger.info(
+            f"Generating comprehensive forecast for trajectory {trajectory_id}"
+        )
 
         # Get trajectory data
         trajectory = (
-            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+            self.db.query(GrowthTrajectory)
+            .filter(GrowthTrajectory.id == trajectory_id)
+            .first()
         )
 
         if not trajectory:
@@ -201,12 +205,17 @@ class TrajectoryPredictor:
         return forecast
 
     async def predict_milestone_achievement(
-        self, trajectory_id: str, milestone_target: float, confidence_threshold: float = 0.8
+        self,
+        trajectory_id: str,
+        milestone_target: float,
+        confidence_threshold: float = 0.8,
     ) -> MilestoneForecast:
         """Predict when a specific milestone will be achieved"""
 
         trajectory = (
-            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+            self.db.query(GrowthTrajectory)
+            .filter(GrowthTrajectory.id == trajectory_id)
+            .first()
         )
 
         if not trajectory:
@@ -232,14 +241,18 @@ class TrajectoryPredictor:
                 elif prediction.confidence_interval[1] >= milestone_target:
                     # Linear interpolation within confidence interval
                     range_size = (
-                        prediction.confidence_interval[1] - prediction.confidence_interval[0]
+                        prediction.confidence_interval[1]
+                        - prediction.confidence_interval[0]
                     )
                     if range_size > 0:
                         achievement_probability = max(
                             0.5,
                             min(
                                 0.95,
-                                (prediction.predicted_value - prediction.confidence_interval[0])
+                                (
+                                    prediction.predicted_value
+                                    - prediction.confidence_interval[0]
+                                )
                                 / range_size
                                 * 0.45
                                 + 0.5,
@@ -253,7 +266,9 @@ class TrajectoryPredictor:
             achievement_probability = 0.1
 
         # Analyze risk and success factors
-        risk_factors = await self._identify_milestone_risks(trajectory, milestone_target)
+        risk_factors = await self._identify_milestone_risks(
+            trajectory, milestone_target
+        )
         success_factors = await self._identify_milestone_success_factors(
             trajectory, milestone_target
         )
@@ -314,7 +329,9 @@ class TrajectoryPredictor:
         """Update predictions with new actual measurements"""
 
         trajectory = (
-            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+            self.db.query(GrowthTrajectory)
+            .filter(GrowthTrajectory.id == trajectory_id)
+            .first()
         )
 
         if not trajectory:
@@ -328,14 +345,17 @@ class TrajectoryPredictor:
                 self.db.query(TrajectoryPrediction)
                 .filter(
                     TrajectoryPrediction.trajectory_id == trajectory_id,
-                    func.date(TrajectoryPrediction.prediction_date) == actual_date.date(),
+                    func.date(TrajectoryPrediction.prediction_date)
+                    == actual_date.date(),
                 )
                 .first()
             )
 
             if prediction:
                 prediction_accuracy = (
-                    1 - abs(actual_value - float(prediction.predicted_value)) / actual_value
+                    1
+                    - abs(actual_value - float(prediction.predicted_value))
+                    / actual_value
                 )
                 prediction_comparisons.append(
                     {
@@ -351,7 +371,12 @@ class TrajectoryPredictor:
         if prediction_comparisons:
             mae = np.mean([abs(comp["error"]) for comp in prediction_comparisons])
             mape = (
-                np.mean([abs(comp["error"]) / comp["actual"] for comp in prediction_comparisons])
+                np.mean(
+                    [
+                        abs(comp["error"]) / comp["actual"]
+                        for comp in prediction_comparisons
+                    ]
+                )
                 * 100
             )
             bias = np.mean([comp["error"] for comp in prediction_comparisons])
@@ -359,7 +384,9 @@ class TrajectoryPredictor:
             mae = mape = bias = None
 
         # Determine if model retraining is needed
-        retraining_needed = await self._assess_retraining_need(prediction_comparisons, trajectory)
+        retraining_needed = await self._assess_retraining_need(
+            prediction_comparisons, trajectory
+        )
 
         if retraining_needed:
             # Retrain model with new data
@@ -373,7 +400,9 @@ class TrajectoryPredictor:
         }
 
     # Private methods for prediction implementation
-    async def _prepare_historical_data(self, trajectory: GrowthTrajectory) -> pd.DataFrame:
+    async def _prepare_historical_data(
+        self, trajectory: GrowthTrajectory
+    ) -> pd.DataFrame:
         """Prepare historical data for prediction"""
 
         # Get historical predictions and actual measurements
@@ -391,13 +420,19 @@ class TrajectoryPredictor:
                 {
                     "date": pred.prediction_date,
                     "predicted_value": float(pred.predicted_value),
-                    "confidence_interval_lower": float(pred.confidence_interval_lower)
-                    if pred.confidence_interval_lower
-                    else None,
-                    "confidence_interval_upper": float(pred.confidence_interval_upper)
-                    if pred.confidence_interval_upper
-                    else None,
-                    "growth_rate": float(pred.growth_rate) if pred.growth_rate else None,
+                    "confidence_interval_lower": (
+                        float(pred.confidence_interval_lower)
+                        if pred.confidence_interval_lower
+                        else None
+                    ),
+                    "confidence_interval_upper": (
+                        float(pred.confidence_interval_upper)
+                        if pred.confidence_interval_upper
+                        else None
+                    ),
+                    "growth_rate": (
+                        float(pred.growth_rate) if pred.growth_rate else None
+                    ),
                 }
             )
 
@@ -422,7 +457,9 @@ class TrajectoryPredictor:
 
         # Calculate basic features
         current_value = (
-            historical_data["predicted_value"].iloc[-1] if not historical_data.empty else 0
+            historical_data["predicted_value"].iloc[-1]
+            if not historical_data.empty
+            else 0
         )
 
         # Calculate historical velocities
@@ -430,7 +467,8 @@ class TrajectoryPredictor:
             velocities = []
             for i in range(1, len(historical_data)):
                 days_diff = (
-                    historical_data.iloc[i]["date"] - historical_data.iloc[i - 1]["date"]
+                    historical_data.iloc[i]["date"]
+                    - historical_data.iloc[i - 1]["date"]
                 ).days
                 if days_diff > 0:
                     value_diff = (
@@ -470,15 +508,21 @@ class TrajectoryPredictor:
         """Generate predictions using specific method"""
 
         if method == PredictionMethod.PARAMETRIC_MODEL:
-            return await self._predict_with_parametric_model(trajectory, forecast_horizon_days)
+            return await self._predict_with_parametric_model(
+                trajectory, forecast_horizon_days
+            )
         if method == PredictionMethod.ENSEMBLE_ML:
-            return await self._predict_with_ensemble_ml(trajectory, forecast_horizon_days, features)
+            return await self._predict_with_ensemble_ml(
+                trajectory, forecast_horizon_days, features
+            )
         if method == PredictionMethod.GAUSSIAN_PROCESS:
             return await self._predict_with_gaussian_process(
                 trajectory, forecast_horizon_days, features
             )
         if method == PredictionMethod.BAYESIAN_FORECAST:
-            return await self._predict_with_bayesian_forecast(trajectory, forecast_horizon_days)
+            return await self._predict_with_bayesian_forecast(
+                trajectory, forecast_horizon_days
+            )
         raise ValueError(f"Unsupported prediction method: {method}")
 
     async def _predict_with_parametric_model(
@@ -497,8 +541,10 @@ class TrajectoryPredictor:
 
             try:
                 # Use the modeler to predict
-                predicted_value, confidence_interval = await self.modeler._predict_with_model(
-                    model_type, params, days_ahead, 0.95
+                predicted_value, confidence_interval = (
+                    await self.modeler._predict_with_model(
+                        model_type, params, days_ahead, 0.95
+                    )
                 )
 
                 # Calculate uncertainty level based on confidence interval width
@@ -531,12 +577,17 @@ class TrajectoryPredictor:
                 predictions.append(prediction)
 
             except Exception as e:
-                self.logger.warning(f"Parametric prediction failed for day {days_ahead}: {e}")
+                self.logger.warning(
+                    f"Parametric prediction failed for day {days_ahead}: {e}"
+                )
 
         return predictions
 
     async def _predict_with_ensemble_ml(
-        self, trajectory: GrowthTrajectory, forecast_horizon_days: int, features: PredictionFeatures
+        self,
+        trajectory: GrowthTrajectory,
+        forecast_horizon_days: int,
+        features: PredictionFeatures,
     ) -> list[PredictionResult]:
         """Predict using ensemble machine learning models"""
 
@@ -557,7 +608,9 @@ class TrajectoryPredictor:
             # Apply acceleration if available
             acceleration = float(trajectory.acceleration_rate or 0)
             predicted_value = (
-                current_value + (growth_rate * days_ahead) + (0.5 * acceleration * days_ahead**2)
+                current_value
+                + (growth_rate * days_ahead)
+                + (0.5 * acceleration * days_ahead**2)
             )
 
             # Add ensemble uncertainty
@@ -588,7 +641,10 @@ class TrajectoryPredictor:
         return predictions
 
     async def _predict_with_gaussian_process(
-        self, trajectory: GrowthTrajectory, forecast_horizon_days: int, features: PredictionFeatures
+        self,
+        trajectory: GrowthTrajectory,
+        forecast_horizon_days: int,
+        features: PredictionFeatures,
     ) -> list[PredictionResult]:
         """Predict using Gaussian Process regression"""
 
@@ -607,7 +663,9 @@ class TrajectoryPredictor:
             predicted_value = current_value + mean_growth * days_ahead
 
             # GP uncertainty increases with prediction horizon
-            uncertainty = 0.05 * np.sqrt(days_ahead / 30)  # Uncertainty grows with sqrt of time
+            uncertainty = 0.05 * np.sqrt(
+                days_ahead / 30
+            )  # Uncertainty grows with sqrt of time
             confidence_interval = (
                 max(0, predicted_value - uncertainty),
                 predicted_value + uncertainty,
@@ -618,9 +676,11 @@ class TrajectoryPredictor:
                 predicted_value=predicted_value,
                 confidence_interval=confidence_interval,
                 prediction_method=PredictionMethod.GAUSSIAN_PROCESS,
-                uncertainty_level=UncertaintyLevel.LOW
-                if days_ahead < 180
-                else UncertaintyLevel.MODERATE,
+                uncertainty_level=(
+                    UncertaintyLevel.LOW
+                    if days_ahead < 180
+                    else UncertaintyLevel.MODERATE
+                ),
                 probability_distribution=None,
                 feature_importance={"time_horizon": 0.6, "historical_pattern": 0.4},
                 model_confidence=0.8,
@@ -645,20 +705,26 @@ class TrajectoryPredictor:
             prediction_date = start_date + timedelta(days=days_ahead)
 
             # Bayesian combination of parametric and trend-based predictions
-            parametric_pred = current_value + float(trajectory.growth_velocity or 0.01) * days_ahead
-            trend_pred = current_value * (1 + 0.01) ** (days_ahead / 30)  # Monthly growth
+            parametric_pred = (
+                current_value + float(trajectory.growth_velocity or 0.01) * days_ahead
+            )
+            trend_pred = current_value * (1 + 0.01) ** (
+                days_ahead / 30
+            )  # Monthly growth
 
             # Bayesian weighted average
             weight_parametric = 0.6
             weight_trend = 0.4
-            predicted_value = weight_parametric * parametric_pred + weight_trend * trend_pred
+            predicted_value = (
+                weight_parametric * parametric_pred + weight_trend * trend_pred
+            )
 
             # Bayesian uncertainty combining model and parameter uncertainty
             model_uncertainty = 0.1
             param_uncertainty = 0.05
-            total_uncertainty = np.sqrt(model_uncertainty**2 + param_uncertainty**2) * (
-                1 + days_ahead / 365
-            )
+            total_uncertainty = np.sqrt(
+                model_uncertainty**2 + param_uncertainty**2
+            ) * (1 + days_ahead / 365)
 
             confidence_interval = (
                 max(0, predicted_value - total_uncertainty),
@@ -671,7 +737,10 @@ class TrajectoryPredictor:
                 confidence_interval=confidence_interval,
                 prediction_method=PredictionMethod.BAYESIAN_FORECAST,
                 uncertainty_level=UncertaintyLevel.MODERATE,
-                probability_distribution={"mean": predicted_value, "std": total_uncertainty},
+                probability_distribution={
+                    "mean": predicted_value,
+                    "std": total_uncertainty,
+                },
                 feature_importance={
                     "parametric_model": weight_parametric,
                     "trend_model": weight_trend,
@@ -726,7 +795,9 @@ class TrajectoryPredictor:
                     weighted_prediction = (
                         sum(
                             pred.predicted_value * method_weights.get(method, 0)
-                            for method, pred in zip(method_weights.keys(), date_predictions)
+                            for method, pred in zip(
+                                method_weights.keys(), date_predictions
+                            )
                         )
                         / total_weight
                     )
@@ -747,14 +818,18 @@ class TrajectoryPredictor:
                         combined_lower = (
                             sum(
                                 lb * method_weights.get(method, 0)
-                                for method, lb in zip(method_weights.keys(), lower_bounds)
+                                for method, lb in zip(
+                                    method_weights.keys(), lower_bounds
+                                )
                             )
                             / total_weight
                         )
                         combined_upper = (
                             sum(
                                 ub * method_weights.get(method, 0)
-                                for method, ub in zip(method_weights.keys(), upper_bounds)
+                                for method, ub in zip(
+                                    method_weights.keys(), upper_bounds
+                                )
                             )
                             / total_weight
                         )
@@ -768,7 +843,9 @@ class TrajectoryPredictor:
                     overall_confidence = (
                         sum(
                             pred.model_confidence * method_weights.get(method, 0)
-                            for method, pred in zip(method_weights.keys(), date_predictions)
+                            for method, pred in zip(
+                                method_weights.keys(), date_predictions
+                            )
                         )
                         / total_weight
                     )
@@ -820,7 +897,9 @@ class TrajectoryPredictor:
                 forecast.milestone_name = milestone.milestone_name
                 milestone_forecasts.append(forecast)
             except Exception as e:
-                self.logger.warning(f"Milestone forecast failed for {milestone.id}: {e}")
+                self.logger.warning(
+                    f"Milestone forecast failed for {milestone.id}: {e}"
+                )
 
         return milestone_forecasts
 
@@ -837,7 +916,9 @@ class TrajectoryPredictor:
         # Average confidence across all combined predictions
         return np.mean([pred.model_confidence for pred in combined_predictions])
 
-    async def _assess_data_quality(self, historical_data: pd.DataFrame) -> dict[str, Any]:
+    async def _assess_data_quality(
+        self, historical_data: pd.DataFrame
+    ) -> dict[str, Any]:
         """Assess quality of historical data"""
         if historical_data.empty:
             return {"score": 0.0, "issues": ["No historical data"]}
@@ -860,7 +941,11 @@ class TrajectoryPredictor:
             score -= 0.3
             issues.append("Limited historical data points")
 
-        return {"score": max(0, score), "issues": issues, "data_points": len(historical_data)}
+        return {
+            "score": max(0, score),
+            "issues": issues,
+            "data_points": len(historical_data),
+        }
 
     async def _save_forecast_to_database(self, forecast: TrajectoryForecast):
         """Save forecast predictions to database"""
@@ -907,7 +992,9 @@ class TrajectoryPredictor:
         # This would create a copy of the trajectory with modified parameters
         # Placeholder implementation
         original = (
-            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+            self.db.query(GrowthTrajectory)
+            .filter(GrowthTrajectory.id == trajectory_id)
+            .first()
         )
         return original  # Simplified
 

@@ -16,21 +16,20 @@ data corruption, cascading failures, or inconsistent state.
 """
 
 import asyncio
-import pytest
-from datetime import datetime, timedelta, UTC
-from uuid import uuid4
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from typing import Any
 import random
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from uuid import uuid4
 
+import pytest
 import redis.asyncio as aioredis
-from httpx import AsyncClient, ASGITransport, ConnectError, ReadTimeout
+from httpx import ASGITransport, AsyncClient, ConnectError, ReadTimeout
 
-from app.main import app
-from app.db.models.user import User
 from app.core.async_cache import AsyncCache
 from app.core.config import settings
-
+from app.db.models.user import User
+from app.main import app
 
 # ============================================================================
 # Test 1: Network Latency Chaos
@@ -47,8 +46,8 @@ async def test_network_latency_during_login(db_session):
     Simulates real-world network conditions where latency varies.
     System should handle variable latency without errors.
     """
-    from app.db.models.user import User
     from app.core.security import hash_password
+    from app.db.models.user import User
 
     # Arrange - Create test user
     user = User(
@@ -231,7 +230,7 @@ async def test_redis_failure_during_cache_operations():
     # Cleanup
     try:
         await AsyncCache.delete(cache_key)
-    except:
+    except Exception as e:
         pass  # Redis is down, delete may fail
 
 
@@ -286,7 +285,7 @@ async def test_redis_failure_with_concurrent_operations():
     # Cleanup (may fail if Redis is down)
     try:
         await AsyncCache.delete_pattern(f"{cache_prefix}*")
-    except:
+    except Exception as e:
         pass
 
 
@@ -304,8 +303,9 @@ async def test_database_timeout_during_query():
     Simulates slow database response causing query timeout.
     System should handle timeout gracefully without hanging.
     """
-    from app.db.models.user import User
     from sqlalchemy.ext.async import AsyncSession
+
+    from app.db.models.user import User
 
     # Mock database session that times out
     async def mock_execute(query):
@@ -438,7 +438,7 @@ async def test_partial_service_failure():
             try:
                 if cache_available:
                     await AsyncCache.set(f"user:{user_id}", user_data, expire=300)
-            except:
+            except Exception as e:
                 pass  # Cache failure is OK
 
             return {"source": "database", "data": user_data}
@@ -636,7 +636,7 @@ async def test_graceful_degradation_on_cache_failure():
                 cached = await AsyncCache.get(key)
                 if cached:
                     return {"source": "cache", "data": cached}
-            except:
+            except Exception as e:
                 pass  # Cache failure - fall through to database
 
         # Fall back to "database"
@@ -651,7 +651,7 @@ async def test_graceful_degradation_on_cache_failure():
         try:
             if cache_enabled:
                 await AsyncCache.set(key, data, expire=300)
-        except:
+        except Exception as e:
             pass  # Silent failure - OK
 
         return {"source": "database", "data": data}
@@ -857,7 +857,7 @@ async def test_memory_pressure_handling():
         # Try to cache (may fail under memory pressure)
         try:
             await AsyncCache.set(key, data, expire=60)
-        except:
+        except Exception as e:
             pass  # Cache may fail under memory pressure
 
         # Simulate processing
@@ -890,5 +890,5 @@ async def test_memory_pressure_handling():
     # Cleanup
     try:
         await AsyncCache.delete_pattern(f"{cache_prefix}*")
-    except:
+    except Exception as e:
         pass

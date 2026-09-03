@@ -9,18 +9,18 @@ Comprehensive security protection for FastAPI applications including:
 - IP-based blocking for suspicious activity
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 import hmac
 import ipaddress
 import logging
 import re
 import secrets
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 
+import redis.asyncio as redis
 from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-import redis.asyncio as redis
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 logger = logging.getLogger(__name__)
@@ -151,7 +151,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         # Initialize Redis
         self._init_redis()
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         """
         Main middleware dispatcher.
         """
@@ -265,7 +267,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         try:
             await self.redis_client.setex(
-                f"blocked_ip:{ip}", self.config.ip_block_duration, "suspicious_activity_detected"
+                f"blocked_ip:{ip}",
+                self.config.ip_block_duration,
+                "suspicious_activity_detected",
             )
             logger.warning(f"IP {ip} temporarily blocked due to suspicious activity")
         except Exception as e:
@@ -320,7 +324,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return True
         return False
 
-    async def _log_suspicious_activity(self, request: Request, ip: str, reason: str) -> None:
+    async def _log_suspicious_activity(
+        self, request: Request, ip: str, reason: str
+    ) -> None:
         """Log suspicious activity for monitoring."""
         try:
             log_entry = {
@@ -454,7 +460,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return True
 
             # For multipart/form-data, check form field
-            if request.headers.get("content-type", "").startswith("multipart/form-data"):
+            if request.headers.get("content-type", "").startswith(
+                "multipart/form-data"
+            ):
                 # Note: This requires request to be parsed first
                 # In practice, this would be handled by the form processing middleware
                 return True

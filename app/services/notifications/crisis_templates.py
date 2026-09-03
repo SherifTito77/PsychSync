@@ -7,8 +7,8 @@ HIPAA-compliant, immediate delivery for crisis situations
 @version 1.0.0
 """
 
-from typing import Dict, Optional
 from datetime import datetime
+from typing import Dict, Optional
 
 
 class CrisisNotificationTemplates:
@@ -29,7 +29,9 @@ class CrisisNotificationTemplates:
     # ========================================================================
 
     @staticmethod
-    def critical_alert_email(user_name: str, screening_type: str, score: int) -> Dict[str, str]:
+    def critical_alert_email(
+        user_name: str, screening_type: str, score: int
+    ) -> Dict[str, str]:
         """
         Email sent immediately when CRITICAL risk detected
 
@@ -202,7 +204,7 @@ PsychSync Clinical Team
 crisis@psychsync.ai
 
 This message is confidential and protected under HIPAA.
-            """
+            """,
         }
 
     @staticmethod
@@ -217,8 +219,14 @@ This message is confidential and protected under HIPAA.
         Returns:
             SMS message text
         """
+        # ✅ FIX: Proper username validation (prevent crash on empty string)
+        first_name = (
+            user_name.split()[0]
+            if user_name and " " in user_name
+            else user_name or "Friend"
+        )
         return (
-            f"🚨 {user_name.split()[0] if ' ' in user_name else user_name}, immediate support available. "
+            f"🚨 {first_name}, immediate support available. "
             f"Your {screening_type} indicates you may need help right now. "
             f"Call 988 (Suicide & Crisis Lifeline) or text HELLO to 741741. "
             f"You're not alone - we're here 24/7."
@@ -229,7 +237,9 @@ This message is confidential and protected under HIPAA.
     # ========================================================================
 
     @staticmethod
-    def high_risk_email(user_name: str, screening_type: str, score: int, severity: str) -> Dict[str, str]:
+    def high_risk_email(
+        user_name: str, screening_type: str, score: int, severity: str
+    ) -> Dict[str, str]:
         """
         Email for HIGH risk - urgent but not immediate danger
 
@@ -394,14 +404,20 @@ The PsychSync Clinical Team
 
 1-800-PSYCHSYNC | support@psychsync.ai
 Confidential & HIPAA-compliant
-            """
+            """,
         }
 
     @staticmethod
     def high_risk_sms(user_name: str, screening_type: str) -> str:
         """SMS for HIGH risk"""
+        # ✅ FIX: Proper username validation
+        first_name = (
+            user_name.split()[0]
+            if user_name and " " in user_name
+            else user_name or "Friend"
+        )
         return (
-            f"{user_name.split()[0] if ' ' in user_name else user_name}, your assessment indicates you may benefit from support. "
+            f"{first_name}, your assessment indicates you may benefit from support. "
             f"A clinician will call within 2 hours. "
             f"24/7 support: Call 988 or text HELLO to 741741. "
             f"You're not alone."
@@ -413,10 +429,7 @@ Confidential & HIPAA-compliant
 
     @staticmethod
     def moderate_risk_email(
-        user_name: str,
-        screening_type: str,
-        score: int,
-        recommendations: list
+        user_name: str, screening_type: str, score: int, recommendations: list
     ) -> Dict[str, str]:
         """Email for MODERATE risk"""
         recs_html = "".join([f"<li>{rec}</li>" for rec in recommendations])
@@ -567,7 +580,7 @@ The PsychSync Team
 
 support@psychsync.ai
 Confidential & HIPAA-compliant
-            """
+            """,
         }
 
     # ========================================================================
@@ -576,8 +589,7 @@ Confidential & HIPAA-compliant
 
     @staticmethod
     def clinician_alert_email(
-        clinician_name: str,
-        alert_details: Dict[str, any]
+        clinician_name: str, alert_details: Dict[str, any]
     ) -> Dict[str, str]:
         """
         Alert email sent to on-call clinician
@@ -589,10 +601,12 @@ Confidential & HIPAA-compliant
         Returns:
             Dictionary with subject, html_body, and text_body
         """
-        risk_flags_html = "".join([
-            f'<span style="display: inline-block; padding: 4px 12px; background: #FEE2E2; color: #991B1B; border-radius: 12px; margin: 4px;">{flag.replace(/_/g, ' ')}</span>'
-            for flag in alert_details.get('risk_flags', [])
-        ])
+        risk_flags_html = "".join(
+            [
+                f'<span style="display: inline-block; padding: 4px 12px; background: #FEE2E2; color: #991B1B; border-radius: 12px; margin: 4px;">{flag.replace("_", " ")}</span>'
+                for flag in alert_details.get("risk_flags", [])
+            ]
+        )
 
         return {
             "subject": f"🚨 URGENT: Crisis Alert - Response Required",
@@ -734,7 +748,7 @@ CALL PATIENT: {alert_details.get('patient_phone', 'N/A')}
 Questions? Contact Clinical Director:
 Emergency: 1-800-PSYCH-HELP
 Email: oncall@psychsync.ai
-            """
+            """,
         }
 
     @staticmethod
@@ -761,6 +775,7 @@ Email: oncall@psychsync.ai
 # NOTIFICATION SERVICE
 # ============================================================================
 
+
 class CrisisNotificationService:
     """
     Service for sending crisis notifications via multiple channels
@@ -781,7 +796,7 @@ class CrisisNotificationService:
         risk_level: str,
         screening_type: str,
         score: int,
-        alert_details: Dict[str, any]
+        alert_details: Dict[str, any],
     ):
         """
         Send multi-channel crisis notification to patient
@@ -800,30 +815,30 @@ class CrisisNotificationService:
         # Determine notification level and send accordingly
         if risk_level == "critical":
             # CRITICAL - All channels, immediate delivery
-            email_template = templates.critical_alert_email(user_name, screening_type, score)
+            email_template = templates.critical_alert_email(
+                user_name, screening_type, score
+            )
             await CrisisNotificationService._send_email(
                 to=user_email,
                 subject=email_template["subject"],
                 html_body=email_template["html_body"],
                 text_body=email_template["text_body"],
-                priority="urgent"
+                priority="urgent",
             )
 
             if user_phone:
                 sms_text = templates.critical_alert_sms(user_name, screening_type)
                 await CrisisNotificationService._send_sms(
-                    to=user_phone,
-                    message=sms_text,
-                    priority="urgent"
+                    to=user_phone, message=sms_text, priority="urgent"
                 )
 
             # Push notification
             await CrisisNotificationService._send_push_notification(
-                user_id=alert_details['user_id'],
+                user_id=alert_details["user_id"],
                 title="🚨 Immediate Support Available",
                 body="Crisis resources available now. Tap for help.",
                 priority="high",
-                data={'type': 'crisis_alert', 'alert_id': alert_details['alert_id']}
+                data={"type": "crisis_alert", "alert_id": alert_details["alert_id"]},
             )
 
         elif risk_level == "high":
@@ -836,24 +851,25 @@ class CrisisNotificationService:
                 subject=email_template["subject"],
                 html_body=email_template["html_body"],
                 text_body=email_template["text_body"],
-                priority="urgent"
+                priority="urgent",
             )
 
             if user_phone:
                 sms_text = templates.high_risk_sms(user_name, screening_type)
                 await CrisisNotificationService._send_sms(
-                    to=user_phone,
-                    message=sms_text,
-                    priority="urgent"
+                    to=user_phone, message=sms_text, priority="urgent"
                 )
 
         else:  # MODERATE or LOW
             # STANDARD - Email only, normal priority
-            recommendations = alert_details.get('recommendations', [
-                "Consider speaking with a mental health professional",
-                "Monitor your symptoms and seek help if they worsen",
-                "Practice self-care and stress management"
-            ])
+            recommendations = alert_details.get(
+                "recommendations",
+                [
+                    "Consider speaking with a mental health professional",
+                    "Monitor your symptoms and seek help if they worsen",
+                    "Practice self-care and stress management",
+                ],
+            )
             email_template = templates.moderate_risk_email(
                 user_name, screening_type, score, recommendations
             )
@@ -862,7 +878,7 @@ class CrisisNotificationService:
                 subject=email_template["subject"],
                 html_body=email_template["html_body"],
                 text_body=email_template["text_body"],
-                priority="normal"
+                priority="normal",
             )
 
     @staticmethod
@@ -870,7 +886,7 @@ class CrisisNotificationService:
         clinician_email: str,
         clinician_phone: str,
         clinician_name: str,
-        alert_details: Dict[str, any]
+        alert_details: Dict[str, any],
     ):
         """
         Notify on-call clinician of crisis alert
@@ -890,27 +906,24 @@ class CrisisNotificationService:
             subject=email_template["subject"],
             html_body=email_template["html_body"],
             text_body=email_template["text_body"],
-            priority="urgent"
+            priority="urgent",
         )
 
         # SMS page
         sms_text = templates.clinician_alert_sms(
-            alert_details['severity'],
-            alert_details['alert_id']
+            alert_details["severity"], alert_details["alert_id"]
         )
         await CrisisNotificationService._send_sms(
-            to=clinician_phone,
-            message=sms_text,
-            priority="urgent"
+            to=clinician_phone, message=sms_text, priority="urgent"
         )
 
         # Push notification to clinician app
         await CrisisNotificationService._send_push_notification(
-            user_id=alert_details['clinician_id'],
+            user_id=alert_details["clinician_id"],
             title=f"🚨 Crisis Alert - {alert_details['severity'].upper()}",
             body="Patient needs immediate contact. Tap to view alert.",
             priority="high",
-            data={'type': 'clinician_alert', 'alert_id': alert_details['alert_id']}
+            data={"type": "clinician_alert", "alert_id": alert_details["alert_id"]},
         )
 
     # ========================================================================
@@ -918,7 +931,9 @@ class CrisisNotificationService:
     # ========================================================================
 
     @staticmethod
-    async def _send_email(to: str, subject: str, html_body: str, text_body: str, priority: str = "normal"):
+    async def _send_email(
+        to: str, subject: str, html_body: str, text_body: str, priority: str = "normal"
+    ):
         """
         Send email via SendGrid, AWS SES, or similar
 
@@ -935,6 +950,7 @@ class CrisisNotificationService:
         - Delivery confirmation
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         # Placeholder implementation
@@ -979,6 +995,7 @@ class CrisisNotificationService:
         - Audit logging
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         # Placeholder implementation
@@ -1008,11 +1025,7 @@ class CrisisNotificationService:
 
     @staticmethod
     async def _send_push_notification(
-        user_id: str,
-        title: str,
-        body: str,
-        priority: str,
-        data: Dict[str, any]
+        user_id: str, title: str, body: str, priority: str, data: Dict[str, any]
     ):
         """
         Send push notification via Firebase, OneSignal, or similar
@@ -1029,6 +1042,7 @@ class CrisisNotificationService:
         - Sound/vibration options
         """
         import logging
+
         logger = logging.getLogger(__name__)
 
         # Placeholder implementation
@@ -1077,10 +1091,11 @@ class CrisisNotificationService:
 # HELPER FUNCTIONS
 # ============================================================================
 
+
 def format_phone_number(phone: str) -> str:
     """Format phone number for SMS delivery"""
-    digits = ''.join(filter(str.isdigit, phone))
-    if digits.startswith('1'):
+    digits = "".join(filter(str.isdigit, phone))
+    if digits.startswith("1"):
         return f"+{digits}"
     return f"+1{digits}"
 
@@ -1088,5 +1103,6 @@ def format_phone_number(phone: str) -> str:
 def validate_email_address(email: str) -> bool:
     """Validate email address format"""
     import re
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     return re.match(pattern, email) is not None

@@ -14,10 +14,11 @@ Date: 2025-12-26
 """
 
 import sys
-import pytest
-from pathlib import Path
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
+from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -26,27 +27,27 @@ sys.path.insert(0, str(project_root))
 from app.monitoring.audit_logger import (
     AuditEvent,
     AuditEventType,
-    AuditSeverity,
     AuditLogger,
     AuditQuery,
-    ConsoleBackend
+    AuditSeverity,
+    ConsoleBackend,
 )
+from app.monitoring.incident_response import (
+    ActionResult,
+    IncidentResponder,
+    IncidentResponse,
+    ResponseAction,
+)
+from app.monitoring.incident_response import ThreatIndicator as IRThreatIndicator
 from app.monitoring.security_analytics import (
+    RealTimeSecurityAnalyzer,
     SecurityEvent,
     ThreatIndicator,
     ThreatLevel,
-    RealTimeSecurityAnalyzer
 )
-from app.monitoring.incident_response import (
-    IncidentResponder,
-    ResponseAction,
-    ActionResult,
-    IncidentResponse,
-    ThreatIndicator as IRThreatIndicator
-)
-
 
 # ==================== Audit Logger Tests ====================
+
 
 class TestAuditEvent:
     """Test AuditEvent creation and validation"""
@@ -57,7 +58,7 @@ class TestAuditEvent:
             event_type=AuditEventType.AUTH_LOGIN,
             severity=AuditSeverity.INFO,
             user_id=123,
-            ip_address="192.168.1.1"
+            ip_address="192.168.1.1",
         )
 
         assert event.event_type == "auth.login"
@@ -73,7 +74,7 @@ class TestAuditEvent:
             severity=AuditSeverity.HIGH,
             user_id=456,
             resource_type="assessment",
-            resource_id=789
+            resource_id=789,
         )
 
         event_dict = event.to_dict()
@@ -90,14 +91,14 @@ class TestAuditEvent:
         details = {
             "login_method": "password",
             "user_agent": "Mozilla/5.0",
-            "success": True
+            "success": True,
         }
 
         event = AuditEvent(
             event_type=AuditEventType.AUTH_LOGIN,
             severity=AuditSeverity.INFO,
             user_id=123,
-            details=details
+            details=details,
         )
 
         assert event.details == details
@@ -119,7 +120,7 @@ class TestAuditLogger:
         event = AuditEvent(
             event_type=AuditEventType.AUTH_LOGIN,
             severity=AuditSeverity.INFO,
-            user_id=123
+            user_id=123,
         )
 
         # Should not raise exception
@@ -133,7 +134,7 @@ class TestAuditLogger:
             severity="info",
             user_id=123,
             ip_address="192.168.1.1",
-            success=True
+            success=True,
         )
 
         # Verify event was created correctly
@@ -147,17 +148,17 @@ class TestAuditLogger:
             severity="high",
             user_id=456,
             ip_address="10.0.0.1",
-            details={"failed_attempts": 10}
+            details={"failed_attempts": 10},
         )
 
     @pytest.mark.asyncio
     async def test_critical_event_triggers_alert(self, logger):
         """Test that critical events trigger alerts"""
-        with patch.object(logger, '_trigger_alert', new=AsyncMock()) as mock_alert:
+        with patch.object(logger, "_trigger_alert", new=AsyncMock()) as mock_alert:
             event = AuditEvent(
                 event_type=AuditEventType.SECURITY_BREACH,
                 severity=AuditSeverity.CRITICAL,
-                user_id=789
+                user_id=789,
             )
 
             await logger.log(event)
@@ -210,11 +211,13 @@ class TestAuditQuery:
 
     def test_chained_filters(self):
         """Test chaining multiple filters"""
-        query = (AuditQuery()
-                 .filter_by_event_type("auth.login")
-                 .filter_by_severity("high")
-                 .filter_by_user(123)
-                 .limit(50))
+        query = (
+            AuditQuery()
+            .filter_by_event_type("auth.login")
+            .filter_by_severity("high")
+            .filter_by_user(123)
+            .limit(50)
+        )
 
         assert query.filters["event_type"] == "auth.login"
         assert query.filters["severity"] == "high"
@@ -223,6 +226,7 @@ class TestAuditQuery:
 
 
 # ==================== Security Analytics Tests ====================
+
 
 class TestSecurityEvent:
     """Test SecurityEvent creation"""
@@ -235,7 +239,7 @@ class TestSecurityEvent:
             user_id=123,
             ip_address="192.168.1.1",
             severity="high",
-            details={"reason": "invalid_password"}
+            details={"reason": "invalid_password"},
         )
 
         assert event.event_type == "auth.failed"
@@ -261,7 +265,7 @@ class TestRealTimeSecurityAnalyzer:
             user_id=123,
             ip_address="192.168.1.1",
             severity="info",
-            details={}
+            details={},
         )
 
         threats = await analyzer.analyze_event(event)
@@ -281,7 +285,7 @@ class TestRealTimeSecurityAnalyzer:
                 user_id=user_id,
                 ip_address="192.168.1.1",
                 severity="high",
-                details={}
+                details={},
             )
             await analyzer.analyze_event(event)
 
@@ -292,7 +296,7 @@ class TestRealTimeSecurityAnalyzer:
             user_id=user_id,
             ip_address="192.168.1.1",
             severity="high",
-            details={}
+            details={},
         )
 
         threats = await analyzer.analyze_event(event)
@@ -313,7 +317,7 @@ class TestRealTimeSecurityAnalyzer:
                 user_id=i,  # Different users
                 ip_address=ip_address,
                 severity="critical",
-                details={}
+                details={},
             )
             await analyzer.analyze_event(event)
 
@@ -324,7 +328,7 @@ class TestRealTimeSecurityAnalyzer:
             user_id=999,
             ip_address=ip_address,
             severity="critical",
-            details={}
+            details={},
         )
 
         threats = await analyzer.analyze_event(event)
@@ -345,7 +349,7 @@ class TestRealTimeSecurityAnalyzer:
                 user_id=user_id,
                 ip_address="192.168.1.1",
                 severity="high",
-                details={}
+                details={},
             )
             await analyzer.analyze_event(event)
 
@@ -356,7 +360,7 @@ class TestRealTimeSecurityAnalyzer:
             user_id=user_id,
             ip_address="192.168.1.1",
             severity="high",
-            details={}
+            details={},
         )
 
         threats = await analyzer.analyze_event(event)
@@ -373,7 +377,7 @@ class TestRealTimeSecurityAnalyzer:
             user_id=789,
             ip_address="192.168.1.1",
             severity="high",
-            details={"record_count": 150}  # Over threshold
+            details={"record_count": 150},  # Over threshold
         )
 
         threats = await analyzer.analyze_event(event)
@@ -390,7 +394,7 @@ class TestRealTimeSecurityAnalyzer:
                 timestamp=datetime.utcnow(),
                 user_id=i,
                 severity="info",
-                details={}
+                details={},
             )
             analyzer.event_history.append(event)
 
@@ -403,6 +407,7 @@ class TestRealTimeSecurityAnalyzer:
 
 
 # ==================== Incident Response Tests ====================
+
 
 class TestIncidentResponder:
     """Test automated incident response"""
@@ -427,14 +432,12 @@ class TestIncidentResponder:
             confidence=0.9,
             description="Brute force attack detected",
             affected_entities=["user_123"],
-            mitigation_suggestions=["Lock account"]
+            mitigation_suggestions=["Lock account"],
         )
 
-        with patch.object(responder, '_lock_account', new=AsyncMock()) as mock_lock:
+        with patch.object(responder, "_lock_account", new=AsyncMock()) as mock_lock:
             results = await responder.respond_to_threat(
-                threat,
-                ["user_123"],
-                auto_approve=True
+                threat, ["user_123"], auto_approve=True
             )
 
             # Should execute lock account action
@@ -449,13 +452,11 @@ class TestIncidentResponder:
             confidence=0.95,
             description="IP-based brute force",
             affected_entities=["192.168.1.1"],
-            mitigation_suggestions=["Block IP"]
+            mitigation_suggestions=["Block IP"],
         )
 
         results = await responder.respond_to_threat(
-            threat,
-            ["192.168.1.1"],
-            auto_approve=True
+            threat, ["192.168.1.1"], auto_approve=True
         )
 
         # Should execute block IP action (doesn't require approval)
@@ -470,13 +471,11 @@ class TestIncidentResponder:
             confidence=0.5,  # Below threshold
             description="Possible brute force",
             affected_entities=["user_123"],
-            mitigation_suggestions=[]
+            mitigation_suggestions=[],
         )
 
         results = await responder.respond_to_threat(
-            threat,
-            ["user_123"],
-            auto_approve=True
+            threat, ["user_123"], auto_approve=True
         )
 
         # Should not execute any actions
@@ -491,14 +490,12 @@ class TestIncidentResponder:
             confidence=0.9,
             description="Brute force attack",
             affected_entities=["user_123"],
-            mitigation_suggestions=[]
+            mitigation_suggestions=[],
         )
 
         # Don't auto-approve
         results = await responder.respond_to_threat(
-            threat,
-            ["user_123"],
-            auto_approve=False
+            threat, ["user_123"], auto_approve=False
         )
 
         # Should request approval instead of executing
@@ -547,21 +544,17 @@ class TestIncidentResponder:
             confidence=0.8,
             description="Automation detected",
             affected_entities=["192.168.1.1"],
-            mitigation_suggestions=[]
+            mitigation_suggestions=[],
         )
 
         # Execute action once
         results1 = await responder.respond_to_threat(
-            threat,
-            ["192.168.1.1"],
-            auto_approve=True
+            threat, ["192.168.1.1"], auto_approve=True
         )
 
         # Try to execute again immediately
         results2 = await responder.respond_to_threat(
-            threat,
-            ["192.168.1.1"],
-            auto_approve=True
+            threat, ["192.168.1.1"], auto_approve=True
         )
 
         # Second execution should be skipped due to cooldown
@@ -569,6 +562,7 @@ class TestIncidentResponder:
 
 
 # ==================== Integration Tests ====================
+
 
 class TestSecurityMonitoringIntegration:
     """Integration tests for complete security monitoring flow"""
@@ -589,7 +583,7 @@ class TestSecurityMonitoringIntegration:
                 user_id=user_id,
                 ip_address="10.0.0.50",
                 severity="high",
-                details={}
+                details={},
             )
 
             # Analyze event
@@ -598,9 +592,7 @@ class TestSecurityMonitoringIntegration:
             # Respond to threats
             for threat in threats:
                 await responder.respond_to_threat(
-                    threat,
-                    threat.affected_entities,
-                    auto_approve=True
+                    threat, threat.affected_entities, auto_approve=True
                 )
 
         # Verify response was executed
@@ -620,7 +612,7 @@ class TestSecurityMonitoringIntegration:
             user_id=123,
             ip_address="192.168.1.1",
             severity="high",
-            details={}
+            details={},
         )
 
         # Analyze and log
@@ -632,10 +624,10 @@ class TestSecurityMonitoringIntegration:
                     event_type=threat.indicator_type,
                     severity=threat.severity.value,
                     user_id=event.user_id,
-                    details={"confidence": threat.confidence}
+                    details={"confidence": threat.confidence},
                 )
 
 
 # Run tests
-if __name__ == '__main__':
-    pytest.main([__file__, '-v', '--tb=short'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])

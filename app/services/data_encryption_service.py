@@ -4,11 +4,11 @@ GDPR and HIPAA compliant encryption utilities for PsychSync
 """
 
 import base64
-from datetime import datetime, timedelta
 import hashlib
 import json
 import logging
 import secrets
+from datetime import datetime, timedelta
 from typing import Any
 
 from cryptography.fernet import Fernet
@@ -27,7 +27,9 @@ class EncryptionKey(BaseModel):
     algorithm: str = Field(default="AES-256-GCM", description="Encryption algorithm")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime | None = Field(None, description="Key expiration date")
-    status: str = Field(default="active", description="Key status: active, revoked, expired")
+    status: str = Field(
+        default="active", description="Key status: active, revoked, expired"
+    )
     purpose: str = Field(..., description="Key purpose: pii, phi, general")
 
 
@@ -84,7 +86,9 @@ class DataEncryptionService:
             self.master_key = self._get_master_key_from_env()
 
         if not self.master_key:
-            raise ValueError("Master key must be provided or set in ENCRYPTION_MASTER_KEY env var")
+            raise ValueError(
+                "Master key must be provided or set in ENCRYPTION_MASTER_KEY env var"
+            )
 
         # Initialize key storage
         self.keys: dict[str, EncryptionKey] = {}
@@ -125,9 +129,11 @@ class DataEncryptionService:
             key = EncryptionKey(
                 key_id=key_id,
                 purpose=purpose,
-                expires_at=datetime.utcnow() + timedelta(days=self.key_rotation_days)
-                if self.enable_key_rotation
-                else None,
+                expires_at=(
+                    datetime.utcnow() + timedelta(days=self.key_rotation_days)
+                    if self.enable_key_rotation
+                    else None
+                ),
             )
             self.keys[key_id] = key
 
@@ -190,9 +196,11 @@ class DataEncryptionService:
         return EncryptionResult(
             encrypted_data=base64.b64encode(encrypted).decode(),
             key_id=key_id,
-            nonce=base64.b64encode(cipher.timestamp).decode()
-            if hasattr(cipher, "timestamp")
-            else None,
+            nonce=(
+                base64.b64encode(cipher.timestamp).decode()
+                if hasattr(cipher, "timestamp")
+                else None
+            ),
         )
 
     def decrypt_pii(self, encrypted_data: str, key_id: str = "pii_key_v1") -> Any:
@@ -222,7 +230,10 @@ class DataEncryptionService:
             return decrypted.decode()
 
     def encrypt_phi(
-        self, data: Any, key_id: str = "phi_key_v1", metadata: dict[str, Any] | None = None
+        self,
+        data: Any,
+        key_id: str = "phi_key_v1",
+        metadata: dict[str, Any] | None = None,
     ) -> EncryptionResult:
         """
         Encrypt PHI (Protected Health Information).
@@ -271,7 +282,9 @@ class DataEncryptionService:
 
         return self.decrypt_pii(encrypted_data, key_id)
 
-    def encrypt_field(self, value: str, field_name: str, record_type: str = "user_profile") -> str:
+    def encrypt_field(
+        self, value: str, field_name: str, record_type: str = "user_profile"
+    ) -> str:
         """
         Encrypt a single field value.
 

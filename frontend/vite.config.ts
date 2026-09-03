@@ -22,24 +22,25 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174,
+    port: 5173, // Standard Vite port
+    strictPort: true, // Fail if port is in use instead of trying next port
     host: true,
     https: false, // Enable HTTPS in development
     headers: {
       // Security headers for development
       'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
+      'X-Frame-Options': 'SAMEORIGIN', // Allow Jitsi iframe
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+      'Permissions-Policy': 'camera=*, microphone=*, display-capture=*, autoplay=*'
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000', // Use IPv4 explicitly to avoid IPv6 connection issues
         changeOrigin: true,
         secure: false,
         headers: {
-          'X-Forwarded-Proto': 'https'
+          'X-Forwarded-Proto': 'http' // Use http instead of https for local development
         }
       },
     },
@@ -71,4 +72,3 @@ export default defineConfig({
     __PROD__: JSON.stringify(process.env.NODE_ENV === 'production'),
   }
 });
-

@@ -1,0 +1,782 @@
+{
+  "test_timestamp": "2025-12-22T12:49:55.511574",
+  "test_results": [
+    {
+      "test_name": "API Endpoint Discovery",
+      "test_timestamp": "2025-12-22T12:49:41.304572",
+      "endpoints_found": [
+        {
+          "file": "app/api/v1/api.py",
+          "endpoints": [
+            "v1"
+          ]
+        }
+      ],
+      "endpoint_files": [
+        "app/api/v1/api.py",
+        "app/main.py",
+        "frontend/src/services/api.ts"
+      ],
+      "security_issues": [
+        "Error reading app/main.py: 'tuple' object has no attribute 'strip'"
+      ],
+      "unique_endpoints": [
+        "v1"
+      ],
+      "total_endpoints": 1,
+      "admin_endpoints": [],
+      "internal_endpoints": [],
+      "external_endpoints": [
+        "v1"
+      ],
+      "vulnerable": true,
+      "risk_level": "MEDIUM"
+    },
+    {
+      "test_name": "API Access Controls Test",
+      "test_timestamp": "2025-12-22T12:49:41.310906",
+      "access_tests": [
+        {
+          "name": "Unauthenticated Access Test",
+          "description": "Test API access without authentication",
+          "endpoints_tested": [
+            {
+              "endpoint": "/api/v1/auth/login",
+              "status_code": 404,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not Found\", \"data\": {\"path\": \"http://localhost:8000/api/v1/auth/login\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_404\", \"message\": \"Not Found\"}], \"m",
+              "requires_auth": false,
+              "error": null
+            },
+            {
+              "endpoint": "/api/v1/users/",
+              "status_code": 401,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/users\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not authentic",
+              "requires_auth": true,
+              "error": null
+            },
+            {
+              "endpoint": "/api/v1/teams/",
+              "status_code": 401,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/teams\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not authentic",
+              "requires_auth": true,
+              "error": null
+            },
+            {
+              "endpoint": "/api/v1/assessments/",
+              "status_code": 401,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/assessments\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not aut",
+              "requires_auth": true,
+              "error": null
+            },
+            {
+              "endpoint": "/api/v1/analytics/",
+              "status_code": 401,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/analytics\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not authe",
+              "requires_auth": true,
+              "error": null
+            },
+            {
+              "endpoint": "/api/v1/admin/",
+              "status_code": 401,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/admin\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not authentic",
+              "requires_auth": true,
+              "error": null
+            },
+            {
+              "endpoint": "/api/v1/health",
+              "status_code": 401,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/health\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not authenti",
+              "requires_auth": true,
+              "error": null
+            },
+            {
+              "endpoint": "/api/v1/status",
+              "status_code": 401,
+              "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/status\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not authenti",
+              "requires_auth": true,
+              "error": null
+            }
+          ],
+          "vulnerable_endpoints": []
+        },
+        {
+          "scenario": "No Token",
+          "headers": {},
+          "test_results": [
+            {
+              "endpoint": "/api/v1/auth/login",
+              "status_code": 404,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/users/",
+              "status_code": 401,
+              "authorized": false,
+              "vulnerable": false
+            },
+            {
+              "endpoint": "/api/v1/teams/",
+              "status_code": 401,
+              "authorized": false,
+              "vulnerable": false
+            },
+            {
+              "endpoint": "/api/v1/assessments/",
+              "status_code": 401,
+              "authorized": false,
+              "vulnerable": false
+            },
+            {
+              "endpoint": "/api/v1/analytics/",
+              "status_code": 401,
+              "authorized": false,
+              "vulnerable": false
+            },
+            {
+              "endpoint": "/api/v1/admin/",
+              "status_code": 401,
+              "authorized": false,
+              "vulnerable": false
+            },
+            {
+              "endpoint": "/api/v1/health",
+              "status_code": 401,
+              "authorized": false,
+              "vulnerable": false
+            },
+            {
+              "endpoint": "/api/v1/status",
+              "status_code": 401,
+              "authorized": false,
+              "vulnerable": false
+            }
+          ]
+        },
+        {
+          "scenario": "Invalid Token",
+          "headers": {
+            "Authorization": "Bearer invalid_token"
+          },
+          "test_results": [
+            {
+              "endpoint": "/api/v1/auth/login",
+              "status_code": 404,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/users/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/teams/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/assessments/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/analytics/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/admin/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/health",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/status",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            }
+          ]
+        },
+        {
+          "scenario": "Low Privilege Token",
+          "headers": {
+            "Authorization": "Bearer user_token_123"
+          },
+          "test_results": [
+            {
+              "endpoint": "/api/v1/auth/login",
+              "status_code": 404,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/users/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/teams/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/assessments/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/analytics/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/admin/",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/health",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            },
+            {
+              "endpoint": "/api/v1/status",
+              "status_code": 500,
+              "authorized": true,
+              "vulnerable": true
+            }
+          ]
+        }
+      ],
+      "vulnerabilities": [
+        "Access control bypass: /api/v1/auth/login with No Token",
+        "Access control bypass: /api/v1/auth/login with Invalid Token",
+        "Access control bypass: /api/v1/users/ with Invalid Token",
+        "Access control bypass: /api/v1/teams/ with Invalid Token",
+        "Access control bypass: /api/v1/assessments/ with Invalid Token",
+        "Access control bypass: /api/v1/analytics/ with Invalid Token",
+        "Access control bypass: /api/v1/admin/ with Invalid Token",
+        "Access control bypass: /api/v1/health with Invalid Token",
+        "Access control bypass: /api/v1/status with Invalid Token",
+        "Access control bypass: /api/v1/auth/login with Low Privilege Token",
+        "Access control bypass: /api/v1/users/ with Low Privilege Token",
+        "Access control bypass: /api/v1/teams/ with Low Privilege Token",
+        "Access control bypass: /api/v1/assessments/ with Low Privilege Token",
+        "Access control bypass: /api/v1/analytics/ with Low Privilege Token",
+        "Access control bypass: /api/v1/admin/ with Low Privilege Token",
+        "Access control bypass: /api/v1/health with Low Privilege Token",
+        "Access control bypass: /api/v1/status with Low Privilege Token"
+      ],
+      "vulnerable": true,
+      "risk_level": "HIGH"
+    },
+    {
+      "test_name": "Internal API Exposure Test",
+      "test_timestamp": "2025-12-22T12:49:51.106937",
+      "exposure_tests": [
+        {
+          "endpoint": "/api/v1/admin/users",
+          "accessible": true,
+          "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not Found\", \"data\": {\"path\": \"http://localhost:8000/api/v1/admin/users\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_404\", \"message\": \"Not Found\"}], \"",
+          "security_measures": {
+            "auth_required": false,
+            "cors_restricted": true,
+            "secure_headers": true
+          },
+          "status_code": 404
+        },
+        {
+          "endpoint": "/api/v1/config",
+          "accessible": true,
+          "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not authenticated\", \"data\": {\"path\": \"http://localhost:8000/api/v1/config\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_401\", \"message\": \"Not authenti",
+          "security_measures": {
+            "auth_required": true,
+            "cors_restricted": true,
+            "secure_headers": true
+          },
+          "status_code": 401
+        },
+        {
+          "endpoint": "/api/v1/system/status",
+          "accessible": true,
+          "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not Found\", \"data\": {\"path\": \"http://localhost:8000/api/v1/system/status\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_404\", \"message\": \"Not Found\"}],",
+          "security_measures": {
+            "auth_required": false,
+            "cors_restricted": true,
+            "secure_headers": true
+          },
+          "status_code": 404
+        },
+        {
+          "endpoint": "/api/v1/debug/info",
+          "accessible": true,
+          "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not Found\", \"data\": {\"path\": \"http://localhost:8000/api/v1/debug/info\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_404\", \"message\": \"Not Found\"}], \"m",
+          "security_measures": {
+            "auth_required": false,
+            "cors_restricted": true,
+            "secure_headers": true
+          },
+          "status_code": 404
+        },
+        {
+          "endpoint": "/api/v1/health/internal",
+          "accessible": true,
+          "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not Found\", \"data\": {\"path\": \"http://localhost:8000/api/v1/health/internal\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_404\", \"message\": \"Not Found\"}",
+          "security_measures": {
+            "auth_required": false,
+            "cors_restricted": true,
+            "secure_headers": true
+          },
+          "status_code": 404
+        },
+        {
+          "endpoint": "/api/v1/logs/system",
+          "accessible": true,
+          "response_data": "{\"success\": false, \"status\": \"error\", \"message\": \"Not Found\", \"data\": {\"path\": \"http://localhost:8000/api/v1/logs/system\", \"method\": \"GET\"}, \"errors\": [{\"code\": \"HTTP_404\", \"message\": \"Not Found\"}], \"",
+          "security_measures": {
+            "auth_required": false,
+            "cors_restricted": true,
+            "secure_headers": true
+          },
+          "status_code": 404
+        }
+      ],
+      "vulnerabilities": [
+        "Missing authentication for /api/v1/admin/users",
+        "Missing authentication for /api/v1/system/status",
+        "Missing authentication for /api/v1/debug/info",
+        "Missing authentication for /api/v1/health/internal",
+        "Missing authentication for /api/v1/logs/system"
+      ],
+      "vulnerable": true,
+      "risk_level": "HIGH"
+    },
+    {
+      "test_name": "API Rate Limiting Test",
+      "test_timestamp": "2025-12-22T12:49:51.397066",
+      "rate_limit_tests": [
+        {
+          "endpoint": "/api/v1/auth/login",
+          "requests_per_second": 42.42679026257387,
+          "rate_limit_detected": false,
+          "test_results": [
+            {
+              "request_number": 1,
+              "status_code": 404,
+              "response_time": 0.019865036010742188
+            },
+            {
+              "request_number": 2,
+              "status_code": 404,
+              "response_time": 0.04116702079772949
+            },
+            {
+              "request_number": 3,
+              "status_code": 404,
+              "response_time": 0.0749201774597168
+            },
+            {
+              "request_number": 4,
+              "status_code": 404,
+              "response_time": 0.10219001770019531
+            },
+            {
+              "request_number": 5,
+              "status_code": 404,
+              "response_time": 0.11998319625854492
+            },
+            {
+              "request_number": 6,
+              "status_code": 404,
+              "response_time": 0.1360011100769043
+            },
+            {
+              "request_number": 7,
+              "status_code": 404,
+              "response_time": 0.15539908409118652
+            },
+            {
+              "request_number": 8,
+              "status_code": 404,
+              "response_time": 0.18043899536132812
+            },
+            {
+              "request_number": 9,
+              "status_code": 404,
+              "response_time": 0.20844411849975586
+            },
+            {
+              "request_number": 10,
+              "status_code": 404,
+              "response_time": 0.22793793678283691
+            },
+            {
+              "request_number": 11,
+              "status_code": 404,
+              "response_time": 0.2494640350341797
+            },
+            {
+              "request_number": 12,
+              "status_code": 404,
+              "response_time": 0.2760889530181885
+            },
+            {
+              "request_number": 13,
+              "status_code": 404,
+              "response_time": 0.2987692356109619
+            },
+            {
+              "request_number": 14,
+              "status_code": 404,
+              "response_time": 0.31392884254455566
+            },
+            {
+              "request_number": 15,
+              "status_code": 404,
+              "response_time": 0.3468630313873291
+            },
+            {
+              "request_number": 16,
+              "status_code": 404,
+              "response_time": 0.375108003616333
+            },
+            {
+              "request_number": 17,
+              "status_code": 404,
+              "response_time": 0.3925809860229492
+            },
+            {
+              "request_number": 18,
+              "status_code": 404,
+              "response_time": 0.4105720520019531
+            },
+            {
+              "request_number": 19,
+              "status_code": 404,
+              "response_time": 0.44161295890808105
+            },
+            {
+              "request_number": 20,
+              "status_code": 404,
+              "response_time": 0.47139716148376465
+            }
+          ]
+        },
+        {
+          "endpoint": "/api/v1/users/",
+          "requests_per_second": 11.753200126042113,
+          "rate_limit_detected": false,
+          "test_results": [
+            {
+              "request_number": 1,
+              "status_code": 401,
+              "response_time": 0.034644126892089844
+            },
+            {
+              "request_number": 2,
+              "status_code": 401,
+              "response_time": 0.0904989242553711
+            },
+            {
+              "request_number": 3,
+              "status_code": 401,
+              "response_time": 0.12766814231872559
+            },
+            {
+              "request_number": 4,
+              "status_code": 401,
+              "response_time": 0.23151612281799316
+            },
+            {
+              "request_number": 5,
+              "status_code": 401,
+              "response_time": 0.3058037757873535
+            },
+            {
+              "request_number": 6,
+              "status_code": 401,
+              "response_time": 0.35353612899780273
+            },
+            {
+              "request_number": 7,
+              "status_code": 401,
+              "response_time": 0.40363192558288574
+            },
+            {
+              "request_number": 8,
+              "status_code": 401,
+              "response_time": 0.6622738838195801
+            },
+            {
+              "request_number": 9,
+              "status_code": 401,
+              "response_time": 0.6964781284332275
+            },
+            {
+              "request_number": 10,
+              "status_code": 401,
+              "response_time": 0.8127720355987549
+            },
+            {
+              "request_number": 11,
+              "status_code": 401,
+              "response_time": 0.848268985748291
+            },
+            {
+              "request_number": 12,
+              "status_code": 401,
+              "response_time": 0.9029347896575928
+            },
+            {
+              "request_number": 13,
+              "status_code": 401,
+              "response_time": 1.0690960884094238
+            },
+            {
+              "request_number": 14,
+              "status_code": 401,
+              "response_time": 1.2494020462036133
+            },
+            {
+              "request_number": 15,
+              "status_code": 401,
+              "response_time": 1.3438479900360107
+            },
+            {
+              "request_number": 16,
+              "status_code": 401,
+              "response_time": 1.382256031036377
+            },
+            {
+              "request_number": 17,
+              "status_code": 401,
+              "response_time": 1.4699170589447021
+            },
+            {
+              "request_number": 18,
+              "status_code": 401,
+              "response_time": 1.5841398239135742
+            },
+            {
+              "request_number": 19,
+              "status_code": 401,
+              "response_time": 1.6319530010223389
+            },
+            {
+              "request_number": 20,
+              "status_code": 401,
+              "response_time": 1.7016589641571045
+            }
+          ]
+        },
+        {
+          "endpoint": "/api/v1/assessments/",
+          "requests_per_second": 10.34737166451585,
+          "rate_limit_detected": false,
+          "test_results": [
+            {
+              "request_number": 1,
+              "status_code": 401,
+              "response_time": 0.03940415382385254
+            },
+            {
+              "request_number": 2,
+              "status_code": 401,
+              "response_time": 0.0970151424407959
+            },
+            {
+              "request_number": 3,
+              "status_code": 401,
+              "response_time": 0.21446990966796875
+            },
+            {
+              "request_number": 4,
+              "status_code": 401,
+              "response_time": 0.46460509300231934
+            },
+            {
+              "request_number": 5,
+              "status_code": 401,
+              "response_time": 0.6083269119262695
+            },
+            {
+              "request_number": 6,
+              "status_code": 401,
+              "response_time": 0.6881659030914307
+            },
+            {
+              "request_number": 7,
+              "status_code": 401,
+              "response_time": 0.8396601676940918
+            },
+            {
+              "request_number": 8,
+              "status_code": 401,
+              "response_time": 0.8800809383392334
+            },
+            {
+              "request_number": 9,
+              "status_code": 401,
+              "response_time": 0.9225869178771973
+            },
+            {
+              "request_number": 10,
+              "status_code": 401,
+              "response_time": 1.0019800662994385
+            },
+            {
+              "request_number": 11,
+              "status_code": 401,
+              "response_time": 1.0551838874816895
+            },
+            {
+              "request_number": 12,
+              "status_code": 401,
+              "response_time": 1.1653671264648438
+            },
+            {
+              "request_number": 13,
+              "status_code": 401,
+              "response_time": 1.232409954071045
+            },
+            {
+              "request_number": 14,
+              "status_code": 401,
+              "response_time": 1.2756760120391846
+            },
+            {
+              "request_number": 15,
+              "status_code": 401,
+              "response_time": 1.318830966949463
+            },
+            {
+              "request_number": 16,
+              "status_code": 401,
+              "response_time": 1.419245958328247
+            },
+            {
+              "request_number": 17,
+              "status_code": 401,
+              "response_time": 1.536492109298706
+            },
+            {
+              "request_number": 18,
+              "status_code": 401,
+              "response_time": 1.7074909210205078
+            },
+            {
+              "request_number": 19,
+              "status_code": 401,
+              "response_time": 1.8132340908050537
+            },
+            {
+              "request_number": 20,
+              "status_code": 401,
+              "response_time": 1.9328551292419434
+            }
+          ]
+        }
+      ],
+      "vulnerabilities": [
+        "No rate limiting detected: /api/v1/auth/login (20 requests made)",
+        "No rate limiting detected: /api/v1/users/ (20 requests made)",
+        "No rate limiting detected: /api/v1/assessments/ (20 requests made)"
+      ],
+      "vulnerable": true,
+      "risk_level": "MEDIUM"
+    },
+    {
+      "test_name": "CORS Configuration Analysis",
+      "test_timestamp": "2025-12-22T12:49:55.503141",
+      "cors_settings": [],
+      "vulnerabilities": [
+        "Insecure CORS setting in app/core/cors.py: Wildcard origin allowed"
+      ],
+      "vulnerable": true,
+      "risk_level": "MEDIUM"
+    },
+    {
+      "recommendations": [
+        {
+          "priority": "MEDIUM",
+          "category": "API Documentation",
+          "issue": "API endpoints may lack proper documentation",
+          "recommendation": "Document all API endpoints and their access requirements"
+        },
+        {
+          "priority": "CRITICAL",
+          "category": "Access Control",
+          "issue": "API access control vulnerabilities detected",
+          "recommendation": "Implement proper authentication and authorization for all API endpoints"
+        },
+        {
+          "priority": "HIGH",
+          "category": "API Security",
+          "issue": "Internal APIs exposed to unauthorized access",
+          "recommendation": "Secure internal endpoints with network segmentation and authentication"
+        },
+        {
+          "priority": "MEDIUM",
+          "category": "API Protection",
+          "issue": "API rate limiting not implemented",
+          "recommendation": "Implement rate limiting for all API endpoints to prevent abuse"
+        },
+        {
+          "priority": "HIGH",
+          "category": "API Security",
+          "issue": "CORS configuration vulnerabilities detected",
+          "recommendation": "Configure CORS with specific origins and disable wildcard policies"
+        },
+        {
+          "priority": "CRITICAL",
+          "category": "API Authentication",
+          "issue": "Comprehensive API authentication required",
+          "recommendation": "Implement JWT-based authentication with token refresh mechanism"
+        },
+        {
+          "priority": "HIGH",
+          "category": "API Authorization",
+          "issue": "Role-based access control required",
+          "recommendation": "Implement RBAC with fine-grained permissions for API resources"
+        },
+        {
+          "priority": "MEDIUM",
+          "category": "API Security",
+          "issue": "API input validation needed",
+          "recommendation": "Implement comprehensive input validation and sanitization for all API endpoints"
+        },
+        {
+          "priority": "MEDIUM",
+          "category": "API Monitoring",
+          "issue": "API security monitoring not implemented",
+          "recommendation": "Implement API request logging and security event monitoring"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_tests": 5,
+    "vulnerable_tests": 5,
+    "recommendations_count": 9,
+    "total_endpoints": 1,
+    "overall_api_security_score": 10
+  }
+}

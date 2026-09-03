@@ -15,7 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import {
   Tabs,
   TabsContent,
@@ -317,6 +317,24 @@ const SuccessionPlanning: React.FC = () => {
       ]
     }
   ]);
+
+  useEffect(() => {
+    const loadPipeline = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch('/api/v1/succession/pipeline', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.pipeline?.length) setPipelineAnalysis(data.pipeline);
+        }
+      } catch {
+        // Keep mock initial state on error
+      }
+    };
+    loadPipeline();
+  }, []);
 
   const pipelineChartData = pipelineAnalysis.map(pipeline => ({
     name: pipeline.pipeline_level,
@@ -711,7 +729,7 @@ const SuccessionPlanning: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger >
                             <Button variant="outline" size="sm">
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -911,7 +929,7 @@ const SuccessionPlanning: React.FC = () => {
                     <Badge variant={
                       scenario.readiness_status === 'READY' ? 'default' :
                       scenario.readiness_status === 'MANAGEABLE' ? 'secondary' :
-                      'destructive'
+                      'error'
                     }>
                       {scenario.readiness_status.replace('_', ' ')}
                     </Badge>

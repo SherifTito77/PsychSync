@@ -15,14 +15,16 @@ import logging
 from datetime import datetime
 from typing import Dict, Set
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+
+# from sqlalchemy.orm import Session  # Replaced with AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
 from app.db.models.user import User
 from app.services.health.stress_monitoring_service import (
-    StressMonitoringService,
     HealthRiskIndicators,
+    StressMonitoringService,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,11 +60,13 @@ class ConnectionManager:
         logger.info(f"WebSocket connected for user {user_id}")
 
         # Send connection confirmation
-        await websocket.send_json({
-            "type": "connection_established",
-            "message": "WebSocket connection established",
-            "timestamp": datetime.utcnow().isoformat(),
-        })
+        await websocket.send_json(
+            {
+                "type": "connection_established",
+                "message": "WebSocket connection established",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
     def disconnect(self, websocket: WebSocket, user_id: str):
         """Remove a WebSocket connection"""
@@ -123,7 +127,7 @@ manager = ConnectionManager()
 async def websocket_health_monitoring(
     websocket: WebSocket,
     token: str = Query(..., description="JWT authentication token"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     WebSocket endpoint for real-time health monitoring updates
@@ -148,7 +152,8 @@ async def websocket_health_monitoring(
     # Verify user authentication
     try:
         # Import auth dependency to verify token
-        from app.core.security import verify_token
+        from app.services.security import verify_token
+
         payload = verify_token(token, db)
         user_id = payload.get("sub")
 
@@ -171,20 +176,22 @@ async def websocket_health_monitoring(
             health_risks = await monitoring_service.analyze_health_risks(
                 user_id=user_id,
                 organization_id=None,  # Will be fetched from user
-                time_window_days=7
+                time_window_days=7,
             )
 
-            await websocket.send_json({
-                "type": "health_update",
-                "data": {
-                    "user_id": user_id,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "stress_level": health_risks.stress_level.value,
-                    "burnout_stage": health_risks.burnout_stage.value,
-                    "cardiovascular_risk_score": health_risks.cardiovascular_risk_score,
-                    "mental_health_risk": health_risks.mental_health_risk,
+            await websocket.send_json(
+                {
+                    "type": "health_update",
+                    "data": {
+                        "user_id": user_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "stress_level": health_risks.stress_level.value,
+                        "burnout_stage": health_risks.burnout_stage.value,
+                        "cardiovascular_risk_score": health_risks.cardiovascular_risk_score,
+                        "mental_health_risk": health_risks.mental_health_risk,
+                    },
                 }
-            })
+            )
         except Exception as e:
             logger.error(f"Failed to fetch initial health data: {e}")
 
@@ -198,10 +205,12 @@ async def websocket_health_monitoring(
                 # Handle different message types from client
                 if message.get("type") == "heartbeat":
                     # Respond to heartbeat
-                    await websocket.send_json({
-                        "type": "heartbeat",
-                        "timestamp": datetime.utcnow().isoformat(),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "heartbeat",
+                            "timestamp": datetime.utcnow().isoformat(),
+                        }
+                    )
 
                 elif message.get("type") == "request_update":
                     # Client requests fresh health data
@@ -209,44 +218,52 @@ async def websocket_health_monitoring(
                         health_risks = await monitoring_service.analyze_health_risks(
                             user_id=user_id,
                             organization_id=None,
-                            time_window_days=message.get("time_window_days", 7)
+                            time_window_days=message.get("time_window_days", 7),
                         )
 
-                        await websocket.send_json({
-                            "type": "health_update",
-                            "data": {
-                                "user_id": user_id,
-                                "timestamp": datetime.utcnow().isoformat(),
-                                "stress_level": health_risks.stress_level.value,
-                                "burnout_stage": health_risks.burnout_stage.value,
-                                "cardiovascular_risk_score": health_risks.cardiovascular_risk_score,
-                                "mental_health_risk": health_risks.mental_health_risk,
+                        await websocket.send_json(
+                            {
+                                "type": "health_update",
+                                "data": {
+                                    "user_id": user_id,
+                                    "timestamp": datetime.utcnow().isoformat(),
+                                    "stress_level": health_risks.stress_level.value,
+                                    "burnout_stage": health_risks.burnout_stage.value,
+                                    "cardiovascular_risk_score": health_risks.cardiovascular_risk_score,
+                                    "mental_health_risk": health_risks.mental_health_risk,
+                                },
                             }
-                        })
+                        )
                     except Exception as e:
                         logger.error(f"Failed to fetch health update: {e}")
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": "Failed to fetch health update",
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "message": "Failed to fetch health update",
+                            }
+                        )
 
                 elif message.get("type") == "subscribe_alerts":
                     # Subscribe to alerts (alerts are sent automatically when detected)
-                    await websocket.send_json({
-                        "type": "subscription_confirmed",
-                        "subscription": "alerts",
-                        "timestamp": datetime.utcnow().isoformat(),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "subscription_confirmed",
+                            "subscription": "alerts",
+                            "timestamp": datetime.utcnow().isoformat(),
+                        }
+                    )
 
                 else:
                     logger.warning(f"Unknown message type: {message.get('type')}")
 
             except json.JSONDecodeError:
                 logger.error("Failed to parse WebSocket message as JSON")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "Invalid JSON format",
-                })
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "message": "Invalid JSON format",
+                    }
+                )
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, user_id)
@@ -272,15 +289,18 @@ async def send_health_alert(user_id: str, alert_data: dict):
             - severity: Alert severity (critical, high, medium, low)
             - message: Alert message
     """
-    await manager.send_personal_message({
-        "type": "health_alert",
-        "data": {
-            "id": f"alert_{datetime.utcnow().timestamp()}",
-            "user_id": user_id,
-            "timestamp": datetime.utcnow().isoformat(),
-            **alert_data
-        }
-    }, user_id)
+    await manager.send_personal_message(
+        {
+            "type": "health_alert",
+            "data": {
+                "id": f"alert_{datetime.utcnow().timestamp()}",
+                "user_id": user_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                **alert_data,
+            },
+        },
+        user_id,
+    )
 
 
 # Helper function to broadcast organizational updates
@@ -294,13 +314,12 @@ async def broadcast_health_update(update_data: dict):
     Args:
         update_data: Dictionary containing update information
     """
-    await manager.broadcast({
-        "type": "health_update",
-        "data": {
-            "timestamp": datetime.utcnow().isoformat(),
-            **update_data
+    await manager.broadcast(
+        {
+            "type": "health_update",
+            "data": {"timestamp": datetime.utcnow().isoformat(), **update_data},
         }
-    })
+    )
 
 
 # Export the router and helper functions

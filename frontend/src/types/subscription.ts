@@ -158,11 +158,11 @@ export function canAccessFeature(
 ): boolean {
   if (!subscription) {
     // Default to free tier if no subscription
-    return TIER_CONFIG[SubscriptionTier.FREE].permissions[feature];
+    return !!TIER_CONFIG[SubscriptionTier.FREE].permissions[feature];
   }
 
   const tierConfig = TIER_CONFIG[subscription.tier];
-  return tierConfig.permissions[feature];
+  return !!tierConfig.permissions[feature];
 }
 
 // Helper function to check if user has hit assessment limit

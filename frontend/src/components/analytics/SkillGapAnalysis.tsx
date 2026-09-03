@@ -22,7 +22,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 import Label from '@/components/ui/Label';
 import {
   BarChart,
@@ -324,7 +324,7 @@ const SkillGapAnalysis: React.FC = () => {
 
   const getPriorityBadgeVariant = (priority: string) => {
     switch (priority) {
-      case 'critical': return 'destructive';
+      case 'critical': return 'error';
       case 'high': return 'secondary';
       case 'medium': return 'outline';
       case 'low': return 'default';
@@ -353,7 +353,7 @@ const SkillGapAnalysis: React.FC = () => {
 
   const categoryData = Object.entries(categoryDistribution).map(([category, count]) => ({
     name: category,
-    value: count,
+    value: count as number,
   }));
 
   const radarData = skillAssessments.map(assessment => ({
@@ -878,8 +878,7 @@ const SkillGapAnalysis: React.FC = () => {
                             </span>
                           </div>
                           <Progress
-                            value={skill.currentLevel}
-                            max={skill.requiredLevel}
+                            value={(skill.currentLevel / skill.requiredLevel) * 100}
                             className="h-2"
                           />
                         </div>

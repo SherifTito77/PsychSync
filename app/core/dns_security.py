@@ -4,10 +4,10 @@ Provides secure DNS resolution with DNSSEC validation and monitoring
 """
 
 import asyncio
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import ipaddress
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 import dns.exception
@@ -71,7 +71,9 @@ class DNSSecurityManager:
         # Enable EDNS0 for DNSSEC
         resolver.use_edns(0, dns.flags.DO, 1232)
 
-        logger.info(f"Secure DNS resolver configured with {len(self.secure_resolvers)} resolvers")
+        logger.info(
+            f"Secure DNS resolver configured with {len(self.secure_resolvers)} resolvers"
+        )
         return resolver
 
     async def resolve_hostname_secure(
@@ -321,7 +323,8 @@ class DNSSecurityManager:
         recent_events = [
             event
             for event in self.security_events
-            if datetime.fromisoformat(event["timestamp"]) > datetime.now() - timedelta(hours=24)
+            if datetime.fromisoformat(event["timestamp"])
+            > datetime.now() - timedelta(hours=24)
         ]
         health_status["recent_events"] = recent_events[-10:]  # Last 10 events
 
@@ -351,7 +354,9 @@ class DNSSecurityManager:
             "cache_size": len(self.query_cache),
             "secure_resolvers": len(self.secure_resolvers),
             "last_event": recent_events[-1]["timestamp"] if recent_events else None,
-            "security_score": max(0, 100 - (high_severity * 20) - (medium_severity * 10)),
+            "security_score": max(
+                0, 100 - (high_severity * 20) - (medium_severity * 10)
+            ),
         }
 
 

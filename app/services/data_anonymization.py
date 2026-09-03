@@ -5,10 +5,10 @@ Advanced data anonymization algorithms for privacy-compliant research data expor
 Implements k-anonymity, l-diversity, t-closeness, differential privacy, and synthetic data generation.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 import numpy as np
@@ -159,9 +159,13 @@ class DataAnonymizer:
                     data, quasi_identifiers, sensitive_attributes, parameters
                 )
             elif method == AnonymizationMethod.GENERALIZATION:
-                result = await self._apply_generalization(data, quasi_identifiers, parameters)
+                result = await self._apply_generalization(
+                    data, quasi_identifiers, parameters
+                )
             elif method == AnonymizationMethod.SUPPRESSION:
-                result = await self._apply_suppression(data, quasi_identifiers, parameters)
+                result = await self._apply_suppression(
+                    data, quasi_identifiers, parameters
+                )
             elif method == AnonymizationMethod.PERTURBATION:
                 result = await self._apply_perturbation(
                     data, quasi_identifiers, sensitive_attributes, parameters
@@ -183,7 +187,9 @@ class DataAnonymizer:
             )
 
             # Calculate information loss
-            information_loss = await self._calculate_information_loss(data, result.anonymized_data)
+            information_loss = await self._calculate_information_loss(
+                data, result.anonymized_data
+            )
 
             final_result = AnonymizationResult(
                 anonymized_data=result.anonymized_data,
@@ -235,7 +241,9 @@ class DataAnonymizer:
                 generalized_data, high_risk_qi, parameters
             )
 
-            current_k = self._calculate_current_k_anonymity(generalized_data, qi_columns)
+            current_k = self._calculate_current_k_anonymity(
+                generalized_data, qi_columns
+            )
 
             self.logger.debug(f"Iteration {iteration + 1}: k-anonymity = {current_k}")
 
@@ -269,7 +277,9 @@ class DataAnonymizer:
         """Apply l-diversity for sensitive attribute protection"""
 
         # First achieve k-anonymity
-        k_result = await self._apply_k_anonymity(data, quasi_identifiers, k_threshold, parameters)
+        k_result = await self._apply_k_anonymity(
+            data, quasi_identifiers, k_threshold, parameters
+        )
         l_diverse_data = k_result.anonymized_data
 
         qi_columns = [qi.name for qi in quasi_identifiers]
@@ -341,7 +351,10 @@ class DataAnonymizer:
         )
 
     async def _apply_differential_privacy(
-        self, data: pd.DataFrame, sensitive_attributes: list[str], parameters: dict[str, Any]
+        self,
+        data: pd.DataFrame,
+        sensitive_attributes: list[str],
+        parameters: dict[str, Any],
     ) -> AnonymizationResult:
         """Apply differential privacy using Laplace mechanism"""
 
@@ -361,7 +374,9 @@ class DataAnonymizer:
                     dp_data[attr] = dp_data[attr] + noise
                 else:
                     # For categorical data, apply randomized response
-                    dp_data[attr] = await self._apply_randomized_response(dp_data[attr], epsilon)
+                    dp_data[attr] = await self._apply_randomized_response(
+                        dp_data[attr], epsilon
+                    )
 
         return AnonymizationResult(
             anonymized_data=dp_data,
@@ -392,7 +407,9 @@ class DataAnonymizer:
                 data, sample_size, parameters
             )
         elif method == "ml_based":
-            synthetic_data = await self._generate_ml_synthetic_data(data, sample_size, parameters)
+            synthetic_data = await self._generate_ml_synthetic_data(
+                data, sample_size, parameters
+            )
         else:
             raise ValueError(f"Unsupported generation method: {method}")
 
@@ -452,7 +469,9 @@ class DataAnonymizer:
 
         # Identify rare records
         record_counts = suppressed_data.groupby(qi_columns).size()
-        rare_records = record_counts[record_counts <= len(suppressed_data) * suppression_threshold]
+        rare_records = record_counts[
+            record_counts <= len(suppressed_data) * suppression_threshold
+        ]
 
         if not rare_records.empty:
             # Suppress rare records
@@ -516,7 +535,9 @@ class DataAnonymizer:
         )
 
     # Helper methods for privacy calculations
-    def _calculate_current_k_anonymity(self, data: pd.DataFrame, qi_columns: list[str]) -> int:
+    def _calculate_current_k_anonymity(
+        self, data: pd.DataFrame, qi_columns: list[str]
+    ) -> int:
         """Calculate current k-anonymity level"""
         if not qi_columns:
             return float("inf")
@@ -542,7 +563,10 @@ class DataAnonymizer:
         return next(qi for qi in quasi_identifiers if qi.name == highest_risk_qi_name)
 
     async def _generalize_quasi_identifier(
-        self, data: pd.DataFrame, quasi_identifier: QuasiIdentifier, parameters: dict[str, Any]
+        self,
+        data: pd.DataFrame,
+        quasi_identifier: QuasiIdentifier,
+        parameters: dict[str, Any],
     ) -> pd.DataFrame:
         """Generalize a specific quasi-identifier"""
 
@@ -577,7 +601,9 @@ class DataAnonymizer:
 
         return generalized_data
 
-    def _generalize_categorical_value(self, value: Any, hierarchy: list[str], level: int) -> str:
+    def _generalize_categorical_value(
+        self, value: Any, hierarchy: list[str], level: int
+    ) -> str:
         """Generalize categorical value based on hierarchy"""
         # Simplified implementation - would use actual hierarchy mapping
         if level == 0:
@@ -586,7 +612,9 @@ class DataAnonymizer:
             return "Generalized_Category"
         return "Highly_Generalized"
 
-    def _generalize_numerical_value(self, value: float, hierarchy: list[str], level: int) -> str:
+    def _generalize_numerical_value(
+        self, value: float, hierarchy: list[str], level: int
+    ) -> str:
         """Generalize numerical value into ranges"""
         if level == 0:
             return str(value)
@@ -596,7 +624,9 @@ class DataAnonymizer:
             return f"{int(value // 100) * 100}-{int(value // 100) * 100 + 99}"
         return "Generalized_Range"
 
-    def _generalize_temporal_value(self, value: datetime, hierarchy: list[str], level: int) -> str:
+    def _generalize_temporal_value(
+        self, value: datetime, hierarchy: list[str], level: int
+    ) -> str:
         """Generalize temporal value"""
         if level == 0:
             return value.strftime("%Y-%m-%d")
@@ -684,7 +714,9 @@ class DataAnonymizer:
 
         return t_close_data
 
-    def _calculate_distribution_distance(self, dist1: pd.Series, dist2: pd.Series) -> float:
+    def _calculate_distribution_distance(
+        self, dist1: pd.Series, dist2: pd.Series
+    ) -> float:
         """Calculate distance between two distributions"""
         # Align distributions
         all_values = set(dist1.index) | set(dist2.index)
@@ -695,7 +727,9 @@ class DataAnonymizer:
         return 0.5 * sum(abs(a - b) for a, b in zip(aligned_dist1, aligned_dist2))
 
     # Additional helper methods (simplified implementations)
-    async def _apply_randomized_response(self, series: pd.Series, epsilon: float) -> pd.Series:
+    async def _apply_randomized_response(
+        self, series: pd.Series, epsilon: float
+    ) -> pd.Series:
         """Apply randomized response for categorical data"""
         # Simplified implementation
         return series
@@ -756,7 +790,9 @@ class DataAnonymizer:
         t_closeness_value = 0.2  # Placeholder
 
         # Re-identification risk
-        re_identification_risk = self._calculate_re_identification_risk(data, qi_columns)
+        re_identification_risk = self._calculate_re_identification_risk(
+            data, qi_columns
+        )
 
         # Uniqueness metrics
         uniqueness_risk = self._calculate_uniqueness_risk(data, qi_columns)
@@ -773,7 +809,9 @@ class DataAnonymizer:
             population_uniqueness=population_uniqueness,
         )
 
-    def _calculate_re_identification_risk(self, data: pd.DataFrame, qi_columns: list[str]) -> float:
+    def _calculate_re_identification_risk(
+        self, data: pd.DataFrame, qi_columns: list[str]
+    ) -> float:
         """Calculate re-identification risk"""
         # Simplified risk calculation
         equivalence_classes = data.groupby(qi_columns).size()
@@ -786,7 +824,9 @@ class DataAnonymizer:
         # Higher risk when some classes are very small
         return 1 - (min_class_size / max_class_size)
 
-    def _calculate_uniqueness_risk(self, data: pd.DataFrame, qi_columns: list[str]) -> float:
+    def _calculate_uniqueness_risk(
+        self, data: pd.DataFrame, qi_columns: list[str]
+    ) -> float:
         """Calculate uniqueness risk"""
         unique_combinations = data[qi_columns].drop_duplicates().shape[0]
         total_records = len(data)

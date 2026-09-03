@@ -13,13 +13,13 @@ Key Features:
 - Ensemble methods for improved accuracy
 """
 
+import json
+import logging
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
 from typing import Any
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -137,7 +137,9 @@ class AdvancedAnomalyDetector:
     Advanced anomaly detection system with multiple algorithms.
     """
 
-    def __init__(self, db_session: Session, config: AnomalyConfig | None = None):
+    def __init__(
+        self, db_session: Session | None = None, config: AnomalyConfig | None = None
+    ):
         self.db = db_session
         self.config = config or AnomalyConfig()
         self.redis_client: redis.Redis | None = None
@@ -216,7 +218,8 @@ class AdvancedAnomalyDetector:
             # Handle timestamps
             if timestamps is None:
                 timestamps = [
-                    datetime.utcnow() - timedelta(hours=i) for i in range(len(series) - 1, -1, -1)
+                    datetime.utcnow() - timedelta(hours=i)
+                    for i in range(len(series) - 1, -1, -1)
                 ]
 
             # Use cached results if available
@@ -240,7 +243,10 @@ class AdvancedAnomalyDetector:
                 await self.redis_client.setex(
                     cache_key,
                     self.config.cache_ttl_hours * 3600,
-                    json.dumps([self._anomaly_result_to_dict(a) for a in anomalies], default=str),
+                    json.dumps(
+                        [self._anomaly_result_to_dict(a) for a in anomalies],
+                        default=str,
+                    ),
                 )
 
             logger.info(f"Detected {len(anomalies)} anomalies using {method.value}")
@@ -279,7 +285,8 @@ class AdvancedAnomalyDetector:
             # Handle timestamps
             if timestamps is None:
                 timestamps = [
-                    datetime.utcnow() - timedelta(hours=i) for i in range(len(data) - 1, -1, -1)
+                    datetime.utcnow() - timedelta(hours=i)
+                    for i in range(len(data) - 1, -1, -1)
                 ]
 
             # Scale the data
@@ -346,7 +353,8 @@ class AdvancedAnomalyDetector:
             # Handle timestamps
             if timestamps is None:
                 timestamps = [
-                    datetime.utcnow() - timedelta(hours=i) for i in range(len(data) - 1, -1, -1)
+                    datetime.utcnow() - timedelta(hours=i)
+                    for i in range(len(data) - 1, -1, -1)
                 ]
 
             anomalies = []
@@ -360,7 +368,9 @@ class AdvancedAnomalyDetector:
                 anomalies.extend(seasonal_anomalies)
 
             # Moving average anomalies
-            ma_anomalies = await self._detect_moving_average_anomalies(data, timestamps, user_id)
+            ma_anomalies = await self._detect_moving_average_anomalies(
+                data, timestamps, user_id
+            )
             anomalies.extend(ma_anomalies)
 
             # Exponential smoothing anomalies
@@ -447,7 +457,9 @@ class AdvancedAnomalyDetector:
             )[0]
 
             for idx in anomaly_indices:
-                severity = self._calculate_severity(abs(modified_z_scores[idx]), max_score=5)
+                severity = self._calculate_severity(
+                    abs(modified_z_scores[idx]), max_score=5
+                )
                 confidence = min(0.95, abs(modified_z_scores[idx]) / 5)
 
                 anomalies.append(
@@ -461,7 +473,10 @@ class AdvancedAnomalyDetector:
                         severity=severity,
                         confidence=confidence,
                         context=context,
-                        baseline_stats={"median": float(median_val), "mad": float(mad_val)},
+                        baseline_stats={
+                            "median": float(median_val),
+                            "mad": float(mad_val),
+                        },
                         explanation=f"Modified Z-score of {abs(modified_z_scores[idx]):.2f} exceeds threshold of {self.config.modified_z_score_threshold}",
                     )
                 )
@@ -511,7 +526,11 @@ class AdvancedAnomalyDetector:
                         severity=severity,
                         confidence=confidence,
                         context=context,
-                        baseline_stats={"q1": float(q1), "q3": float(q3), "iqr": float(iqr)},
+                        baseline_stats={
+                            "q1": float(q1),
+                            "q3": float(q3),
+                            "iqr": float(iqr),
+                        },
                         explanation=f"Value {value:.2f} outside IQR bounds [{lower_bound:.2f}, {upper_bound:.2f}]",
                     )
                 )
@@ -596,7 +615,9 @@ class AdvancedAnomalyDetector:
             X_scaled = self.scaler.fit_transform(X)
 
             # Fit One-Class SVM
-            svm = OneClassSVM(nu=self.config.one_class_svm_nu, kernel="rbf", gamma="scale")
+            svm = OneClassSVM(
+                nu=self.config.one_class_svm_nu, kernel="rbf", gamma="scale"
+            )
             anomaly_labels = svm.fit_predict(X_scaled)
             decision_scores = svm.decision_function(X_scaled)
 
@@ -604,7 +625,9 @@ class AdvancedAnomalyDetector:
             anomaly_indices = np.where(anomaly_labels == -1)[0]
 
             for idx in anomaly_indices:
-                severity = self._calculate_severity(-decision_scores[idx], max_score=0.5)
+                severity = self._calculate_severity(
+                    -decision_scores[idx], max_score=0.5
+                )
                 confidence = min(0.95, -decision_scores[idx] * 2)
 
                 anomalies.append(
@@ -646,7 +669,9 @@ class AdvancedAnomalyDetector:
             X = data.values.reshape(-1, 1)
 
             # Fit Local Outlier Factor
-            lof = LocalOutlierFactor(n_neighbors=self.config.lof_n_neighbors, contamination="auto")
+            lof = LocalOutlierFactor(
+                n_neighbors=self.config.lof_n_neighbors, contamination="auto"
+            )
             anomaly_labels = lof.fit_predict(X)
             negative_outlier_factors = lof.negative_outlier_factor_
 
@@ -654,7 +679,9 @@ class AdvancedAnomalyDetector:
             anomaly_indices = np.where(anomaly_labels == -1)[0]
 
             for idx in anomaly_indices:
-                severity = self._calculate_severity(-negative_outlier_factors[idx], max_score=2)
+                severity = self._calculate_severity(
+                    -negative_outlier_factors[idx], max_score=2
+                )
                 confidence = min(0.95, -negative_outlier_factors[idx] / 2)
 
                 anomalies.append(
@@ -697,7 +724,8 @@ class AdvancedAnomalyDetector:
 
             # Fit Elliptic Envelope
             ee = EllipticEnvelope(
-                contamination=self.config.elliptic_envelope_contamination, random_state=42
+                contamination=self.config.elliptic_envelope_contamination,
+                random_state=42,
             )
             anomaly_labels = ee.fit_predict(X)
             decision_scores = ee.decision_function(X)
@@ -706,7 +734,9 @@ class AdvancedAnomalyDetector:
             anomaly_indices = np.where(anomaly_labels == -1)[0]
 
             for idx in anomaly_indices:
-                severity = self._calculate_severity(-decision_scores[idx], max_score=0.5)
+                severity = self._calculate_severity(
+                    -decision_scores[idx], max_score=0.5
+                )
                 confidence = min(0.95, -decision_scores[idx] * 2)
 
                 anomalies.append(
@@ -956,7 +986,9 @@ class AdvancedAnomalyDetector:
                 ensemble_anomaly = AnomalyResult(
                     anomaly_id=f"ensemble_{hash(str(timestamp))}_{user_id}",
                     timestamp=timestamp,
-                    value=float(next(a.value for a in group)),  # Use first anomaly's value
+                    value=float(
+                        next(a.value for a in group)
+                    ),  # Use first anomaly's value
                     anomaly_score=float(avg_score),
                     method=AnomalyMethod.ENSEMBLE,
                     category=AnomalyCategory.COLLECTIVE,
@@ -990,7 +1022,8 @@ class AdvancedAnomalyDetector:
 
         try:
             iso_forest = IsolationForest(
-                contamination=self.config.isolation_forest_contamination, random_state=42
+                contamination=self.config.isolation_forest_contamination,
+                random_state=42,
             )
             anomaly_labels = iso_forest.fit_predict(scaled_data)
             anomaly_scores = iso_forest.decision_function(scaled_data)
@@ -1005,7 +1038,9 @@ class AdvancedAnomalyDetector:
                     AnomalyResult(
                         anomaly_id=f"multivariate_iso_{idx}_{user_id}",
                         timestamp=timestamps[idx],
-                        value=float(original_data.iloc[idx, 0]),  # Use first column value
+                        value=float(
+                            original_data.iloc[idx, 0]
+                        ),  # Use first column value
                         anomaly_score=float(-anomaly_scores[idx]),
                         method=AnomalyMethod.ISOLATION_FOREST,
                         category=AnomalyCategory.MULTIVARIATE,
@@ -1039,14 +1074,18 @@ class AdvancedAnomalyDetector:
             if len(scaled_data) < self.config.lof_n_neighbors + 1:
                 return anomalies
 
-            lof = LocalOutlierFactor(n_neighbors=self.config.lof_n_neighbors, contamination="auto")
+            lof = LocalOutlierFactor(
+                n_neighbors=self.config.lof_n_neighbors, contamination="auto"
+            )
             anomaly_labels = lof.fit_predict(scaled_data)
             negative_outlier_factors = lof.negative_outlier_factor_
 
             anomaly_indices = np.where(anomaly_labels == -1)[0]
 
             for idx in anomaly_indices:
-                severity = self._calculate_severity(-negative_outlier_factors[idx], max_score=2)
+                severity = self._calculate_severity(
+                    -negative_outlier_factors[idx], max_score=2
+                )
                 confidence = min(0.95, -negative_outlier_factors[idx] / 2)
 
                 anomalies.append(
@@ -1083,7 +1122,8 @@ class AdvancedAnomalyDetector:
 
         try:
             ee = EllipticEnvelope(
-                contamination=self.config.elliptic_envelope_contamination, random_state=42
+                contamination=self.config.elliptic_envelope_contamination,
+                random_state=42,
             )
             anomaly_labels = ee.fit_predict(scaled_data)
             decision_scores = ee.decision_function(scaled_data)
@@ -1091,7 +1131,9 @@ class AdvancedAnomalyDetector:
             anomaly_indices = np.where(anomaly_labels == -1)[0]
 
             for idx in anomaly_indices:
-                severity = self._calculate_severity(-decision_scores[idx], max_score=0.5)
+                severity = self._calculate_severity(
+                    -decision_scores[idx], max_score=0.5
+                )
                 confidence = min(0.95, -decision_scores[idx] * 2)
 
                 anomalies.append(
@@ -1137,7 +1179,9 @@ class AdvancedAnomalyDetector:
         except Exception:
             return AnomalySeverity.MEDIUM
 
-    def _validate_input_data(self, data: list[float] | pd.DataFrame | pd.Series) -> bool:
+    def _validate_input_data(
+        self, data: list[float] | pd.DataFrame | pd.Series
+    ) -> bool:
         """Validate input data for anomaly detection."""
         try:
             if (
@@ -1151,7 +1195,9 @@ class AdvancedAnomalyDetector:
         except Exception:
             return False
 
-    def _remove_duplicate_anomalies(self, anomalies: list[AnomalyResult]) -> list[AnomalyResult]:
+    def _remove_duplicate_anomalies(
+        self, anomalies: list[AnomalyResult]
+    ) -> list[AnomalyResult]:
         """Remove duplicate anomalies within a small time window."""
         if not anomalies:
             return []

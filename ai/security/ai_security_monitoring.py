@@ -15,18 +15,19 @@ Author: Security Team
 Version: 1.0
 """
 
+import json
 import logging
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import json
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("app.ai.security.monitoring")
 
 
 class SecurityEventSeverity(Enum):
     """Security event severity levels"""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -36,6 +37,7 @@ class SecurityEventSeverity(Enum):
 
 class SecurityEventType(Enum):
     """Types of security events"""
+
     # Input validation events
     PROMPT_INJECTION_DETECTED = "prompt_injection_detected"
     MALICIOUS_INPUT_DETECTED = "malicious_input_detected"
@@ -61,6 +63,7 @@ class SecurityEventType(Enum):
 @dataclass
 class SecurityEvent:
     """AI Security Event"""
+
     event_type: SecurityEventType
     severity: SecurityEventSeverity
     timestamp: datetime
@@ -82,7 +85,7 @@ class SecurityEvent:
             "ip_address": self.ip_address,
             "details": self.details,
             "metadata": self.metadata,
-            "resolved": self.resolved
+            "resolved": self.resolved,
         }
 
 
@@ -98,7 +101,7 @@ class AISecurityMonitor:
         self.events: List[SecurityEvent] = []
         self.alert_thresholds = {
             SecurityEventSeverity.CRITICAL: 1,  # Immediate alert
-            SecurityEventSeverity.HIGH: 3,     # Alert after 3 in 1 hour
+            SecurityEventSeverity.HIGH: 3,  # Alert after 3 in 1 hour
             SecurityEventSeverity.MEDIUM: 10,  # Alert after 10 in 1 hour
         }
 
@@ -110,7 +113,7 @@ class AISecurityMonitor:
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
         ip_address: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> SecurityEvent:
         """
         Log a security event
@@ -135,7 +138,7 @@ class AISecurityMonitor:
             session_id=session_id,
             ip_address=ip_address,
             details=details,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # Store event
@@ -169,8 +172,8 @@ class AISecurityMonitor:
                 "ip_address": event.ip_address,
                 "details": event.details,
                 "event_data": event.to_dict(),
-                "security_event": True
-            }
+                "security_event": True,
+            },
         )
 
     def _check_alert_thresholds(self, new_event: SecurityEvent) -> None:
@@ -182,7 +185,8 @@ class AISecurityMonitor:
         # Get events from the last hour
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
         recent_events = [
-            e for e in self.events
+            e
+            for e in self.events
             if e.timestamp > one_hour_ago
             and e.severity == new_event.severity
             and not e.resolved
@@ -195,9 +199,7 @@ class AISecurityMonitor:
             self._trigger_soc_alert(new_event.severity, recent_events)
 
     def _trigger_soc_alert(
-        self,
-        severity: SecurityEventSeverity,
-        events: List[SecurityEvent]
+        self, severity: SecurityEventSeverity, events: List[SecurityEvent]
     ) -> None:
         """
         Trigger SOC alert for security events
@@ -212,7 +214,7 @@ class AISecurityMonitor:
             "timestamp": datetime.utcnow().isoformat(),
             "event_count": len(events),
             "events": [e.to_dict() for e in events[-10:]],  # Last 10 events
-            "recommended_actions": self._get_recommendations(severity, events)
+            "recommended_actions": self._get_recommendations(severity, events),
         }
 
         # Log the alert
@@ -221,17 +223,15 @@ class AISecurityMonitor:
             extra={
                 "soc_alert": True,
                 "alert_data": alert_data,
-                "event_type": "soc_alert_triggered"
-            }
+                "event_type": "soc_alert_triggered",
+            },
         )
 
         # In production, this would integrate with your SOC system
         # Examples: Splunk, SIEM, PagerDuty, Slack, etc.
 
     def _get_recommendations(
-        self,
-        severity: SecurityEventSeverity,
-        events: List[SecurityEvent]
+        self, severity: SecurityEventSeverity, events: List[SecurityEvent]
     ) -> List[str]:
         """Get recommended actions for SOC team"""
         recommendations = []
@@ -239,36 +239,44 @@ class AISecurityMonitor:
         event_types = set(e.event_type for e in events)
 
         if SecurityEventType.PROMPT_INJECTION_DETECTED in event_types:
-            recommendations.extend([
-                "Review recent AI prompts for injection patterns",
-                "Consider implementing additional prompt validation",
-                "Monitor affected user accounts",
-                "Review AI model outputs for potential compromise"
-            ])
+            recommendations.extend(
+                [
+                    "Review recent AI prompts for injection patterns",
+                    "Consider implementing additional prompt validation",
+                    "Monitor affected user accounts",
+                    "Review AI model outputs for potential compromise",
+                ]
+            )
 
         if SecurityEventType.PII_DETECTED in event_types:
-            recommendations.extend([
-                "Review data handling procedures",
-                "Ensure PII redaction is working correctly",
-                "Audit recent AI processing for data leakage",
-                "Review user consent and data retention policies"
-            ])
+            recommendations.extend(
+                [
+                    "Review data handling procedures",
+                    "Ensure PII redaction is working correctly",
+                    "Audit recent AI processing for data leakage",
+                    "Review user consent and data retention policies",
+                ]
+            )
 
         if SecurityEventType.RATE_LIMIT_EXCEEDED in event_types:
-            recommendations.extend([
-                "Consider temporarily blocking offending IPs/users",
-                "Review rate limiting thresholds",
-                "Check for automated attack patterns",
-                "Consider implementing CAPTCHA"
-            ])
+            recommendations.extend(
+                [
+                    "Consider temporarily blocking offending IPs/users",
+                    "Review rate limiting thresholds",
+                    "Check for automated attack patterns",
+                    "Consider implementing CAPTCHA",
+                ]
+            )
 
         if SecurityEventType.MODEL_ANOMALY_DETECTED in event_types:
-            recommendations.extend([
-                "Review AI model performance metrics",
-                "Check for model drift or data poisoning",
-                "Review recent training data",
-                "Consider rolling back model if necessary"
-            ])
+            recommendations.extend(
+                [
+                    "Review AI model performance metrics",
+                    "Check for model drift or data poisoning",
+                    "Review recent training data",
+                    "Consider rolling back model if necessary",
+                ]
+            )
 
         # Add general recommendations based on severity
         if severity == SecurityEventSeverity.CRITICAL:
@@ -277,10 +285,7 @@ class AISecurityMonitor:
 
         return recommendations
 
-    def get_security_summary(
-        self,
-        hours: int = 24
-    ) -> Dict[str, Any]:
+    def get_security_summary(self, hours: int = 24) -> Dict[str, Any]:
         """
         Get security event summary for specified time period
 
@@ -316,7 +321,7 @@ class AISecurityMonitor:
             "risk_score": risk_score,
             "unresolved_events": sum(1 for e in relevant_events if not e.resolved),
             "top_users": self._get_top_users(relevant_events),
-            "top_ips": self._get_top_ips(relevant_events)
+            "top_ips": self._get_top_ips(relevant_events),
         }
 
     def _calculate_risk_score(self, events: List[SecurityEvent]) -> float:
@@ -333,10 +338,7 @@ class AISecurityMonitor:
             SecurityEventSeverity.INFO: 0.1,
         }
 
-        total_score = sum(
-            weights.get(e.severity, 1.0)
-            for e in events
-        )
+        total_score = sum(weights.get(e.severity, 1.0) for e in events)
 
         # Normalize to 0-100 range
         normalized = min(total_score / len(events) * 10, 100.0)
@@ -350,16 +352,11 @@ class AISecurityMonitor:
             if event.user_id:
                 user_counts[event.user_id] = user_counts.get(event.user_id, 0) + 1
 
-        sorted_users = sorted(
-            user_counts.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:limit]
-
-        return [
-            {"user_id": user, "event_count": count}
-            for user, count in sorted_users
+        sorted_users = sorted(user_counts.items(), key=lambda x: x[1], reverse=True)[
+            :limit
         ]
+
+        return [{"user_id": user, "event_count": count} for user, count in sorted_users]
 
     def _get_top_ips(self, events: List[SecurityEvent], limit: int = 5) -> List[Dict]:
         """Get IPs with most security events"""
@@ -368,22 +365,11 @@ class AISecurityMonitor:
             if event.ip_address:
                 ip_counts[event.ip_address] = ip_counts.get(event.ip_address, 0) + 1
 
-        sorted_ips = sorted(
-            ip_counts.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:limit]
+        sorted_ips = sorted(ip_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
 
-        return [
-            {"ip_address": ip, "event_count": count}
-            for ip, count in sorted_ips
-        ]
+        return [{"ip_address": ip, "event_count": count} for ip, count in sorted_ips]
 
-    def export_audit_trail(
-        self,
-        hours: int = 24,
-        format: str = "json"
-    ) -> str:
+    def export_audit_trail(self, hours: int = 24, format: str = "json") -> str:
         """
         Export audit trail for specified time period
 
@@ -398,15 +384,10 @@ class AISecurityMonitor:
         relevant_events = [e for e in self.events if e.timestamp > cutoff]
 
         if format == "json":
-            return json.dumps(
-                [e.to_dict() for e in relevant_events],
-                indent=2
-            )
+            return json.dumps([e.to_dict() for e in relevant_events], indent=2)
         elif format == "csv":
             # Simple CSV format
-            lines = [
-                "timestamp,event_type,severity,user_id,session_id,ip_address"
-            ]
+            lines = ["timestamp,event_type,severity,user_id,session_id,ip_address"]
             for event in relevant_events:
                 lines.append(
                     f"{event.timestamp.isoformat()},"
@@ -440,7 +421,7 @@ class AISecurityMonitor:
         if cleared_count > 0:
             logger.info(
                 f"Cleared {cleared_count} old security events",
-                extra={"event_type": "old_events_cleared"}
+                extra={"event_type": "old_events_cleared"},
             )
 
         return cleared_count
@@ -457,7 +438,7 @@ def log_ai_security_event(
     user_id: Optional[str] = None,
     session_id: Optional[str] = None,
     ip_address: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> SecurityEvent:
     """
     Convenience function to log AI security event
@@ -484,7 +465,7 @@ def log_ai_security_event(
         user_id=user_id,
         session_id=session_id,
         ip_address=ip_address,
-        metadata=metadata
+        metadata=metadata,
     )
 
 

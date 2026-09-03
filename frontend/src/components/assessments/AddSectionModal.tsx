@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { assessmentService } from '../../services/assessmentService';
 import LoadingSpinner from '../common/LoadingSpinner';
 interface AddSectionModalProps {
-  assessmentId: number;
+  assessmentId: string | number;
   onClose: () => void;
   onSuccess: () => void;
 }

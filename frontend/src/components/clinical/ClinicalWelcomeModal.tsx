@@ -170,7 +170,7 @@ const ClinicalWelcomeModal: React.FC<ClinicalWelcomeModalProps> = ({
               <Button
                 onClick={handleStartAssessment}
                 className="w-full bg-blue-600 hover:bg-blue-700"
-                size="lg"
+                size="sm"
               >
                 Start Screening Now
               </Button>

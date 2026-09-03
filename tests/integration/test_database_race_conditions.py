@@ -13,22 +13,23 @@ to prevent data corruption, lost updates, and race conditions.
 """
 
 import asyncio
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from uuid import uuid4
-from sqlalchemy import select, delete, func, update
+
+import pytest
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.team import Team, TeamMember, TeamRole
-from app.db.models.user import User
 from app.db.models.assessment import Assessment, AssessmentResponse
 from app.db.models.organization import Organization
-
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User
 
 # ============================================================================
 # Test 1: Concurrent Team Member Additions
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -51,16 +52,12 @@ async def test_concurrent_team_member_additions_no_duplicates(db_session: AsyncS
     org = Organization(
         id=uuid4(),
         name="Test Organization for Concurrent Members",
-        slug="test-concurrent-org"
+        slug="test-concurrent-org",
     )
     db_session.add(org)
     await db_session.flush()
 
-    team = Team(
-        id=uuid4(),
-        name="Test Concurrent Team",
-        organization_id=org.id
-    )
+    team = Team(id=uuid4(), name="Test Concurrent Team", organization_id=org.id)
     db_session.add(team)
     await db_session.flush()
 
@@ -70,7 +67,7 @@ async def test_concurrent_team_member_additions_no_duplicates(db_session: AsyncS
         user = User(
             email=f"member{i:03d}@psychsync.test",
             hashed_password="hash",
-            full_name=f"Test Member {i}"
+            full_name=f"Test Member {i}",
         )
         db_session.add(user)
         users.append(user)
@@ -81,11 +78,7 @@ async def test_concurrent_team_member_additions_no_duplicates(db_session: AsyncS
     async def add_member(team_id, user_id, role):
         """Add a team member"""
         try:
-            member = TeamMember(
-                team_id=team_id,
-                user_id=user_id,
-                role=role
-            )
+            member = TeamMember(team_id=team_id, user_id=user_id, role=role)
             db_session.add(member)
             await db_session.commit()
             await db_session.refresh(member)
@@ -134,7 +127,9 @@ async def test_concurrent_team_member_additions_no_duplicates(db_session: AsyncS
     # Cleanup
     await db_session.execute(delete(TeamMember).where(TeamMember.team_id == team.id))
     await db_session.execute(delete(Team).where(Team.id == team.id))
-    await db_session.execute(delete(User).where(User.email.like("member%@psychsync.test")))
+    await db_session.execute(
+        delete(User).where(User.email.like("member%@psychsync.test"))
+    )
     await db_session.execute(delete(Organization).where(Organization.id == org.id))
     await db_session.commit()
 
@@ -143,7 +138,9 @@ async def test_concurrent_team_member_additions_no_duplicates(db_session: AsyncS
 @pytest.mark.regression
 @pytest.mark.team
 @pytest.mark.concurrent
-async def test_concurrent_team_member_additions_multiple_admins(db_session: AsyncSession):
+async def test_concurrent_team_member_additions_multiple_admins(
+    db_session: AsyncSession,
+):
     """
     Test concurrent team member additions by multiple admins.
 
@@ -154,16 +151,12 @@ async def test_concurrent_team_member_additions_multiple_admins(db_session: Asyn
     org = Organization(
         id=uuid4(),
         name="Test Organization for Multi-Admin",
-        slug="test-multi-admin-org"
+        slug="test-multi-admin-org",
     )
     db_session.add(org)
     await db_session.flush()
 
-    team = Team(
-        id=uuid4(),
-        name="Test Multi-Admin Team",
-        organization_id=org.id
-    )
+    team = Team(id=uuid4(), name="Test Multi-Admin Team", organization_id=org.id)
     db_session.add(team)
     await db_session.flush()
 
@@ -173,7 +166,7 @@ async def test_concurrent_team_member_additions_multiple_admins(db_session: Asyn
         user = User(
             email=f"concurrent_member{i:03d}@psychsync.test",
             hashed_password="hash",
-            full_name=f"Concurrent Member {i}"
+            full_name=f"Concurrent Member {i}",
         )
         db_session.add(user)
         users.append(user)
@@ -185,11 +178,7 @@ async def test_concurrent_team_member_additions_multiple_admins(db_session: Asyn
         """Add a batch of team members"""
         members = []
         for user in user_batch:
-            member = TeamMember(
-                team_id=team.id,
-                user_id=user.id,
-                role=TeamRole.MEMBER
-            )
+            member = TeamMember(team_id=team.id, user_id=user.id, role=TeamRole.MEMBER)
             db_session.add(member)
             members.append(member)
 
@@ -198,9 +187,9 @@ async def test_concurrent_team_member_additions_multiple_admins(db_session: Asyn
 
     # Divide users: admin1 adds 4, admin2 adds 3, admin3 adds 3
     tasks = [
-        add_members_batch(users[0:4]),    # Admin 1: 4 users
-        add_members_batch(users[4:7]),    # Admin 2: 3 users
-        add_members_batch(users[7:10]),   # Admin 3: 3 users
+        add_members_batch(users[0:4]),  # Admin 1: 4 users
+        add_members_batch(users[4:7]),  # Admin 2: 3 users
+        add_members_batch(users[7:10]),  # Admin 3: 3 users
     ]
 
     # Execute all batches concurrently
@@ -232,7 +221,9 @@ async def test_concurrent_team_member_additions_multiple_admins(db_session: Asyn
     # Cleanup
     await db_session.execute(delete(TeamMember).where(TeamMember.team_id == team.id))
     await db_session.execute(delete(Team).where(Team.id == team.id))
-    await db_session.execute(delete(User).where(User.email.like("concurrent_member%@psychsync.test")))
+    await db_session.execute(
+        delete(User).where(User.email.like("concurrent_member%@psychsync.test"))
+    )
     await db_session.execute(delete(Organization).where(Organization.id == org.id))
     await db_session.commit()
 
@@ -240,6 +231,7 @@ async def test_concurrent_team_member_additions_multiple_admins(db_session: Asyn
 # ============================================================================
 # Test 2: Concurrent Assessment Response Updates
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -259,32 +251,23 @@ async def test_concurrent_assessment_response_updates(db_session: AsyncSession):
     user = User(
         email="concurrent_assessment_user@psychsync.test",
         hashed_password="hash",
-        full_name="Concurrent Assessment User"
+        full_name="Concurrent Assessment User",
     )
     db_session.add(user)
     await db_session.flush()
 
     org = Organization(
-        id=uuid4(),
-        name="Test Organization for Assessment",
-        slug="test-assessment-org"
+        id=uuid4(), name="Test Organization for Assessment", slug="test-assessment-org"
     )
     db_session.add(org)
     await db_session.flush()
 
-    team = Team(
-        id=uuid4(),
-        name="Test Assessment Team",
-        organization_id=org.id
-    )
+    team = Team(id=uuid4(), name="Test Assessment Team", organization_id=org.id)
     db_session.add(team)
     await db_session.flush()
 
     assessment = Assessment(
-        id=uuid4(),
-        name="Test Assessment",
-        framework_code="MBTI",
-        team_id=team.id
+        id=uuid4(), name="Test Assessment", framework_code="MBTI", team_id=team.id
     )
     db_session.add(assessment)
     await db_session.flush()
@@ -295,7 +278,7 @@ async def test_concurrent_assessment_response_updates(db_session: AsyncSession):
         assessment_id=assessment.id,
         user_id=user.id,
         responses={"question_1": "A", "question_2": "B"},
-        score=0
+        score=0,
     )
     db_session.add(response)
     await db_session.commit()
@@ -333,7 +316,9 @@ async def test_concurrent_assessment_response_updates(db_session: AsyncSession):
     final_responses, final_score = results[-1]  # Last result
 
     # Should have all 10 questions
-    assert len(final_responses) == 10, f"Expected 10 responses, got {len(final_responses)}"
+    assert (
+        len(final_responses) == 10
+    ), f"Expected 10 responses, got {len(final_responses)}"
     assert final_score == 100, f"Expected score 100, got {final_score}"
 
     # Verify all questions are present
@@ -341,10 +326,14 @@ async def test_concurrent_assessment_response_updates(db_session: AsyncSession):
         assert f"question_{i}" in final_responses, f"Missing question_{i}"
 
     # Cleanup
-    await db_session.execute(delete(AssessmentResponse).where(AssessmentResponse.id == response.id))
+    await db_session.execute(
+        delete(AssessmentResponse).where(AssessmentResponse.id == response.id)
+    )
     await db_session.execute(delete(Assessment).where(Assessment.id == assessment.id))
     await db_session.execute(delete(Team).where(Team.id == team.id))
-    await db_session.execute(delete(User).where(User.email == "concurrent_assessment_user@psychsync.test"))
+    await db_session.execute(
+        delete(User).where(User.email == "concurrent_assessment_user@psychsync.test")
+    )
     await db_session.execute(delete(Organization).where(Organization.id == org.id))
     await db_session.commit()
 
@@ -352,6 +341,7 @@ async def test_concurrent_assessment_response_updates(db_session: AsyncSession):
 # ============================================================================
 # Test 3: Concurrent Team Creation with Same Name
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -370,7 +360,7 @@ async def test_concurrent_team_creation_same_name(db_session: AsyncSession):
     org = Organization(
         id=uuid4(),
         name="Test Organization for Team Creation",
-        slug="test-team-creation-org"
+        slug="test-team-creation-org",
     )
     db_session.add(org)
     await db_session.flush()
@@ -379,10 +369,7 @@ async def test_concurrent_team_creation_same_name(db_session: AsyncSession):
     async def create_team(org_id, team_name):
         """Create a team"""
         try:
-            team = Team(
-                name=team_name,
-                organization_id=org_id
-            )
+            team = Team(name=team_name, organization_id=org_id)
             db_session.add(team)
             await db_session.commit()
             await db_session.refresh(team)
@@ -391,10 +378,7 @@ async def test_concurrent_team_creation_same_name(db_session: AsyncSession):
             await db_session.rollback()
             return {"success": False, "error": str(e)}
 
-    tasks = [
-        create_team(org.id, "Duplicate Team Name")
-        for _ in range(5)
-    ]
+    tasks = [create_team(org.id, "Duplicate Team Name") for _ in range(5)]
 
     results = await asyncio.gather(*tasks)
 
@@ -402,7 +386,9 @@ async def test_concurrent_team_creation_same_name(db_session: AsyncSession):
     success_count = sum(1 for r in results if r["success"])
     failure_count = sum(1 for r in results if not r["success"])
 
-    assert success_count == 1, f"Expected 1 successful team creation, got {success_count}"
+    assert (
+        success_count == 1
+    ), f"Expected 1 successful team creation, got {success_count}"
     assert failure_count == 4, f"Expected 4 duplicate failures, got {failure_count}"
 
     # Verify database has exactly 1 team with this name
@@ -425,6 +411,7 @@ async def test_concurrent_team_creation_same_name(db_session: AsyncSession):
 # Test 4: Concurrent User Profile Updates
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.regression
 @pytest.mark.user
@@ -442,7 +429,7 @@ async def test_concurrent_user_profile_updates(db_session: AsyncSession):
     user = User(
         email="concurrent_profile_user@psychsync.test",
         hashed_password="hash",
-        full_name="Original Name"
+        full_name="Original Name",
     )
     db_session.add(user)
     await db_session.commit()
@@ -454,9 +441,7 @@ async def test_concurrent_user_profile_updates(db_session: AsyncSession):
         async with db_session.begin():
             # Use SELECT FOR UPDATE to lock the row
             result = await db_session.execute(
-                select(User)
-                .where(User.id == user_id)
-                .with_for_update()
+                select(User).where(User.id == user_id).with_for_update()
             )
             usr = result.scalar_one()
 
@@ -473,16 +458,11 @@ async def test_concurrent_user_profile_updates(db_session: AsyncSession):
             return getattr(usr, field_name)
 
     # Execute 10 concurrent updates
-    tasks = [
-        update_user_field(user.id, "full_name", f"Name {i}")
-        for i in range(5)
-    ] + [
-        update_user_field(user.id, "bio", f"Bio {i}")
-        for i in range(3)
-    ] + [
-        update_user_field(user.id, "phone", f"Phone {i}")
-        for i in range(2)
-    ]
+    tasks = (
+        [update_user_field(user.id, "full_name", f"Name {i}") for i in range(5)]
+        + [update_user_field(user.id, "bio", f"Bio {i}") for i in range(3)]
+        + [update_user_field(user.id, "phone", f"Phone {i}") for i in range(2)]
+    )
 
     results = await asyncio.gather(*tasks)
 
@@ -490,9 +470,7 @@ async def test_concurrent_user_profile_updates(db_session: AsyncSession):
     assert len(results) == 10, f"Expected 10 successful updates, got {len(results)}"
 
     # Verify final state has one of the updates (order-dependent)
-    result = await db_session.execute(
-        select(User).where(User.id == user.id)
-    )
+    result = await db_session.execute(select(User).where(User.id == user.id))
     final_user = result.scalar_one()
 
     # User should have one of the updated values
@@ -509,6 +487,7 @@ async def test_concurrent_user_profile_updates(db_session: AsyncSession):
 # Test 5: Transaction Isolation Level Verification
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.regression
 @pytest.mark.database
@@ -524,7 +503,7 @@ async def test_transaction_isolation_read_committed(db_session: AsyncSession):
     user = User(
         email="isolation_test_user@psychsync.test",
         hashed_password="hash",
-        full_name="Original Name"
+        full_name="Original Name",
     )
     db_session.add(user)
     await db_session.commit()
@@ -547,32 +526,27 @@ async def test_transaction_isolation_read_committed(db_session: AsyncSession):
         """Second transaction: Read user while transaction 1 is active"""
         await asyncio.sleep(0.5)  # Start after transaction 1
         async with db_session.begin():
-            result = await db_session.execute(
-                select(User).where(User.id == user.id)
-            )
+            result = await db_session.execute(select(User).where(User.id == user.id))
             usr = result.scalar_one()
             # Should NOT see "Updated by Transaction 1" (not committed yet)
             return usr.full_name
 
     # Run transactions concurrently
-    results = await asyncio.gather(
-        transaction1_update(),
-        transaction2_read()
-    )
+    results = await asyncio.gather(transaction1_update(), transaction2_read())
 
     # Assert - Transaction 2 should not see uncommitted changes
     read_name = results[1]
-    assert read_name == "Original Name", \
-        f"READ_COMMITTED should prevent dirty reads, but saw '{read_name}'"
+    assert (
+        read_name == "Original Name"
+    ), f"READ_COMMITTED should prevent dirty reads, but saw '{read_name}'"
 
     # Verify final state after transaction 1 commits
-    result = await db_session.execute(
-        select(User).where(User.id == user.id)
-    )
+    result = await db_session.execute(select(User).where(User.id == user.id))
     final_user = result.scalar_one()
 
-    assert final_user.full_name == "Updated by Transaction 1", \
-        "Update should be visible after commit"
+    assert (
+        final_user.full_name == "Updated by Transaction 1"
+    ), "Update should be visible after commit"
 
     # Cleanup
     await db_session.execute(delete(User).where(User.id == user.id))
@@ -582,6 +556,7 @@ async def test_transaction_isolation_read_committed(db_session: AsyncSession):
 # ============================================================================
 # Test 6: Concurrent Team Member Removal
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -598,34 +573,24 @@ async def test_concurrent_team_member_removals(db_session: AsyncSession):
     """
     # Arrange - Create organization, team, user, and team member
     org = Organization(
-        id=uuid4(),
-        name="Test Organization for Removal",
-        slug="test-removal-org"
+        id=uuid4(), name="Test Organization for Removal", slug="test-removal-org"
     )
     db_session.add(org)
     await db_session.flush()
 
-    team = Team(
-        id=uuid4(),
-        name="Test Removal Team",
-        organization_id=org.id
-    )
+    team = Team(id=uuid4(), name="Test Removal Team", organization_id=org.id)
     db_session.add(team)
     await db_session.flush()
 
     user = User(
         email="removal_test_user@psychsync.test",
         hashed_password="hash",
-        full_name="Removal Test User"
+        full_name="Removal Test User",
     )
     db_session.add(user)
     await db_session.flush()
 
-    member = TeamMember(
-        team_id=team.id,
-        user_id=user.id,
-        role=TeamRole.MEMBER
-    )
+    member = TeamMember(team_id=team.id, user_id=user.id, role=TeamRole.MEMBER)
     db_session.add(member)
     await db_session.commit()
     await db_session.refresh(member)
@@ -641,10 +606,7 @@ async def test_concurrent_team_member_removals(db_session: AsyncSession):
         await db_session.commit()
         return result.rowcount
 
-    tasks = [
-        remove_member(team.id, user.id)
-        for _ in range(5)
-    ]
+    tasks = [remove_member(team.id, user.id) for _ in range(5)]
 
     results = await asyncio.gather(*tasks)
 
@@ -673,6 +635,7 @@ async def test_concurrent_team_member_removals(db_session: AsyncSession):
 # Test 7: Concurrent Role Updates
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.regression
 @pytest.mark.team
@@ -690,32 +653,24 @@ async def test_concurrent_team_member_role_updates(db_session: AsyncSession):
     org = Organization(
         id=uuid4(),
         name="Test Organization for Role Updates",
-        slug="test-role-updates-org"
+        slug="test-role-updates-org",
     )
     db_session.add(org)
     await db_session.flush()
 
-    team = Team(
-        id=uuid4(),
-        name="Test Role Updates Team",
-        organization_id=org.id
-    )
+    team = Team(id=uuid4(), name="Test Role Updates Team", organization_id=org.id)
     db_session.add(team)
     await db_session.flush()
 
     user = User(
         email="role_update_user@psychsync.test",
         hashed_password="hash",
-        full_name="Role Update User"
+        full_name="Role Update User",
     )
     db_session.add(user)
     await db_session.flush()
 
-    member = TeamMember(
-        team_id=team.id,
-        user_id=user.id,
-        role=TeamRole.MEMBER
-    )
+    member = TeamMember(team_id=team.id, user_id=user.id, role=TeamRole.MEMBER)
     db_session.add(member)
     await db_session.commit()
     await db_session.refresh(member)
@@ -731,16 +686,14 @@ async def test_concurrent_team_member_role_updates(db_session: AsyncSession):
         TeamRole.OWNER,
         TeamRole.ADMIN,
         TeamRole.MEMBER,
-        TeamRole.OWNER
+        TeamRole.OWNER,
     ]
 
     async def update_role(member_id, new_role):
         """Update team member role"""
         async with db_session.begin():
             result = await db_session.execute(
-                select(TeamMember)
-                .where(TeamMember.id == member_id)
-                .with_for_update()
+                select(TeamMember).where(TeamMember.id == member_id).with_for_update()
             )
             mbr = result.scalar_one()
             mbr.role = new_role
@@ -748,10 +701,7 @@ async def test_concurrent_team_member_role_updates(db_session: AsyncSession):
             await db_session.refresh(mbr)
             return mbr.role
 
-    tasks = [
-        update_role(member.id, role)
-        for role in role_sequence
-    ]
+    tasks = [update_role(member.id, role) for role in role_sequence]
 
     results = await asyncio.gather(*tasks)
 
@@ -764,8 +714,9 @@ async def test_concurrent_team_member_role_updates(db_session: AsyncSession):
     )
     final_member = result.scalar_one()
 
-    assert final_member.role in role_sequence, \
-        f"Final role should be in sequence, got {final_member.role}"
+    assert (
+        final_member.role in role_sequence
+    ), f"Final role should be in sequence, got {final_member.role}"
 
     # Cleanup
     await db_session.execute(delete(TeamMember).where(TeamMember.id == member.id))
@@ -778,6 +729,7 @@ async def test_concurrent_team_member_role_updates(db_session: AsyncSession):
 # ============================================================================
 # Test 8: Stress Test - High Concurrency Team Operations
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -794,16 +746,12 @@ async def test_high_concurrency_team_operations(db_session: AsyncSession):
     org = Organization(
         id=uuid4(),
         name="Test Organization for High Concurrency",
-        slug="test-high-concurrency-org"
+        slug="test-high-concurrency-org",
     )
     db_session.add(org)
     await db_session.flush()
 
-    team = Team(
-        id=uuid4(),
-        name="Test High Concurrency Team",
-        organization_id=org.id
-    )
+    team = Team(id=uuid4(), name="Test High Concurrency Team", organization_id=org.id)
     db_session.add(team)
     await db_session.flush()
 
@@ -813,7 +761,7 @@ async def test_high_concurrency_team_operations(db_session: AsyncSession):
         user = User(
             email=f"high_concurrency_user{i:03d}@psychsync.test",
             hashed_password="hash",
-            full_name=f"High Concurrency User {i}"
+            full_name=f"High Concurrency User {i}",
         )
         db_session.add(user)
         users.append(user)
@@ -823,11 +771,7 @@ async def test_high_concurrency_team_operations(db_session: AsyncSession):
     # Act - Add all 100 users concurrently
     async def add_member(user):
         """Add a team member"""
-        member = TeamMember(
-            team_id=team.id,
-            user_id=user.id,
-            role=TeamRole.MEMBER
-        )
+        member = TeamMember(team_id=team.id, user_id=user.id, role=TeamRole.MEMBER)
         db_session.add(member)
         await db_session.commit()
         return member.id
@@ -868,6 +812,8 @@ async def test_high_concurrency_team_operations(db_session: AsyncSession):
     # Cleanup
     await db_session.execute(delete(TeamMember).where(TeamMember.team_id == team.id))
     await db_session.execute(delete(Team).where(Team.id == team.id))
-    await db_session.execute(delete(User).where(User.email.like("high_concurrency_user%@psychsync.test")))
+    await db_session.execute(
+        delete(User).where(User.email.like("high_concurrency_user%@psychsync.test"))
+    )
     await db_session.execute(delete(Organization).where(Organization.id == org.id))
     await db_session.commit()

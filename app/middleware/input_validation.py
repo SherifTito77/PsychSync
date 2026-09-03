@@ -2,39 +2,40 @@
 Input Validation Middleware for NoSQL Injection Prevention
 """
 
-import re
 import json
+import re
 from typing import Any, Dict, List, Optional
+
 
 class InputValidationMiddleware:
     """Middleware to validate and sanitize input data"""
 
     def __init__(self):
         self.dangerous_patterns = [
-            r'\$where',
-            r'\$ne',
-            r'\$gt',
-            r'\$lt',
-            r'\$gte',
-            r'\$lte',
-            r'\$in',
-            r'\$nin',
-            r'\$regex',
-            r'\$expr',
-            r'\$or',
-            r'\$and',
-            r'\$not',
-            r'\$nor',
-            r'function\(',
-            r'return\s+',
-            r'sleep\(',
-            r'document\.',
-            r'collection\.',
-            r'db\.',
+            r"\$where",
+            r"\$ne",
+            r"\$gt",
+            r"\$lt",
+            r"\$gte",
+            r"\$lte",
+            r"\$in",
+            r"\$nin",
+            r"\$regex",
+            r"\$expr",
+            r"\$or",
+            r"\$and",
+            r"\$not",
+            r"\$nor",
+            r"function\(",
+            r"return\s+",
+            r"sleep\(",
+            r"document\.",
+            r"collection\.",
+            r"db\.",
         ]
 
         self.sql_injection_patterns = [
-            r'''['"]|;|--|\/\*|\*\/|xp_|sp_|execute''',
+            r"""['"]|;|--|\/\*|\*\/|xp_|sp_|execute""",
             r"union\s+select",
             r"select\s+.*\s+from",
             r"insert\s+into",
@@ -49,7 +50,7 @@ class InputValidationMiddleware:
             "valid": True,
             "sanitized": data,
             "threats_detected": [],
-            "risk_level": "LOW"
+            "risk_level": "LOW",
         }
 
         if isinstance(data, str):
@@ -118,13 +119,15 @@ class InputValidationMiddleware:
     def _sanitize_string(self, value: str) -> str:
         """Sanitize string input"""
         # Remove dangerous characters
-        sanitized = re.sub(r'[{}$;\'"<>]', '', value)
+        sanitized = re.sub(r'[{}$;\'"<>]', "", value)
         # Limit length
         sanitized = sanitized[:1000]
         return sanitized.strip()
 
+
 # Global validation instance
 input_validator = InputValidationMiddleware()
+
 
 def validate_request_input(data: Any) -> Dict[str, Any]:
     """Validate request input data"""

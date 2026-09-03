@@ -5,10 +5,10 @@ Defines structured schemas for all security event types following
 the MITRE ATT&CK and NIST logging frameworks.
 """
 
+import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any
-import uuid
 
 from pydantic import BaseModel, Field, validator
 
@@ -119,9 +119,7 @@ class SecurityEvent(BaseModel):
     detection_rules_matched: list[str] = Field(default_factory=list)
 
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
     @validator("tags")
     def add_default_tags(cls, v, values):
@@ -336,6 +334,4 @@ class SecurityLogBatch(BaseModel):
         return len(events)
 
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}

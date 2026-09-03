@@ -17,24 +17,24 @@ Date: 2025-12-26
 """
 
 import asyncio
+import json
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from collections import defaultdict, deque
-import json
+from typing import Any, Dict, List, Optional, Tuple
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 class ThreatLevel(Enum):
     """Overall threat level"""
+
     SAFE = "safe"
     LOW = "low"
     MEDIUM = "medium"
@@ -44,6 +44,7 @@ class ThreatLevel(Enum):
 
 class ResponseAction(Enum):
     """Automated response actions"""
+
     NONE = "none"
     MONITOR = "monitor"
     WARN = "warn"
@@ -55,6 +56,7 @@ class ResponseAction(Enum):
 @dataclass
 class ThreatSignal:
     """Individual threat signal from a detector"""
+
     source: str  # 'jailbreak', 'behavioral', 'uncertainty', 'intel'
     threat_type: str
     confidence: float
@@ -66,6 +68,7 @@ class ThreatSignal:
 @dataclass
 class UnifiedThreatReport:
     """Unified threat assessment report"""
+
     session_id: str
     user_id: Optional[str]
     overall_threat_level: ThreatLevel
@@ -95,10 +98,10 @@ class UnifiedThreatReport:
                     "threat_type": s.threat_type,
                     "confidence": s.confidence,
                     "severity": s.severity,
-                    "timestamp": s.timestamp.isoformat()
+                    "timestamp": s.timestamp.isoformat(),
                 }
                 for s in self.threat_signals
-            ]
+            ],
         }
 
 
@@ -120,10 +123,10 @@ class RealTimeThreatMonitor:
 
     # Risk weights for different threat sources
     THREAT_SOURCE_WEIGHTS = {
-        'jailbreak': 0.35,      # Highest priority
-        'behavioral': 0.25,     # User behavior anomalies
-        'uncertainty': 0.20,    # LLM uncertainty
-        'intel': 0.20,          # Threat intelligence
+        "jailbreak": 0.35,  # Highest priority
+        "behavioral": 0.25,  # User behavior anomalies
+        "uncertainty": 0.20,  # LLM uncertainty
+        "intel": 0.20,  # Threat intelligence
     }
 
     # Signal history window (for trend analysis)
@@ -135,7 +138,7 @@ class RealTimeThreatMonitor:
         enable_behavioral_analysis: bool = True,
         enable_uncertainty_detection: bool = True,
         enable_threat_intel: bool = True,
-        signal_history_size: int = 100
+        signal_history_size: int = 100,
     ):
         """
         Initialize real-time threat monitor.
@@ -176,7 +179,7 @@ class RealTimeThreatMonitor:
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
         request_data: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> UnifiedThreatReport:
         """
         Perform comprehensive threat assessment.
@@ -199,13 +202,17 @@ class RealTimeThreatMonitor:
 
         # Detector 1: Jailbreak Detection
         if self.enable_jailbreak_detection:
-            jailbreak_signal = await self._check_jailbreak(prompt, user_id, session_id, context)
+            jailbreak_signal = await self._check_jailbreak(
+                prompt, user_id, session_id, context
+            )
             if jailbreak_signal:
                 threat_signals.append(jailbreak_signal)
 
         # Detector 2: Behavioral Analysis
         if self.enable_behavioral_analysis and user_id:
-            behavioral_signal = await self._check_behavior(user_id, request_data, session_id)
+            behavioral_signal = await self._check_behavior(
+                user_id, request_data, session_id
+            )
             if behavioral_signal:
                 threat_signals.append(behavioral_signal)
 
@@ -216,7 +223,7 @@ class RealTimeThreatMonitor:
                 threat_signals.append(uncertainty_signal)
 
         # Detector 4: Threat Intelligence (if IP provided)
-        if self.enable_threat_intel and request_data.get('ip_address'):
+        if self.enable_threat_intel and request_data.get("ip_address"):
             intel_signal = await self._check_threat_intel(request_data)
             if intel_signal:
                 threat_signals.append(intel_signal)
@@ -227,13 +234,17 @@ class RealTimeThreatMonitor:
             self.session_threats[session_id].append(signal)
 
         # Calculate overall threat level
-        threat_level, confidence, risk_score = self._calculate_overall_threat(threat_signals)
+        threat_level, confidence, risk_score = self._calculate_overall_threat(
+            threat_signals
+        )
 
         # Determine recommended action
         recommended_action = self._determine_response_action(threat_level, risk_score)
 
         # Generate explanation
-        explanation = self._generate_explanation(threat_signals, threat_level, risk_score)
+        explanation = self._generate_explanation(
+            threat_signals, threat_level, risk_score
+        )
 
         # Create unified report
         report = UnifiedThreatReport(
@@ -247,13 +258,13 @@ class RealTimeThreatMonitor:
             explanation=explanation,
             timestamp=datetime.now(timezone.utc),
             metadata={
-                'detectors_enabled': {
-                    'jailbreak': self.enable_jailbreak_detection,
-                    'behavioral': self.enable_behavioral_analysis,
-                    'uncertainty': self.enable_uncertainty_detection,
-                    'intel': self.enable_threat_intel
+                "detectors_enabled": {
+                    "jailbreak": self.enable_jailbreak_detection,
+                    "behavioral": self.enable_behavioral_analysis,
+                    "uncertainty": self.enable_uncertainty_detection,
+                    "intel": self.enable_threat_intel,
                 }
-            }
+            },
         )
 
         # Log if threat detected
@@ -267,7 +278,7 @@ class RealTimeThreatMonitor:
         prompt: str,
         user_id: Optional[str],
         session_id: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> Optional[ThreatSignal]:
         """Check for jailbreak attempts"""
         try:
@@ -275,23 +286,20 @@ class RealTimeThreatMonitor:
             from ai.security.jailbreak_detector import jailbreak_detector
 
             detection = jailbreak_detector.detect_jailbreak(
-                prompt=prompt,
-                user_id=user_id,
-                session_id=session_id,
-                context=context
+                prompt=prompt, user_id=user_id, session_id=session_id, context=context
             )
 
             if detection.detected:
                 return ThreatSignal(
-                    source='jailbreak',
+                    source="jailbreak",
                     threat_type=detection.jailbreak_type.value,
                     confidence=detection.confidence,
                     severity=detection.severity.value,
                     timestamp=datetime.now(timezone.utc),
                     metadata={
-                        'patterns_matched': detection.patterns_matched,
-                        'intent': detection.intent_detected
-                    }
+                        "patterns_matched": detection.patterns_matched,
+                        "intent": detection.intent_detected,
+                    },
                 )
 
         except Exception as e:
@@ -300,10 +308,7 @@ class RealTimeThreatMonitor:
         return None
 
     async def _check_behavior(
-        self,
-        user_id: str,
-        request_data: Dict[str, Any],
-        session_id: str
+        self, user_id: str, request_data: Dict[str, Any], session_id: str
     ) -> Optional[ThreatSignal]:
         """Check for behavioral anomalies"""
         try:
@@ -311,22 +316,20 @@ class RealTimeThreatMonitor:
             from ai.security.behavioral_analyzer import behavioral_analyzer
 
             alert = behavioral_analyzer.analyze_user_behavior(
-                user_id=user_id,
-                request_data=request_data,
-                session_id=session_id
+                user_id=user_id, request_data=request_data, session_id=session_id
             )
 
             if alert:
                 return ThreatSignal(
-                    source='behavioral',
+                    source="behavioral",
                     threat_type=alert.threat_category.value,
                     confidence=alert.confidence,
                     severity=alert.severity.value,
                     timestamp=datetime.utcnow(),
                     metadata={
-                        'anomalous_features': alert.anomalous_features,
-                        'description': alert.description
-                    }
+                        "anomalous_features": alert.anomalous_features,
+                        "description": alert.description,
+                    },
                 )
 
         except Exception as e:
@@ -335,9 +338,7 @@ class RealTimeThreatMonitor:
         return None
 
     async def _check_uncertainty(
-        self,
-        prompt: str,
-        context: Dict[str, Any]
+        self, prompt: str, context: Dict[str, Any]
     ) -> Optional[ThreatSignal]:
         """Check for high uncertainty (potential attack)"""
         try:
@@ -354,15 +355,15 @@ class RealTimeThreatMonitor:
 
             if complexity_score > 0.8:
                 return ThreatSignal(
-                    source='uncertainty',
-                    threat_type='high_complexity',
+                    source="uncertainty",
+                    threat_type="high_complexity",
                     confidence=complexity_score,
-                    severity='medium',
+                    severity="medium",
                     timestamp=datetime.now(timezone.utc),
                     metadata={
-                        'complexity_score': complexity_score,
-                        'prompt_length': prompt_length
-                    }
+                        "complexity_score": complexity_score,
+                        "prompt_length": prompt_length,
+                    },
                 )
 
         except Exception as e:
@@ -371,15 +372,16 @@ class RealTimeThreatMonitor:
         return None
 
     async def _check_threat_intel(
-        self,
-        request_data: Dict[str, Any]
+        self, request_data: Dict[str, Any]
     ) -> Optional[ThreatSignal]:
         """Check against threat intelligence"""
         try:
             # Lazy import
-            from app.services.threat_intelligence_service import ThreatIntelligenceService
+            from app.services.threat_intelligence_service import (
+                ThreatIntelligenceService,
+            )
 
-            ip_address = request_data.get('ip_address')
+            ip_address = request_data.get("ip_address")
             if not ip_address:
                 return None
 
@@ -392,8 +394,7 @@ class RealTimeThreatMonitor:
         return None
 
     def _calculate_overall_threat(
-        self,
-        signals: List[ThreatSignal]
+        self, signals: List[ThreatSignal]
     ) -> Tuple[ThreatLevel, float, float]:
         """
         Calculate overall threat level from signals.
@@ -418,9 +419,7 @@ class RealTimeThreatMonitor:
         # Determine threat level
         threat_level = ThreatLevel.SAFE
         for level, threshold in sorted(
-            self.THREAT_LEVEL_THRESHOLDS.items(),
-            key=lambda x: x[1],
-            reverse=True
+            self.THREAT_LEVEL_THRESHOLDS.items(), key=lambda x: x[1], reverse=True
         ):
             if risk_score >= threshold:
                 threat_level = level
@@ -432,9 +431,7 @@ class RealTimeThreatMonitor:
         return threat_level, confidence, risk_score
 
     def _determine_response_action(
-        self,
-        threat_level: ThreatLevel,
-        risk_score: float
+        self, threat_level: ThreatLevel, risk_score: float
     ) -> ResponseAction:
         """Determine appropriate response action"""
         if threat_level == ThreatLevel.CRITICAL:
@@ -449,10 +446,7 @@ class RealTimeThreatMonitor:
             return ResponseAction.MONITOR
 
     def _generate_explanation(
-        self,
-        signals: List[ThreatSignal],
-        threat_level: ThreatLevel,
-        risk_score: float
+        self, signals: List[ThreatSignal], threat_level: ThreatLevel, risk_score: float
     ) -> str:
         """Generate human-readable explanation"""
         if not signals:
@@ -471,18 +465,18 @@ class RealTimeThreatMonitor:
         parts.append(f"Risk score: {risk_score:.2%}")
 
         # Specific threats
-        if 'jailbreak' in signal_sources:
-            jailbreak_count = len(signal_sources['jailbreak'])
+        if "jailbreak" in signal_sources:
+            jailbreak_count = len(signal_sources["jailbreak"])
             parts.append(f"• {jailbreak_count} jailbreak pattern(s) detected")
 
-        if 'behavioral' in signal_sources:
-            behavioral_count = len(signal_sources['behavioral'])
+        if "behavioral" in signal_sources:
+            behavioral_count = len(signal_sources["behavioral"])
             parts.append(f"• {behavioral_count} behavioral anomal(y/ies) detected")
 
-        if 'uncertainty' in signal_sources:
+        if "uncertainty" in signal_sources:
             parts.append("• High uncertainty detected (potential obfuscation)")
 
-        if 'intel' in signal_sources:
+        if "intel" in signal_sources:
             parts.append("• Threat intelligence match found")
 
         return ". ".join(parts) + "."
@@ -495,7 +489,7 @@ class RealTimeThreatMonitor:
             "threat_level": report.overall_threat_level.value,
             "risk_score": report.risk_score,
             "signal_count": len(report.threat_signals),
-            "recommended_action": report.recommended_action.value
+            "recommended_action": report.recommended_action.value,
         }
 
         if report.overall_threat_level in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]:
@@ -510,19 +504,13 @@ class RealTimeThreatMonitor:
         return f"sess-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{id(self)}"
 
     def get_session_history(
-        self,
-        session_id: str,
-        limit: int = 10
+        self, session_id: str, limit: int = 10
     ) -> List[ThreatSignal]:
         """Get threat signal history for session"""
         history = list(self.signal_history.get(session_id, []))
         return history[-limit:]
 
-    def get_user_threat_summary(
-        self,
-        user_id: str,
-        hours: int = 24
-    ) -> Dict[str, Any]:
+    def get_user_threat_summary(self, user_id: str, hours: int = 24) -> Dict[str, Any]:
         """Get threat summary for user"""
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
@@ -530,17 +518,17 @@ class RealTimeThreatMonitor:
         for session_signals in self.session_threats.values():
             for signal in session_signals:
                 # Check if signal has user_id in metadata
-                if signal.metadata.get('user_id') == user_id:
+                if signal.metadata.get("user_id") == user_id:
                     if signal.timestamp > cutoff:
                         user_signals.append(signal)
 
         if not user_signals:
             return {
-                'user_id': user_id,
-                'time_period_hours': hours,
-                'total_threats': 0,
-                'by_source': {},
-                'by_severity': {}
+                "user_id": user_id,
+                "time_period_hours": hours,
+                "total_threats": 0,
+                "by_source": {},
+                "by_severity": {},
             }
 
         # Count by source
@@ -554,12 +542,13 @@ class RealTimeThreatMonitor:
             by_severity[signal.severity] += 1
 
         return {
-            'user_id': user_id,
-            'time_period_hours': hours,
-            'total_threats': len(user_signals),
-            'by_source': dict(by_source),
-            'by_severity': dict(by_severity),
-            'avg_confidence': sum(s.confidence for s in user_signals) / len(user_signals)
+            "user_id": user_id,
+            "time_period_hours": hours,
+            "total_threats": len(user_signals),
+            "by_source": dict(by_source),
+            "by_severity": dict(by_severity),
+            "avg_confidence": sum(s.confidence for s in user_signals)
+            / len(user_signals),
         }
 
     def get_system_stats(self) -> Dict[str, Any]:
@@ -568,16 +557,16 @@ class RealTimeThreatMonitor:
         total_signals = sum(len(signals) for signals in self.signal_history.values())
 
         return {
-            'total_sessions_analyzed': total_sessions,
-            'total_threat_signals': total_signals,
-            'active_sessions': len(self.session_threats),
-            'alerts_issued': len(self.alerts_issued),
-            'detectors_enabled': {
-                'jailbreak': self.enable_jailbreak_detection,
-                'behavioral': self.enable_behavioral_analysis,
-                'uncertainty': self.enable_uncertainty_detection,
-                'intel': self.enable_threat_intel
-            }
+            "total_sessions_analyzed": total_sessions,
+            "total_threat_signals": total_signals,
+            "active_sessions": len(self.session_threats),
+            "alerts_issued": len(self.alerts_issued),
+            "detectors_enabled": {
+                "jailbreak": self.enable_jailbreak_detection,
+                "behavioral": self.enable_behavioral_analysis,
+                "uncertainty": self.enable_uncertainty_detection,
+                "intel": self.enable_threat_intel,
+            },
         }
 
     def clear_session_history(self, session_id: Optional[str] = None):
@@ -601,7 +590,7 @@ async def assess_threat(
     user_id: Optional[str] = None,
     session_id: Optional[str] = None,
     request_data: Optional[Dict[str, Any]] = None,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
 ) -> UnifiedThreatReport:
     """
     Convenience function to assess threats.
@@ -627,7 +616,7 @@ async def assess_threat(
         user_id=user_id,
         session_id=session_id,
         request_data=request_data,
-        context=context
+        context=context,
     )
 
 
@@ -636,50 +625,31 @@ def main():
     """CLI interface for real-time threat monitor"""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Real-Time Threat Monitoring System"
-    )
-    parser.add_argument(
-        '--prompt',
-        required=True,
-        help='Prompt to analyze'
-    )
-    parser.add_argument(
-        '--user-id',
-        help='User ID'
-    )
-    parser.add_argument(
-        '--request-rate',
-        type=float,
-        help='Requests per minute'
-    )
-    parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Output results as JSON'
-    )
+    parser = argparse.ArgumentParser(description="Real-Time Threat Monitoring System")
+    parser.add_argument("--prompt", required=True, help="Prompt to analyze")
+    parser.add_argument("--user-id", help="User ID")
+    parser.add_argument("--request-rate", type=float, help="Requests per minute")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
 
     args = parser.parse_args()
 
     # Build request data
     request_data = {}
     if args.request_rate:
-        request_data['requests_per_minute'] = args.request_rate
+        request_data["requests_per_minute"] = args.request_rate
 
     # Run async assessment
     async def run_assessment():
         report = await assess_threat(
-            prompt=args.prompt,
-            user_id=args.user_id,
-            request_data=request_data
+            prompt=args.prompt, user_id=args.user_id, request_data=request_data
         )
 
         if args.json:
             print(json.dumps(report.to_dict(), indent=2))
         else:
-            print("\n" + "="*80)
+            print("\n" + "=" * 80)
             print("THREAT ASSESSMENT RESULTS")
-            print("="*80)
+            print("=" * 80)
             print(f"Threat Level: {report.overall_threat_level.value.upper()}")
             print(f"Risk Score: {report.risk_score:.2%}")
             print(f"Confidence: {report.overall_confidence:.2%}")
@@ -688,12 +658,14 @@ def main():
             if report.threat_signals:
                 print(f"\nThreat Signals ({len(report.threat_signals)}):")
                 for signal in report.threat_signals:
-                    print(f"  • [{signal.source.upper()}] {signal.threat_type} "
-                          f"(confidence: {signal.confidence:.2%})")
-            print("="*80 + "\n")
+                    print(
+                        f"  • [{signal.source.upper()}] {signal.threat_type} "
+                        f"(confidence: {signal.confidence:.2%})"
+                    )
+            print("=" * 80 + "\n")
 
     asyncio.run(run_assessment())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

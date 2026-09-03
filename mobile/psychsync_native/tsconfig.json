@@ -1,0 +1,37 @@
+{
+  "extends": "@tsconfig/react-native/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "allowJs": true,
+    "jsx": "react-native",
+    "noEmit": true,
+    "isolatedModules": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveAlias": {
+      "@components": "./src/components",
+      "@screens": "./src/screens",
+      "@services": "./src/services",
+      "@hooks": "./src/hooks",
+      "@utils": "./src/utils",
+      "@types": "./src/types",
+      "@constants": "./src/constants",
+      "@contexts": "./src/contexts"
+    }
+  },
+  "include": [
+    "src/**/*",
+    "index.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js"
+  ]
+}

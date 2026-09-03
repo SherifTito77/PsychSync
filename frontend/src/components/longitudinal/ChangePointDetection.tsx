@@ -17,7 +17,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import {
   LineChart,
   Line,
@@ -243,11 +243,11 @@ const ChangePointDetection: React.FC<ChangePointDetectionProps> = ({
 
       results.push({
         metric_name: metric.name,
-        time_series_data,
+        time_series_data: timeSeriesData,
         change_points: changePoints.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
-        algorithm_performance,
-        baseline_statistics,
-        post_change_statistics
+        algorithm_performance: algorithmPerformance,
+        baseline_statistics: baselineStatistics,
+        post_change_statistics: postChangeStatistics
       });
     });
 

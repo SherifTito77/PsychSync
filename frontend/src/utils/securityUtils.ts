@@ -11,7 +11,9 @@ export const CSP_DIRECTIVES = {
     "'unsafe-eval'", // Only if absolutely necessary for React
     "'unsafe-inline'", // Only for development
     'https://apis.google.com',
-    'https://www.google-analytics.com'
+    'https://www.google-analytics.com',
+    'https://meet.jit.si',
+    'https://8x8.vc'
   ],
   'style-src': [
     "'self'",
@@ -34,11 +36,17 @@ export const CSP_DIRECTIVES = {
     'ws://localhost:5173',
     'wss://localhost:5173',
     'http://localhost:8000',
+    'http://127.0.0.1:8000',
     'http://localhost:8011',
     'https://api.stripe.com',
-    'https://www.google-analytics.com'
+    'https://www.google-analytics.com',
+    'https://meet.jit.si',
+    'wss://meet.jit.si',
+    'https://8x8.vc',
+    'wss://8x8.vc'
   ],
-  'frame-src': ["'none'"],
+  'frame-src': ["'self'", 'https://meet.jit.si', 'https://8x8.vc'],
+  'media-src': ["'self'", 'https://meet.jit.si', 'https://8x8.vc', 'blob:'],
   'object-src': ["'none'"],
   'base-uri': ["'self'"],
   'form-action': ["'self'"],

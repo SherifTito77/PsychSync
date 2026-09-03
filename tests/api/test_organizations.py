@@ -1,8 +1,10 @@
-#tests/api/test_organizations.py
+# tests/api/test_organizations.py
 
 import pytest
 from httpx import AsyncClient
+
 from app.main import app
+
 
 @pytest.mark.asyncio
 async def test_create_org():

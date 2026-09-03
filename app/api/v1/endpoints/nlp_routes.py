@@ -3,26 +3,33 @@
 # FastAPI routes for NLP services
 # ============================================================================
 
-from fastapi import APIRouter, HTTPException, Depends, status
-
-from app.middleware.rate_limiter import check_rate_limit
-from pydantic import BaseModel, Field, validator
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field, validator
+
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.services.nlp_service import NLPService
 
 router = APIRouter(prefix="/nlp", tags=["NLP"])
 
+
 # Pydantic models
 class TextAnalysisRequest(BaseModel):
-    text: str = Field(..., min_length=1, max_length=10000, description="Text to analyze")
-    include_entities: bool = Field(default=True, description="Include named entity recognition")
+    text: str = Field(
+        ..., min_length=1, max_length=10000, description="Text to analyze"
+    )
+    include_entities: bool = Field(
+        default=True, description="Include named entity recognition"
+    )
 
     @validator("text")
     def text_not_empty(cls, v):
         if not v.strip():
             raise ValueError("Text cannot be empty or only whitespace")
         return v
+
 
 class TextAnalysisResponse(BaseModel):
     sentiment: dict
@@ -31,6 +38,7 @@ class TextAnalysisResponse(BaseModel):
     psycholinguistic_markers: dict
     entities: Optional[List[dict]]
     metadata: dict
+
 
 class TrendAnalysisRequest(BaseModel):
     texts: List[str] = Field(..., min_items=2, max_items=50)
@@ -42,25 +50,29 @@ class TrendAnalysisRequest(BaseModel):
             raise ValueError("timestamps must match texts length")
         return v
 
+
 class WordCloudRequest(BaseModel):
     text: str = Field(..., min_length=10)
     max_words: int = Field(default=100, ge=10, le=500)
 
+
 class BatchAnalysisRequest(BaseModel):
     texts: List[str] = Field(..., min_items=1, max_items=50)
+
 
 # Dependency
 def get_nlp_service() -> NLPService:
     """Get NLP service instance"""
     return NLPService()
 
+
 # Routes
 
-@check_rate_limit(identifier="public", limit_name="public")
+
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/analyze", response_model=TextAnalysisResponse)
 async def analyze_text(
-    request: TextAnalysisRequest,
-    nlp_service: NLPService = Depends(get_nlp_service)
+    request: TextAnalysisRequest, nlp_service: NLPService = Depends(get_nlp_service)
 ):
     """
     Analyze text for sentiment, emotions, and linguistic features
@@ -78,13 +90,13 @@ async def analyze_text(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Analysis failed: {str(e)}"
+            detail=f"Analysis failed: {str(e)}",
         )
+
 
 @router.post("/analyze/trend")
 async def analyze_trend(
-    request: TrendAnalysisRequest,
-    nlp_service: NLPService = Depends(get_nlp_service)
+    request: TrendAnalysisRequest, nlp_service: NLPService = Depends(get_nlp_service)
 ):
     """
     Analyze sentiment trend across multiple texts
@@ -100,13 +112,13 @@ async def analyze_trend(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Trend analysis failed: {str(e)}"
+            detail=f"Trend analysis failed: {str(e)}",
         )
+
 
 @router.post("/wordcloud")
 async def generate_wordcloud(
-    request: WordCloudRequest,
-    nlp_service: NLPService = Depends(get_nlp_service)
+    request: WordCloudRequest, nlp_service: NLPService = Depends(get_nlp_service)
 ):
     """
     Generate word frequency data for wordcloud visualization
@@ -120,13 +132,13 @@ async def generate_wordcloud(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Wordcloud generation failed: {str(e)}"
+            detail=f"Wordcloud generation failed: {str(e)}",
         )
+
 
 @router.post("/analyze/batch")
 async def batch_analyze(
-    request: BatchAnalysisRequest,
-    nlp_service: NLPService = Depends(get_nlp_service)
+    request: BatchAnalysisRequest, nlp_service: NLPService = Depends(get_nlp_service)
 ):
     """
     Batch analyze multiple texts
@@ -144,15 +156,17 @@ async def batch_analyze(
             "analyses": results,
             "count": len(results),
             "summary": {
-                "avg_sentiment": sum(r["sentiment"]["overall_score"] for r in results) / len(results),
-                "dominant_emotions": _get_dominant_emotions(results)
-            }
+                "avg_sentiment": sum(r["sentiment"]["overall_score"] for r in results)
+                / len(results),
+                "dominant_emotions": _get_dominant_emotions(results),
+            },
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Batch analysis failed: {str(e)}"
+            detail=f"Batch analysis failed: {str(e)}",
         )
+
 
 @router.get("/health")
 async def health_check():
@@ -161,17 +175,20 @@ async def health_check():
         nlp_service = NLPService()
         return {
             "status": "healthy",
-            "models_loaded": all([
-                nlp_service.nlp is not None,
-                nlp_service.sentiment_analyzer is not None,
-                nlp_service.emotion_classifier is not None
-            ])
+            "models_loaded": all(
+                [
+                    nlp_service.nlp is not None,
+                    nlp_service.sentiment_analyzer is not None,
+                    nlp_service.emotion_classifier is not None,
+                ]
+            ),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service unhealthy: {str(e)}"
+            detail=f"Service unhealthy: {str(e)}",
         )
+
 
 @router.get("/metrics")
 async def get_metrics():
@@ -183,9 +200,16 @@ async def get_metrics():
         "max_wordcloud_words": 500,
         "supported_languages": ["en"],
         "available_emotions": [
-            "joy", "sadness", "anger", "fear", "surprise", "disgust", "neutral"
-        ]
+            "joy",
+            "sadness",
+            "anger",
+            "fear",
+            "surprise",
+            "disgust",
+            "neutral",
+        ],
     }
+
 
 def _get_dominant_emotions(results: List[dict]) -> dict:
     """Get dominant emotions across all analyses"""

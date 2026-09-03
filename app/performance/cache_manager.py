@@ -16,17 +16,17 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from abc import ABC, abstractmethod
-from collections import OrderedDict
-from collections.abc import Callable
-from dataclasses import dataclass, field
-from enum import Enum
 import hashlib
 import json
 import logging
 import pickle
 import threading
 import time
+from abc import ABC, abstractmethod
+from collections import OrderedDict
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 # Initialize cache logger
@@ -102,7 +102,9 @@ class CacheBackend(ABC):
 class MemoryCache(CacheBackend):
     """In-memory cache backend with LRU eviction"""
 
-    def __init__(self, max_size: int = 1000, strategy: CacheStrategy = CacheStrategy.LRU):
+    def __init__(
+        self, max_size: int = 1000, strategy: CacheStrategy = CacheStrategy.LRU
+    ):
         self.max_size = max_size
         self.strategy = strategy
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
@@ -143,7 +145,9 @@ class MemoryCache(CacheBackend):
                     entry.size_bytes = len(pickle.dumps(entry.value))
 
                 # Evict if necessary
-                while len(self._cache) >= self.max_size and entry.key not in self._cache:
+                while (
+                    len(self._cache) >= self.max_size and entry.key not in self._cache
+                ):
                     await self._evict_one()
 
                 self._cache[entry.key] = entry
@@ -183,7 +187,9 @@ class MemoryCache(CacheBackend):
             self._cache.popitem(last=False)
         elif self.strategy == CacheStrategy.LFU:
             # Remove least frequently used
-            least_used_key = min(self._cache.keys(), key=lambda k: self._cache[k].access_count)
+            least_used_key = min(
+                self._cache.keys(), key=lambda k: self._cache[k].access_count
+            )
             del self._cache[least_used_key]
         elif self.strategy == CacheStrategy.FIFO:
             # Remove first inserted
@@ -195,7 +201,9 @@ class MemoryCache(CacheBackend):
         """Get memory cache statistics"""
         with self._lock:
             total_requests = self._stats["hits"] + self._stats["misses"]
-            hit_ratio = self._stats["hits"] / total_requests if total_requests > 0 else 0
+            hit_ratio = (
+                self._stats["hits"] / total_requests if total_requests > 0 else 0
+            )
 
             return {
                 **self._stats,
@@ -316,7 +324,11 @@ class RedisCache(CacheBackend):
         total_requests = self._stats["hits"] + self._stats["misses"]
         hit_ratio = self._stats["hits"] / total_requests if total_requests > 0 else 0
 
-        return {**self._stats, "hit_ratio": round(hit_ratio, 4), "total_requests": total_requests}
+        return {
+            **self._stats,
+            "hit_ratio": round(hit_ratio, 4),
+            "total_requests": total_requests,
+        }
 
 
 class CacheManager:
@@ -354,7 +366,9 @@ class CacheManager:
     def _generate_cache_key(self, prefix: str, *args, **kwargs) -> str:
         """Generate consistent cache key"""
         key_data = {"args": args, "kwargs": sorted(kwargs.items())}
-        key_hash = hashlib.md5(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
+        key_hash = hashlib.md5(
+            json.dumps(key_data, sort_keys=True).encode()
+        ).hexdigest()
         return f"{prefix}:{key_hash}"
 
     async def get(self, key: str) -> Any | None:
@@ -390,7 +404,11 @@ class CacheManager:
             return None
 
     async def set(
-        self, key: str, value: Any, ttl: float | None = None, tags: list[str] | None = None
+        self,
+        key: str,
+        value: Any,
+        ttl: float | None = None,
+        tags: list[str] | None = None,
     ) -> bool:
         """Set value in cache (both L1 and L2)"""
         try:
@@ -470,7 +488,9 @@ class CacheManager:
             del self._tag_mappings[tag]
 
             self._performance_stats["cache_invalidations"] += invalidated_count
-            cache_logger.info(f"Invalidated {invalidated_count} cache entries for tag: {tag}")
+            cache_logger.info(
+                f"Invalidated {invalidated_count} cache entries for tag: {tag}"
+            )
 
             return invalidated_count
 
@@ -516,14 +536,18 @@ class CacheManager:
 
         return decorator
 
-    async def warm_cache(self, warmup_functions: list[tuple[str, Callable, list, dict]]):
+    async def warm_cache(
+        self, warmup_functions: list[tuple[str, Callable, list, dict]]
+    ):
         """
         Warm up cache with precomputed values
 
         Args:
             warmup_functions: List of (prefix, function, args, kwargs) tuples
         """
-        cache_logger.info(f"Starting cache warmup for {len(warmup_functions)} functions")
+        cache_logger.info(
+            f"Starting cache warmup for {len(warmup_functions)} functions"
+        )
 
         for prefix, func, args, kwargs in warmup_functions:
             try:
@@ -571,7 +595,9 @@ class CacheManager:
     def get_performance_stats(self) -> dict[str, Any]:
         """Get comprehensive cache performance statistics"""
         total_requests = self._performance_stats["total_requests"]
-        total_hits = self._performance_stats["l1_hits"] + self._performance_stats["l2_hits"]
+        total_hits = (
+            self._performance_stats["l1_hits"] + self._performance_stats["l2_hits"]
+        )
         overall_hit_ratio = total_hits / total_requests if total_requests > 0 else 0
 
         stats = {
@@ -614,7 +640,10 @@ async def initialize_cache_manager(redis_client=None) -> CacheManager:
     l2_cache = RedisCache(redis_client) if redis_client else None
 
     _cache_manager = CacheManager(
-        l1_cache=l1_cache, l2_cache=l2_cache, enable_l1=True, enable_l2=(redis_client is not None)
+        l1_cache=l1_cache,
+        l2_cache=l2_cache,
+        enable_l1=True,
+        enable_l2=(redis_client is not None),
     )
 
     cache_logger.info("Cache manager initialized")

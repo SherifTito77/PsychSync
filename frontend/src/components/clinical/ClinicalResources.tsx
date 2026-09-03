@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface Therapist {
   id: string;
@@ -41,6 +42,7 @@ interface Resource {
 }
 
 const ClinicalResources: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'therapists' | 'groups' | 'resources'>('therapists');
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [supportGroups, setSupportGroups] = useState<SupportGroup[]>([]);
@@ -49,7 +51,6 @@ const ClinicalResources: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data for demonstration - in production this would fetch from API
     const mockTherapists: Therapist[] = [
       {
         id: '1',
@@ -191,10 +192,35 @@ const ClinicalResources: React.FC = () => {
       }
     ];
 
-    setTherapists(mockTherapists);
-    setSupportGroups(mockSupportGroups);
-    setResources(mockResources);
-    setLoading(false);
+    const loadFromApi = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch('/api/v1/clinical/resources', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Use API data when the DB has been seeded; otherwise fall back to mock
+          if (data.therapists?.length) setTherapists(data.therapists);
+          else setTherapists(mockTherapists);
+          if (data.support_groups?.length) setSupportGroups(data.support_groups);
+          else setSupportGroups(mockSupportGroups);
+          if (data.resources?.length) setResources(data.resources);
+          else setResources(mockResources);
+        } else {
+          setTherapists(mockTherapists);
+          setSupportGroups(mockSupportGroups);
+          setResources(mockResources);
+        }
+      } catch {
+        setTherapists(mockTherapists);
+        setSupportGroups(mockSupportGroups);
+        setResources(mockResources);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadFromApi();
   }, []);
 
   const filteredTherapists = therapists.filter(therapist =>
@@ -259,7 +285,7 @@ const ClinicalResources: React.FC = () => {
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 flex-wrap">
           <button
             onClick={() => setActiveTab('therapists')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${

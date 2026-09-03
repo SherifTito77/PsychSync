@@ -17,29 +17,29 @@ Date: 2025-12-26
 """
 
 import asyncio
+import json
+import logging
+import smtplib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
-import json
-import logging
-import smtplib
 from typing import Any
 
 import aiohttp
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 class NotificationChannel(Enum):
     """Available notification channels"""
+
     SLACK = "slack"
     PAGERDUTY = "pagerduty"
     EMAIL = "email"
@@ -49,6 +49,7 @@ class NotificationChannel(Enum):
 
 class AlertSeverity(Enum):
     """Alert severity levels"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -59,6 +60,7 @@ class AlertSeverity(Enum):
 @dataclass
 class NotificationConfig:
     """Configuration for a notification channel"""
+
     channel: NotificationChannel
     enabled: bool = True
     min_severity: AlertSeverity = AlertSeverity.LOW
@@ -74,15 +76,18 @@ class NotificationConfig:
             AlertSeverity.HIGH: 4,
             AlertSeverity.MEDIUM: 3,
             AlertSeverity.LOW: 2,
-            AlertSeverity.INFO: 1
+            AlertSeverity.INFO: 1,
         }
 
-        return severity_order.get(severity, 0) >= severity_order.get(self.min_severity, 0)
+        return severity_order.get(severity, 0) >= severity_order.get(
+            self.min_severity, 0
+        )
 
 
 @dataclass
 class AlertNotification:
     """Alert notification data"""
+
     severity: AlertSeverity
     title: str
     description: str
@@ -112,7 +117,7 @@ class AlertNotification:
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "metadata": self.metadata,
             "runbook_url": self.runbook_url,
-            "response_action": self.response_action
+            "response_action": self.response_action,
         }
 
 
@@ -131,7 +136,7 @@ class NotificationSender:
         self,
         notification: AlertNotification,
         max_retries: int = 3,
-        retry_delay: float = 1.0
+        retry_delay: float = 1.0,
     ) -> bool:
         """Send notification with retry logic"""
         for attempt in range(max_retries):
@@ -141,18 +146,20 @@ class NotificationSender:
                     return True
 
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(retry_delay * (2 ** attempt))
+                    await asyncio.sleep(retry_delay * (2**attempt))
 
             except Exception as e:
                 logger.error(f"Notification attempt {attempt + 1} failed: {e}")
-                self.failed_notifications.append({
-                    "notification": notification.to_dict(),
-                    "error": str(e),
-                    "timestamp": datetime.utcnow().isoformat()
-                })
+                self.failed_notifications.append(
+                    {
+                        "notification": notification.to_dict(),
+                        "error": str(e),
+                        "timestamp": datetime.utcnow().isoformat(),
+                    }
+                )
 
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(retry_delay * (2 ** attempt))
+                    await asyncio.sleep(retry_delay * (2**attempt))
 
         return False
 
@@ -176,7 +183,7 @@ class SlackNotificationSender(NotificationSender):
                 AlertSeverity.HIGH: "danger",
                 AlertSeverity.MEDIUM: "warning",
                 AlertSeverity.LOW: "good",
-                AlertSeverity.INFO: "good"
+                AlertSeverity.INFO: "good",
             }
 
             emoji_map = {
@@ -184,7 +191,7 @@ class SlackNotificationSender(NotificationSender):
                 AlertSeverity.HIGH: "⚠️",
                 AlertSeverity.MEDIUM: "⚡",
                 AlertSeverity.LOW: "ℹ️",
-                AlertSeverity.INFO: "📝"
+                AlertSeverity.INFO: "📝",
             }
 
             emoji = emoji_map.get(notification.severity, "🔔")
@@ -193,46 +200,54 @@ class SlackNotificationSender(NotificationSender):
             fields = []
 
             if notification.threat_type:
-                fields.append({
-                    "title": "Threat Type",
-                    "value": notification.threat_type,
-                    "short": True
-                })
+                fields.append(
+                    {
+                        "title": "Threat Type",
+                        "value": notification.threat_type,
+                        "short": True,
+                    }
+                )
 
             if notification.user_id:
-                fields.append({
-                    "title": "User ID",
-                    "value": notification.user_id,
-                    "short": True
-                })
+                fields.append(
+                    {"title": "User ID", "value": notification.user_id, "short": True}
+                )
 
             if notification.ip_address:
-                fields.append({
-                    "title": "IP Address",
-                    "value": notification.ip_address,
-                    "short": True
-                })
+                fields.append(
+                    {
+                        "title": "IP Address",
+                        "value": notification.ip_address,
+                        "short": True,
+                    }
+                )
 
             if notification.session_id:
-                fields.append({
-                    "title": "Session ID",
-                    "value": notification.session_id,
-                    "short": True
-                })
+                fields.append(
+                    {
+                        "title": "Session ID",
+                        "value": notification.session_id,
+                        "short": True,
+                    }
+                )
 
             if notification.response_action:
-                fields.append({
-                    "title": "Response Action",
-                    "value": notification.response_action,
-                    "short": False
-                })
+                fields.append(
+                    {
+                        "title": "Response Action",
+                        "value": notification.response_action,
+                        "short": False,
+                    }
+                )
 
             if notification.runbook_url:
-                fields.append({
-                    "title": "Runbook",
-                    "value": f"<{notification.runbook_url}|View Runbook>",
-                    "short": False
-                })
+                fields.append(
+                    {
+                        "title": "Runbook",
+                        "value": f"<{notification.runbook_url}|View Runbook>",
+                        "short": False,
+                    }
+                )
 
             message = {
                 "username": "PsychSync Security",
@@ -244,19 +259,23 @@ class SlackNotificationSender(NotificationSender):
                         "text": notification.description,
                         "fields": fields,
                         "footer": "PsychSync Threat Detection",
-                        "ts": int(notification.timestamp.timestamp())
+                        "ts": int(notification.timestamp.timestamp()),
                     }
-                ]
+                ],
             }
 
             # Send to Slack
             async with aiohttp.ClientSession() as session:
-                async with session.post(webhook_url, json=message, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                async with session.post(
+                    webhook_url, json=message, timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
                     if response.status == 200:
                         logger.info(f"Slack notification sent: {notification.title}")
                         return True
                     error_text = await response.text()
-                    logger.error(f"Slack notification failed: {response.status} - {error_text}")
+                    logger.error(
+                        f"Slack notification failed: {response.status} - {error_text}"
+                    )
                     return False
 
         except Exception as e:
@@ -272,7 +291,9 @@ class PagerDutyNotificationSender(NotificationSender):
     async def send(self, notification: AlertNotification) -> bool:
         """Send notification to PagerDuty"""
         try:
-            routing_key = self.config.config.get("routing_key") or self.config.config.get("integration_key")
+            routing_key = self.config.config.get(
+                "routing_key"
+            ) or self.config.config.get("integration_key")
             if not routing_key:
                 logger.error("PagerDuty routing key not configured")
                 return False
@@ -283,7 +304,7 @@ class PagerDutyNotificationSender(NotificationSender):
                 AlertSeverity.HIGH: "error",
                 AlertSeverity.MEDIUM: "warning",
                 AlertSeverity.LOW: "info",
-                AlertSeverity.INFO: "info"
+                AlertSeverity.INFO: "info",
             }
 
             event = {
@@ -301,27 +322,35 @@ class PagerDutyNotificationSender(NotificationSender):
                         "session_id": notification.session_id,
                         "ip_address": notification.ip_address,
                         "response_action": notification.response_action,
-                        **notification.metadata
-                    }
+                        **notification.metadata,
+                    },
                 },
-                "dedup_key": f"{notification.session_id or notification.user_id}_{notification.threat_type}" if (notification.session_id or notification.user_id) else None
+                "dedup_key": (
+                    f"{notification.session_id or notification.user_id}_{notification.threat_type}"
+                    if (notification.session_id or notification.user_id)
+                    else None
+                ),
             }
 
             if notification.runbook_url:
-                event["payload"]["custom_details"]["runbook_url"] = notification.runbook_url
+                event["payload"]["custom_details"][
+                    "runbook_url"
+                ] = notification.runbook_url
 
             # Send to PagerDuty
             async with aiohttp.ClientSession() as session, session.post(
                 self.EVENTS_API_URL,
                 json=event,
                 headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status in [200, 202]:
                     logger.info(f"PagerDuty notification sent: {notification.title}")
                     return True
                 error_text = await response.text()
-                logger.error(f"PagerDuty notification failed: {response.status} - {error_text}")
+                logger.error(
+                    f"PagerDuty notification failed: {response.status} - {error_text}"
+                )
                 return False
 
         except Exception as e:
@@ -347,7 +376,9 @@ class EmailNotificationSender(NotificationSender):
 
             # Build email
             msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"[{notification.severity.value.upper()}] {notification.title}"
+            msg["Subject"] = (
+                f"[{notification.severity.value.upper()}] {notification.title}"
+            )
             msg["From"] = smtp_user
             msg["To"] = ", ".join(recipients)
 
@@ -356,7 +387,7 @@ class EmailNotificationSender(NotificationSender):
                 f"Severity: {notification.severity.value.upper()}",
                 f"Title: {notification.title}",
                 f"Description: {notification.description}",
-                f"Timestamp: {notification.timestamp.isoformat()}"
+                f"Timestamp: {notification.timestamp.isoformat()}",
             ]
 
             if notification.threat_type:
@@ -380,12 +411,13 @@ class EmailNotificationSender(NotificationSender):
                 AlertSeverity.HIGH: "#fd7e14",
                 AlertSeverity.MEDIUM: "#ffc107",
                 AlertSeverity.LOW: "#28a745",
-                AlertSeverity.INFO: "#17a2b8"
+                AlertSeverity.INFO: "#17a2b8",
             }
 
             color = severity_colors.get(notification.severity, "#6c757d")
 
-            html_parts = [f"""
+            html_parts = [
+                f"""
             <html>
             <head>
                 <style>
@@ -403,25 +435,38 @@ class EmailNotificationSender(NotificationSender):
                 </div>
                 <div class="content">
                     <p>{notification.description}</p>
-            """]
+            """
+            ]
 
             if notification.threat_type:
-                html_parts.append(f'<div class="field"><span class="label">Threat Type:</span> {notification.threat_type}</div>')
+                html_parts.append(
+                    f'<div class="field"><span class="label">Threat Type:</span> {notification.threat_type}</div>'
+                )
             if notification.user_id:
-                html_parts.append(f'<div class="field"><span class="label">User ID:</span> {notification.user_id}</div>')
+                html_parts.append(
+                    f'<div class="field"><span class="label">User ID:</span> {notification.user_id}</div>'
+                )
             if notification.ip_address:
-                html_parts.append(f'<div class="field"><span class="label">IP Address:</span> {notification.ip_address}</div>')
+                html_parts.append(
+                    f'<div class="field"><span class="label">IP Address:</span> {notification.ip_address}</div>'
+                )
             if notification.response_action:
-                html_parts.append(f'<div class="field"><span class="label">Response Action:</span> {notification.response_action}</div>')
+                html_parts.append(
+                    f'<div class="field"><span class="label">Response Action:</span> {notification.response_action}</div>'
+                )
             if notification.runbook_url:
-                html_parts.append(f'<div class="field"><span class="label">Runbook:</span> <a href="{notification.runbook_url}">View Runbook</a></div>')
+                html_parts.append(
+                    f'<div class="field"><span class="label">Runbook:</span> <a href="{notification.runbook_url}">View Runbook</a></div>'
+                )
 
-            html_parts.append(f"""
+            html_parts.append(
+                f"""
                     <div class="field"><span class="label">Timestamp:</span> {notification.timestamp.isoformat()}</div>
                 </div>
             </body>
             </html>
-            """)
+            """
+            )
 
             html_content = "".join(html_parts)
 
@@ -474,11 +519,7 @@ class SMSNotificationSender(NotificationSender):
                 try:
                     url = self.API_URL.format(account_sid=account_sid)
 
-                    data = {
-                        "From": from_number,
-                        "To": to_number,
-                        "Body": message
-                    }
+                    data = {"From": from_number, "To": to_number, "Body": message}
 
                     auth = aiohttp.BasicAuth(account_sid, auth_token)
 
@@ -487,19 +528,23 @@ class SMSNotificationSender(NotificationSender):
                             url,
                             data=data,
                             auth=auth,
-                            timeout=aiohttp.ClientTimeout(total=10)
+                            timeout=aiohttp.ClientTimeout(total=10),
                         ) as response:
                             if response.status in [200, 201]:
                                 success_count += 1
                             else:
                                 error_text = await response.text()
-                                logger.error(f"Twilio SMS failed to {to_number}: {response.status} - {error_text}")
+                                logger.error(
+                                    f"Twilio SMS failed to {to_number}: {response.status} - {error_text}"
+                                )
 
                 except Exception as e:
                     logger.error(f"Failed to send SMS to {to_number}: {e}")
 
             if success_count > 0:
-                logger.info(f"SMS notification sent to {success_count}/{len(to_numbers)} recipients")
+                logger.info(
+                    f"SMS notification sent to {success_count}/{len(to_numbers)} recipients"
+                )
                 return True
             return False
 
@@ -522,7 +567,7 @@ class WebhookNotificationSender(NotificationSender):
             # Build webhook payload
             payload = {
                 "notification": notification.to_dict(),
-                "channel": "psychsync-threat-detection"
+                "channel": "psychsync-threat-detection",
             }
 
             headers = self.config.config.get("headers", {})
@@ -532,13 +577,15 @@ class WebhookNotificationSender(NotificationSender):
                 webhook_url,
                 json=payload,
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status in [200, 201, 202, 204]:
                     logger.info(f"Webhook notification sent: {notification.title}")
                     return True
                 error_text = await response.text()
-                logger.error(f"Webhook notification failed: {response.status} - {error_text}")
+                logger.error(
+                    f"Webhook notification failed: {response.status} - {error_text}"
+                )
                 return False
 
         except Exception as e:
@@ -569,7 +616,9 @@ class AlertNotificationSystem:
             if sender:
                 self.senders[config.channel] = sender
 
-        logger.info(f"Alert notification system initialized with {len(self.senders)} channels")
+        logger.info(
+            f"Alert notification system initialized with {len(self.senders)} channels"
+        )
 
     def _create_sender(self, config: NotificationConfig) -> NotificationSender | None:
         """Create appropriate sender for channel"""
@@ -578,7 +627,7 @@ class AlertNotificationSystem:
             NotificationChannel.PAGERDUTY: PagerDutyNotificationSender,
             NotificationChannel.EMAIL: EmailNotificationSender,
             NotificationChannel.SMS: SMSNotificationSender,
-            NotificationChannel.WEBHOOK: WebhookNotificationSender
+            NotificationChannel.WEBHOOK: WebhookNotificationSender,
         }
 
         sender_class = sender_classes.get(config.channel)
@@ -611,7 +660,9 @@ class AlertNotificationSystem:
 
         # Log summary
         successful = sum(1 for s in results.values() if s)
-        logger.info(f"Alert sent to {successful}/{len(results)} channels: {notification.title}")
+        logger.info(
+            f"Alert sent to {successful}/{len(results)} channels: {notification.title}"
+        )
 
         return results
 
@@ -620,15 +671,19 @@ class AlertNotificationSystem:
         stats = {
             "total_channels": len(self.senders),
             "enabled_channels": sum(1 for c in self.configs if c.enabled),
-            "channels": []
+            "channels": [],
         }
 
         for channel, sender in self.senders.items():
-            stats["channels"].append({
-                "channel": channel.value,
-                "enabled": next((c.enabled for c in self.configs if c.channel == channel), False),
-                "failed_notifications": len(sender.failed_notifications)
-            })
+            stats["channels"].append(
+                {
+                    "channel": channel.value,
+                    "enabled": next(
+                        (c.enabled for c in self.configs if c.channel == channel), False
+                    ),
+                    "failed_notifications": len(sender.failed_notifications),
+                }
+            )
 
         return stats
 
@@ -639,7 +694,7 @@ def create_notification_hook(notification_system: AlertNotificationSystem) -> Ca
     Create a notification hook for AutomatedThreatResponder.
 
     Usage:
-        from ai.security.auto_response import AutomatedThreatResponder
+        from app.ai.security.auto_response import AutomatedThreatResponder
         from app.monitoring.alert_notification_system import create_notification_hook, AlertNotificationSystem
 
         notification_system = AlertNotificationSystem(configs)
@@ -648,7 +703,9 @@ def create_notification_hook(notification_system: AlertNotificationSystem) -> Ca
         )
     """
 
-    async def notification_hook(threat_report: dict[str, Any], response_report: dict[str, Any]) -> None:
+    async def notification_hook(
+        threat_report: dict[str, Any], response_report: dict[str, Any]
+    ) -> None:
         """Send notification based on threat report"""
         try:
             # Map threat levels to alert severities
@@ -657,7 +714,7 @@ def create_notification_hook(notification_system: AlertNotificationSystem) -> Ca
                 "high": AlertSeverity.HIGH,
                 "medium": AlertSeverity.MEDIUM,
                 "low": AlertSeverity.LOW,
-                "safe": AlertSeverity.INFO
+                "safe": AlertSeverity.INFO,
             }
 
             threat_level = threat_report.get("overall_threat_level", "low")
@@ -667,7 +724,9 @@ def create_notification_hook(notification_system: AlertNotificationSystem) -> Ca
             notification = AlertNotification(
                 severity=alert_severity,
                 title=f"Threat Detected: {threat_level.upper()}",
-                description=threat_report.get("summary", f"Threat level: {threat_level}"),
+                description=threat_report.get(
+                    "summary", f"Threat level: {threat_level}"
+                ),
                 threat_type=threat_report.get("dominant_threat_type"),
                 user_id=threat_report.get("user_id"),
                 session_id=threat_report.get("session_id"),
@@ -675,8 +734,10 @@ def create_notification_hook(notification_system: AlertNotificationSystem) -> Ca
                 metadata={
                     "risk_score": threat_report.get("risk_score"),
                     "recommended_action": threat_report.get("recommended_action"),
-                    "threat_signals_count": len(threat_report.get("threat_signals", []))
-                }
+                    "threat_signals_count": len(
+                        threat_report.get("threat_signals", [])
+                    ),
+                },
             )
 
             # Send notification
@@ -690,10 +751,7 @@ def create_notification_hook(notification_system: AlertNotificationSystem) -> Ca
 
 # Convenience functions
 async def send_security_alert(
-    severity: str,
-    title: str,
-    description: str,
-    **kwargs
+    severity: str, title: str, description: str, **kwargs
 ) -> dict[str, bool]:
     """
     Convenience function to send security alert.
@@ -721,10 +779,7 @@ async def send_security_alert(
     alert_severity = AlertSeverity(severity.lower())
 
     notification = AlertNotification(
-        severity=alert_severity,
-        title=title,
-        description=description,
-        **kwargs
+        severity=alert_severity, title=title, description=description, **kwargs
     )
 
     return await notification_system.send_alert(notification)
@@ -734,7 +789,9 @@ async def send_security_alert(
 _notification_system: AlertNotificationSystem | None = None
 
 
-def initialize_notification_system(configs: list[NotificationConfig]) -> AlertNotificationSystem:
+def initialize_notification_system(
+    configs: list[NotificationConfig],
+) -> AlertNotificationSystem:
     """Initialize global notification system"""
     global _notification_system
     _notification_system = AlertNotificationSystem(configs)
@@ -751,20 +808,14 @@ def main():
     """CLI interface for notification system"""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Alert Notification System"
-    )
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        help="Send test notification"
-    )
+    parser = argparse.ArgumentParser(description="Alert Notification System")
+    parser.add_argument("--test", action="store_true", help="Send test notification")
     parser.add_argument(
         "--severity",
         type=str,
         default="critical",
         choices=["critical", "high", "medium", "low", "info"],
-        help="Test notification severity"
+        help="Test notification severity",
     )
 
     args = parser.parse_args()
@@ -778,7 +829,7 @@ def main():
                 NotificationConfig(
                     channel=NotificationChannel.SLACK,
                     enabled=True,
-                    config={"webhook_url": "YOUR_SLACK_WEBHOOK_URL"}
+                    config={"webhook_url": "YOUR_SLACK_WEBHOOK_URL"},
                 )
             ]
 
@@ -789,7 +840,7 @@ def main():
                 title="Test Security Alert",
                 description="This is a test notification from PsychSync Threat Detection System",
                 threat_type="test",
-                metadata={"test": True}
+                metadata={"test": True},
             )
 
             results = await system.send_alert(notification)

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Role Badges</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid;
+            margin-left: 8px;
+        }
+        .badge-admin {
+            background-color: #f3e8ff;
+            color: #7c3aed;
+            border-color: #c4b5fd;
+        }
+        .badge-hr {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+        }
+        .badge-manager {
+            background-color: #dcfce7;
+            color: #15803d;
+            border-color: #86efac;
+        }
+        .badge-employee {
+            background-color: #f3f4f6;
+            color: #374151;
+            border-color: #d1d5db;
+        }
+    </style>
+</head>
+<body>
+    <h1>Role Badge Tester</h1>
+
+    <div class="info">
+        <h2>Current Role</h2>
+        <p id="current-role">Not logged in</p>
+    </div>
+
+    <div class="info">
+        <h2>How to use</h2>
+        <ol>
+            <li>Open your browser's Developer Console (F12)</li>
+            <li>Paste one of the commands below to set your role</li>
+            <li>Refresh the page to see the badge</li>
+        </ol>
+    </div>
+
+    <h2>Set Role Commands (run in browser console)</h2>
+
+    <h3>1. Set as Admin</h3>
+    <pre>const user = JSON.parse(localStorage.getItem('user') || '{}');
+user.role = 'admin';
+user.is_superuser = true;
+localStorage.setItem('user', JSON.stringify(user));
+location.reload();</pre>
+
+    <h3>2. Set as HR</h3>
+    <pre>const user = JSON.parse(localStorage.getItem('user') || '{}');
+user.role = 'hr';
+user.is_superuser = false;
+localStorage.setItem('user', JSON.stringify(user));
+location.reload();</pre>
+
+    <h3>3. Set as Manager</h3>
+    <pre>const user = JSON.parse(localStorage.getItem('user') || '{}');
+user.role = 'manager';
+user.is_superuser = false;
+localStorage.setItem('user', JSON.stringify(user));
+location.reload();</pre>
+
+    <h3>4. Set as Employee</h3>
+    <pre>const user = JSON.parse(localStorage.getItem('user') || '{}');
+user.role = 'employee';
+user.is_superuser = false;
+localStorage.setItem('user', JSON.stringify(user));
+location.reload();</pre>
+
+    <h2>Preview of Badges</h2>
+    <div>
+        Sherif Tito <span class="badge badge-admin">Admin</span>
+    </div>
+    <div>
+        Sherif Tito <span class="badge badge-hr">HR</span>
+    </div>
+    <div>
+        Sherif Tito <span class="badge badge-manager">Manager</span>
+    </div>
+    <div>
+        Sherif Tito <span class="badge badge-employee">Employee</span>
+    </div>
+
+    <script>
+        // Check current user role
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const roleElement = document.getElementById('current-role');
+
+        if (user.full_name) {
+            const badgeClass = `badge-${user.role || 'employee'}`;
+            const label = user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Employee';
+            roleElement.innerHTML = `
+                ${user.full_name} <span class="badge ${badgeClass}">${label}</span>
+            `;
+        } else {
+            roleElement.innerHTML = '<strong>Please login first</strong>';
+        }
+    </script>
+</body>
+</html>

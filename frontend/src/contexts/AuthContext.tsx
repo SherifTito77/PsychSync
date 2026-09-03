@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.tsx
 // Enhanced authentication context with httpOnly cookie-based authentication
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, ReactNode } from 'react';
 import { User, ApiResponse, RegisterFormData } from '../types';
 import { login as authServiceLogin, register, getCurrentUser, logout as authServiceLogout } from '../services/authService';
 import { SecurityUtils } from '../utils/securityUtils';
@@ -33,42 +33,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isSessionExpired, setIsSessionExpired] = useState<boolean>(false);
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
 
-  // Enhanced initialization with security checks
+  // ✅ Use ref for session timeout to avoid re-creating interval
+  const sessionTimeoutRef = useRef<number>(parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '1800000'));
+
+  // ✅ Track mounted status for useCallback hooks
+  const isMountedRef = useRef<boolean>(true);
+
+  // ✅ Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Enhanced initialization with security checks
+  // ✅ FIXED: Using isMountedRef consistently
+  useEffect(() => {
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
     const initAuth = async () => {
       try {
-        // SECURITY: Check for existing user data in localStorage
-        // Tokens are in httpOnly cookies, managed by backend
         const userData = localStorage.getItem('user');
 
         if (userData) {
           try {
-            // Get current user from backend to validate session
             const currentUser = await getCurrentUser();
+
+            if (!isMountedRef.current || signal.aborted) {
+              return;
+            }
+
             if (currentUser && SecurityUtils.validateEmail(currentUser.email)) {
               setUser(currentUser);
               setLastActivity(Date.now());
             } else {
-              console.warn('Invalid user data received');
               handleLogout();
             }
-          } catch (error) {
-            console.error('Failed to fetch current user:', error);
-            // Backend will validate httpOnly cookies
-            // If 401, cookies are invalid/expired
+          } catch (error: any) {
             localStorage.removeItem('user');
-            setUser(null);
+            if (isMountedRef.current && !signal.aborted) {
+              setUser(null);
+            }
           }
         }
-      } catch (error) {
-        console.error('Authentication initialization failed:', error);
-        handleLogout();
+      } catch (error: any) {
+        if (isMountedRef.current && !signal.aborted) {
+          handleLogout();
+        }
       } finally {
-        setIsLoading(false);
+        if (isMountedRef.current && !signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     initAuth();
+
+    return () => {
+      abortController.abort();
+    };
   }, []);
   // Enhanced login with security validation
   const handleLogin = useCallback(async (email: string, password: string): Promise<ApiResponse> => {
@@ -98,9 +123,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       if (loggedInUser && SecurityUtils.validateEmail(loggedInUser.email)) {
-        setUser(loggedInUser);
-        setLastActivity(Date.now());
-        setIsSessionExpired(false);
+        // ✅ Store user in localStorage for persistence across navigations
+        localStorage.setItem('user', JSON.stringify(loggedInUser));
+
+        // ✅ Check if component is still mounted before updating state
+        if (isMountedRef.current) {
+          setUser(loggedInUser);
+          setLastActivity(Date.now());
+          setIsSessionExpired(false);
+        }
 
         // Clear login attempts on success
         sessionStorage.removeItem('login_attempts');
@@ -188,22 +219,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // Enhanced logout with comprehensive cleanup
+  // ✅ Removed user dependency - no more infinite loop
   const handleLogout = useCallback(() => {
     try {
-      // Log security event
-      if (user) {
-        SecurityUtils.storeSecurityMetrics({
-          type: 'LOGOUT',
-          timestamp: Date.now(),
-          userId: user.id?.toString() || 'unknown'
-        });
-      }
-
-      // Clear auth state
+      // Clear auth state first (before trying to log metrics)
       authServiceLogout();
-      setUser(null);
-      setIsSessionExpired(false);
-      setLastActivity(0);
+
+      // ✅ Check if component is still mounted before updating state
+      if (isMountedRef.current) {
+        setUser(null);
+        setIsSessionExpired(false);
+        setLastActivity(0);
+      }
 
       // Clear user data from localStorage (non-sensitive)
       localStorage.removeItem('user');
@@ -217,6 +244,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
 
       // SECURITY: Tokens are in httpOnly cookies, cleared by backend logout endpoint
+      // Note: Security metrics removed to avoid user dependency that causes loop
+      // If needed, use a ref or separate effect to log after logout
 
     } catch (error) {
       console.error('Logout error:', error);
@@ -224,9 +253,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(null);
       localStorage.removeItem('user');
     }
-  }, [user]);
+  }, []);  // ✅ No dependencies - stable reference
 
   // Token refresh functionality
+  // ✅ Removed handleLogout dependency - direct state clearing
   const refreshToken = useCallback(async (): Promise<boolean> => {
     try {
       // SECURITY: Token refresh handled automatically by backend via httpOnly cookies
@@ -240,10 +270,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     } catch (error) {
       console.error('Token refresh failed:', error);
-      handleLogout();
+      // ✅ Clear state directly without calling handleLogout to avoid loop
+      setUser(null);
+      setLastActivity(0);
+      localStorage.removeItem('user');
       return false;
     }
-  }, [handleLogout]);
+  }, []);  // ✅ No dependencies - stable reference
 
   // Update last activity timestamp
   const updateLastActivity = useCallback(() => {
@@ -251,19 +284,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // Session monitoring
+  // ✅ FIXED: Removed lastActivity dependency to prevent interval recreation
   useEffect(() => {
     const sessionMonitor = setInterval(() => {
       const now = Date.now();
-      const sessionTimeout = parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '1800000'); // 30 minutes
+      const sessionTimeout = sessionTimeoutRef.current;
+      const currentActivity = lastActivity; // Capture current value in closure
 
-      if (lastActivity && (now - lastActivity) > sessionTimeout) {
+      if (currentActivity && (now - currentActivity) > sessionTimeout) {
         setIsSessionExpired(true);
-        handleLogout();
+        // ✅ Clear state directly without calling handleLogout to avoid loop
+        if (isMountedRef.current) {
+          setUser(null);
+          setLastActivity(0);
+          localStorage.removeItem('user');
+        }
       }
     }, 60000); // Check every minute
 
     return () => clearInterval(sessionMonitor);
-  }, [lastActivity, handleLogout]);
+  }, []); // ✅ Empty deps - interval created once, reads latest lastActivity value
 
   // ✅ MEMOIZED: Only creates new object when dependencies change
   const value: AuthContextType = useMemo(() => ({

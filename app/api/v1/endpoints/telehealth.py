@@ -1,331 +1,321 @@
 """
 Telehealth API Endpoints
-Video consultation management with Twilio integration
 
-HIPAA Compliant:
-- All sessions logged
-- Encrypted recordings
-- Access controlled
-- Audit trail maintained
+Queries TelehealthSession table for real session data.
+Supports scheduling, joining, and managing telehealth sessions.
+
+HIPAA: All endpoints handle PHI (session notes, consultation reasons).
 """
 
-import logging
-from datetime import datetime
-from typing import Optional
-from uuid import UUID
+import uuid
+from datetime import datetime, timedelta
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, get_db
+from app.api.dependencies.hipaa import audit_phi_access, require_clinical_access
+from app.core.database import get_db
 from app.db.models.user import User
-from app.services.telehealth.video_service import TelehealthVideoService
-
-router = APIRouter(prefix="/telehealth", tags=["telehealth"])
-logger = logging.getLogger(__name__)
 
 
-# ============================================================================
-# REQUEST/RESPONSE SCHEMAS
-# ============================================================================
-
-class CreateSessionRequest(BaseModel):
-    """Request to create a telehealth session"""
-    clinician_id: UUID
-    scheduled_time: datetime
-    session_type: str = "initial"  # initial, follow_up, crisis, group
-    duration_minutes: int = 60
-    recording_enabled: bool = False
-
-
-class SessionNotesRequest(BaseModel):
-    """Clinical notes for completed session"""
-    session_notes: Optional[str] = None
-    diagnosis_codes: Optional[list] = None
-    treatment_plan: Optional[str] = None
-    patient_satisfaction: Optional[int] = None
+async def _audit_telehealth(
+    request: Request,
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Audit all telehealth PHI access."""
+    action = "write" if request.method in ("POST", "PUT", "PATCH", "DELETE") else "read"
+    await audit_phi_access(
+        db,
+        current_user,
+        "telehealth_sessions",
+        action,
+        details={"endpoint": request.url.path},
+        request=request,
+    )
 
 
-class CancelSessionRequest(BaseModel):
-    """Request to cancel a session"""
-    cancellation_reason: Optional[str] = None
+router = APIRouter(
+    prefix="/telehealth",
+    tags=["telehealth"],
+    dependencies=[Depends(_audit_telehealth)],
+)
 
 
-# ============================================================================
-# TELEHEALTH ENDPOINTS
-# ============================================================================
+def _get_session_model():
+    from app.db.models.clinical_extended import TelehealthSession
 
-@router.post("/schedule")
-async def schedule_consultation(
-    request: CreateSessionRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Schedule a video consultation with a clinician
-
-    Creates a Twilio Video room and generates access tokens for both participants.
-    Requires explicit consent for recording if enabled.
-    """
-    try:
-        video_service = TelehealthVideoService(db)
-
-        # Check clinician availability
-        is_available = await video_service.check_clinician_availability(
-            clinician_id=request.clinician_id,
-            requested_time=request.scheduled_time
-        )
-
-        if not is_available:
-            raise HTTPException(
-                400,
-                "Clinician is not available at the requested time. Please choose a different time."
-            )
-
-        # Create consultation room
-        session_data = await video_service.create_consultation_room(
-            user_id=current_user.id,
-            clinician_id=request.clinician_id,
-            scheduled_time=request.scheduled_time,
-            session_type=request.session_type,
-            duration_minutes=request.duration_minutes,
-            recording_enabled=request.recording_enabled
-        )
-
-        # Log session creation (audit trail)
-        logger.info(
-            f"Telehealth session {session_data['session_id']} scheduled "
-            f"for user {current_user.id} at {request.scheduled_time}"
-        )
-
-        return {
-            "success": True,
-            "message": "Video consultation scheduled successfully",
-            "data": session_data
-        }
-
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        logger.error(f"Failed to schedule consultation: {e}")
-        raise HTTPException(500, "Failed to schedule consultation") from e
+    return TelehealthSession
 
 
-@router.get("/join/{session_id}")
-async def join_consultation(
-    session_id: UUID,
-    user_role: str = Query(..., description="Role: 'patient' or 'clinician'"),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Join a scheduled video consultation
-
-    Returns room details and access token for the specified user role.
-    Tokens are time-limited and expire after 2 hours.
-    """
-    try:
-        video_service = TelehealthVideoService(db)
-
-        session_data = await video_service.join_session(
-            session_id=session_id,
-            user_id=current_user.id,
-            user_role=user_role
-        )
-
-        logger.info(f"User {current_user.id} joined telehealth session {session_id}")
-
-        return {
-            "success": True,
-            "message": "Successfully joined consultation",
-            "data": session_data
-        }
-
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        logger.error(f"Failed to join consultation: {e}")
-        raise HTTPException(500, "Failed to join consultation") from e
-
-
-@router.post("/start/{session_id}")
-async def start_session(
-    session_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Start a telehealth session (clinician only)
-
-    Marks the session as in-progress and records the start time.
-    Only the assigned clinician can start the session.
-    """
-    try:
-        video_service = TelehealthVideoService(db)
-
-        session_data = await video_service.start_session(
-            session_id=session_id,
-            user_id=current_user.id
-        )
-
-        logger.info(f"Clinician {current_user.id} started session {session_id}")
-
-        return {
-            "success": True,
-            "message": "Session started successfully",
-            "data": session_data
-        }
-
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        logger.error(f"Failed to start session: {e}")
-        raise HTTPException(500, "Failed to start session") from e
-
-
-@router.post("/end/{session_id}")
-async def end_session(
-    session_id: UUID,
-    notes: SessionNotesRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    End a telehealth session and save clinical notes
-
-    Completes the session and optionally saves clinical documentation.
-    Can be called by either participant but typically by clinician.
-    """
-    try:
-        video_service = TelehealthVideoService(db)
-
-        session_data = await video_service.end_session(
-            session_id=session_id,
-            user_id=current_user.id,
-            session_notes=notes.session_notes,
-            diagnosis_codes=notes.diagnosis_codes,
-            treatment_plan=notes.treatment_plan,
-            patient_satisfaction=notes.patient_satisfaction
-        )
-
-        logger.info(
-            f"Session {session_id} ended by user {current_user.id}. "
-            f"Duration: {session_data.get('actual_duration_minutes')} minutes"
-        )
-
-        return {
-            "success": True,
-            "message": "Session ended successfully",
-            "data": session_data
-        }
-
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        logger.error(f"Failed to end session: {e}")
-        raise HTTPException(500, "Failed to end session") from e
-
-
-@router.post("/cancel/{session_id}")
-async def cancel_session(
-    session_id: UUID,
-    request: CancelSessionRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Cancel a scheduled telehealth session
-
-    Cancels an upcoming session. Cannot cancel completed or in-progress sessions.
-    Both patient and clinician can cancel.
-    """
-    try:
-        video_service = TelehealthVideoService(db)
-
-        session_data = await video_service.cancel_session(
-            session_id=session_id,
-            user_id=current_user.id,
-            cancellation_reason=request.cancellation_reason
-        )
-
-        logger.info(
-            f"Session {session_id} cancelled by user {current_user.id}. "
-            f"Reason: {request.cancellation_reason or 'Not provided'}"
-        )
-
-        return {
-            "success": True,
-            "message": "Session cancelled successfully",
-            "data": session_data
-        }
-
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        logger.error(f"Failed to cancel session: {e}")
-        raise HTTPException(500, "Failed to cancel session") from e
+def _serialize_session(s) -> dict[str, Any]:
+    return {
+        "id": str(s.id),
+        "user_id": str(s.user_id),
+        "clinician_id": str(s.clinician_id) if s.clinician_id else None,
+        "session_type": s.session_type,
+        "consultation_reason": s.consultation_reason,
+        "scheduled_time": s.scheduled_time.isoformat() if s.scheduled_time else None,
+        "duration_minutes": s.duration_minutes,
+        "status": s.status,
+        "room_name": s.room_name,
+        "connection_quality": s.connection_quality,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+    }
 
 
 @router.get("/upcoming")
 async def get_upcoming_sessions(
-    role: str = Query("patient", description="Filter by role: 'patient' or 'clinician'"),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Get upcoming telehealth sessions
+    role: Optional[str] = Query(default="patient"),
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get upcoming scheduled telehealth sessions."""
+    TelehealthSession = _get_session_model()
+    now = datetime.utcnow()
 
-    Returns all scheduled future sessions for the current user.
-    Can filter by role if user is both a patient and a clinician.
-    """
-    try:
-        video_service = TelehealthVideoService(db)
-
-        sessions = await video_service.get_upcoming_sessions(
-            user_id=current_user.id,
-            role=role
+    if role == "clinician":
+        filter_cond = and_(
+            TelehealthSession.clinician_id == current_user.id,
+            TelehealthSession.scheduled_time >= now,
+            TelehealthSession.status == "scheduled",
+        )
+    else:
+        filter_cond = and_(
+            TelehealthSession.user_id == current_user.id,
+            TelehealthSession.scheduled_time >= now,
+            TelehealthSession.status == "scheduled",
         )
 
-        return {
-            "success": True,
-            "count": len(sessions),
-            "data": sessions
-        }
+    result = await db.execute(
+        select(TelehealthSession)
+        .where(filter_cond)
+        .order_by(TelehealthSession.scheduled_time.asc())
+        .limit(20)
+    )
+    sessions = [_serialize_session(s) for s in result.scalars().all()]
 
-    except Exception as e:
-        logger.error(f"Failed to get upcoming sessions: {e}")
-        raise HTTPException(500, "Failed to retrieve upcoming sessions") from e
+    return {"data": sessions, "count": len(sessions)}
 
 
-@router.get("/availability")
-async def check_availability(
-    clinician_id: UUID,
-    requested_time: datetime,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Check if a clinician is available at a specific time
+@router.get("/sessions/active")
+async def get_active_sessions(
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get currently active sessions for the user."""
+    TelehealthSession = _get_session_model()
 
-    Returns True if the clinician has no conflicts within 1 hour of the requested time.
-    Useful for scheduling UI to show available slots.
-    """
-    try:
-        video_service = TelehealthVideoService(db)
-
-        is_available = await video_service.check_clinician_availability(
-            clinician_id=clinician_id,
-            requested_time=requested_time
+    result = await db.execute(
+        select(TelehealthSession)
+        .where(
+            and_(
+                or_(
+                    TelehealthSession.user_id == current_user.id,
+                    TelehealthSession.clinician_id == current_user.id,
+                ),
+                TelehealthSession.status == "in_progress",
+            )
         )
+        .order_by(TelehealthSession.started_at.desc())
+    )
+    sessions = [_serialize_session(s) for s in result.scalars().all()]
 
-        return {
-            "success": True,
-            "available": is_available,
-            "clinician_id": str(clinician_id),
-            "requested_time": requested_time.isoformat()
-        }
+    return {"data": sessions, "count": len(sessions)}
 
-    except Exception as e:
-        logger.error(f"Failed to check availability: {e}")
-        raise HTTPException(500, "Failed to check availability") from e
+
+@router.get("/sessions/{session_id}")
+async def get_session(
+    session_id: str,
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get a specific session by ID."""
+    TelehealthSession = _get_session_model()
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        return {"session_id": session_id, "status": "not_found"}
+
+    result = await db.execute(
+        select(TelehealthSession).where(TelehealthSession.id == sid)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        return {"session_id": session_id, "status": "not_found"}
+
+    data = _serialize_session(session)
+    data["session_notes"] = session.session_notes
+    data["started_at"] = session.started_at.isoformat() if session.started_at else None
+    data["ended_at"] = session.ended_at.isoformat() if session.ended_at else None
+    data["actual_duration_minutes"] = session.actual_duration_minutes
+    return data
+
+
+class ScheduleRequest(BaseModel):
+    session_type: str = "routine"
+    consultation_reason: Optional[str] = None
+    scheduled_time: Optional[str] = None
+    duration_minutes: int = 50
+    clinician_id: Optional[str] = None
+
+
+@router.post("/schedule")
+async def schedule_session(
+    body: Optional[ScheduleRequest] = None,
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Schedule a new telehealth session."""
+    TelehealthSession = _get_session_model()
+
+    scheduled_time = datetime.utcnow() + timedelta(days=1)
+    if body and body.scheduled_time:
+        try:
+            scheduled_time = datetime.fromisoformat(body.scheduled_time)
+        except ValueError:
+            pass
+
+    room_name = f"psychsync-{uuid.uuid4().hex[:12]}"
+
+    session = TelehealthSession(
+        user_id=current_user.id,
+        clinician_id=(
+            uuid.UUID(body.clinician_id) if body and body.clinician_id else None
+        ),
+        session_type=body.session_type if body else "routine",
+        consultation_reason=body.consultation_reason if body else None,
+        scheduled_time=scheduled_time,
+        duration_minutes=body.duration_minutes if body else 50,
+        room_name=room_name,
+        status="scheduled",
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+
+    return {
+        "id": str(session.id),
+        "status": "scheduled",
+        "room_name": room_name,
+        "scheduled_time": scheduled_time.isoformat(),
+        "created_at": (
+            session.created_at.isoformat()
+            if session.created_at
+            else datetime.utcnow().isoformat()
+        ),
+    }
+
+
+@router.post("/join")
+async def join_session(
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Join the next upcoming session."""
+    TelehealthSession = _get_session_model()
+    now = datetime.utcnow()
+
+    # Find nearest scheduled session
+    result = await db.execute(
+        select(TelehealthSession)
+        .where(
+            and_(
+                or_(
+                    TelehealthSession.user_id == current_user.id,
+                    TelehealthSession.clinician_id == current_user.id,
+                ),
+                TelehealthSession.status.in_(["scheduled", "in_progress"]),
+            )
+        )
+        .order_by(TelehealthSession.scheduled_time.asc())
+        .limit(1)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        return {"token": "", "room_name": "", "status": "no_session_available"}
+
+    # Mark as in progress
+    if session.status == "scheduled":
+        session.status = "in_progress"
+        session.started_at = now
+        if session.user_id == current_user.id:
+            session.user_joined_at = now
+        else:
+            session.clinician_joined_at = now
+        await db.commit()
+
+    return {
+        "token": session.user_token or "",
+        "room_name": session.room_name or "",
+        "session_id": str(session.id),
+        "status": "joined",
+    }
+
+
+@router.post("/end/{session_id}")
+async def end_session(
+    session_id: str,
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """End a telehealth session."""
+    TelehealthSession = _get_session_model()
+    try:
+        sid = uuid.UUID(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session ID")
+
+    result = await db.execute(
+        select(TelehealthSession).where(TelehealthSession.id == sid)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    now = datetime.utcnow()
+    session.status = "completed"
+    session.ended_at = now
+    if session.started_at:
+        session.actual_duration_minutes = int(
+            (now - session.started_at).total_seconds() / 60
+        )
+    await db.commit()
+
+    return {"session_id": session_id, "status": "ended", "ended_at": now.isoformat()}
+
+
+@router.post("/cancel")
+async def cancel_session(
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Cancel the next upcoming scheduled session."""
+    TelehealthSession = _get_session_model()
+
+    result = await db.execute(
+        select(TelehealthSession)
+        .where(
+            and_(
+                TelehealthSession.user_id == current_user.id,
+                TelehealthSession.status == "scheduled",
+            )
+        )
+        .order_by(TelehealthSession.scheduled_time.asc())
+        .limit(1)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        return {"status": "no_session_to_cancel"}
+
+    session.status = "cancelled"
+    session.cancelled_by = "patient"
+    session.cancelled_at = datetime.utcnow()
+    await db.commit()
+
+    return {"status": "cancelled", "session_id": str(session.id)}

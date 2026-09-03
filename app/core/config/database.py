@@ -33,8 +33,10 @@ class DatabaseConfig:
         default="postgresql+asyncpg://postgres:password@localhost:5432/psychsync",
         env="DATABASE_URL",
     )
-    DATABASE_POOL_SIZE: int = Field(default=40, env="DATABASE_POOL_SIZE")
-    DATABASE_MAX_OVERFLOW: int = Field(default=60, env="DATABASE_MAX_OVERFLOW")
+    # Pool defaults safe for Supabase free tier (60 pooled connections).
+    # With 2 workers: 2 * (10 + 5) = 30 connections max, well under limit.
+    DATABASE_POOL_SIZE: int = Field(default=10, env="DATABASE_POOL_SIZE")
+    DATABASE_MAX_OVERFLOW: int = Field(default=5, env="DATABASE_MAX_OVERFLOW")
     DATABASE_POOL_RECYCLE: int = Field(default=3600, env="DATABASE_POOL_RECYCLE")
     DATABASE_POOL_TIMEOUT: int = Field(default=30, env="DATABASE_POOL_TIMEOUT")
 
@@ -76,13 +78,17 @@ class DatabaseConfig:
                 return v
 
         # Allow SQLite for development flexibility
-        if environment == "development" and ("sqlite" in v or "memory" in v or "aiosqlite" in v):
+        if environment == "development" and (
+            "sqlite" in v or "memory" in v or "aiosqlite" in v
+        ):
             db_config_logger.info(f"Using SQLite database for development: {v[:50]}...")
             return v
 
         # Check for secure connection in production
         if "postgresql://" in v and "ssl=" not in v:
-            db_config_logger.warning("Database URL should include SSL settings for production")
+            db_config_logger.warning(
+                "Database URL should include SSL settings for production"
+            )
 
         # Validate URL format for non-testing environments
         allowed_drivers = [
@@ -111,7 +117,9 @@ class DatabaseConfig:
         if v <= 0:
             raise ValueError("Statement timeout must be positive")
         if v > 3600000:  # 1 hour
-            db_config_logger.warning("Very long statement timeout may allow runaway queries")
+            db_config_logger.warning(
+                "Very long statement timeout may allow runaway queries"
+            )
         return v
 
     def get_connection_args(self) -> dict:
@@ -164,10 +172,14 @@ class DatabaseConfig:
         # Check for production security requirements
         if "production" in getattr(self, "ENVIRONMENT", "development"):
             if self.DB_SSL_MODE == "disable":
-                raise RuntimeError("SSL must be enabled for production database connections")
+                raise RuntimeError(
+                    "SSL must be enabled for production database connections"
+                )
 
             if not self.DB_SSL_CA:
-                db_config_logger.warning("Production database should use SSL certificate authority")
+                db_config_logger.warning(
+                    "Production database should use SSL certificate authority"
+                )
 
         # Validate pool sizes
         total_connections = self.DATABASE_POOL_SIZE + self.DATABASE_MAX_OVERFLOW
@@ -177,7 +189,9 @@ class DatabaseConfig:
                 "Monitor for resource exhaustion."
             )
 
-    def get_database_url_for_env(self, async_driver: bool = True, test_mode: bool = False) -> str:
+    def get_database_url_for_env(
+        self, async_driver: bool = True, test_mode: bool = False
+    ) -> str:
         """
         Get database URL for specific environment and mode
 
@@ -208,7 +222,11 @@ class DatabaseConfig:
 
         # Add SSL parameters if not present (but not for asyncpg drivers)
         # asyncpg handles SSL configuration through connect_args, not URL parameters
-        if self.DB_SSL_MODE != "disable" and "?ssl=" not in url and "asyncpg" not in url:
+        if (
+            self.DB_SSL_MODE != "disable"
+            and "?ssl=" not in url
+            and "asyncpg" not in url
+        ):
             separator = "&" if "?" in url else "?"
             url += f"{separator}sslmode={self.DB_SSL_MODE}"
 

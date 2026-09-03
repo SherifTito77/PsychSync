@@ -7,6 +7,7 @@ Supports Gmail, Outlook, Office365, Exchange, and IMAP connections
 import base64
 from datetime import datetime, timedelta
 
+import httpx
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -14,7 +15,6 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -99,7 +99,10 @@ class EmailConnectorService:
         )
 
         auth_url, _ = flow.authorization_url(
-            access_type="offline", include_granted_scopes="true", state=state, prompt="consent"
+            access_type="offline",
+            include_granted_scopes="true",
+            state=state,
+            prompt="consent",
         )
         return auth_url
 
@@ -191,7 +194,9 @@ class EmailConnectorService:
 
         # Encrypt tokens
         encrypted_access_token = self.encrypt_token(access_token)
-        encrypted_refresh_token = self.encrypt_token(refresh_token) if refresh_token else None
+        encrypted_refresh_token = (
+            self.encrypt_token(refresh_token) if refresh_token else None
+        )
 
         # Calculate token expiration (Gmail tokens expire in 1 hour)
         token_expires_at = datetime.utcnow() + timedelta(hours=1)
@@ -222,7 +227,9 @@ class EmailConnectorService:
         logger.info(f"Created email connection for user {user_id}, provider {provider}")
         return email_connection
 
-    async def refresh_access_token(self, db: AsyncSession, connection: EmailConnection) -> bool:
+    async def refresh_access_token(
+        self, db: AsyncSession, connection: EmailConnection
+    ) -> bool:
         """Refresh access token for email connection"""
         if not connection.refresh_token_encrypted:
             logger.error(f"No refresh token available for connection {connection.id}")
@@ -243,10 +250,15 @@ class EmailConnectorService:
                 credentials.refresh(Request())
 
                 # Update encrypted tokens
-                connection.access_token_encrypted = self.encrypt_token(credentials.token)
+                connection.access_token_encrypted = self.encrypt_token(
+                    credentials.token
+                )
                 connection.token_expires_at = credentials.expiry
 
-            elif connection.provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
+            elif connection.provider in [
+                EmailProvider.OUTLOOK,
+                EmailProvider.OFFICE365,
+            ]:
                 token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
                 data = {
                     "client_id": self.outlook_config["client_id"],
@@ -265,7 +277,9 @@ class EmailConnectorService:
                 new_refresh_token = token_data.get("refresh_token", refresh_token)
 
                 connection.access_token_encrypted = self.encrypt_token(new_access_token)
-                connection.refresh_token_encrypted = self.encrypt_token(new_refresh_token)
+                connection.refresh_token_encrypted = self.encrypt_token(
+                    new_refresh_token
+                )
                 connection.token_expires_at = datetime.utcnow() + timedelta(hours=1)
 
             await db.commit()
@@ -279,11 +293,16 @@ class EmailConnectorService:
             await db.commit()
             return False
 
-    async def test_connection(self, db: AsyncSession, connection: EmailConnection) -> bool:
+    async def test_connection(
+        self, db: AsyncSession, connection: EmailConnection
+    ) -> bool:
         """Test if email connection is working"""
         try:
             # Check if token needs refresh
-            if connection.token_expires_at and connection.token_expires_at <= datetime.utcnow():
+            if (
+                connection.token_expires_at
+                and connection.token_expires_at <= datetime.utcnow()
+            ):
                 if not await self.refresh_access_token(db, connection):
                     return False
 
@@ -326,7 +345,9 @@ class EmailConnectorService:
             }
 
             # Test by getting user profile
-            response = requests.get("https://graph.microsoft.com/v1.0/me", headers=headers)
+            response = requests.get(
+                "https://graph.microsoft.com/v1.0/me", headers=headers
+            )
             return response.status_code == 200
 
         except Exception as e:
@@ -347,12 +368,16 @@ class EmailConnectorService:
             logger.error(f"IMAP connection test failed: {e}")
             return False
 
-    async def get_user_connections(self, db: AsyncSession, user_id: str) -> list[EmailConnection]:
+    async def get_user_connections(
+        self, db: AsyncSession, user_id: str
+    ) -> list[EmailConnection]:
         """Get all email connections for a user"""
         result = await db.execute(query)
         return result.scalars().all()
 
-    async def disconnect_email(self, db: AsyncSession, connection_id: str, user_id: str) -> bool:
+    async def disconnect_email(
+        self, db: AsyncSession, connection_id: str, user_id: str
+    ) -> bool:
         """Disconnect email connection"""
         connection = result = await db.execute(query)
         return result.scalars().all()

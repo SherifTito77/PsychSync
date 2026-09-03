@@ -5,23 +5,22 @@ API endpoints for SQL security analysis and vulnerability tracking
 """
 
 from datetime import datetime, timedelta
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from app.api.v1.deps import get_current_active_user, get_db
-from app.crud.crud_sql_audit import sql_query, sql_scan_report, sql_vulnerability
+from app.crud.crud_sql_audit import sql_query, sql_scan_report
 from app.db.models.sql_audit import SQLQuery, SQLScanReport, SQLVulnerability
 from app.db.models.user import User
 from app.schemas.sql_audit import (
     SQLQuery,
     SQLQueryUpdate,
+    SQLRecommendation,
+    SQLRiskTrend,
     SQLScanReport,
     SQLSecuritySummary,
-    SQLRiskTrend,
-    SQLRecommendation,
     SQLVulnerability,
 )
 
@@ -30,11 +29,26 @@ router = APIRouter(prefix="/sql_audit", tags=["sql_audit"])
 
 @router.get(
     "/queries",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[SQLQuery],
 )
-async def get_sql_queries(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+async def get_sql_queries(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
     risk_level: str | None = Query(None, description="Filter by risk level"),
     file_path: str | None = Query(None, description="Filter by file path"),
     unfixed_only: bool = Query(False, description="Show only unfixed queries"),
@@ -65,10 +79,25 @@ async def get_sql_queries(    skip: int = Query(0, ge=0),
 
 @router.get(
     "/queries/summary",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=SQLSecuritySummary,
 )
-async def get_security_summary(    db: AsyncSession = Depends(get_db),
+async def get_security_summary(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> SQLSecuritySummary:
     """Get overall SQL security summary"""
@@ -84,14 +113,19 @@ async def get_security_summary(    db: AsyncSession = Depends(get_db),
 
     # Get unfixed vulnerabilities
     vuln_result = await db.execute(
-        select(func.count(SQLVulnerability.id)).where(SQLVulnerability.verified_safe == 0.0)
+        select(func.count(SQLVulnerability.id)).where(
+            SQLVulnerability.verified_safe == 0.0
+        )
     )
     total_vulnerabilities = vuln_result.scalar() or 0
 
     # Critical issues
     critical_result = await db.execute(
         select(func.count(SQLVulnerability.id)).where(
-            and_(SQLVulnerability.severity == "critical", SQLVulnerability.verified_safe == 0.0)
+            and_(
+                SQLVulnerability.severity == "critical",
+                SQLVulnerability.verified_safe == 0.0,
+            )
         )
     )
     critical_issues = critical_result.scalar() or 0
@@ -147,10 +181,25 @@ async def get_security_summary(    db: AsyncSession = Depends(get_db),
 
 @router.get(
     "/queries/trends",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[SQLRiskTrend],
 )
-async def get_risk_trends(    days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
+async def get_risk_trends(
+    days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> list[SQLRiskTrend]:
@@ -190,13 +239,30 @@ async def get_risk_trends(    days: int = Query(30, ge=1, le=365, description="N
 
 @router.get(
     "/vulnerabilities",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[SQLVulnerability],
 )
-async def get_vulnerabilities(    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+async def get_vulnerabilities(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
     severity: str | None = Query(None, description="Filter by severity"),
-    unresolved_only: bool = Query(True, description="Show only unresolved vulnerabilities"),
+    unresolved_only: bool = Query(
+        True, description="Show only unresolved vulnerabilities"
+    ),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> list[SQLVulnerability]:
@@ -213,9 +279,13 @@ async def get_vulnerabilities(    skip: int = Query(0, ge=0),
     if filters:
         query = query.where(*filters)
 
-    query = query.order_by(
-        SQLVulnerability.severity.desc(), SQLVulnerability.discovered_at.desc()
-    ).offset(skip).limit(limit)
+    query = (
+        query.order_by(
+            SQLVulnerability.severity.desc(), SQLVulnerability.discovered_at.desc()
+        )
+        .offset(skip)
+        .limit(limit)
+    )
 
     result = await db.execute(query)
     vulnerabilities = result.scalars().all()
@@ -225,10 +295,25 @@ async def get_vulnerabilities(    skip: int = Query(0, ge=0),
 
 @router.get(
     "/reports/latest",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=SQLScanReport,
 )
-async def get_latest_report(    db: AsyncSession = Depends(get_db),
+async def get_latest_report(
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> SQLScanReport:
     """Get the latest SQL scan report"""
@@ -242,10 +327,25 @@ async def get_latest_report(    db: AsyncSession = Depends(get_db),
 
 @router.get(
     "/reports",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[SQLScanReport],
 )
-async def get_scan_reports(    skip: int = Query(0, ge=0),
+async def get_scan_reports(
+    skip: int = Query(0, ge=0),
     limit: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -257,10 +357,25 @@ async def get_scan_reports(    skip: int = Query(0, ge=0),
 
 @router.get(
     "/recommendations",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[SQLRecommendation],
 )
-async def get_recommendations(    limit: int = Query(10, ge=1, le=50),
+async def get_recommendations(
+    limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> list[SQLRecommendation]:
@@ -302,10 +417,25 @@ async def get_recommendations(    limit: int = Query(10, ge=1, le=50),
 
 @router.put(
     "/queries/{query_id}",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=SQLQuery,
 )
-async def update_query(    query_id: str,
+async def update_query(
+    query_id: str,
     query_in: SQLQueryUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -322,10 +452,25 @@ async def update_query(    query_id: str,
 
 @router.post(
     "/queries/{query_id}/mark-fixed",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=SQLQuery,
 )
-async def mark_query_fixed(    query_id: str,
+async def mark_query_fixed(
+    query_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> SQLQuery:
@@ -342,9 +487,24 @@ async def mark_query_fixed(    query_id: str,
     "/health",
     summary="Health check endpoint",
     description="Check API and database connectivity status",
-    responses={200: {'description': 'System is healthy', 'content': {'application/json': {'example': {'status': 'healthy', 'database': 'connected', 'redis': 'connected', 'timestamp': '2025-01-13T10:00:00Z'}}}}},
+    responses={
+        200: {
+            "description": "System is healthy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "healthy",
+                        "database": "connected",
+                        "redis": "connected",
+                        "timestamp": "2025-01-13T10:00:00Z",
+                    }
+                }
+            },
+        }
+    },
 )
-async def health_check(    current_user: User = Depends(get_current_active_user),
+async def health_check(
+    current_user: User = Depends(get_current_active_user),
 ) -> dict[str, str]:
     """Health check endpoint for SQL audit service"""
     return {

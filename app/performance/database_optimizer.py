@@ -16,10 +16,10 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from contextlib import asynccontextmanager
-from dataclasses import dataclass
 import logging
 import time
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import text
@@ -90,7 +90,9 @@ class DatabaseOptimizer:
                 execution_time = time.time() - start_time
 
                 # Record metrics
-                await self._record_query_metrics(str(query), execution_time, rows_affected)
+                await self._record_query_metrics(
+                    str(query), execution_time, rows_affected
+                )
 
                 yield result
 
@@ -98,7 +100,9 @@ class DatabaseOptimizer:
                 perf_logger.error(f"Query execution error: {e}")
                 raise
 
-    async def _record_query_metrics(self, query: str, execution_time: float, rows_affected: int):
+    async def _record_query_metrics(
+        self, query: str, execution_time: float, rows_affected: int
+    ):
         """Record query performance metrics"""
         try:
             # Extract table name from query (simplified)
@@ -169,7 +173,9 @@ class DatabaseOptimizer:
                     "query": query,
                     "execution_plan": [str(row[0]) for row in execution_plan],
                     "analysis": analysis,
-                    "recommendations": await self._generate_query_recommendations(query, analysis),
+                    "recommendations": await self._generate_query_recommendations(
+                        query, analysis
+                    ),
                 }
 
         except Exception as e:
@@ -182,7 +188,8 @@ class DatabaseOptimizer:
             plan_text = "\n".join(str(row[0]) for row in execution_plan)
 
             analysis = {
-                "uses_index": "Index Scan" in plan_text or "Index Only Scan" in plan_text,
+                "uses_index": "Index Scan" in plan_text
+                or "Index Only Scan" in plan_text,
                 "full_table_scan": "Seq Scan" in plan_text,
                 "nested_loops": "Nested Loop" in plan_text,
                 "hash_operations": "Hash" in plan_text,
@@ -215,7 +222,9 @@ class DatabaseOptimizer:
         try:
             import re
 
-            planning_match = re.search(r"planning time: (\d+\.\d+) ms", plan_text.lower())
+            planning_match = re.search(
+                r"planning time: (\d+\.\d+) ms", plan_text.lower()
+            )
             if planning_match:
                 return float(planning_match.group(1))
             return None
@@ -227,7 +236,9 @@ class DatabaseOptimizer:
         try:
             import re
 
-            execution_match = re.search(r"execution time: (\d+\.\d+) ms", plan_text.lower())
+            execution_match = re.search(
+                r"execution time: (\d+\.\d+) ms", plan_text.lower()
+            )
             if execution_match:
                 return float(execution_match.group(1))
             return None
@@ -242,23 +253,31 @@ class DatabaseOptimizer:
 
         try:
             if not analysis.get("uses_index") and analysis.get("full_table_scan"):
-                recommendations.append("Consider adding indexes for columns used in WHERE clauses")
+                recommendations.append(
+                    "Consider adding indexes for columns used in WHERE clauses"
+                )
 
             if analysis.get("nested_loops"):
                 recommendations.append("Consider rewriting joins to avoid nested loops")
 
             if analysis.get("sort_operations"):
-                recommendations.append("Consider adding indexes to support ORDER BY clauses")
+                recommendations.append(
+                    "Consider adding indexes to support ORDER BY clauses"
+                )
 
             if analysis.get("estimated_cost", 0) > 1000:
-                recommendations.append("Query has high estimated cost - consider optimization")
+                recommendations.append(
+                    "Query has high estimated cost - consider optimization"
+                )
 
             # Add general recommendations based on query patterns
             if "SELECT *" in query.upper():
                 recommendations.append("Avoid SELECT * - specify only needed columns")
 
             if query.count("JOIN") > 3:
-                recommendations.append("Consider breaking complex joins into multiple queries")
+                recommendations.append(
+                    "Consider breaking complex joins into multiple queries"
+                )
 
             return recommendations
 
@@ -273,7 +292,9 @@ class DatabaseOptimizer:
         try:
             # Analyze slow queries
             slow_queries = [
-                q for q in self.query_history if q.execution_time > self.slow_query_threshold
+                q
+                for q in self.query_history
+                if q.execution_time > self.slow_query_threshold
             ]
 
             # Group queries by table
@@ -298,7 +319,9 @@ class DatabaseOptimizer:
                             table_name=table_name,
                             column_names=[column],
                             index_type="btree",
-                            estimated_improvement=self._estimate_improvement(queries, column),
+                            estimated_improvement=self._estimate_improvement(
+                                queries, column
+                            ),
                             reason=f"Frequent WHERE clause usage in {len(queries)} slow queries",
                         )
                         recommendations.append(recommendation)
@@ -317,14 +340,18 @@ class DatabaseOptimizer:
 
             async with self.db_session_maker() as session:
                 result = await session.execute(
-                    text(f"""
+                    text(
+                        f"""
                     SELECT indexname, indexdef
                     FROM pg_indexes
                     WHERE tablename = '{table_name}'
-                """)
+                """
+                    )
                 )
 
-                indexes = [{"name": row[0], "definition": row[1]} for row in result.fetchall()]
+                indexes = [
+                    {"name": row[0], "definition": row[1]} for row in result.fetchall()
+                ]
                 self._index_cache[table_name] = indexes
 
                 return indexes
@@ -342,14 +369,18 @@ class DatabaseOptimizer:
 
             for query in queries:
                 # Find WHERE clause patterns
-                where_matches = re.findall(r"WHERE\s+([\w\s=><!]+)", query.query, re.IGNORECASE)
+                where_matches = re.findall(
+                    r"WHERE\s+([\w\s=><!]+)", query.query, re.IGNORECASE
+                )
 
                 for match in where_matches:
                     # Extract column names (simplified)
                     columns = re.findall(r"(\w+)\s*[=><!]", match)
                     for column in columns:
                         if column.lower() not in ["and", "or", "not"]:
-                            column_counts[column.lower()] = column_counts.get(column.lower(), 0) + 1
+                            column_counts[column.lower()] = (
+                                column_counts.get(column.lower(), 0) + 1
+                            )
 
             # Return columns used in multiple queries
             return [col for col, count in column_counts.items() if count > 1]
@@ -397,7 +428,9 @@ class DatabaseOptimizer:
             avg_time = total_time / total_queries if total_queries > 0 else 0
 
             slow_queries = [
-                q for q in self.query_history if q.execution_time > self.slow_query_threshold
+                q
+                for q in self.query_history
+                if q.execution_time > self.slow_query_threshold
             ]
 
             # Group by table
@@ -425,7 +458,9 @@ class DatabaseOptimizer:
                 "total_execution_time": round(total_time, 3),
                 "average_execution_time": round(avg_time, 3),
                 "slow_queries": len(slow_queries),
-                "slow_query_percentage": round((len(slow_queries) / total_queries) * 100, 2),
+                "slow_query_percentage": round(
+                    (len(slow_queries) / total_queries) * 100, 2
+                ),
                 "slow_query_threshold": self.slow_query_threshold,
                 "table_statistics": table_stats,
                 "index_recommendations": await self.get_index_recommendations(),
@@ -443,24 +478,30 @@ class DatabaseOptimizer:
                 await session.execute(text(f"ANALYZE {table_name}"))
 
                 # Get row count
-                result = await session.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                result = await session.execute(
+                    text(f"SELECT COUNT(*) FROM {table_name}")
+                )
                 row_count = result.scalar()
 
                 # Get table size
                 result = await session.execute(
-                    text(f"""
+                    text(
+                        f"""
                     SELECT pg_size_pretty(pg_total_relation_size('{table_name}'))
-                """)
+                """
+                    )
                 )
                 table_size = result.scalar()
 
                 # Check for fragmentation (simplified)
                 result = await session.execute(
-                    text(f"""
+                    text(
+                        f"""
                     SELECT schemaname, tablename, attname, n_distinct, correlation
                     FROM pg_stats
                     WHERE tablename = '{table_name}'
-                """)
+                """
+                    )
                 )
                 stats = result.fetchall()
 
@@ -469,7 +510,11 @@ class DatabaseOptimizer:
                     "row_count": row_count,
                     "table_size": table_size,
                     "column_statistics": [
-                        {"column": row[2], "distinct_values": row[3], "correlation": row[4]}
+                        {
+                            "column": row[2],
+                            "distinct_values": row[3],
+                            "correlation": row[4],
+                        }
                         for row in stats
                     ],
                     "optimization_actions": [
@@ -503,7 +548,9 @@ def get_database_optimizer() -> DatabaseOptimizer | None:
     return _database_optimizer
 
 
-def initialize_database_optimizer(db_session_maker: async_sessionmaker) -> DatabaseOptimizer:
+def initialize_database_optimizer(
+    db_session_maker: async_sessionmaker,
+) -> DatabaseOptimizer:
     """Initialize the global database optimizer"""
     global _database_optimizer
     _database_optimizer = DatabaseOptimizer(db_session_maker)

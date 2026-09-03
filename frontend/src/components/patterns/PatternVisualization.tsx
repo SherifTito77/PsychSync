@@ -17,7 +17,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import {
   LineChart,
   Line,
@@ -35,8 +35,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Cell,
-  HeatmapChart,
-  TreemapChart,
+  // HeatmapChart and TreemapChart are not available in recharts
 } from 'recharts';
 import {
   Network,
@@ -65,6 +64,7 @@ interface AnomalyPoint {
   anomaly_score: number;
   type: string;
   description: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 interface NetworkNode {
@@ -140,7 +140,18 @@ const PatternVisualization: React.FC<PatternVisualizationProps> = ({
 }) => {
   const [selectedVisualization, setSelectedVisualization] = useState<VisualizationType>(type);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [hoveredPoint, setHoveredPoint] = useState<any>(null);
+
+  // Define type for hovered data points
+  interface HoveredPoint {
+    timestamp: number | string;
+    value: number;
+    category?: string;
+    confidence?: number;
+    severity?: string;
+    baseline?: number;
+  }
+
+  const [hoveredPoint, setHoveredPoint] = useState<HoveredPoint | null>(null);
 
   // Process data for visualization
   const processedData = useMemo(() => {
@@ -218,7 +229,17 @@ const PatternVisualization: React.FC<PatternVisualizationProps> = ({
   }, []);
 
   // Custom tooltip for better data display
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      payload: HoveredPoint;
+      value?: number;
+      name?: string;
+    }>;
+    label?: string | number;
+  }
+
+  const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload[0]) {
       const data = payload[0].payload;
       return (
@@ -447,7 +468,7 @@ const PatternVisualization: React.FC<PatternVisualizationProps> = ({
             )}
 
             {/* Visualization Type Selector */}
-            <Select value={selectedVisualization} onValueChange={(value: any) => setSelectedVisualization(value)}>
+            <Select value={selectedVisualization} onValueChange={(value: string) => setSelectedVisualization(value as VisualizationType)}>
               <SelectTrigger className="w-40">
                 <SelectValue />
               </SelectTrigger>

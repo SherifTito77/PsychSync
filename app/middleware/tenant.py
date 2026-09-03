@@ -8,19 +8,19 @@ Created: 2025-01-12
 Author: Architecture Team
 """
 
-from fastapi import Request, HTTPException, status
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
 import logging
 from typing import Optional
 from uuid import UUID
 
+from fastapi import HTTPException, Request, status
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
+
+from app.core.cache import async_cache
 from app.db.models.organization import Organization
 from app.db.models.user import User
-from app.core.cache import async_cache
-
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
                 if not tenant:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
-                        detail="Tenant not found or inactive"
+                        detail="Tenant not found or inactive",
                     )
 
                 # Add tenant to request state
@@ -254,7 +254,9 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
         # Return user's organization_id
         return user.organization_id
 
-    async def _validate_and_cache_tenant(self, tenant_id: UUID) -> Optional[Organization]:
+    async def _validate_and_cache_tenant(
+        self, tenant_id: UUID
+    ) -> Optional[Organization]:
         """
         Validate tenant exists and is active. Cache result.
 
@@ -307,7 +309,7 @@ class TenantContextMiddleware(BaseHTTPMiddleware):
                 # Set PostgreSQL session variable
                 await db.execute(
                     text("SELECT set_config('app.current_tenant', :tenant_id, false)"),
-                    {"tenant_id": str(tenant_id)}
+                    {"tenant_id": str(tenant_id)},
                 )
 
                 logger.debug(f"Set DB tenant context: {tenant_id}")
@@ -367,8 +369,7 @@ async def require_tenant(request: Request) -> Organization:
 
     if not tenant:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Tenant not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found"
         )
 
     return tenant

@@ -53,10 +53,10 @@ const StrengthsFinderPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      const response = await apiClient.get('/assessment-questions/strengthsfinder');
+      const response = await apiClient.get('/assessments/assessment-questions/strengthsfinder');
 
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
+      if (response.data && (response.data as any).success) {
+        const backendAssessment = (response.data as any).assessment;
         const strengthsFinderAssessment: StrengthsFinderAssessment = {
           id: backendAssessment.id,
           title: backendAssessment.title,
@@ -114,8 +114,8 @@ const StrengthsFinderPage: React.FC = () => {
         raw_type: 'StrengthsFinder'
       });
 
-      if (response.data && response.data.success) {
-        setResults(response.data.result);
+      if (response.data && (response.data as any).success) {
+        setResults((response.data as any).result);
         console.log('✅ StrengthsFinder assessment submitted successfully');
       } else {
         throw new Error('Submission failed');

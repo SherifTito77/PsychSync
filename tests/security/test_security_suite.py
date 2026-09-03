@@ -6,21 +6,22 @@ Author: Security Team
 Version: 1.0.0
 """
 
-import pytest
-import requests
-from typing import Dict, List, Any
 import os
 from datetime import datetime
+from typing import Any, Dict, List
+
+import pytest
+import requests
 
 # Test configuration
 BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8000")
 ADMIN_USER = {
     "email": os.getenv("TEST_ADMIN_EMAIL", "admin@psychsync.com"),
-    "password": os.getenv("TEST_ADMIN_PASSWORD", "Admin123!")
+    "password": os.getenv("TEST_ADMIN_PASSWORD", "Admin123!"),
 }
 TEST_USER = {
     "email": os.getenv("TEST_USER_EMAIL", "test@psychsync.com"),
-    "password": os.getenv("TEST_USER_PASSWORD", "Test123!")
+    "password": os.getenv("TEST_USER_PASSWORD", "Test123!"),
 }
 
 
@@ -28,7 +29,7 @@ class SecurityTestSuite:
     """Comprehensive security test suite"""
 
     def __init__(self, base_url: str = BASE_URL):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.results: List[Dict[str, Any]] = []
         self.session = requests.Session()
 
@@ -53,7 +54,7 @@ class SecurityTestSuite:
         for group_name, test_func in test_groups:
             print(f"\n{'=' * 70}")
             print(f"TEST GROUP: {group_name}")
-            print('=' * 70)
+            print("=" * 70)
             test_func()
 
         return self._generate_report()
@@ -71,7 +72,7 @@ class SecurityTestSuite:
                 self._add_finding(
                     "HIGH",
                     "Weak password accepted",
-                    f"Password '{password}' should be rejected"
+                    f"Password '{password}' should be rejected",
                 )
                 print(f"  ✗ FAIL: Weak password '{password}' accepted")
             else:
@@ -91,7 +92,7 @@ class SecurityTestSuite:
             self._add_finding(
                 "HIGH",
                 "No brute force protection",
-                "Account not locked after multiple failed attempts"
+                "Account not locked after multiple failed attempts",
             )
             print(f"  ✗ FAIL: No brute force protection detected")
 
@@ -100,7 +101,7 @@ class SecurityTestSuite:
         session1 = requests.Session()
         login_response = session1.post(
             f"{self.base_url}/api/v1/auth/login",
-            json={"email": TEST_USER["email"], "password": TEST_USER["password"]}
+            json={"email": TEST_USER["email"], "password": TEST_USER["password"]},
         )
 
         if login_response.status_code == 200:
@@ -113,9 +114,7 @@ class SecurityTestSuite:
 
             if protected_response.status_code == 200:
                 self._add_finding(
-                    "MEDIUM",
-                    "Session fixation possible",
-                    "Session can be reused"
+                    "MEDIUM", "Session fixation possible", "Session can be reused"
                 )
                 print("  ✗ FAIL: Session fixation vulnerability")
             else:
@@ -135,9 +134,7 @@ class SecurityTestSuite:
                 # Check if token is signed
                 if "." not in token:
                     self._add_finding(
-                        "CRITICAL",
-                        "JWT not properly signed",
-                        "Token missing signature"
+                        "CRITICAL", "JWT not properly signed", "Token missing signature"
                     )
                     print("  ✗ FAIL: JWT not signed")
                 else:
@@ -145,6 +142,7 @@ class SecurityTestSuite:
 
                 # Check token expiry
                 import jwt
+
                 try:
                     decoded = jwt.decode(token, options={"verify_signature": False})
                     exp = decoded.get("exp")
@@ -155,13 +153,19 @@ class SecurityTestSuite:
                             self._add_finding(
                                 "MEDIUM",
                                 "Token expiry too long",
-                                f"Token expires in {exp_minutes:.0f} minutes"
+                                f"Token expires in {exp_minutes:.0f} minutes",
                             )
-                            print(f"  ⚠ WARN: Token expiry too long ({exp_minutes:.0f} minutes)")
+                            print(
+                                f"  ⚠ WARN: Token expiry too long ({exp_minutes:.0f} minutes)"
+                            )
                         else:
-                            print(f"  ✓ PASS: Token expiry appropriate ({exp_minutes:.0f} minutes)")
-                except:
-                    print("  ⊘ SKIP: Could not verify token expiry")
+                            print(
+                                f"  ✓ PASS: Token expiry appropriate ({exp_minutes:.0f} minutes)"
+                            )
+                except (KeyError, TypeError, ValueError) as e:
+                    print(
+                        f"  ⊘ SKIP: Could not verify token expiry ({type(e).__name__})"
+                    )
         else:
             print("  ⊘ SKIP: Could not test JWT security")
 
@@ -175,23 +179,24 @@ class SecurityTestSuite:
             "admin'--",
             "1' UNION SELECT * FROM users--",
             "'; DROP TABLE users; --",
-            "1' AND 1=1--"
+            "1' AND 1=1--",
         ]
 
         vulnerable = False
         for payload in sql_payloads:
             response = self.session.get(
-                f"{self.base_url}/api/v1/users",
-                params={"search": payload}
+                f"{self.base_url}/api/v1/users", params={"search": payload}
             )
 
             # Check for SQL error messages
-            if "sql" in response.text.lower() or "mysql" in response.text.lower() or "postgresql" in response.text.lower():
+            if (
+                "sql" in response.text.lower()
+                or "mysql" in response.text.lower()
+                or "postgresql" in response.text.lower()
+            ):
                 vulnerable = True
                 self._add_finding(
-                    "CRITICAL",
-                    "SQL injection vulnerability",
-                    f"Payload: {payload}"
+                    "CRITICAL", "SQL injection vulnerability", f"Payload: {payload}"
                 )
                 print(f"  ✗ FAIL: SQL injection with payload: {payload[:30]}...")
                 break
@@ -206,23 +211,20 @@ class SecurityTestSuite:
             "javascript:alert('XSS')",
             "<img src=x onerror=alert('XSS')>",
             "<svg onload=alert('XSS')>",
-            "'><script>alert(String.fromCharCode(88,83,83))</script>"
+            "'><script>alert(String.fromCharCode(88,83,83))</script>",
         ]
 
         xss_vulnerable = False
         for payload in xss_payloads:
             response = self.session.post(
-                f"{self.base_url}/api/v1/users",
-                json={"username": payload}
+                f"{self.base_url}/api/v1/users", json={"username": payload}
             )
 
             # Check if payload is reflected unescaped
             if payload in response.text:
                 xss_vulnerable = True
                 self._add_finding(
-                    "HIGH",
-                    "XSS vulnerability",
-                    f"Payload reflected: {payload[:30]}..."
+                    "HIGH", "XSS vulnerability", f"Payload reflected: {payload[:30]}..."
                 )
                 print(f"  ✗ FAIL: XSS with payload: {payload[:30]}...")
                 break
@@ -237,23 +239,20 @@ class SecurityTestSuite:
             "| cat /etc/passwd",
             "$(whoami)",
             "`id`",
-            "; ping -c 1 evil.com"
+            "; ping -c 1 evil.com",
         ]
 
         cmd_vulnerable = False
         for payload in cmd_payloads:
             response = self.session.get(
-                f"{self.base_url}/api/v1/search",
-                params={"q": payload}
+                f"{self.base_url}/api/v1/search", params={"q": payload}
             )
 
             # Check for command output
             if "root:" in response.text or "uid=" in response.text:
                 cmd_vulnerable = True
                 self._add_finding(
-                    "CRITICAL",
-                    "Command injection vulnerability",
-                    f"Payload: {payload}"
+                    "CRITICAL", "Command injection vulnerability", f"Payload: {payload}"
                 )
                 print(f"  ✗ FAIL: Command injection with payload: {payload}")
                 break
@@ -270,7 +269,7 @@ class SecurityTestSuite:
             "/api/v1/users",
             "/api/v1/assessments",
             "/api/v1/teams",
-            "/api/v1/analytics"
+            "/api/v1/analytics",
         ]
 
         all_protected = True
@@ -282,7 +281,7 @@ class SecurityTestSuite:
                 self._add_finding(
                     "HIGH",
                     "Unauthenticated endpoint access",
-                    f"Endpoint {endpoint} accessible without auth"
+                    f"Endpoint {endpoint} accessible without auth",
                 )
                 print(f"  ✗ FAIL: {endpoint} accessible without authentication")
             elif response.status_code in [401, 403]:
@@ -302,30 +301,27 @@ class SecurityTestSuite:
 
             if response.status_code == 429:
                 rate_limited = True
-                print(f"  ✓ PASS: Rate limiting triggered after {request_count} requests")
+                print(
+                    f"  ✓ PASS: Rate limiting triggered after {request_count} requests"
+                )
                 break
 
         if not rate_limited:
             self._add_finding(
                 "MEDIUM",
                 "No rate limiting detected",
-                "Made 100 requests without rate limit"
+                "Made 100 requests without rate limit",
             )
             print("  ✗ FAIL: No rate limiting detected")
 
         # Test 3: CORS configuration
         print("\n3. Testing CORS configuration...")
-        cors_origins = [
-            "https://evil.com",
-            "https://attacker.com",
-            "null"
-        ]
+        cors_origins = ["https://evil.com", "https://attacker.com", "null"]
 
         cors_vulnerable = False
         for origin in cors_origins:
             response = requests.options(
-                f"{self.base_url}/api/v1/health",
-                headers={"Origin": origin}
+                f"{self.base_url}/api/v1/health", headers={"Origin": origin}
             )
 
             aca_header = response.headers.get("Access-Control-Allow-Origin")
@@ -334,7 +330,7 @@ class SecurityTestSuite:
                 self._add_finding(
                     "MEDIUM",
                     "Permissive CORS configuration",
-                    f"Allows origin: {origin}"
+                    f"Allows origin: {origin}",
                 )
                 print(f"  ✗ FAIL: CORS allows origin: {origin}")
                 break
@@ -350,7 +346,7 @@ class SecurityTestSuite:
         error_endpoints = [
             "/api/v1/nonexistent",
             "/api/v1/assessments/invalid-uuid-12345",
-            "/api/v1/users/999999"
+            "/api/v1/users/999999",
         ]
 
         data_exposed = False
@@ -367,7 +363,7 @@ class SecurityTestSuite:
                 "C:\\Users\\",
                 "password",
                 "secret",
-                "api_key"
+                "api_key",
             ]
 
             response_lower = response.text.lower()
@@ -377,7 +373,7 @@ class SecurityTestSuite:
                     self._add_finding(
                         "MEDIUM",
                         "Information disclosure",
-                        f"Error contains: {pattern} at {endpoint}"
+                        f"Error contains: {pattern} at {endpoint}",
                     )
                     print(f"  ✗ FAIL: Sensitive data in error: {endpoint}")
                     break
@@ -399,7 +395,7 @@ class SecurityTestSuite:
                     self._add_finding(
                         "CRITICAL",
                         "Password exposed in API response",
-                        "User data contains password field"
+                        "User data contains password field",
                     )
                     print("  ✗ FAIL: Password exposed in API response")
                 else:
@@ -426,7 +422,10 @@ class SecurityTestSuite:
         session1_response = self._login(TEST_USER["email"], TEST_USER["password"])
         session2_response = self._login(TEST_USER["email"], TEST_USER["password"])
 
-        if session1_response.status_code == 200 and session2_response.status_code == 200:
+        if (
+            session1_response.status_code == 200
+            and session2_response.status_code == 200
+        ):
             # Both logins succeeded - check if first session is invalidated
             print("  ✓ INFO: Multiple concurrent sessions allowed")
             print("  (Consider implementing single session enforcement)")
@@ -447,8 +446,7 @@ class SecurityTestSuite:
             # Try to access other users' data
             for user_id in [2, 3, 4, 5]:
                 response = requests.get(
-                    f"{self.base_url}/api/v1/users/{user_id}",
-                    headers=headers
+                    f"{self.base_url}/api/v1/users/{user_id}", headers=headers
                 )
 
                 if response.status_code == 200:
@@ -459,7 +457,7 @@ class SecurityTestSuite:
                         self._add_finding(
                             "HIGH",
                             "Horizontal access control bypass",
-                            f"Can access user {user_id} data"
+                            f"Can access user {user_id} data",
                         )
                         print(f"  ✗ FAIL: Can access user {user_id} data")
                         break
@@ -479,7 +477,7 @@ class SecurityTestSuite:
             admin_endpoints = [
                 "/api/v1/admin/users",
                 "/api/v1/admin/settings",
-                "/api/v1/admin/analytics"
+                "/api/v1/admin/analytics",
             ]
 
             for endpoint in admin_endpoints:
@@ -489,7 +487,7 @@ class SecurityTestSuite:
                     self._add_finding(
                         "CRITICAL",
                         "Vertical access control bypass",
-                        f"Regular user can access admin endpoint: {endpoint}"
+                        f"Regular user can access admin endpoint: {endpoint}",
                     )
                     print(f"  ✗ FAIL: Can access admin endpoint: {endpoint}")
                 elif response.status_code in [401, 403, 404]:
@@ -497,25 +495,27 @@ class SecurityTestSuite:
 
     def _add_finding(self, severity: str, issue: str, details: str) -> None:
         """Add a security finding"""
-        self.results.append({
-            "severity": severity,
-            "issue": issue,
-            "details": details,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+        self.results.append(
+            {
+                "severity": severity,
+                "issue": issue,
+                "details": details,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
     def _register_user(self, email: str, password: str) -> requests.Response:
         """Register a new user"""
         return self.session.post(
             f"{self.base_url}/api/v1/auth/register",
-            json={"email": email, "password": password}
+            json={"email": email, "password": password},
         )
 
     def _login(self, email: str, password: str) -> requests.Response:
         """Login user"""
         return self.session.post(
             f"{self.base_url}/api/v1/auth/login",
-            json={"email": email, "password": password}
+            json={"email": email, "password": password},
         )
 
     def _generate_report(self) -> Dict[str, Any]:
@@ -531,7 +531,7 @@ class SecurityTestSuite:
             "total_findings": len(self.results),
             "by_severity": findings_by_severity,
             "findings": self.results,
-            "overall_status": self._calculate_status(findings_by_severity)
+            "overall_status": self._calculate_status(findings_by_severity),
         }
 
     def _calculate_status(self, severity_counts: Dict[str, int]) -> str:
@@ -569,14 +569,20 @@ class TestSecuritySuite:
         """Test authentication security"""
         self.suite.test_auth_security()
 
-        critical_findings = [f for f in self.suite.results if f["severity"] == "CRITICAL"]
-        assert len(critical_findings) == 0, f"Critical auth vulnerabilities: {critical_findings}"
+        critical_findings = [
+            f for f in self.suite.results if f["severity"] == "CRITICAL"
+        ]
+        assert (
+            len(critical_findings) == 0
+        ), f"Critical auth vulnerabilities: {critical_findings}"
 
     def test_access_controls(self):
         """Test access control security"""
         self.suite.test_access_controls()
 
-        bypasses = [f for f in self.suite.results if "access control" in f["issue"].lower()]
+        bypasses = [
+            f for f in self.suite.results if "access control" in f["issue"].lower()
+        ]
         assert len(bypasses) == 0, f"Access control bypasses found: {bypasses}"
 
 
@@ -593,6 +599,8 @@ if __name__ == "__main__":
     print("Findings by Severity:")
     for severity, count in results["by_severity"].items():
         if count > 0:
-            icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🔵"}[severity]
+            icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🔵"}[
+                severity
+            ]
             print(f"  {icon} {severity}: {count}")
     print("=" * 70)

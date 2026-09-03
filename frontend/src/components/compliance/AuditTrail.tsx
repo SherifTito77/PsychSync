@@ -830,7 +830,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ events, investi
                   {Object.entries(eventTypesCount).map(([type, count]) => (
                     <div key={type} className="flex justify-between text-sm">
                       <span className="text-gray-600">{type.replace('_', ' ')}</span>
-                      <span className="font-medium">{count}</span>
+                      <span className="font-medium">{count as number}</span>
                     </div>
                   ))}
                 </div>
@@ -850,7 +850,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ events, investi
                   {Object.entries(severityDistribution).map(([severity, count]) => (
                     <div key={severity} className="flex justify-between text-sm">
                       <span className="text-gray-600 capitalize">{severity}</span>
-                      <span className="font-medium">{count}</span>
+                      <span className="font-medium">{count as number}</span>
                     </div>
                   ))}
                 </div>

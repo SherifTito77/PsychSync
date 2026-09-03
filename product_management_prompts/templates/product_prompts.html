@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Management Prompts - 50 Expert Prompts</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 2em;
+            color: #667eea;
+        }
+
+        .stat-card p {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .search-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        .search-bar input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            border-color: #667eea;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .category-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .category-card.selected {
+            border: 2px solid #667eea;
+        }
+
+        .category-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .category-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .category-card p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .prompts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .prompt-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .prompt-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .prompt-id {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .prompt-type {
+            background: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+
+        .prompt-title {
+            font-size: 1.1em;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .prompt-meta {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .complexity-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .complexity-low { background: #d4edda; color: #155724; }
+        .complexity-medium { background: #fff3cd; color: #856404; }
+        .complexity-high { background: #f8d7da; color: #721c24; }
+
+        .execute-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .execute-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .workflows-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .workflows-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .workflow-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .workflow-card:hover {
+            border-color: #667eea;
+            background: white;
+        }
+
+        .workflow-title {
+            font-size: 1.2em;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .workflow-description {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .workflow-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .workflow-step {
+            background: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 Product Management Prompts</h1>
+            <p>50 expertly crafted prompts to accelerate your product decisions</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats" id="stats"></div>
+
+        <!-- Search -->
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="🔍 Search prompts by keyword, use case, or output...">
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">All Types</button>
+            <button class="filter-btn" data-filter="strategic">Strategic</button>
+            <button class="filter-btn" data-filter="tactical">Tactical</button>
+            <button class="filter-btn" data-filter="analytical">Analytical</button>
+            <button class="filter-btn" data-filter="technical">Technical</button>
+        </div>
+
+        <!-- Workflows Section -->
+        <div class="workflows-section">
+            <h2>⚡ Quick Workflows</h2>
+            <div id="workflows"></div>
+        </div>
+
+        <!-- Categories -->
+        <h2 style="color: white; margin-bottom: 20px;">📂 Browse by Category</h2>
+        <div class="categories" id="categories"></div>
+
+        <!-- Prompts Grid -->
+        <h2 style="color: white; margin-bottom: 20px;">📝 All Prompts</h2>
+        <div class="prompts-grid" id="prompts"></div>
+
+        <!-- Loader -->
+        <div class="loader" id="loader">
+            <div class="spinner"></div>
+            <p>Loading prompts...</p>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="promptModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let allPrompts = [];
+        let selectedCategory = null;
+        let selectedType = null;
+
+        // Load stats
+        async function loadStats() {
+            const response = await fetch(`${API_BASE}/stats`);
+            const data = await response.json();
+
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card">
+                    <h3>${data.stats.total_prompts}</h3>
+                    <p>Total Prompts</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${data.stats.total_categories}</h3>
+                    <p>Categories</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${data.stats.total_executions}</h3>
+                    <p>Executions</p>
+                </div>
+                <div class="stat-card">
+                    <h3>4</h3>
+                    <p>Workflows</p>
+                </div>
+            `;
+        }
+
+        // Load categories
+        async function loadCategories() {
+            const response = await fetch(`${API_BASE}/categories`);
+            const data = await response.json();
+
+            const container = document.getElementById('categories');
+            container.innerHTML = data.categories.map(cat => `
+                <div class="category-card" onclick="selectCategory('${cat.id}')">
+                    <div class="category-icon">${getIcon(cat.icon)}</div>
+                    <h3>${cat.name}</h3>
+                    <p>${cat.description}</p>
+                    <p style="margin-top: 10px; color: #667eea; font-weight: bold;">${cat.prompt_count} prompts</p>
+                </div>
+            `).join('');
+        }
+
+        // Load workflows
+        async function loadWorkflows() {
+            const response = await fetch(`${API_BASE}/workflows`);
+            const data = await response.json();
+
+            const container = document.getElementById('workflows');
+            container.innerHTML = data.workflows.map(wf => `
+                <div class="workflow-card" onclick="loadWorkflow('${wf.id}')">
+                    <div class="workflow-title">${wf.name}</div>
+                    <div class="workflow-description">${wf.description}</div>
+                    <div class="workflow-steps">
+                        ${wf.goals.map(step => `<span class="workflow-step">${step}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load prompts
+        async function loadPrompts(filter = {}) {
+            const params = new URLSearchParams();
+            if (filter.category) params.append('category', filter.category);
+            if (filter.type) params.append('type', filter.type);
+            if (filter.search) params.append('search', filter.search);
+
+            const response = await fetch(`${API_BASE}/prompts?${params}`);
+            const data = await response.json();
+
+            allPrompts = data.prompts;
+            renderPrompts(allPrompts);
+        }
+
+        // Render prompts
+        function renderPrompts(prompts) {
+            const container = document.getElementById('prompts');
+            container.innerHTML = prompts.map(prompt => `
+                <div class="prompt-card">
+                    <div class="prompt-header">
+                        <span class="prompt-id">${prompt.id}</span>
+                        <span class="prompt-type">${prompt.type}</span>
+                    </div>
+                    <div class="prompt-title">${prompt.prompt}</div>
+                    <div class="prompt-meta">
+                        <span class="complexity-badge complexity-${prompt.complexity}">${prompt.complexity}</span>
+                        <span>⏱️ ${prompt.estimated_time}</span>
+                        <span>📊 ${prompt.outputs.length} outputs</span>
+                    </div>
+                    <button class="execute-btn" onclick="showPromptDetails('${prompt.id}')">View Details</button>
+                </div>
+            `).join('');
+        }
+
+        // Select category
+        function selectCategory(categoryId) {
+            selectedCategory = categoryId === selectedCategory ? null : categoryId;
+            loadPrompts({ category: selectedCategory, type: selectedType });
+
+            // Update UI
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+        }
+
+        // Load workflow
+        async function loadWorkflow(goal) {
+            const response = await fetch(`${API_BASE}/workflows/${goal}`);
+            const data = await response.json();
+            renderPrompts(data.workflow);
+        }
+
+        // Show prompt details
+        async function showPromptDetails(promptId) {
+            const response = await fetch(`${API_BASE}/prompts/${promptId}`);
+            const data = await response.json();
+
+            const prompt = data.prompt;
+            document.getElementById('modalContent').innerHTML = `
+                <h2>${prompt.prompt}</h2>
+                <p style="color: #666; margin-bottom: 20px;">${prompt.id} | ${prompt.type} | ${prompt.complexity}</p>
+
+                <h3>📋 Expected Outputs</h3>
+                <ul style="margin-bottom: 20px;">
+                    ${prompt.outputs.map(o => `<li>${o}</li>`).join('')}
+                </ul>
+
+                <h3>🎯 Use Cases</h3>
+                <ul style="margin-bottom: 20px;">
+                    ${prompt.use_cases.map(uc => `<li>${uc}</li>`).join('')}
+                </ul>
+
+                <h3>⏱️ Estimated Time</h3>
+                <p style="margin-bottom: 20px;">${prompt.estimated_time}</p>
+
+                <h3>🔗 Related Prompts</h3>
+                <p>${prompt.related_prompts ? prompt.related_prompts.join(', ') : 'None'}</p>
+
+                <button class="execute-btn" style="margin-top: 20px;" onclick="executePrompt('${prompt.id}')">🚀 Execute This Prompt</button>
+            `;
+
+            document.getElementById('promptModal').style.display = 'block';
+        }
+
+        // Execute prompt
+        async function executePrompt(promptId) {
+            const response = await fetch(`${API_BASE}/execute`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt_id: promptId, context: {} })
+            });
+
+            const data = await response.json();
+
+            // Show execution results in modal
+            document.getElementById('modalContent').innerHTML = `
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <div style="font-size: 60px;">✅</div>
+                    <h2 style="color: #10b981; margin: 10px 0;">Prompt Executed Successfully!</h2>
+                    <p style="color: #666;">Execution ID: <strong>${data.execution.id}</strong></p>
+                </div>
+
+                <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0;">${data.prompt.prompt}</h3>
+                    <p style="color: #666; margin-bottom: 10px;">
+                        <span style="background: #dbeafe; color: #1e40af; padding: 5px 10px; border-radius: 15px; font-size: 12px;">
+                            ${data.prompt.type}
+                        </span>
+                        <span style="background: #fef3c7; color: #92400e; padding: 5px 10px; border-radius: 15px; font-size: 12px; margin-left: 10px;">
+                            ${data.prompt.complexity}
+                        </span>
+                    </p>
+                </div>
+
+                <h3 style="color: #3b82f6;">📋 Expected Outputs</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    ${data.prompt.outputs.map(output => `
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; border-radius: 8px; display: flex; align-items: start; gap: 10px;">
+                            <span style="color: #3b82f6; font-size: 20px;">✓</span>
+                            <span style="color: #1e40af; font-size: 14px;">${output}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <h3 style="color: #8b5cf6;">🎯 Use Cases</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                    ${data.prompt.use_cases.map(useCase => `
+                        <span style="background: #f3e8ff; color: #7c3aed; padding: 8px 15px; border-radius: 20px; font-size: 13px;">
+                            ${useCase}
+                        </span>
+                    `).join('')}
+                </div>
+
+                <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="margin-top: 0; color: #92400e;">📊 Execution Details</h4>
+                    <p style="margin: 5px 0;"><strong>Executed at:</strong> ${new Date(data.execution.executed_at).toLocaleString()}</p>
+                    <p style="margin: 5px 0;"><strong>Status:</strong> ${data.execution.status}</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button onclick="document.getElementById('promptModal').style.display='none'; loadStats();"
+                            style="background: #3b82f6; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('promptModal').style.display = 'block';
+        }
+
+        // Helper: Get icon
+        function getIcon(iconName) {
+            const icons = {
+                roadmap: '🗺️',
+                users: '👥',
+                'trending-up': '📈',
+                'chart-bar': '📊',
+                cog: '⚙️'
+            };
+            return icons[iconName] || '📁';
+        }
+
+        // Search handler
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            loadPrompts({ search: e.target.value, category: selectedCategory, type: selectedType });
+        });
+
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                selectedType = btn.dataset.filter === 'all' ? null : btn.dataset.filter;
+                loadPrompts({ category: selectedCategory, type: selectedType });
+            });
+        });
+
+        // Close modal
+        document.querySelector('.close').onclick = () => {
+            document.getElementById('promptModal').style.display = 'none';
+        };
+
+        window.onclick = (e) => {
+            if (e.target === document.getElementById('promptModal')) {
+                document.getElementById('promptModal').style.display = 'none';
+            }
+        };
+
+        // Initialize
+        loadStats();
+        loadCategories();
+        loadWorkflows();
+        loadPrompts();
+    </script>
+</body>
+</html>

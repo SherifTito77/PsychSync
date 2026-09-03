@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/common/Button';
-import { api } from '@/services/api';
+import api from '@/services/api';
 
 interface AIInsight {
   type: string;
@@ -29,6 +29,24 @@ interface PredictiveMetric {
   time_period: string;
   accuracy_score: number;
   influencing_factors: string[];
+}
+
+interface HighPotentialUser {
+  user_id: string;
+  user_name: string;
+  potential_score: number;
+  predicted_growth: string;
+  key_strengths: string[];
+  recommended_actions: string[];
+}
+
+interface TeamOptimizationOpportunity {
+  team_id: string;
+  team_name: string;
+  optimization_type: string;
+  potential_impact: string;
+  recommended_changes: string[];
+  expected_improvement: string;
 }
 
 interface AIDashboardData {
@@ -54,8 +72,8 @@ interface AIDashboardData {
     mitigation_strategies: string[];
   };
   opportunities: {
-    high_potential_users: any[];
-    team_optimization_opportunities: any[];
+    high_potential_users: HighPotentialUser[];
+    team_optimization_opportunities: TeamOptimizationOpportunity[];
     engagement_opportunities: string[];
     development_opportunities: string[];
   };
@@ -83,10 +101,13 @@ export const AIAnalyticsDashboard: React.FC = () => {
       setError(null);
 
       const response = await api.get('/ai-analytics/dashboard?time_period_days=30');
-      setDashboardData(response.data.data);
-    } catch (err: any) {
+      setDashboardData(response.data as unknown as AIDashboardData);
+    } catch (err) {
       console.error('Error loading AI dashboard:', err);
-      setError(err.response?.data?.message || 'Failed to load AI analytics');
+      const errorMessage = err instanceof Error && 'response' in err
+        ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to load AI analytics')
+        : 'Failed to load AI analytics';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -97,7 +118,7 @@ export const AIAnalyticsDashboard: React.FC = () => {
       setRefreshing(true);
       await api.post('/ai-analytics/refresh');
       await loadAIDashboard();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error refreshing analytics:', err);
       setError('Failed to refresh analytics');
     } finally {

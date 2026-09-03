@@ -4,11 +4,11 @@ Advanced security middleware for PsychSync
 Includes rate limiting, request validation, IP filtering, and security headers
 """
 
-from collections import defaultdict, deque
-from datetime import datetime, timedelta
 import ipaddress
 import logging
 import time
+from collections import defaultdict, deque
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import Request, Response, status
@@ -58,7 +58,9 @@ class AdvancedRateLimiter:
         """Check if request is rate limited"""
         current_time = int(time.time())
         window = 60  # 1 minute window
-        limit = limit or self.rate_limits.get(endpoint_type, RateLimit.DEFAULT_REQUESTS_PER_MINUTE)
+        limit = limit or self.rate_limits.get(
+            endpoint_type, RateLimit.DEFAULT_REQUESTS_PER_MINUTE
+        )
         key = self.get_rate_limit_key(identifier, endpoint_type)
 
         try:
@@ -147,8 +149,8 @@ class IPWhitelistManager:
     def load_ip_lists(self):
         """Load IP lists from configuration"""
         # Load from environment or config
-        whitelist_env = settings.get("IP_WHITELIST", "")
-        blacklist_env = settings.get("IP_BLACKLIST", "")
+        whitelist_env = getattr(settings, "IP_WHITELIST", "")
+        blacklist_env = getattr(settings, "IP_BLACKLIST", "")
 
         if whitelist_env:
             self.whitelist_patterns = [ip.strip() for ip in whitelist_env.split(",")]
@@ -239,17 +241,25 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             # 1. IP Blocking Check
             if await self.rate_limiter.is_ip_blocked(client_ip):
                 logger.warning(f"Blocked IP attempted access: {client_ip}")
-                return self._create_security_response("Access denied", status.HTTP_403_FORBIDDEN)
+                return self._create_security_response(
+                    "Access denied", status.HTTP_403_FORBIDDEN
+                )
 
             # 2. IP Whitelist Check
-            if self.enable_ip_whitelist and not self.ip_manager.is_ip_whitelisted(client_ip):
+            if self.enable_ip_whitelist and not self.ip_manager.is_ip_whitelisted(
+                client_ip
+            ):
                 logger.warning(f"Non-whitelisted IP attempted access: {client_ip}")
-                return self._create_security_response("Access denied", status.HTTP_403_FORBIDDEN)
+                return self._create_security_response(
+                    "Access denied", status.HTTP_403_FORBIDDEN
+                )
 
             # 3. IP Blacklist Check
             if self.ip_manager.is_ip_blacklisted(client_ip):
                 logger.warning(f"Blacklisted IP attempted access: {client_ip}")
-                return self._create_security_response("Access denied", status.HTTP_403_FORBIDDEN)
+                return self._create_security_response(
+                    "Access denied", status.HTTP_403_FORBIDDEN
+                )
 
             # 4. Rate Limiting Check
             if self.enable_rate_limiting:

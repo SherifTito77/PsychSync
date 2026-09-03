@@ -9,9 +9,13 @@ export interface User {
   created_at: string;
   updated_at: string;
   avatar_url?: string;
+  profile_image?: string; // Alias for avatar_url for compatibility
+  organization_id?: string; // User's organization UUID
   // Optional fields for future-proofing, as they are not in the current backend schema
   is_verified?: boolean;
-  role?: 'user' | 'admin' | 'super_admin';
+  role?: 'user' | 'admin' | 'super_admin' | 'hr' | 'employee' | 'manager' | 'clinician' | 'patient';
+  department?: string;
+  is_hr?: boolean; // Quick check for HR users
 }
 // Data sent to the login API endpoint
 export interface LoginCredentials {
@@ -55,12 +59,15 @@ export interface ValidationError {
   message: string;
 }
 // --- Team Types ---
-// Note: If your backend uses UUIDs for teams, change 'id' to 'string'
 export interface Team {
-  id: number;
+  id: string; // UUID
   name: string;
   status: 'active' | 'inactive';
-  description: string;
+  description?: string;
+  is_active?: boolean;
+  created_by_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 // --- Dashboard & Analytics Types ---
 export interface DashboardData {
@@ -171,3 +178,29 @@ export interface HRFeedbackItem {
   assigned_hr?: string;
   priority_score: number;
 }
+
+// ============================================================================
+// API TYPES EXPORT (Auto-generated + Enhanced)
+// ============================================================================
+
+// Export OpenAPI-generated types
+export * from './api';
+
+// Export enhanced API types with full API coverage
+export type {
+  Assessment,
+  AssessmentCreateRequest,
+  Question,
+  BigFiveScores,
+  TeamPersonalityMap,
+  DimensionStats,
+  TeamComparison,
+  TeamAnalytics,
+  UserAnalytics,
+  Notification as ApiNotification,
+  Organization,
+  ApiEndpoints,
+} from './api-enhanced';
+
+// Export API configuration
+export { API_BASE_URL, ENDPOINTS } from './api-enhanced';

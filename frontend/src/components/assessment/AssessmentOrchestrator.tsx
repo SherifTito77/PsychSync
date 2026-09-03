@@ -1,36 +1,56 @@
 // src/components/assessment/AssessmentOrchestrator.tsx
 // AI Assessment Orchestrator UI - Personalized assessment recommendations
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { orchestratorService } from '../../services/orchestratorService';
+import { useError } from '../../contexts/ErrorContext';
+import { handleError } from '../../utils/errorHandler';
 import {
   UserContext,
   Recommendation,
   OrchestratorResponse,
   OrchestratorInsight,
 } from '../../types/orchestrator';
+import { VirtualizedList } from '../lists/VirtualizedList';
+import { useAsyncEffect } from '@/hooks/useAsyncEffect';
 
 interface AssessmentOrchestratorProps {
   userContext: UserContext;
 }
 
+// Extract inline objects to module-level constants to prevent recreation on every render
+const PRIORITY_COLORS = {
+  high: 'bg-green-100 text-green-800 border-green-300',
+  medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  low: 'bg-gray-100 text-gray-800 border-gray-300',
+} as const;
+
+const TYPE_ICONS = {
+  opportunity: '💡',
+  gap: '🎯',
+  next_step: '🚀',
+  trend: '📈',
+} as const;
+
+const TYPE_COLORS = {
+  opportunity: 'bg-yellow-50 border-yellow-200',
+  gap: 'bg-blue-50 border-blue-200',
+  next_step: 'bg-green-50 border-green-200',
+  trend: 'bg-purple-50 border-purple-200',
+} as const;
+
 const RecommendationCard: React.FC<{
   recommendation: Recommendation;
   onStart: () => void;
 }> = memo(({ recommendation, onStart }) => {
-  const priorityColors = {
-    high: 'bg-green-100 text-green-800 border-green-300',
-    medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    low: 'bg-gray-100 text-gray-800 border-gray-300',
-  };
-
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <h3 className="text-lg font-bold text-gray-900">{recommendation.name}</h3>
-            <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${priorityColors[recommendation.priority]}`}>
+            <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${PRIORITY_COLORS[recommendation.priority]}`}>
               {recommendation.priority} priority
             </span>
           </div>
@@ -95,24 +115,10 @@ const RecommendationCard: React.FC<{
 });
 
 const InsightCard: React.FC<{ insight: OrchestratorInsight }> = memo(({ insight }) => {
-  const typeIcons = {
-    opportunity: '💡',
-    gap: '🎯',
-    next_step: '🚀',
-    trend: '📈',
-  };
-
-  const typeColors = {
-    opportunity: 'bg-yellow-50 border-yellow-200',
-    gap: 'bg-blue-50 border-blue-200',
-    next_step: 'bg-green-50 border-green-200',
-    trend: 'bg-purple-50 border-purple-200',
-  };
-
   return (
-    <div className={`p-4 rounded-lg border ${typeColors[insight.type]}`}>
+    <div className={`p-4 rounded-lg border ${TYPE_COLORS[insight.type]}`}>
       <div className="flex items-start gap-3">
-        <span className="text-2xl">{typeIcons[insight.type]}</span>
+        <span className="text-2xl">{TYPE_ICONS[insight.type]}</span>
         <div className="flex-1">
           <h4 className="font-semibold text-gray-900 mb-1">{insight.title}</h4>
           <p className="text-sm text-gray-700 mb-3">{insight.description}</p>
@@ -137,29 +143,77 @@ const InsightCard: React.FC<{ insight: OrchestratorInsight }> = memo(({ insight 
 
 const AssessmentOrchestrator: React.FC<AssessmentOrchestratorProps> = ({ userContext }) => {
   const navigate = useNavigate();
+  const { showError } = useError();
   const [response, setResponse] = useState<OrchestratorResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<'recommendations' | 'path' | 'insights'>('recommendations');
 
-  useEffect(() => {
-    loadRecommendations();
-  }, [userContext]);
+  // Track if component is mounted
+  const isMountedRef = useRef(true);
 
-  const loadRecommendations = async () => {
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const loadRecommendations = useCallback(async (signal?: AbortSignal) => {
+    // Prevent loading if component is unmounted
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
       const data = await orchestratorService.getRecommendations(userContext, {
         maxRecommendations: 6,
         includeClinicalTools: true,
         prioritizeTeamFeatures: userContext.role === 'hr_manager' || userContext.role === 'team_lead',
+        difficulty: 'intermediate' as const,
       });
+
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current || signal?.aborted) {
+        return;
+      }
+
       setResponse(data);
-    } catch (error) {
-      console.error('Failed to load recommendations:', error);
+    } catch (err) {
+      // Don't update state if request was aborted
+      if (err instanceof Error && (err.name === 'AbortError' || signal?.aborted)) {
+        return;
+      }
+
+      // Check if component is still mounted before showing error
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      // Handle error with user-friendly message
+      const errorInfo = handleError(err, 'Load assessment recommendations');
+      setError(errorInfo.userMessage);
+
+      // Show toast notification with safe retry callback
+      showError(errorInfo.userMessage, {
+        retryable: errorInfo.retryable,
+        onRetry: errorInfo.retryable && isMountedRef.current ? () => loadRecommendations() : undefined,
+      });
     } finally {
-      setLoading(false);
+      // Only update loading state if component is still mounted
+      if (isMountedRef.current && !signal?.aborted) {
+        setLoading(false);
+      }
     }
-  };
+  }, [userContext, showError]);
+
+  // Initial load with race condition protection
+  useAsyncEffect(async (signal, isMounted) => {
+    await loadRecommendations(signal);
+  }, [loadRecommendations]);
 
   const handleStartAssessment = (recommendation: Recommendation) => {
     // Navigate to assessment
@@ -194,8 +248,25 @@ const AssessmentOrchestrator: React.FC<AssessmentOrchestratorProps> = ({ userCon
 
   if (!response) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-        <p className="text-red-800">Failed to load recommendations. Please try again.</p>
+      <div className="bg-red-50 border-2 border-red-200 rounded-lg p-8 text-center">
+        <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-red-900 mb-2">Unable to Load Recommendations</h3>
+        <p className="text-red-700 mb-6">{error || 'Failed to load recommendations. Please try again.'}</p>
+        <div className="flex justify-center gap-3">
+          <button
+            onClick={() => loadRecommendations()}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </button>
+          <button
+            onClick={() => navigate('/assessments')}
+            className="px-4 py-2 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            Browse All Assessments
+          </button>
+        </div>
       </div>
     );
   }
@@ -319,10 +390,23 @@ const AssessmentOrchestrator: React.FC<AssessmentOrchestratorProps> = ({ userCon
       )}
 
       {selectedTab === 'insights' && (
-        <div className="space-y-4">
-          {response.insights.map((insight, index) => (
-            <InsightCard key={index} insight={insight} />
-          ))}
+        <div style={{ minHeight: '400px' }}>
+          {/* Virtualized list for efficient rendering of large insight lists */}
+          {response.insights.length > 20 ? (
+            <VirtualizedList
+              items={response.insights}
+              itemHeight={200} // Approximate height of InsightCard
+              containerHeight={600}
+              renderItem={(insight) => <InsightCard insight={insight} />}
+              className="space-y-4"
+            />
+          ) : (
+            <div className="space-y-4">
+              {response.insights.map((insight, index) => (
+                <InsightCard key={index} insight={insight} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -331,4 +415,4 @@ const AssessmentOrchestrator: React.FC<AssessmentOrchestratorProps> = ({ userCon
 
 AssessmentOrchestrator.displayName = 'AssessmentOrchestrator';
 
-export default AssessmentOrchestrator;
+export default memo(AssessmentOrchestrator);

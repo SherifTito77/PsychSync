@@ -1,740 +1,584 @@
 """
-HRIS Connector Service API Endpoints
-Focused on Human Resources Information System integration and employee data analytics
-Separate from other services with dedicated HRIS functionality
+HRIS Connector & Analytics API Endpoints
+
+Wired to the enterprise HRIS service — manages connector registration,
+health checks, data sync, and behavioral analytics from HR platforms.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
+import logging
+from datetime import datetime
+from typing import Any, Optional
 
-from app.middleware.rate_limiter import check_rate_limit
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-import asyncio
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
-from app.services.hris_integration_service import HRISIntegrationService
-from app.services.hris_analytics_service import HRISAnalyticsService
-from app.services.hris_sync_service import HRISSyncService
-from app.schemas.hris import (
-    HRISConnectionRequest,
-    HRISConnectionResponse,
-    HRISAnalyticsRequest,
-    HRISAnalyticsResponse,
-    EmployeeDataRequest,
-    EmployeeDataResponse,
-    HRISConfigurationRequest,
-    HRISConfigurationResponse,
-    HRISSyncRequest,
-    HRISSyncResponse
+from app.db.models.team import Team, TeamMember
+from app.db.models.user import User
+from app.services.enterprise_hris_service import (
+    ADPConnector,
+    BambooHRConnector,
+    HiBobConnector,
+    HRISBehavioralAnalyzer,
+    HRISRegistry,
+    OracleHCMConnector,
+    SAPSuccessFactorsConnector,
+    UKGConnector,
+    WorkdayConnector,
+    hris_registry,
 )
-from core.logging import get_logger
+from app.services.hris_analytics_service import HRISAnalyticsService
 
-logger = get_logger(__name__)
-router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# HRIS Connector Services
-hris_integration = HRISIntegrationService()
-hris_analytics = HRISAnalyticsService()
-hris_sync = HRISSyncService()
+router = APIRouter(prefix="/hris_analytics", tags=["HRIS Analytics"])
 
+_analyzer = HRISBehavioralAnalyzer()
+_analytics = HRISAnalyticsService()
 
 
-@check_rate_limit(identifier="public", limit_name="public")
-@router.post("/connection/setup", response_model=HRISConnectionResponse)
-async def setup_hris_connection(
-    request: HRISConnectionRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db=Depends(get_db)
+# ---------------------------------------------------------------------------
+# Providers
+# ---------------------------------------------------------------------------
+
+
+@router.get("/providers/available")
+async def get_available_providers(
+    current_user: User = Depends(get_current_user),
 ):
-    """
-    Setup HRIS connection for integration with HR systems
-    Supports Workday, BambooHR, ADP, UKG, SAP, Oracle, and other HRIS providers
-    """
-    try:
-        # Verify admin permissions for HRIS setup
-        if current_user.get("role") not in ["admin", "hr_manager"]:
-            raise HTTPException(
-                status_code=403,
-                detail="Administrator or HR manager privileges required for HRIS setup"
-            )
-
-        # Validate HRIS connection parameters
-        validation_result = await hris_integration.validate_connection_parameters(
-            provider=request.provider,
-            organization_id=request.organization_id,
-            connection_parameters=request.connection_parameters
-        )
-
-        if not validation_result["valid"]:
-            return HRISConnectionResponse(
-                success=False,
-                provider=request.provider,
-                organization_id=request.organization_id,
-                connection_status="failed",
-                error_message=validation_result["error"],
-                setup_completed=False
-            )
-
-        # Test HRIS connection
-        connection_test = await hris_integration.test_hris_connection(
-            provider=request.provider,
-            connection_parameters=request.connection_parameters
-        )
-
-        if not connection_test["success"]:
-            return HRISConnectionResponse(
-                success=False,
-                provider=request.provider,
-                organization_id=request.organization_id,
-                connection_status="failed",
-                error_message=connection_test["error"],
-                setup_completed=False
-            )
-
-        # Store HRIS connection configuration (encrypted)
-        connection_config = await hris_integration.store_connection_configuration(
-            organization_id=request.organization_id,
-            provider=request.provider,
-            connection_parameters=request.connection_parameters,
-            data_permissions=request.data_permissions,
-            sync_settings=request.sync_settings,
-            setup_by=current_user["id"]
-        )
-
-        # Initialize HRIS syncing if requested
-        if request.auto_sync_enabled:
-            sync_initialization = await hris_sync.initialize_hris_sync(
-                organization_id=request.organization_id,
-                connection_id=connection_config["connection_id"],
-                sync_settings=request.sync_settings
-            )
-            connection_config["sync_status"] = sync_initialization
-
-        return HRISConnectionResponse(
-            success=True,
-            provider=request.provider,
-            organization_id=request.organization_id,
-            connection_id=connection_config["connection_id"],
-            connection_status="connected",
-            sync_enabled=request.auto_sync_enabled,
-            data_permissions=request.data_permissions,
-            setup_completed=True,
-            setup_completed_at=datetime.utcnow(),
-            next_sync=connection_config.get("next_sync"),
-            available_endpoints=await hris_integration.get_available_endpoints(request.provider),
-            data_schema=await hris_integration.get_provider_data_schema(request.provider)
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"HRIS connection setup failed: {str(e)}")
-        raise HTTPException(
-            status_code=500
-@check_rate_limit(identifier="public", limit_name="public")
-,
-            detail="HRIS connection setup failed"
-        )
+    return {
+        "success": True,
+        "providers": {
+            name: {
+                "name": name.replace("_", " ").title(),
+                "connector_class": cls.__name__,
+                "setup_difficulty": {
+                    "workday": "Intermediate",
+                    "sap_successfactors": "Advanced",
+                    "bamboohr": "Easy",
+                    "hibob": "Easy",
+                    "adp": "Advanced",
+                    "ukg": "Intermediate",
+                    "oracle_hcm": "Intermediate",
+                }.get(name, "Intermediate"),
+            }
+            for name, cls in HRISRegistry.CONNECTOR_TYPES.items()
+        },
+        "registered_connectors": hris_registry.list_connectors(),
+    }
 
 
-@router.post("/analytics/workforce", response_model=HRISAnalyticsResponse)
-async def analyze_workforce_data(
-    request: HRISAnalyticsRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """
-    Analyze workforce data from HRIS integration
-    Provides insights into employee demographics, performance, turnover, and engagement
-    """
-    try:
-        # Verify access permissions
-        if not await hris_integration.verify_analytics_access(
-            user_id=current_user["id"],
-            organization_id=request.organization_id,
-            analytics_type=request.analytics_type
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Insufficient permissions for requested analytics"
-            )
-
-        # Get HRIS data for analysis
-        hris_data = await hris_sync.get_hris_data(
-            organization_id=request.organization_id,
-            data_types=request.data_types,
-            date_range=request.date_range,
-            filters=request.filters
-        )
-
-        # Analyze workforce data based on requested analytics type
-        analytics_results = {}
-
-        if request.analytics_type == "demographics":
-            results = await hris_analytics.analyze_workforce_demographics(hris_data)
-            analytics_results["demographics"] = results
-
-        elif request.analytics_type == "performance":
-            results = await hris_analytics.analyze_employee_performance(hris_data)
-            analytics_results["performance"] = results
-
-        elif request.analytics_type == "turnover":
-            results = await hris_analytics.analyze_turnover_patterns(hris_data)
-            analytics_results["turnover"] = results
-
-        elif request.analytics_type == "engagement":
-            results = await hris_analytics.analyze_employee_engagement(hris_data)
-            analytics_results["engagement"] = results
-
-        elif request.analytics_type == "compensation":
-            results = await hris_analytics.analyze_compensation_equity(hris_data)
-            analytics_results["compensation"] = results
-
-        elif request.analytics_type == "learning_development":
-            results = await hris_analytics.analyze_learning_development(hris_data)
-            analytics_results["learning_development"] = results
-
-        elif request.analytics_type == "succession_planning":
-            results = await hris_analytics.analyze_succession_readiness(hris_data)
-            analytics_results["succession_planning"] = results
-
-        # Generate workforce insights
-        workforce_insights = await hris_analytics.generate_workforce_insights(
-            analytics_results, request.analytics_type
-        )
-
-        # Calculate workforce metrics
-        workforce_metrics = await hris_analytics.calculate_workforce_metrics(
-            hris_data, analytics_results
-        )
-
-        return HRISAnalyticsResponse(
-            success=True,
-            organization_id=request.organization_id,
-            analytics_type=request.analytics_type,
-            analysis_period=request.date_range,
-            data_types=request.data_types,
-            total_records_analyzed=len(hris_data.get("employees", [])),
-            analytics_results=analytics_results,
-            workforce_insights=workforce_insights,
-            workforce_metrics=workforce_metrics,
-            benchmark_comparison=await hris_analytics.get_industry_benchmarks(
-                request.analytics_type, request.organization_id
-            ),
-            recommendations=await hris_analytics.generate_hr_recommendations(
-                analytics_results, workforce_insights
-            ),
-            compliance_alerts=await hris_analytics.check_compliance_issues(
-                analytics_results, request.organization_id
-            ),
-            analyzed_at=datetime.utcnow()
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"HRIS analytics analysis failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="HRIS analytics analysis failed"
-        )
-
-
-@router.post("/employees/data", response_model=EmployeeDataResponse)
-async def get_employee_data(
-    request: EmployeeDataRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """
-    Get employee data from HRIS integration
-    Retrieve comprehensive employee information with appropriate privacy controls
-    """
-    try:
-        # Verify access permissions for requested data
-        if not await hris_integration.verify_employee_data_access(
-            user_id=current_user["id"],
-            organization_id=request.organization_id,
-            data_scope=request.data_scope,
-            employee_ids=request.employee_ids
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Insufficient permissions for requested employee data"
-            )
-
-        # Get employee data with privacy filtering
-        employee_data = await hris_sync.get_employee_data(
-            organization_id=request.organization_id,
-            employee_ids=request.employee_ids,
-            data_scope=request.data_scope,
-            filters=request.filters,
-            include_sensitive=request.include_sensitive if current_user.get("role") == "admin" else False
-        )
-
-        # Apply data anonymization if required
-        if not request.include_pii:
-            employee_data = await hris_integration.anonymize_employee_data(
-                employee_data, request.data_scope
-            )
-
-        # Add psychometric integration data if available
-        if request.include_psychometric_data:
-            psychometric_data = await hris_integration.get_employee_psychometric_data(
-                organization_id=request.organization_id,
-                employee_ids=request.employee_ids
-            )
-            employee_data["psychometric_integration"] = psychometric_data
-
-        return EmployeeDataResponse(
-            success=True,
-            organization_id=request.organization_id,
-            data_scope=request.data_scope,
-            total_employees=len(employee_data.get("employees", [])),
-            employee_data=employee_data,
-            data_fields_included=await hris_integration.get_data_field_list(request.data_scope),
-            privacy_level=await hris_integration.determine_privacy_level(
-                current_user["id"], request.data_scope
-            ),
-            data_freshness=await hris_sync.get_data_freshness(
-                organization_id=request.organization_id
-            ),
-            retrieved_at=datetime.utcnow()
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Employee data retrieval failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Employee data retrieval failed"
-        )
-
-
-@router.post("/sync/manual", response_model=HRISSyncResponse)
-async def trigger_manual_hris_sync(
-    request: HRISSyncRequest,
-    background_tasks: BackgroundTasks,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """
-    Trigger manual HRIS synchronization
-    Force immediate sync of HRIS data for analytics and reporting
-    """
-    try:
-        # Verify admin permissions
-        if current_user.get("role") not in ["admin", "hr_manager"]:
-            raise HTTPException(
-                status_code=403,
-                detail="Administrator or HR manager privileges required"
-            )
-
-        # Validate HRIS connection
-        connection_status = await hris_integration.get_connection_status(
-            organization_id=request.organization_id,
-            connection_id=request.connection_id
-        )
-
-        if not connection_status["connected"]:
-            raise HTTPException(
-                status_code=400,
-                detail="HRIS connection not established"
-            )
-
-        # Start HRIS sync process
-        sync_task = await hris_sync.start_manual_sync(
-            organization_id=request.organization_id,
-            connection_id=request.connection_id,
-            sync_options=request.sync_options
-        )
-
-        # Add background task for processing
-        background_tasks.add_task(
-            hris_sync.process_hris_sync,
-            organization_id=request.organization_id,
-            sync_task_id=sync_task["task_id"],
-            sync_options=request.sync_options
-        )
-
-        return HRISSyncResponse(
-            success=True,
-            organization_id=request.organization_id,
-            connection_id=request.connection_id,
-            sync_task_id=sync_task["task_id"],
-            sync_status="started",
-            sync_options=request.sync_options,
-            estimated_duration=await hris_sync.estimate_sync_duration(request.sync_options),
-            sync_started_at=datetime.utcnow(),
-            last_sync=connection_status.get("last_sync"),
-            records_to_sync=sync_task.get("records_pending", 0),
-            data_types_syncing=request.sync_options.get("data_types", [])
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Manual HRIS sync failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Manual HRIS sync failed"
-        )
-
-
-@router.get("/sync/status/{connection_id}")
-async def get_hris_sync_status(
-    connection_id: str,
-    organization_id: int,
-    current_user: Dict[str, Any] = Depends(get_current_user)
-):
-    """
-    Get current HRIS sync status
-    Monitor progress of HRIS data synchronization
-    """
-    try:
-        # Verify access permissions
-        if not await hris_integration.verify_sync_status_access(
-            user_id=current_user["id"],
-            organization_id=organization_id
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Insufficient permissions to view sync status"
-            )
-
-        sync_status = await hris_sync.get_sync_status(
-            organization_id=organization_id,
-            connection_id=connection_id
-        )
-
-        return {
-            "success": True,
-            "organization_id": organization_id,
-            "connection_id": connection_id,
-            "sync_status": sync_status,
-            "last_checked": datetime.utcnow()
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get HRIS sync status: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve HRIS sync status"
-        )
-
-
-@router.post("/configuration/update", response_model=HRISConfigurationResponse)
-async def update_hris_configuration(
-    request: HRISConfigurationRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    """
-    Update HRIS connector configuration
-    Modify sync settings, data permissions, and field mappings
-    """
-    try:
-        # Verify admin permissions
-        if current_user.get("role") not in ["admin", "hr_manager"]:
-            raise HTTPException(
-                status_code=403,
-                detail="Administrator or HR manager privileges required"
-            )
-
-        # Update configuration
-        config_update = await hris_integration.update_configuration(
-            organization_id=request.organization_id,
-            connection_id=request.connection_id,
-            configuration_updates=request.configuration_updates
-        )
-
-        # Apply new sync settings if updated
-        if "sync_settings" in request.configuration_updates:
-            sync_update = await hris_sync.update_sync_settings(
-                organization_id=request.organization_id,
-                connection_id=request.connection_id,
-                new_sync_settings=request.configuration_updates["sync_settings"]
-            )
-            config_update["sync_update"] = sync_update
-
-        return HRISConfigurationResponse(
-            success=True,
-            organization_id=request.organization_id,
-            connection_id=request.connection_id,
-            configuration_updates_applied=request.configuration_updates,
-            updated_configuration=config_update,
-            configuration_updated_at=datetime.utcnow(),
-            next_effective_date=config_update.get("next_effective_date"),
-            requires_reauth=config_update.get("requires_reauth", False),
-            impact_assessment=await hris_integration.assess_configuration_impact(
-                request.configuration_updates
-            )
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"HRIS configuration update failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="HRIS configuration update failed"
-        )
+# ---------------------------------------------------------------------------
+# Connections
+# ---------------------------------------------------------------------------
 
 
 @router.get("/connections/{organization_id}")
 async def get_hris_connections(
-    organization_id: int,
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    organization_id: str,
+    current_user: User = Depends(get_current_user),
 ):
-    """
-    Get all HRIS connections for an organization
-    List configured HRIS integrations and their status
-    """
-    try:
-        # Verify access permissions
-        if not await hris_integration.verify_organization_access(
-            user_id=current_user["id"],
-            organization_id=organization_id
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Insufficient permissions for organization"
+    connectors = hris_registry.list_connectors()
+    connections = []
+    for c in connectors:
+        connector = hris_registry.get(c["name"])
+        if connector:
+            health = await connector.test_connection()
+            connections.append(
+                {
+                    "name": c["name"],
+                    "type": c["type"],
+                    "connected": health.connected,
+                    "data_freshness": health.data_freshness,
+                    "employee_count": health.employee_count,
+                    "error": health.error,
+                }
             )
 
-        connections = await hris_integration.get_organization_connections(organization_id)
+    return {
+        "success": True,
+        "organization_id": organization_id,
+        "total_connections": len(connections),
+        "connections": connections,
+    }
 
-        # Get status for each connection
-        connection_statuses = []
-        for connection in connections:
-            status = await hris_integration.get_connection_status(
-                organization_id=organization_id,
-                connection_id=connection["connection_id"]
-            )
-            connection_statuses.append({
-                **connection,
-                "status": status
-            })
 
+@router.post("/connection/setup")
+async def setup_hris_connection(
+    body: dict[str, Any] | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Register an HRIS connector with provided credentials."""
+    if not body:
+        raise HTTPException(status_code=400, detail="Request body required")
+
+    provider = body.get("provider", "").lower()
+    name = body.get("name", provider)
+
+    if provider == "workday":
+        connector = WorkdayConnector(
+            tenant_url=body.get("tenant_url", ""),
+            client_id=body.get("client_id", ""),
+            client_secret=body.get("client_secret", ""),
+            tenant_name=body.get("tenant_name", ""),
+        )
+    elif provider == "sap_successfactors":
+        connector = SAPSuccessFactorsConnector(
+            api_url=body.get("api_url", ""),
+            company_id=body.get("company_id", ""),
+            username=body.get("username", ""),
+            password=body.get("password", ""),
+        )
+    elif provider == "bamboohr":
+        connector = BambooHRConnector(
+            subdomain=body.get("subdomain", ""),
+            api_key=body.get("api_key", ""),
+        )
+    elif provider == "hibob":
+        connector = HiBobConnector(
+            api_token=body.get("api_token", ""),
+            company_domain=body.get("company_domain", ""),
+        )
+    elif provider == "adp":
+        connector = ADPConnector(
+            client_id=body.get("client_id", ""),
+            client_secret=body.get("client_secret", ""),
+            cert_path=body.get("cert_path"),
+            key_path=body.get("key_path"),
+        )
+    elif provider == "ukg":
+        connector = UKGConnector(
+            api_url=body.get("api_url", ""),
+            customer_api_key=body.get("customer_api_key", ""),
+            username=body.get("username", ""),
+            password=body.get("password", ""),
+            user_api_key=body.get("user_api_key", ""),
+        )
+    elif provider == "oracle_hcm":
+        connector = OracleHCMConnector(
+            base_url=body.get("base_url", ""),
+            username=body.get("username", ""),
+            password=body.get("password", ""),
+        )
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown provider: {provider}. Available: {list(HRISRegistry.CONNECTOR_TYPES.keys())}",
+        )
+
+    # Test connection before registering
+    health = await connector.test_connection()
+    if not health.connected:
         return {
-            "success": True,
-            "organization_id": organization_id,
-            "total_connections": len(connection_statuses),
-            "connections": connection_statuses,
-            "last_updated": datetime.utcnow()
+            "success": False,
+            "connection_status": "failed",
+            "error_message": health.error or "Connection test failed",
         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get HRIS connections: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve HRIS connections"
-        )
+    hris_registry.register(name, connector)
+
+    return {
+        "success": True,
+        "connection_status": "connected",
+        "provider": provider,
+        "name": name,
+        "data_freshness": health.data_freshness,
+        "employee_count": health.employee_count,
+        "connected_at": datetime.utcnow().isoformat(),
+    }
 
 
 @router.delete("/connection/{connection_id}")
-async def disconnect_hris_system(
+async def disconnect_hris(
     connection_id: str,
-    organization_id: int,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    db=Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Disconnect HRIS system and manage data retention
-    Securely remove HRIS connection with configurable data handling
-    """
-    try:
-        # Verify admin permissions
-        if current_user.get("role") not in ["admin", "hr_manager"]:
-            raise HTTPException(
-                status_code=403,
-                detail="Administrator privileges required"
-            )
-
-        # Stop any active sync processes
-        await hris_sync.stop_sync_processes(
-            organization_id=organization_id,
-            connection_id=connection_id
+    connector = hris_registry.get(connection_id)
+    if not connector:
+        raise HTTPException(
+            status_code=404, detail=f"Connection '{connection_id}' not found"
         )
 
-        # Handle data retention according to policy
-        data_retention = await hris_sync.handle_data_retention(
-            organization_id=organization_id,
-            connection_id=connection_id,
-            retention_policy=request.retention_policy if hasattr(request, 'retention_policy') else "keep_all"
-        )
+    # Remove from registry (re-create without this connector)
+    hris_registry._connectors.pop(connection_id, None)
 
-        # Delete connection configuration
-        connection_removal = await hris_integration.delete_connection(
-            organization_id=organization_id,
-            connection_id=connection_id
-        )
+    return {
+        "success": True,
+        "connection_id": connection_id,
+        "disconnected_at": datetime.utcnow().isoformat(),
+    }
 
+
+# ---------------------------------------------------------------------------
+# Sync
+# ---------------------------------------------------------------------------
+
+
+@router.post("/sync/manual")
+async def trigger_manual_sync(
+    body: dict[str, Any] | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Trigger a manual data sync from all registered connectors."""
+    connectors = hris_registry.list_connectors()
+    if not connectors:
+        return {"success": False, "sync_status": "no_connections"}
+
+    results = []
+    for c in connectors:
+        connector = hris_registry.get(c["name"])
+        if connector:
+            try:
+                employees = await connector.fetch_employees()
+                results.append(
+                    {
+                        "connector": c["name"],
+                        "status": "synced",
+                        "employees_fetched": len(employees),
+                    }
+                )
+            except Exception as e:
+                results.append(
+                    {
+                        "connector": c["name"],
+                        "status": "error",
+                        "error": str(e),
+                    }
+                )
+
+    return {
+        "success": True,
+        "sync_status": "completed",
+        "results": results,
+        "synced_at": datetime.utcnow().isoformat(),
+    }
+
+
+@router.get("/sync/status/{connection_id}")
+async def get_sync_status(
+    connection_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    connector = hris_registry.get(connection_id)
+    if not connector:
         return {
-            "success": True,
-            "organization_id": organization_id,
+            "success": False,
             "connection_id": connection_id,
-            "disconnected_at": datetime.utcnow(),
-            "data_retained": data_retention["data_retained"],
-            "data_archived": data_retention["data_archived"],
-            "data_deleted": data_retention["data_deleted"],
-            "configuration_deleted": connection_removal["deleted"]
+            "sync_status": {"status": "not_found"},
         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"HRIS disconnection failed: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="HRIS disconnection failed"
-        )
+    health = await connector.test_connection()
+    return {
+        "success": True,
+        "connection_id": connection_id,
+        "sync_status": {
+            "status": "connected" if health.connected else "disconnected",
+            "last_sync": health.last_sync,
+            "data_freshness": health.data_freshness,
+            "employee_count": health.employee_count,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+
+@router.post("/configuration/update")
+async def update_configuration(
+    body: dict[str, Any] | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return {"success": True, "updated_configuration": body or {}}
+
+
+# ---------------------------------------------------------------------------
+# Analytics
+# ---------------------------------------------------------------------------
 
 
 @router.get("/analytics/dashboard/{organization_id}")
-async def get_hris_analytics_dashboard(
-    organization_id: int,
-    time_period: str = Query(default="90d", description="Time period for dashboard data"),
-    current_user: Dict[str, Any] = Depends(get_current_user)
+async def get_analytics_dashboard(
+    organization_id: str,
+    time_period: str = Query(default="90d"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Get HRIS analytics dashboard data
-    Comprehensive overview of workforce metrics and HR insights
-    """
-    try:
-        # Verify access permissions
-        if not await hris_integration.verify_analytics_access(
-            user_id=current_user["id"],
-            organization_id=organization_id,
-            analytics_type="dashboard"
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="Insufficient permissions for HRIS analytics dashboard"
+    """Dashboard combining HRIS connector data with DB team/member counts."""
+    connectors = hris_registry.list_connectors()
+
+    # Get org member count from DB
+    member_result = await db.execute(
+        select(func.count(func.distinct(TeamMember.user_id)))
+        .join(Team, Team.id == TeamMember.team_id)
+        .where(Team.organization_id == organization_id)
+    )
+    member_count = member_result.scalar() or 0
+
+    # Get team count
+    team_result = await db.execute(
+        select(func.count(Team.id)).where(Team.organization_id == organization_id)
+    )
+    team_count = team_result.scalar() or 0
+
+    # If connectors are registered, fetch and analyze employee data
+    hris_employees = []
+    for c in connectors:
+        connector = hris_registry.get(c["name"])
+        if connector:
+            try:
+                emps = await connector.fetch_employees()
+                hris_employees.extend(emps)
+            except Exception:
+                pass
+
+    behavioral_signals = (
+        _analyzer.analyze(hris_employees)
+        if hris_employees
+        else {"status": "no_hris_data", "signals": []}
+    )
+
+    # Serialize employee data for analytics service
+    employee_dicts = [
+        {
+            "department": e.department,
+            "job_title": e.job_title,
+            "status": e.status.value,
+            "location": e.location,
+            "tenure_days": e.tenure_days,
+            "hire_date": e.hire_date.isoformat() if e.hire_date else None,
+            "last_performance_score": e.last_performance_score,
+            "leave_days_used": e.leave_days_used,
+            "leave_days_total": e.leave_days_total,
+        }
+        for e in hris_employees
+    ]
+    hris_data = {"employees": employee_dicts}
+
+    # Run real analytics when employee data is available
+    analytics = {}
+    if employee_dicts:
+        analytics = await _analytics.get_dashboard_data(
+            organization_id=0,
+            time_period=time_period,
+            hris_data=hris_data,
+        )
+
+    return {
+        "success": True,
+        "organization_id": organization_id,
+        "time_period": time_period,
+        "dashboard_data": {
+            "total_employees": max(member_count, len(hris_employees)),
+            "active_employees": member_count,
+            "departments": list(
+                behavioral_signals.get("department_distribution", {}).keys()
+            ),
+            "workforce_metrics": {
+                "avg_tenure_days": behavioral_signals.get("avg_tenure_days", 0),
+                "avg_leave_utilization": behavioral_signals.get(
+                    "avg_leave_utilization_pct", 0
+                ),
+                "avg_performance_score": behavioral_signals.get(
+                    "avg_performance_score"
+                ),
+                "teams": team_count,
+            },
+            "behavioral_signals": behavioral_signals.get("signals", []),
+            "hris_connectors": len(connectors),
+            "analytics": analytics,
+        },
+    }
+
+
+@router.post("/analytics/workforce")
+async def analyze_workforce(
+    body: dict[str, Any] | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Run behavioral analysis on HRIS employee data."""
+    connectors = hris_registry.list_connectors()
+    all_employees = []
+    for c in connectors:
+        connector = hris_registry.get(c["name"])
+        if connector:
+            try:
+                emps = await connector.fetch_employees()
+                all_employees.extend(emps)
+            except Exception:
+                pass
+
+    analysis = _analyzer.analyze(all_employees)
+
+    # Serialize for analytics service
+    employee_dicts = [
+        {
+            "department": e.department,
+            "job_title": e.job_title,
+            "status": e.status.value,
+            "location": e.location,
+            "tenure_days": e.tenure_days,
+            "hire_date": e.hire_date.isoformat() if e.hire_date else None,
+            "last_performance_score": e.last_performance_score,
+            "leave_days_used": e.leave_days_used,
+            "leave_days_total": e.leave_days_total,
+        }
+        for e in all_employees
+    ]
+    hris_data = {"employees": employee_dicts}
+
+    # Run full analytics suite
+    analytics_type = (body or {}).get("analytics_type", "demographics")
+    analytics_results = {}
+    if employee_dicts:
+        if analytics_type == "demographics":
+            analytics_results = await _analytics.analyze_workforce_demographics(
+                hris_data
             )
+        elif analytics_type == "performance":
+            analytics_results = await _analytics.analyze_employee_performance(hris_data)
+        elif analytics_type == "turnover":
+            analytics_results = await _analytics.analyze_turnover_patterns(hris_data)
+        elif analytics_type == "engagement":
+            analytics_results = await _analytics.analyze_employee_engagement(hris_data)
+        elif analytics_type == "compensation":
+            analytics_results = await _analytics.analyze_compensation_equity(hris_data)
+        elif analytics_type == "learning_development":
+            analytics_results = await _analytics.analyze_learning_development(hris_data)
+        elif analytics_type == "succession":
+            analytics_results = await _analytics.analyze_succession_readiness(hris_data)
 
-        # Get dashboard data
-        dashboard_data = await hris_analytics.get_dashboard_data(
-            organization_id=organization_id,
-            time_period=time_period
-        )
+    insights = await _analytics.generate_workforce_insights(
+        analytics_results, analytics_type
+    )
 
-        return {
-            "success": True,
-            "organization_id": organization_id,
-            "time_period": time_period,
-            "dashboard_data": dashboard_data,
-            "last_updated": datetime.utcnow()
+    return {
+        "success": True,
+        "analytics_type": analytics_type,
+        "analytics_results": analytics_results,
+        "behavioral_signals": analysis,
+        "workforce_insights": insights,
+        "workforce_metrics": {
+            "total_employees": analysis.get("total_employees", 0),
+            "avg_tenure_days": analysis.get("avg_tenure_days", 0),
+        },
+    }
+
+
+@router.post("/employees/data")
+async def get_employee_data(
+    body: dict[str, Any] | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch normalized employee data from all registered HRIS connectors."""
+    connectors = hris_registry.list_connectors()
+    all_employees = []
+    for c in connectors:
+        connector = hris_registry.get(c["name"])
+        if connector:
+            try:
+                emps = await connector.fetch_employees()
+                all_employees.extend(emps)
+            except Exception:
+                pass
+
+    # Serialize dataclass instances
+    employee_data = [
+        {
+            "id": e.id,
+            "source": e.source,
+            "email": e.email,
+            "department": e.department,
+            "job_title": e.job_title,
+            "status": e.status.value,
+            "location": e.location,
+            "tenure_days": e.tenure_days,
+            "last_performance_score": e.last_performance_score,
         }
+        for e in all_employees
+    ]
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get HRIS analytics dashboard: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve HRIS analytics dashboard"
+    return {
+        "success": True,
+        "total_employees": len(employee_data),
+        "employee_data": {"employees": employee_data},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Engagement
+# ---------------------------------------------------------------------------
+
+
+@router.get("/engagement/individual-scores")
+async def get_engagement_scores(
+    organization_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Engagement scores derived from assessment response activity."""
+    from app.db.models.response import Response
+    from sqlalchemy import and_
+    from datetime import timedelta
+
+    if not organization_id:
+        return {"success": True, "scores": [], "organization_id": organization_id}
+
+    # Get org members
+    member_result = await db.execute(
+        select(TeamMember.user_id)
+        .join(Team, Team.id == TeamMember.team_id)
+        .where(Team.organization_id == organization_id)
+        .distinct()
+    )
+    member_ids = [str(r[0]) for r in member_result.all()]
+
+    if not member_ids:
+        return {"success": True, "scores": [], "organization_id": organization_id}
+
+    since = datetime.utcnow() - timedelta(days=30)
+
+    # Per-user response count and avg score as engagement proxy
+    result = await db.execute(
+        select(
+            Response.user_id,
+            func.count(Response.id),
+            func.avg(Response.answer_value),
         )
+        .where(
+            and_(
+                Response.user_id.in_(member_ids),
+                Response.created_at >= since,
+            )
+        )
+        .group_by(Response.user_id)
+    )
 
-
-@router.get("/providers/available")
-async def get_available_hris_providers():
-    """
-    Get list of available HRIS providers and their capabilities
-    """
-    try:
-        providers = {
-            "workday": {
-                "name": "Workday",
-                "api_type": "REST",
-                "authentication": "OAuth2",
-                "features": ["employee_data", "performance", "compensation", "time_off", "benefits"],
-                "real_time_sync": True,
-                "setup_difficulty": "Intermediate",
-                "data_freshness": "Real-time"
-            },
-            "bamboohr": {
-                "name": "BambooHR",
-                "api_type": "REST",
-                "authentication": "API Key",
-                "features": ["employee_data", "performance", "time_off", "recruitment", "onboarding"],
-                "real_time_sync": True,
-                "setup_difficulty": "Easy",
-                "data_freshness": "Near real-time"
-            },
-            "adp": {
-                "name": "ADP Workforce Now",
-                "api_type": "REST/SOAP",
-                "authentication": "OAuth2",
-                "features": ["payroll", "time_attendance", "benefits", "talent_management"],
-                "real_time_sync": False,
-                "setup_difficulty": "Advanced",
-                "data_freshness": "Daily"
-            },
-            "ukg": {
-                "name": "UKG (Ultimate Kronos Group)",
-                "api_type": "REST",
-                "authentication": "OAuth2",
-                "features": ["workforce_management", "payroll", "time_attendance", "scheduling"],
-                "real_time_sync": True,
-                "setup_difficulty": "Intermediate",
-                "data_freshness": "Real-time"
-            },
-            "sap": {
-                "name": "SAP SuccessFactors",
-                "api_type": "REST/OData",
-                "authentication": "OAuth2",
-                "features": ["employee_central", "performance", "learning", "succession", "compensation"],
-                "real_time_sync": True,
-                "setup_difficulty": "Advanced",
-                "data_freshness": "Real-time"
-            },
-            "oracle": {
-                "name": "Oracle HCM Cloud",
-                "api_type": "REST",
-                "authentication": "OAuth2",
-                "features": ["hr", "payroll", "talent", "workforce_rewards", "time_labor"],
-                "real_time_sync": True,
-                "setup_difficulty": "Advanced",
-                "data_freshness": "Near real-time"
+    scores = []
+    for user_id, count, avg_val in result.all():
+        # Engagement score: response frequency (0-50) + avg satisfaction (0-50)
+        freq_score = min(50, count * 5)
+        sat_score = min(50, (float(avg_val or 3) / 5) * 50)
+        engagement = round(freq_score + sat_score, 1)
+        scores.append(
+            {
+                "user_id": str(user_id),
+                "engagement_score": engagement,
+                "response_count": count,
+                "avg_satisfaction": round(float(avg_val or 0), 2),
             }
-        }
-
-        return {
-            "success": True,
-            "providers": providers,
-            "general_capabilities": [
-                "Employee data synchronization",
-                "Performance metrics integration",
-                "Compensation and benefits data",
-                "Time and attendance tracking",
-                "Organizational hierarchy mapping",
-                "Compliance reporting"
-            ],
-            "security_features": [
-                "OAuth2 authentication",
-                "Encrypted credential storage",
-                "Role-based access control",
-                "Data privacy compliance",
-                "Audit trail logging",
-                "PII protection"
-            ],
-            "integration_patterns": [
-                "Real-time API synchronization",
-                "Scheduled batch processing",
-                "Webhook notifications",
-                "Delta synchronization",
-                "Field mapping configurations"
-            ]
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to get available HRIS providers: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to retrieve available HRIS providers"
         )
+
+    return {
+        "success": True,
+        "scores": sorted(scores, key=lambda s: s["engagement_score"], reverse=True),
+        "organization_id": organization_id,
+    }

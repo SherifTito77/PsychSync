@@ -240,7 +240,7 @@
     <div class="hero">
         <h1>Simple, Transparent Pricing</h1>
         <p>Choose the plan that's right for your team. Start free, upgrade when you're ready.</p>
-        
+
         <div class="toggle-container">
             <span>Monthly</span>
             <div class="toggle-switch" onclick="togglePricing(this)">
@@ -249,7 +249,7 @@
             <span>Annual <span style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px; font-size: 12px;">Save 20%</span></span>
         </div>
     </div>
-    
+
     <div class="pricing-container">
         <!-- Free Plan -->
         <div class="pricing-card">
@@ -268,7 +268,7 @@
                 <li class="unavailable">Custom assessments</li>
             </ul>
         </div>
-        
+
         <!-- Pro Plan -->
         <div class="pricing-card featured">
             <div class="badge">Most Popular</div>
@@ -288,7 +288,7 @@
                 <li class="unavailable">White-label solution</li>
             </ul>
         </div>
-        
+
         <!-- Enterprise Plan -->
         <div class="pricing-card">
             <div class="plan-name">Enterprise</div>
@@ -309,7 +309,7 @@
             </ul>
         </div>
     </div>
-    
+
     <div class="comparison-section">
         <h2>Feature Comparison</h2>
         <div class="comparison-table">
@@ -375,57 +375,57 @@
             </table>
         </div>
     </div>
-    
+
     <div class="faq-section">
         <h2>Frequently Asked Questions</h2>
-        
+
         <div class="faq-item">
             <div class="faq-question">Do you offer a free trial?</div>
             <div class="faq-answer">Yes! We offer a 14-day free trial for our Professional plan. No credit card required.</div>
         </div>
-        
+
         <div class="faq-item">
             <div class="faq-question">Can I change plans later?</div>
             <div class="faq-answer">Absolutely! You can upgrade or downgrade your plan at any time. Changes take effect at the start of your next billing cycle.</div>
         </div>
-        
+
         <div class="faq-item">
             <div class="faq-question">What payment methods do you accept?</div>
             <div class="faq-answer">We accept all major credit cards (Visa, MasterCard, Amex), PayPal, and wire transfers for Enterprise plans.</div>
         </div>
-        
+
         <div class="faq-item">
             <div class="faq-question">Is there a setup fee?</div>
             <div class="faq-answer">No! There are no setup fees or hidden charges. You only pay the plan price.</div>
         </div>
-        
+
         <div class="faq-item">
             <div class="faq-question">What happens to my data if I cancel?</div>
             <div class="faq-answer">You can export all your data before canceling. After cancellation, your data is retained for 30 days before permanent deletion.</div>
         </div>
-        
+
         <div class="faq-item">
             <div class="faq-question">Do you offer discounts for non-profits?</div>
             <div class="faq-answer">Yes! We offer special pricing for educational institutions and non-profit organizations. Contact us for details.</div>
         </div>
     </div>
-    
+
     <div class="footer">
         <p>© 2025 PsychSync AI. All rights reserved.</p>
         <p>
-            <a href="/">Home</a> | 
-            <a href="/pricing">Pricing</a> | 
-            <a href="/features">Features</a> | 
+            <a href="/">Home</a> |
+            <a href="/pricing">Pricing</a> |
+            <a href="/features">Features</a> |
             <a href="/contact">Contact</a>
         </p>
     </div>
-    
+
     <script>
         function togglePricing(element) {
             element.classList.toggle('toggle-active');
             const isAnnual = element.classList.contains('toggle-active');
             const proPriceEl = document.getElementById('pro-price');
-            
+
             if (isAnnual) {
                 proPriceEl.textContent = '$39';
                 document.querySelector('.price-period').textContent = 'per month, billed annually';

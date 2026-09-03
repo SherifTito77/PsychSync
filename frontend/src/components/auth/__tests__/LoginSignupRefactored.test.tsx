@@ -341,8 +341,8 @@ describe('LoginSignupRefactored - API Integration', () => {
       expect(screen.getByText('Login successful! Redirecting...')).toBeInTheDocument();
     });
 
-    // Should store token in sessionStorage
-    expect(sessionStorage.getItem('access_token')).toBe('test-token');
+    // Should store token in localStorage
+    expect(localStorage.getItem('access_token')).toBe('test-token');
   });
 
   test('handles login failure', async () => {

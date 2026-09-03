@@ -10,9 +10,9 @@
  *   import { LSASScreening, EAT26Screening, YBOCSScreening } from '@/components/clinical/AdvancedAssessments';
  */
 
-export { LSASScreening } from './LSASScreening';
-export { EAT26Screening } from './EAT26Screening';
-export { YBOCSScreening } from './YBOCSScreening';
+export { default as LSASScreening } from './LSASScreening';
+export { default as EAT26Screening } from './EAT26Screening';
+export { default as YBOCSScreening } from './YBOCSScreening';
 
 /**
  * Assessment Metadata for Routing/Display

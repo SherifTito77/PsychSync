@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -41,24 +45,21 @@ def predict_outcome(client):
     Predict treatment outcome for a client.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/predict/outcome",
-        json={}
-    )
+    response = client.post("/predict/outcome", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -66,12 +67,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -85,24 +87,21 @@ def predict_dropout_risk(client):
     Predict dropout risk for a client.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/predict/dropout",
-        json={}
-    )
+    response = client.post("/predict/dropout", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -110,12 +109,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -129,24 +129,21 @@ def predict_trajectory(client):
     Predict symptom trajectory for next several weeks.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/predict/trajectory",
-        json={}
-    )
+    response = client.post("/predict/trajectory", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -154,12 +151,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -173,24 +171,21 @@ def detect_patterns(client):
     Detect behavioral patterns in time-series data.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/patterns/detect",
-        json={}
-    )
+    response = client.post("/patterns/detect", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -198,12 +193,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -217,24 +213,21 @@ def detect_anomaly(client):
     Detect anomalous client behavior that may indicate risk.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/anomaly/detect",
-        json={}
-    )
+    response = client.post("/anomaly/detect", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -242,12 +235,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -261,24 +255,21 @@ def analyze_trajectory(client):
     Analyze growth trajectory and predict future values.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/longitudinal/trajectory",
-        json={}
-    )
+    response = client.post("/longitudinal/trajectory", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -286,12 +277,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -305,24 +297,21 @@ def analyze_intervention(client):
     Analyze effectiveness of an intervention.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/longitudinal/intervention",
-        json={}
-    )
+    response = client.post("/longitudinal/intervention", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -330,12 +319,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -349,10 +339,7 @@ def health_check(client):
     Health check for analytics service.
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/health"
-        
-    )
+    response = client.get("/health")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure

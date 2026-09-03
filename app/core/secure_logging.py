@@ -9,11 +9,11 @@ Features:
 - Security event categorization
 """
 
-from contextlib import contextmanager
 import json
 import logging
 import re
 import sys
+from contextlib import contextmanager
 from typing import Any
 
 
@@ -39,8 +39,14 @@ class SensitiveDataFilter(logging.Filter):
         (r'"password"\s*:\s*"[^"]*"', '"password": "***REDACTED***"'),
         (r"'password'\s*:\s*'[^']*'", "'password': '***REDACTED***'"),
         # Tokens
-        (r'access_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "access_token=***REDACTED***"),
-        (r'refresh_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "refresh_token=***REDACTED***"),
+        (
+            r'access_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+',
+            "access_token=***REDACTED***",
+        ),
+        (
+            r'refresh_token["\']?\s*[:=]\s*["\']?[^"\'}\s]+',
+            "refresh_token=***REDACTED***",
+        ),
         (r'api_key["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "api_key=***REDACTED***"),
         (r'secret["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "secret=***REDACTED***"),
         (r'key["\']?\s*[:=]\s*["\']?[^"\'}\s]+', "key=***REDACTED***"),
@@ -68,7 +74,8 @@ class SensitiveDataFilter(logging.Filter):
         # Redact from args if present
         if record.args:
             record.args = tuple(
-                self._redact(str(arg)) if isinstance(arg, str) else arg for arg in record.args
+                self._redact(str(arg)) if isinstance(arg, str) else arg
+                for arg in record.args
             )
 
         return True
@@ -288,7 +295,9 @@ class SecurityLogger:
             },
         )
 
-    def log_auth_event(self, user_id: Any, action: str, success: bool, client_ip: str = "unknown"):
+    def log_auth_event(
+        self, user_id: Any, action: str, success: bool, client_ip: str = "unknown"
+    ):
         """Log authentication event."""
         severity = "INFO" if success else "WARNING"
         details = f"Authentication {action}: {'SUCCESS' if success else 'FAILED'}"
@@ -302,7 +311,12 @@ class SecurityLogger:
         )
 
     def log_authz_event(
-        self, user_id: Any, resource: str, action: str, success: bool, client_ip: str = "unknown"
+        self,
+        user_id: Any,
+        resource: str,
+        action: str,
+        success: bool,
+        client_ip: str = "unknown",
     ):
         """Log authorization event."""
         severity = "INFO" if success else "WARNING"

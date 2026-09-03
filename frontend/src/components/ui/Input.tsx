@@ -1,17 +1,17 @@
-import React, { useId } from 'react';
+import React, { useId, forwardRef } from 'react';
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   helperText?: string;
 }
-export const Input: React.FC<InputProps> = ({
+export const Input = forwardRef<HTMLInputElement, InputProps>(({
   label,
   error,
   helperText,
   className = '',
   id: providedId,
   ...props
-}) => {
+}, ref) => {
   // Generate unique ID for label-input association
   const generatedId = useId();
   const inputId = providedId || generatedId;
@@ -33,6 +33,7 @@ export const Input: React.FC<InputProps> = ({
         </label>
       )}
       <input
+        ref={ref}
         id={inputId}
         className={inputClasses}
         aria-invalid={error ? 'true' : 'false'}
@@ -58,5 +59,6 @@ export const Input: React.FC<InputProps> = ({
       )}
     </div>
   );
-};
+});
+Input.displayName = 'Input';
 export default Input;

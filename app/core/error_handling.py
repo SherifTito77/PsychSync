@@ -4,11 +4,11 @@ Standardized Error Handling System for PsychSync
 Provides consistent error handling patterns across all services
 """
 
+import logging
+import traceback
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-import logging
-import traceback
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -114,7 +114,9 @@ def handle_database_errors(operation_name: str, reraise: bool = True):
                 )
 
                 if reraise:
-                    raise HTTPException(status_code=status_code, detail=detail) from None
+                    raise HTTPException(
+                        status_code=status_code, detail=detail
+                    ) from None
 
             except OperationalError as e:
                 # Handle database connection/operation issues
@@ -142,7 +144,9 @@ def handle_database_errors(operation_name: str, reraise: bool = True):
                 )
 
                 if reraise:
-                    raise HTTPException(status_code=status_code, detail=detail) from None
+                    raise HTTPException(
+                        status_code=status_code, detail=detail
+                    ) from None
 
             except (DatabaseError, PendingRollbackError) as e:
                 # Handle general database errors
@@ -188,7 +192,9 @@ def handle_database_errors(operation_name: str, reraise: bool = True):
                 )
 
                 if reraise:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST, detail=e.message
+                    ) from e
 
             except ValueError as e:
                 # Handle value errors (commonly raised for business logic validation)
@@ -205,7 +211,9 @@ def handle_database_errors(operation_name: str, reraise: bool = True):
                 )
 
                 if reraise:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+                    ) from e
 
             except HTTPException:
                 # Re-raise HTTP exceptions as-is (already properly formatted)
@@ -273,7 +281,9 @@ def handle_service_errors(service_name: str):
                     },
                 )
 
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.message) from e
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=e.message
+                ) from e
 
             except ValueError as e:
                 logger.warning(
@@ -286,7 +296,9 @@ def handle_service_errors(service_name: str):
                     },
                 )
 
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+                ) from e
 
             except HTTPException:
                 # Re-raise HTTP exceptions as-is

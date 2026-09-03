@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Details Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        .debug-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 2px solid #ddd; border-radius: 8px; }
+        .success { color: #4CAF50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        .warning { color: #ff9800; font-weight: bold; }
+        .code-block { background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 8px; font-family: monospace; }
+        .button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🔍 View Details Functionality Debug</h1>
+
+        <div class="test-section">
+            <h2>🚨 Issue Identified</h2>
+            <p class="error">The View Details button isn't working despite correct TypeScript compilation.</p>
+            <p class="warning">Likely causes: Browser caching, component not re-rendering, or state management issue.</p>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Immediate Fixes Required</h2>
+            <ol>
+                <li><strong>Clear Browser Cache:</strong> Force refresh the page</li>
+                <li><strong>Check React DevTools:</strong> Verify component state updates</li>
+                <li><strong>Test Event Handler:</strong> Confirm click events are firing</li>
+                <li><strong>Verify State Management:</strong> Ensure selectedGoal state updates correctly</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h2>🛠️ Debugging Commands</h2>
+            <p>Run these commands in the browser console:</p>
+            <div class="code-block">
+// Check if React is working
+console.log('React:', typeof React !== 'undefined');
+
+// Check for component mounting
+console.log('Component mounted:', !!document.querySelector('.wellness-plan'));
+
+// Test button clicks
+document.querySelectorAll('button').forEach(btn => {
+  if (btn.textContent.includes('View Details')) {
+    console.log('View Details button found:', btn);
+    btn.addEventListener('click', () => console.log('View Details clicked!'));
+  }
+});
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 Enhanced View Details Features</h2>
+            <p>Once working, View Details should include:</p>
+            <ul>
+                <li>✅ AI-powered domain insights (85-92% success predictions)</li>
+                <li>✅ Advanced progress analytics with trend analysis</li>
+                <li>✅ Personalized improvement pathways</li>
+                <li>✅ Risk assessment and mitigation strategies</li>
+                <li>✅ Benchmark comparisons with wellness standards</li>
+                <li>✅ Predictive modeling for goal achievement</li>
+                <li>✅ Behavioral pattern recognition and recommendations</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🔄 Browser Cache Clearing</h2>
+            <div class="button" onclick="clearCache()">Clear Browser Cache</div>
+            <div class="button" onclick="hardRefresh()">Hard Refresh Page</div>
+            <div class="code-block">
+function clearCache() {
+  if ('caches' in window) {
+    caches.keys().then(names => names.forEach(name => caches.delete(name)));
+    console.log('Cache cleared');
+  }
+}
+
+function hardRefresh() {
+  location.reload(true);
+}
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📱 Mobile Testing</h2>
+            <p>Test on different screen sizes and devices:</p>
+            <div class="button" onclick="testMobile()">Mobile View Test</div>
+            <div class="button" onclick="testDesktop()">Desktop View Test</div>
+        </div>
+
+        <div class="test-section">
+            <h2>🚀 Next Steps</h2>
+            <ol>
+                <li>Force refresh browser (Ctrl+F5 or Cmd+Shift+R)</li>
+                <li>Check browser console for JavaScript errors</li>
+                <li>Verify React DevTools shows component state</li>
+                <li>Test View Details button functionality</li>
+                <li>Enhance with additional AI-powered insights</li>
+            </ol>
+        </div>
+
+        <div class="test-section" style="background: #e8f5e8; border-color: #4CAF50;">
+            <h2>✅ Expected Behavior After Fix</h2>
+            <p>When View Details works correctly, users will see:</p>
+            <ul>
+                <li>📊 Comprehensive progress overview with visual analytics</li>
+                <li>🤖 AI-powered insights and success predictions</li>
+                <li>🎯 Domain-specific focus areas and strategies</li>
+                <li>🧠 Personalized AI recommendations</li>
+                <li>📋 Interactive action steps with completion tracking</li>
+                <li>🌟 AI success strategies and implementation tips</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function clearCache() {
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                    console.log('Cache cleared');
+                    alert('Cache cleared! Please refresh the page.');
+                });
+            } else {
+                console.log('Cache API not supported');
+                alert('Please manually clear browser cache and refresh.');
+            }
+        }
+
+        function hardRefresh() {
+            location.reload(true);
+        }
+
+        function testMobile() {
+            document.body.style.maxWidth = '400px';
+            document.body.style.margin = '0 auto';
+            console.log('Mobile view activated');
+        }
+
+        function testDesktop() {
+            document.body.style.maxWidth = '';
+            document.body.style.margin = '';
+            console.log('Desktop view activated');
+        }
+
+        console.log('🔍 View Details Debug Script Loaded');
+        console.log('Run clearCache() and hardRefresh() to fix the issue');
+    </script>
+</body>
+</html>

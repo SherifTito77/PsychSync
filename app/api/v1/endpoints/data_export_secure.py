@@ -15,9 +15,9 @@ Author: Security Team
 Version: 2.0 OWASP-Compliant
 """
 
-from datetime import datetime
 import logging
 import os
+from datetime import datetime
 from typing import Any
 
 from fastapi import (
@@ -51,18 +51,30 @@ router = APIRouter()
 # Pydantic models for request/response
 class ExportRequestModel(BaseModel):
     """Request model for creating data export"""
+
     format: ExportFormat = Field(..., description="Export format")
     scope: ExportScope = Field(..., description="Data scope to export")
-    date_range_start: datetime | None = Field(None, description="Start date for data filtering")
-    date_range_end: datetime | None = Field(None, description="End date for data filtering")
-    include_anonymized_data: bool = Field(default=False, description="Include anonymized/pseudonymized data")
-    include_deleted_data: bool = Field(default=False, description="Include deleted/archived data")
-    filters: dict[str, Any] = Field(default_factory=dict, description="Additional filters")
+    date_range_start: datetime | None = Field(
+        None, description="Start date for data filtering"
+    )
+    date_range_end: datetime | None = Field(
+        None, description="End date for data filtering"
+    )
+    include_anonymized_data: bool = Field(
+        default=False, description="Include anonymized/pseudonymized data"
+    )
+    include_deleted_data: bool = Field(
+        default=False, description="Include deleted/archived data"
+    )
+    filters: dict[str, Any] = Field(
+        default_factory=dict, description="Additional filters"
+    )
     notes: str | None = Field(None, description="Export notes or description")
 
 
 class ExportResponse(BaseModel):
     """Response model for export information"""
+
     export_id: str
     format: str
     scope: str
@@ -84,6 +96,7 @@ class ExportListResponse(PaginatedResponse[ExportResponse]):
 
 class ExportStatisticsResponse(BaseModel):
     """Response model for export statistics"""
+
     total_exports: int
     completed_exports: int
     pending_exports: int
@@ -100,10 +113,7 @@ async def _get_client_info(request: Request) -> dict[str, str]:
     client_ip = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("User-Agent", "unknown")
 
-    return {
-        "ip_address": client_ip,
-        "user_agent": user_agent
-    }
+    return {"ip_address": client_ip, "user_agent": user_agent}
 
 
 @router.post("/data-exports", response_model=SuccessResponse[ExportResponse])
@@ -112,7 +122,7 @@ async def create_export_request(
     background_tasks: BackgroundTasks,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new data export request
@@ -133,44 +143,50 @@ async def create_export_request(
             date_range_start=export_request.date_range_start,
             date_range_end=export_request.date_range_end,
             include_anonymized_data=export_request.include_anonymized_data,
-            include_deleted_data=export_request.include_deleted_data
+            include_deleted_data=export_request.include_deleted_data,
         )
 
-        logger.info(f"Export request created for user {current_user.email}: {export.export_id}")
+        logger.info(
+            f"Export request created for user {current_user.email}: {export.export_id}"
+        )
 
         # SECURITY: Audit log
-        await audit_logger.log_event(AuditEvent(
-            action=AuditAction.CREATE,
-            user_id=str(current_user.id),
-            ip_address=client_info["ip_address"],
-            user_agent=client_info["user_agent"],
-            resource="/data-exports",
-            details={
-                "export_id": export.export_id,
-                "format": export.format.value,
-                "scope": export.scope.value,
-                "filters": export_request.filters
-            }
-        ))
+        await audit_logger.log_event(
+            AuditEvent(
+                action=AuditAction.CREATE,
+                user_id=str(current_user.id),
+                ip_address=client_info["ip_address"],
+                user_agent=client_info["user_agent"],
+                resource="/data-exports",
+                details={
+                    "export_id": export.export_id,
+                    "format": export.format.value,
+                    "scope": export.scope.value,
+                    "filters": export_request.filters,
+                },
+            )
+        )
 
         return SuccessResponse(
             message="Export request created successfully",
-            data=ExportResponse.from_orm(export)
+            data=ExportResponse.from_orm(export),
         )
 
     except Exception as e:
         logger.error(f"Failed to create export request: {e!s}")
 
         # Audit log failure
-        await audit_logger.log_event(AuditEvent(
-            action=AuditAction.CREATE,
-            user_id=str(current_user.id),
-            ip_address=client_info["ip_address"],
-            user_agent=client_info["user_agent"],
-            resource="/data-exports",
-            details={"error": str(e)},
-            severity="high"
-        ))
+        await audit_logger.log_event(
+            AuditEvent(
+                action=AuditAction.CREATE,
+                user_id=str(current_user.id),
+                ip_address=client_info["ip_address"],
+                user_agent=client_info["user_agent"],
+                resource="/data-exports",
+                details={"error": str(e)},
+                severity="high",
+            )
+        )
 
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -181,7 +197,7 @@ async def list_user_exports(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Page size"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List user's export requests with pagination
@@ -193,7 +209,7 @@ async def list_user_exports(
         exports = await export_service.get_user_exports(
             user_id=str(current_user.id),
             status=status,
-            limit=size * page  # Get more for pagination
+            limit=size * page,  # Get more for pagination
         )
 
         # Convert to response models
@@ -206,10 +222,7 @@ async def list_user_exports(
         paginated_exports = export_responses[start_idx:end_idx]
 
         return ExportListResponse.create_paginated(
-            items=paginated_exports,
-            total=total,
-            page=page,
-            size=size
+            items=paginated_exports, total=total, page=page, size=size
         )
 
     except Exception as e:
@@ -222,7 +235,7 @@ async def get_export_status(
     export_id: str,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get detailed information about an export request
@@ -237,33 +250,37 @@ async def get_export_status(
         # Get export status
         export = await export_service.get_export_status(export_id)
         if not export:
-            await audit_logger.log_event(AuditEvent(
-                action=AuditAction.READ,
-                user_id=str(current_user.id),
-                ip_address=client_info["ip_address"],
-                user_agent=client_info["user_agent"],
-                resource=f"/data-exports/{export_id}",
-                details={"reason": "Export not found"},
-                severity="medium"
-            ))
+            await audit_logger.log_event(
+                AuditEvent(
+                    action=AuditAction.READ,
+                    user_id=str(current_user.id),
+                    ip_address=client_info["ip_address"],
+                    user_agent=client_info["user_agent"],
+                    resource=f"/data-exports/{export_id}",
+                    details={"reason": "Export not found"},
+                    severity="medium",
+                )
+            )
             raise HTTPException(status_code=404, detail="Export not found")
 
         # Verify ownership
         if export.user_id != str(current_user.id):
-            await audit_logger.log_event(AuditEvent(
-                action=AuditAction.UNAUTHORIZED_ACCESS,
-                user_id=str(current_user.id),
-                ip_address=client_info["ip_address"],
-                user_agent=client_info["user_agent"],
-                resource=f"/data-exports/{export_id}",
-                details={"reason": "Ownership check failed"},
-                severity="high"
-            ))
+            await audit_logger.log_event(
+                AuditEvent(
+                    action=AuditAction.UNAUTHORIZED_ACCESS,
+                    user_id=str(current_user.id),
+                    ip_address=client_info["ip_address"],
+                    user_agent=client_info["user_agent"],
+                    resource=f"/data-exports/{export_id}",
+                    details={"reason": "Ownership check failed"},
+                    severity="high",
+                )
+            )
             raise HTTPException(status_code=403, detail="Access denied")
 
         return SuccessResponse(
             message="Export status retrieved successfully",
-            data=ExportResponse.from_orm(export)
+            data=ExportResponse.from_orm(export),
         )
 
     except HTTPException:
@@ -278,7 +295,7 @@ async def download_export(
     export_id: str,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Download an exported data file
@@ -297,22 +314,24 @@ async def download_export(
 
         # Verify ownership
         if export.user_id != str(current_user.id):
-            await audit_logger.log_event(AuditEvent(
-                action=AuditAction.UNAUTHORIZED_ACCESS,
-                user_id=str(current_user.id),
-                ip_address=client_info["ip_address"],
-                user_agent=client_info["user_agent"],
-                resource=f"/data-exports/{export_id}/download",
-                details={"reason": "Ownership check failed"},
-                severity="high"
-            ))
+            await audit_logger.log_event(
+                AuditEvent(
+                    action=AuditAction.UNAUTHORIZED_ACCESS,
+                    user_id=str(current_user.id),
+                    ip_address=client_info["ip_address"],
+                    user_agent=client_info["user_agent"],
+                    resource=f"/data-exports/{export_id}/download",
+                    details={"reason": "Ownership check failed"},
+                    severity="high",
+                )
+            )
             raise HTTPException(status_code=403, detail="Access denied")
 
         # Check if export is ready
         if export.status != ExportStatus.COMPLETED:
             raise HTTPException(
                 status_code=400,
-                detail=f"Export not ready. Current status: {export.status.value}"
+                detail=f"Export not ready. Current status: {export.status.value}",
             )
 
         # Check if export has expired
@@ -333,7 +352,7 @@ async def download_export(
                 ExportFormat.CSV: "text/csv",
                 ExportFormat.XML: "application/xml",
                 ExportFormat.PDF: "application/pdf",
-                ExportFormat.EXCEL: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ExportFormat.EXCEL: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             }
 
             content_type = content_types.get(export.format, "application/octet-stream")
@@ -346,21 +365,21 @@ async def download_export(
             logger.info(f"Export downloaded: {export_id} by user {current_user.email}")
 
             # SECURITY: Audit log
-            await audit_logger.log_event(AuditEvent(
-                action=AuditAction.READ,
-                user_id=str(current_user.id),
-                ip_address=client_info["ip_address"],
-                user_agent=client_info["user_agent"],
-                resource=f"/data-exports/{export_id}/download",
-                details={"export_id": export_id, "filename": filename}
-            ))
+            await audit_logger.log_event(
+                AuditEvent(
+                    action=AuditAction.READ,
+                    user_id=str(current_user.id),
+                    ip_address=client_info["ip_address"],
+                    user_agent=client_info["user_agent"],
+                    resource=f"/data-exports/{export_id}/download",
+                    details={"export_id": export_id, "filename": filename},
+                )
+            )
 
             return Response(
                 content=file_content,
                 media_type=content_type,
-                headers={
-                    "Content-Disposition": f"attachment; filename={filename}"
-                }
+                headers={"Content-Disposition": f"attachment; filename={filename}"},
             )
 
         finally:
@@ -372,15 +391,17 @@ async def download_export(
         # Path traversal attempt
         logger.error(f"Path traversal attempt blocked: {e!s}")
 
-        await audit_logger.log_event(AuditEvent(
-            action=AuditAction.UNAUTHORIZED_ACCESS,
-            user_id=str(current_user.id),
-            ip_address=client_info["ip_address"],
-            user_agent=client_info["user_agent"],
-            resource=f"/data-exports/{export_id}/download",
-            details={"reason": "Path traversal attempt", "error": str(e)},
-            severity="critical"
-        ))
+        await audit_logger.log_event(
+            AuditEvent(
+                action=AuditAction.UNAUTHORIZED_ACCESS,
+                user_id=str(current_user.id),
+                ip_address=client_info["ip_address"],
+                user_agent=client_info["user_agent"],
+                resource=f"/data-exports/{export_id}/download",
+                details={"reason": "Path traversal attempt", "error": str(e)},
+                severity="critical",
+            )
+        )
 
         raise HTTPException(status_code=400, detail="Invalid export file path") from e
     except Exception as e:
@@ -388,12 +409,14 @@ async def download_export(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.delete("/data-exports/{export_id}", response_model=SuccessResponse[dict[str, str]])
+@router.delete(
+    "/data-exports/{export_id}", response_model=SuccessResponse[dict[str, str]]
+)
 async def delete_export(
     export_id: str,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete an export request and associated file
@@ -412,15 +435,17 @@ async def delete_export(
 
         # Verify ownership
         if export.user_id != str(current_user.id):
-            await audit_logger.log_event(AuditEvent(
-                action=AuditAction.UNAUTHORIZED_ACCESS,
-                user_id=str(current_user.id),
-                ip_address=client_info["ip_address"],
-                user_agent=client_info["user_agent"],
-                resource=f"/data-exports/{export_id}",
-                details={"reason": "Ownership check failed"},
-                severity="high"
-            ))
+            await audit_logger.log_event(
+                AuditEvent(
+                    action=AuditAction.UNAUTHORIZED_ACCESS,
+                    user_id=str(current_user.id),
+                    ip_address=client_info["ip_address"],
+                    user_agent=client_info["user_agent"],
+                    resource=f"/data-exports/{export_id}",
+                    details={"reason": "Ownership check failed"},
+                    severity="high",
+                )
+            )
             raise HTTPException(status_code=403, detail="Access denied")
 
         # SECURITY: Path traversal prevention
@@ -438,19 +463,20 @@ async def delete_export(
                 # Path traversal attempt
                 logger.error(f"Path traversal attempt blocked: {e!s}")
 
-                await audit_logger.log_event(AuditEvent(
-                    action=AuditAction.UNAUTHORIZED_ACCESS,
-                    user_id=str(current_user.id),
-                    ip_address=client_info["ip_address"],
-                    user_agent=client_info["user_agent"],
-                    resource=f"/data-exports/{export_id}",
-                    details={"reason": "Path traversal attempt", "error": str(e)},
-                    severity="critical"
-                ))
+                await audit_logger.log_event(
+                    AuditEvent(
+                        action=AuditAction.UNAUTHORIZED_ACCESS,
+                        user_id=str(current_user.id),
+                        ip_address=client_info["ip_address"],
+                        user_agent=client_info["user_agent"],
+                        resource=f"/data-exports/{export_id}",
+                        details={"reason": "Path traversal attempt", "error": str(e)},
+                        severity="critical",
+                    )
+                )
 
                 raise HTTPException(
-                    status_code=400,
-                    detail="Invalid export file path"
+                    status_code=400, detail="Invalid export file path"
                 ) from e
 
         # Remove from active exports
@@ -460,18 +486,19 @@ async def delete_export(
         logger.info(f"Export deleted: {export_id} by user {current_user.email}")
 
         # SECURITY: Audit log
-        await audit_logger.log_event(AuditEvent(
-            action=AuditAction.DELETE,
-            user_id=str(current_user.id),
-            ip_address=client_info["ip_address"],
-            user_agent=client_info["user_agent"],
-            resource=f"/data-exports/{export_id}",
-            details={"export_id": export_id}
-        ))
+        await audit_logger.log_event(
+            AuditEvent(
+                action=AuditAction.DELETE,
+                user_id=str(current_user.id),
+                ip_address=client_info["ip_address"],
+                user_agent=client_info["user_agent"],
+                resource=f"/data-exports/{export_id}",
+                details={"export_id": export_id},
+            )
+        )
 
         return SuccessResponse(
-            message="Export deleted successfully",
-            data={"export_id": export_id}
+            message="Export deleted successfully", data={"export_id": export_id}
         )
 
     except HTTPException:
@@ -481,10 +508,12 @@ async def delete_export(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/data-exports/statistics", response_model=SuccessResponse[ExportStatisticsResponse])
+@router.get(
+    "/data-exports/statistics", response_model=SuccessResponse[ExportStatisticsResponse]
+)
 async def get_export_statistics(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get user's export statistics"""
     try:
@@ -492,18 +521,19 @@ async def get_export_statistics(
 
         # Get user exports
         exports = await export_service.get_user_exports(
-            user_id=str(current_user.id),
-            limit=1000  # Get all for statistics
+            user_id=str(current_user.id), limit=1000  # Get all for statistics
         )
 
         # Calculate statistics
         total_exports = len(exports)
-        completed_exports = len([e for e in exports if e.status == ExportStatus.COMPLETED])
+        completed_exports = len(
+            [e for e in exports if e.status == ExportStatus.COMPLETED]
+        )
         pending_exports = len([e for e in exports if e.status == ExportStatus.PENDING])
         failed_exports = len([e for e in exports if e.status == ExportStatus.FAILED])
 
         total_size_bytes = sum(e.file_size for e in exports if e.file_size)
-        total_size_gb = round(total_size_bytes / (1024 ** 3), 2)
+        total_size_gb = round(total_size_bytes / (1024**3), 2)
 
         # Format distribution
         format_counts = {}
@@ -521,10 +551,13 @@ async def get_export_statistics(
         current_month_start = datetime.utcnow().replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
-        exports_this_month = len([
-            e for e in exports
-            if e.requested_at and e.requested_at >= current_month_start
-        ])
+        exports_this_month = len(
+            [
+                e
+                for e in exports
+                if e.requested_at and e.requested_at >= current_month_start
+            ]
+        )
 
         statistics = ExportStatisticsResponse(
             total_exports=total_exports,
@@ -535,12 +568,11 @@ async def get_export_statistics(
             total_size_gb=total_size_gb,
             most_common_formats=format_counts,
             most_common_scopes=scope_counts,
-            exports_this_month=exports_this_month
+            exports_this_month=exports_this_month,
         )
 
         return SuccessResponse(
-            message="Export statistics retrieved successfully",
-            data=statistics
+            message="Export statistics retrieved successfully", data=statistics
         )
 
     except Exception as e:
@@ -552,7 +584,7 @@ async def get_export_statistics(
 async def cleanup_expired_exports(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Clean up expired export files"""
     client_info = await _get_client_info(request)
@@ -569,21 +601,23 @@ async def cleanup_expired_exports(
         )
 
         # SECURITY: Audit log
-        await audit_logger.log_event(AuditEvent(
-            action=AuditAction.DELETE,
-            user_id=str(current_user.id),
-            ip_address=client_info["ip_address"],
-            user_agent=client_info["user_agent"],
-            resource="/data-exports/cleanup",
-            details={"cleaned_count": cleaned_count}
-        ))
+        await audit_logger.log_event(
+            AuditEvent(
+                action=AuditAction.DELETE,
+                user_id=str(current_user.id),
+                ip_address=client_info["ip_address"],
+                user_agent=client_info["user_agent"],
+                resource="/data-exports/cleanup",
+                details={"cleaned_count": cleaned_count},
+            )
+        )
 
         return SuccessResponse(
             message="Export cleanup completed",
             data={
                 "cleaned_count": cleaned_count,
-                "cleaned_at": datetime.utcnow().isoformat()
-            }
+                "cleaned_at": datetime.utcnow().isoformat(),
+            },
         )
 
     except Exception as e:
@@ -591,10 +625,12 @@ async def cleanup_expired_exports(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/data-exports/formats", response_model=SuccessResponse[dict[str, list[str]]])
+@router.get(
+    "/data-exports/formats", response_model=SuccessResponse[dict[str, list[str]]]
+)
 async def get_available_formats(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get available export formats and their descriptions"""
     try:
@@ -605,13 +641,12 @@ async def get_available_formats(
                 "csv": "Comma-Separated Values - Spreadsheet compatible",
                 "xml": "eXtensible Markup Language - Structured markup format",
                 "pdf": "Portable Document Format - Human-readable document",
-                "excel": "Microsoft Excel Spreadsheet - Tabular data with multiple sheets"
-            }
+                "excel": "Microsoft Excel Spreadsheet - Tabular data with multiple sheets",
+            },
         }
 
         return SuccessResponse(
-            message="Available export formats retrieved successfully",
-            data=formats
+            message="Available export formats retrieved successfully", data=formats
         )
 
     except Exception as e:
@@ -619,10 +654,12 @@ async def get_available_formats(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/data-exports/scopes", response_model=SuccessResponse[dict[str, list[str]]])
+@router.get(
+    "/data-exports/scopes", response_model=SuccessResponse[dict[str, list[str]]]
+)
 async def get_available_scopes(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get available export scopes and their descriptions"""
     try:
@@ -634,13 +671,12 @@ async def get_available_scopes(
                 "team_data": "Team memberships, roles, and related information",
                 "activity_log": "User activity logs and audit trail",
                 "settings": "User preferences, settings, and configurations",
-                "all": "All available user data (comprehensive export)"
-            }
+                "all": "All available user data (comprehensive export)",
+            },
         }
 
         return SuccessResponse(
-            message="Available export scopes retrieved successfully",
-            data=scopes
+            message="Available export scopes retrieved successfully", data=scopes
         )
 
     except Exception as e:

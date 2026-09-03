@@ -4,10 +4,10 @@ Enhanced Gamification Engine
 Advanced achievement system with point tracking, leaderboards, and engagement mechanics.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -248,7 +248,10 @@ class EnhancedGamificationEngine:
                 badge_emoji="🚀",
                 points=300,
                 prerequisites=[],
-                conditions={"experimental_features_tried": 3, "feedback_provided": True},
+                conditions={
+                    "experimental_features_tried": 3,
+                    "feedback_provided": True,
+                },
                 rewards={"experimental_access": True, "points_bonus": 100},
                 hidden=False,
                 limited_time=datetime(2024, 12, 31),
@@ -279,7 +282,10 @@ class EnhancedGamificationEngine:
                 badge_emoji="⚡",
                 points=400,
                 prerequisites=[],
-                conditions={"learning_path_completion": True, "completion_time_ratio": 0.5},
+                conditions={
+                    "learning_path_completion": True,
+                    "completion_time_ratio": 0.5,
+                },
                 rewards={"learning_points": 150, "path_bonus": True},
                 hidden=False,
                 limited_time=None,
@@ -295,7 +301,10 @@ class EnhancedGamificationEngine:
                 points=800,
                 prerequisites=["quick_learner"],
                 conditions={"completed_modules": 20, "diversity_score": 0.7},
-                rewards={"knowledge_points": 300, "unlock_feature": "advanced_learning"},
+                rewards={
+                    "knowledge_points": 300,
+                    "unlock_feature": "advanced_learning",
+                },
                 hidden=False,
                 limited_time=None,
                 repeatable=False,
@@ -376,12 +385,20 @@ class EnhancedGamificationEngine:
                 BadgeTier.SILVER: {
                     "min_points": 1000,
                     "color": "#C0C0C0",
-                    "benefits": ["advanced_analytics", "priority_support", "custom_themes"],
+                    "benefits": [
+                        "advanced_analytics",
+                        "priority_support",
+                        "custom_themes",
+                    ],
                 },
                 BadgeTier.GOLD: {
                     "min_points": 5000,
                     "color": "#FFD700",
-                    "benefits": ["premium_analytics", "beta_access", "exclusive_content"],
+                    "benefits": [
+                        "premium_analytics",
+                        "beta_access",
+                        "exclusive_content",
+                    ],
                 },
                 BadgeTier.PLATINUM: {
                     "min_points": 15000,
@@ -395,11 +412,18 @@ class EnhancedGamificationEngine:
                 BadgeTier.DIAMOND: {
                     "min_points": 50000,
                     "color": "#B9F2FF",
-                    "benefits": ["vip_support", "custom_solutions", "strategic_partnership"],
+                    "benefits": [
+                        "vip_support",
+                        "custom_solutions",
+                        "strategic_partnership",
+                    ],
                 },
             },
             "special_badges": {
-                "founder": {"emoji": "👑", "description": "Founding member of the platform"},
+                "founder": {
+                    "emoji": "👑",
+                    "description": "Founding member of the platform",
+                },
                 "innovation_leader": {
                     "emoji": "💡",
                     "description": "Led experimental feature adoption",
@@ -471,7 +495,9 @@ class EnhancedGamificationEngine:
             "milestone_reached": self._handle_milestone_reached,
         }
 
-    async def process_gamification_event(self, event: GamificationEvent) -> list[UserAchievement]:
+    async def process_gamification_event(
+        self, event: GamificationEvent
+    ) -> list[UserAchievement]:
         """Process a gamification event and award achievements"""
         try:
             # Get user's current achievement progress
@@ -479,7 +505,9 @@ class EnhancedGamificationEngine:
             newly_earned = []
 
             # Check all achievements that could be triggered by this event
-            potential_achievements = await self._get_relevant_achievements(event.event_type)
+            potential_achievements = await self._get_relevant_achievements(
+                event.event_type
+            )
 
             for achievement_def in potential_achievements:
                 if not await self._can_earn_achievement(
@@ -488,7 +516,9 @@ class EnhancedGamificationEngine:
                     continue
 
                 # Check if event contributes to achievement progress
-                progress_update = await self._calculate_progress_update(event, achievement_def)
+                progress_update = await self._calculate_progress_update(
+                    event, achievement_def
+                )
 
                 if progress_update > 0:
                     updated_progress = await self._update_achievement_progress(
@@ -509,7 +539,9 @@ class EnhancedGamificationEngine:
             return newly_earned
 
         except Exception as e:
-            logger.error(f"Error processing gamification event for user {event.user_id}: {e}")
+            logger.error(
+                f"Error processing gamification event for user {event.user_id}: {e}"
+            )
             return []
 
     async def get_user_achievements(
@@ -561,7 +593,10 @@ class EnhancedGamificationEngine:
             return []
 
     async def get_leaderboard(
-        self, leaderboard_type: LeaderboardType, limit: int = 50, time_period: str = "all_time"
+        self,
+        leaderboard_type: LeaderboardType,
+        limit: int = 50,
+        time_period: str = "all_time",
     ) -> list[LeaderboardEntry]:
         """Get leaderboard entries"""
         try:
@@ -631,7 +666,9 @@ class EnhancedGamificationEngine:
 
             progress_in_level = total_points - points_for_current_level
             level_size = points_for_next_level - points_for_current_level
-            progress_percentage = progress_in_level / level_size if level_size > 0 else 0
+            progress_percentage = (
+                progress_in_level / level_size if level_size > 0 else 0
+            )
 
             # Calculate badge tier
             badge_tier = BadgeTier.BRONZE
@@ -664,7 +701,8 @@ class EnhancedGamificationEngine:
         try:
             user_achievements = await self.get_user_achievements(user_id)
             total_points = sum(
-                a["points"] * (1 if a["earned"] else a["progress"]) for a in user_achievements
+                a["points"] * (1 if a["earned"] else a["progress"])
+                for a in user_achievements
             )
 
             level_info = await self.calculate_user_level(total_points)
@@ -683,9 +721,11 @@ class EnhancedGamificationEngine:
                 "category_breakdown": category_breakdown,
                 "current_streak": await self._get_current_streak(user_id),
                 "longest_streak": await self._get_longest_streak(user_id),
-                "achievement_completion_rate": len(earned_achievements) / len(user_achievements)
-                if user_achievements
-                else 0,
+                "achievement_completion_rate": (
+                    len(earned_achievements) / len(user_achievements)
+                    if user_achievements
+                    else 0
+                ),
                 "leaderboard_rank": await self._get_user_leaderboard_rank(user_id),
                 "unlocked_features": level_info["unlocked_features"],
                 "special_badges": await self._get_user_special_badges(user_id),
@@ -740,7 +780,9 @@ class EnhancedGamificationEngine:
             "team_leader": {"progress": 0.8},
         }
 
-    async def _get_relevant_achievements(self, event_type: str) -> list[AchievementDefinition]:
+    async def _get_relevant_achievements(
+        self, event_type: str
+    ) -> list[AchievementDefinition]:
         """Get achievements that could be triggered by this event type"""
         relevant_achievements = []
 
@@ -783,7 +825,10 @@ class EnhancedGamificationEngine:
                 return False
 
         # Check time limits
-        if achievement_def.limited_time and datetime.utcnow() > achievement_def.limited_time:
+        if (
+            achievement_def.limited_time
+            and datetime.utcnow() > achievement_def.limited_time
+        ):
             return False
 
         return True

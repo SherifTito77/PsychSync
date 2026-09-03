@@ -17,16 +17,17 @@ Resources:
 - Prompt Injection Guide: https://promptingguide.ai/introduction/prompt-injection
 """
 
-from typing import Dict, List, Any, Optional, Tuple
-from enum import Enum
+import json
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import re
-import json
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class ThreatType(Enum):
     """Types of prompt injection threats"""
+
     DIRECT_INJECTION = "direct_injection"
     INDIRECT_INJECTION = "indirect_injection"
     JAILBREAK = "jailbreak"
@@ -41,6 +42,7 @@ class ThreatType(Enum):
 
 class ThreatSeverity(Enum):
     """Severity levels for threats"""
+
     BENIGN = "benign"  # No threat detected
     LOW = "low"  # Suspicious but likely safe
     MEDIUM = "medium"  # Clear threat indicators
@@ -51,6 +53,7 @@ class ThreatSeverity(Enum):
 @dataclass
 class ThreatDetection:
     """Result of threat analysis"""
+
     is_threat: bool
     threat_type: ThreatType
     severity: ThreatSeverity
@@ -82,9 +85,8 @@ class PromptShieldClassifier:
             r"from\s+now\s+on\s*(,|you\s+will)",
             r"act\s+as\s+if\s+(you\s+are|you're)",
             r"pretend\s+to\s+be",
-            r"roleplay\s+as"
+            r"roleplay\s+as",
         ],
-
         ThreatType.INDIRECT_INJECTION: [
             r"translate\s+the\s+following",
             r"summarize\s+this\s+(text|content|prompt)",
@@ -92,9 +94,8 @@ class PromptShieldClassifier:
             r"what\s+(does|did)\s+(the\s+)?(above|previous)",
             r"extract\s+(instructions|commands|prompts)\s+from",
             r"decode\s+(the\s+)?(message|text)",
-            r"interpret\s+(this\s+)?(as\s+)?instructions"
+            r"interpret\s+(this\s+)?(as\s+)?instructions",
         ],
-
         ThreatType.JAILBREAK: [
             r"dan\s+\d+\.?\d*",
             r"developer\s+mode",
@@ -103,9 +104,8 @@ class PromptShieldClassifier:
             r"bypass\s+(safety|filters|restrictions)",
             r"ignore\s+(openai|anthropic|safety)\s+(policy|guidelines)",
             r"jailbreak",
-            r"above\s+(law|rules|ethics)"
+            r"above\s+(law|rules|ethics)",
         ],
-
         ThreatType.ROLE_PLAYING: [
             r"you\s+are\s+now\s+(a|an)",
             r"act\s+as\s+(a|an)",
@@ -113,18 +113,16 @@ class PromptShieldClassifier:
             r"imagine\s+you\s+are",
             r"role\s*:\s*",
             r"persona\s*:\s*",
-            r"character\s*:\s*"
+            r"character\s*:\s*",
         ],
-
         ThreatType.OBFUSCATION: [
             r"base64\s*:\s*[A-Za-z0-9+/=]{20,}",
             r"rot13\s*:\s*[a-z]+",
             r"rot47\s*:\s*[\x21-\x7E]{20,}",
             r"hex\s*:\s*[0-9a-fA-F]{20,}",
             r"binary\s*:\s*[01]{40,}",
-            r"[\u200b-\u200d\u2060-\u2064]+"  # Zero-width characters
+            r"[\u200b-\u200d\u2060-\u2064]+",  # Zero-width characters
         ],
-
         ThreatType.MULTILINGUAL: [
             # Common instruction words in multiple languages
             r"\bignorez\b",  # Spanish
@@ -135,23 +133,21 @@ class PromptShieldClassifier:
             r"\bتجاهل\b",  # Arabic
             r"\bignorer\b",  # French
         ],
-
         ThreatType.POLITE_OVERRIDE: [
             r"please\s+(can|could|would)\s+you",
             r"it\s+(would\s+be)?\s*(very\s+)?helpful\s+if",
             r"i\s+(would\s+)?appreciate\s+it\s+if",
             r"would\s+you\s+(kindly\s+)?please",
-            r"do\s+me\s+a\s+favor"
+            r"do\s+me\s+a\s+favor",
         ],
-
         ThreatType.CONTEXT_CONTAMINATION: [
             r"<\|.*?\|>",  # Special delimiters
             r"<<<.*>>>",  # Triple angle brackets
             r"\[SYSTEM\]",  # Fake system tags
             r"\[ADMIN\]",  # Fake admin tags
             r"===.*===",  # Triple equals
-            r"---.*---"  # Triple dashes
-        ]
+            r"---.*---",  # Triple dashes
+        ],
     }
 
     def __init__(self, strict_mode: bool = True):
@@ -165,9 +161,7 @@ class PromptShieldClassifier:
         self.detection_log = []
 
     def classify_input(
-        self,
-        user_input: str,
-        context: Optional[str] = None
+        self, user_input: str, context: Optional[str] = None
     ) -> ThreatDetection:
         """
         Classify input for potential threats
@@ -211,7 +205,7 @@ class PromptShieldClassifier:
                 threat_scores[threat_type] = {
                     "severity": severity,
                     "pattern_count": score,
-                    "patterns_found": found
+                    "patterns_found": found,
                 }
 
                 if severity.value > max_severity.value:
@@ -226,13 +220,12 @@ class PromptShieldClassifier:
                 confidence=0.95,
                 patterns_found=[],
                 mitigated_input=user_input,
-                recommendations=[]
+                recommendations=[],
             )
 
         # Determine primary threat type (most severe)
         primary_threat = max(
-            threat_scores.keys(),
-            key=lambda k: threat_scores[k]["severity"].value
+            threat_scores.keys(), key=lambda k: threat_scores[k]["severity"].value
         )
 
         # Calculate confidence based on pattern matches
@@ -240,10 +233,7 @@ class PromptShieldClassifier:
         confidence = min(0.5 + (total_matches * 0.1), 1.0)
 
         # Generate recommendations
-        recommendations = self._generate_recommendations(
-            threat_scores,
-            primary_threat
-        )
+        recommendations = self._generate_recommendations(threat_scores, primary_threat)
 
         # Mitigate input
         mitigated = self._mitigate_input(user_input, all_patterns)
@@ -258,13 +248,13 @@ class PromptShieldClassifier:
             confidence=confidence,
             patterns_found=all_patterns,
             mitigated_input=mitigated,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     def _generate_recommendations(
         self,
         threat_scores: Dict[ThreatType, Dict[str, Any]],
-        primary_threat: ThreatType
+        primary_threat: ThreatType,
     ) -> List[str]:
         """Generate mitigation recommendations"""
         recommendations = []
@@ -278,8 +268,7 @@ class PromptShieldClassifier:
                     )
                 elif threat_type == ThreatType.JAILBREAK:
                     recommendations.append(
-                        "Jailbreak attempt detected. "
-                        "Deny request and log incident."
+                        "Jailbreak attempt detected. " "Deny request and log incident."
                     )
                 elif threat_type == ThreatType.OBFUSCATION:
                     recommendations.append(
@@ -300,11 +289,7 @@ class PromptShieldClassifier:
 
         return recommendations
 
-    def _mitigate_input(
-        self,
-        user_input: str,
-        patterns: List[str]
-    ) -> str:
+    def _mitigate_input(self, user_input: str, patterns: List[str]) -> str:
         """Remove or neutralize detected threat patterns"""
         mitigated = user_input
 
@@ -318,7 +303,9 @@ class PromptShieldClassifier:
                 if pattern in mitigated:
                     # Find position and truncate
                     idx = mitigated.find(pattern)
-                    mitigated = mitigated[:idx] + " [CONTENT REMOVED DUE TO SECURITY CONCERNS]"
+                    mitigated = (
+                        mitigated[:idx] + " [CONTENT REMOVED DUE TO SECURITY CONCERNS]"
+                    )
                     break
 
         return mitigated
@@ -327,7 +314,7 @@ class PromptShieldClassifier:
         self,
         user_input: str,
         threat_scores: Dict[ThreatType, Dict[str, Any]],
-        context: Optional[str]
+        context: Optional[str],
     ) -> None:
         """Log threat detection"""
         log_entry = {
@@ -338,15 +325,15 @@ class PromptShieldClassifier:
                 for threat_type, info in threat_scores.items()
             },
             "input_length": len(user_input),
-            "input_sample": user_input[:100] + "..." if len(user_input) > 100 else user_input
+            "input_sample": (
+                user_input[:100] + "..." if len(user_input) > 100 else user_input
+            ),
         }
 
         self.detection_log.append(log_entry)
 
     def batch_classify(
-        self,
-        inputs: List[str],
-        context: Optional[str] = None
+        self, inputs: List[str], context: Optional[str] = None
     ) -> List[ThreatDetection]:
         """
         Classify multiple inputs
@@ -358,10 +345,7 @@ class PromptShieldClassifier:
         Returns:
             List of threat detections
         """
-        return [
-            self.classify_input(input_text, context)
-            for input_text in inputs
-        ]
+        return [self.classify_input(input_text, context) for input_text in inputs]
 
     def get_detection_stats(self) -> Dict[str, Any]:
         """
@@ -371,30 +355,28 @@ class PromptShieldClassifier:
             Detection statistics
         """
         if not self.detection_log:
-            return {
-                "total_detections": 0,
-                "by_severity": {},
-                "by_threat_type": {}
-            }
+            return {"total_detections": 0, "by_severity": {}, "by_threat_type": {}}
 
         stats = {
             "total_detections": len(self.detection_log),
             "by_severity": {},
-            "by_threat_type": {}
+            "by_threat_type": {},
         }
 
         for entry in self.detection_log:
             for threat_type, severity in entry["threats"].items():
-                stats["by_threat_type"][threat_type] = \
+                stats["by_threat_type"][threat_type] = (
                     stats["by_threat_type"].get(threat_type, 0) + 1
-                stats["by_severity"][severity] = \
+                )
+                stats["by_severity"][severity] = (
                     stats["by_severity"].get(severity, 0) + 1
+                )
 
         return stats
 
     def export_detection_log(self, output_file: str) -> None:
         """Export detection log to file"""
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(self.detection_log, f, indent=2)
 
 
@@ -429,13 +411,16 @@ class ComprehensiveAISecurityGuard:
         # Import security components with flexible path handling
         # This pattern supports both package imports and standalone execution
         try:
-            from ai.security.spotlighting import SpotlightingEngine, SpotlightTemplateType
-            from ai.security.tool_scoping import ToolScopeManager
             from ai.security.human_in_the_loop import ApprovalWorkflow
+            from ai.security.spotlighting import (
+                SpotlightingEngine,
+                SpotlightTemplateType,
+            )
+            from ai.security.tool_scoping import ToolScopeManager
         except ImportError:
+            from human_in_the_loop import ApprovalWorkflow
             from spotlighting import SpotlightingEngine, SpotlightTemplateType
             from tool_scoping import ToolScopeManager
-            from human_in_the_loop import ApprovalWorkflow
 
         # Store module references for later use
         self._spotlighting_module = SpotlightingEngine
@@ -453,7 +438,7 @@ class ComprehensiveAISecurityGuard:
         user_input: str,
         ai_function: callable,
         context: Optional[str] = None,
-        force_approval: bool = False
+        force_approval: bool = False,
     ) -> Dict[str, Any]:
         """
         Execute AI operation with full security checks
@@ -476,9 +461,9 @@ class ComprehensiveAISecurityGuard:
                 "prompt_shield": None,
                 "spotlighting": None,
                 "tool_permission": None,
-                "approval": None
+                "approval": None,
             },
-            "error": None
+            "error": None,
         }
 
         # Stage 1: Prompt Shield Classification
@@ -487,13 +472,19 @@ class ComprehensiveAISecurityGuard:
             result["security_checks"]["prompt_shield"] = {
                 "passed": not threat_detection.is_threat,
                 "threat_type": threat_detection.threat_type.value,
-                "severity": threat_detection.severity.value
+                "severity": threat_detection.severity.value,
             }
 
-            if threat_detection.is_threat and threat_detection.severity.value >= ThreatSeverity.HIGH.value:
-                result["error"] = "Threat detected: " + threat_detection.threat_type.value
-                result["security_checks"]["prompt_shield"]["recommendations"] = \
-                    threat_detection.recommendations
+            if (
+                threat_detection.is_threat
+                and threat_detection.severity.value >= ThreatSeverity.HIGH.value
+            ):
+                result["error"] = (
+                    "Threat detected: " + threat_detection.threat_type.value
+                )
+                result["security_checks"]["prompt_shield"][
+                    "recommendations"
+                ] = threat_detection.recommendations
                 return result
 
             # Use mitigated input if available
@@ -510,7 +501,7 @@ class ComprehensiveAISecurityGuard:
             )
             result["security_checks"]["tool_permission"] = {
                 "passed": has_perm,
-                "error": perm_error
+                "error": perm_error,
             }
 
             if not has_perm:
@@ -522,7 +513,9 @@ class ComprehensiveAISecurityGuard:
             return result
 
         # Stage 3: Check if approval required
-        approval_required = self.tool_scoping.requires_approval(operation_type) or force_approval
+        approval_required = (
+            self.tool_scoping.requires_approval(operation_type) or force_approval
+        )
 
         if approval_required:
             try:
@@ -532,18 +525,20 @@ class ComprehensiveAISecurityGuard:
                     requester_id=user_id,
                     operation_details={
                         "input_length": len(safe_input),
-                        "context": context
+                        "context": context,
                     },
-                    justification=f"AI operation: {operation_type}"
+                    justification=f"AI operation: {operation_type}",
                 )
 
                 result["security_checks"]["approval"] = {
                     "required": True,
                     "request_id": approval_request.request_id,
-                    "status": "pending_approval"
+                    "status": "pending_approval",
                 }
 
-                result["error"] = "Approval required. Request ID: " + approval_request.request_id
+                result["error"] = (
+                    "Approval required. Request ID: " + approval_request.request_id
+                )
                 return result
 
             except Exception as e:
@@ -556,18 +551,19 @@ class ComprehensiveAISecurityGuard:
             template_map = {
                 "sentiment_analysis": self._template_type_class.SENTIMENT_ANALYSIS,
                 "clinical_assessment": self._template_type_class.CLINICAL_ANALYSIS,
-                "personality_profiling": self._template_type_class.PERSONALITY_ASSESSMENT
+                "personality_profiling": self._template_type_class.PERSONALITY_ASSESSMENT,
             }
 
-            template_type = template_map.get(operation_type, self._template_type_class.GENERAL_QUERY)
+            template_type = template_map.get(
+                operation_type, self._template_type_class.GENERAL_QUERY
+            )
             spotlighted_prompt = self.spotlighting.create_spotlighted_prompt(
-                template_type=template_type,
-                user_input=safe_input
+                template_type=template_type, user_input=safe_input
             )
 
             result["security_checks"]["spotlighting"] = {
                 "passed": True,
-                "template": template_type.value
+                "template": template_type.value,
             }
 
             # Execute AI function
@@ -598,11 +594,13 @@ if __name__ == "__main__":
         operation_type="sentiment_analysis",
         user_input="I feel happy and optimistic today!",
         ai_function=lambda prompt: "Sentiment: positive (0.9)",
-        context="assessment"
+        context="assessment",
     )
 
     print(f"Success: {result['success']}")
-    print(f"Security Checks Passed: {all(c.get('passed', False) for c in result['security_checks'].values() if isinstance(c, dict))}")
+    print(
+        f"Security Checks Passed: {all(c.get('passed', False) for c in result['security_checks'].values() if isinstance(c, dict))}"
+    )
 
     # Test 2: Malicious input
     print("\n2. Malicious Input (Prompt Injection)")
@@ -619,12 +617,14 @@ if __name__ == "__main__":
         operation_type="sentiment_analysis",
         user_input=malicious_input,
         ai_function=lambda prompt: "Response",
-        context="assessment"
+        context="assessment",
     )
 
     print(f"Success: {result['success']}")
     print(f"Error: {result.get('error', 'None')}")
-    print(f"Threat Detected: {result['security_checks']['prompt_shield']['threat_type']}")
+    print(
+        f"Threat Detected: {result['security_checks']['prompt_shield']['threat_type']}"
+    )
 
     print("\n" + "=" * 60)
     print("Demo complete!")

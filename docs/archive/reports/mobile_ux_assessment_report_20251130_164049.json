@@ -1,0 +1,439 @@
+{
+  "execution_metadata": {
+    "timestamp": "2025-11-30T16:40:49.533192",
+    "execution_time_seconds": 0.000697,
+    "test_environment": "mobile_ux_testing",
+    "total_devices_tested": 8
+  },
+  "summary": {
+    "total_tests": 12,
+    "passed_tests": 12,
+    "failed_tests": 0,
+    "success_rate_percent": 100.0,
+    "ux_health_status": "\u2705 EXCELLENT",
+    "mobile_ux_ready": true
+  },
+  "performance_metrics": {
+    "average_completion_time_seconds": 106.01,
+    "average_accessibility_score": 0.9175,
+    "average_satisfaction_score": 0.872,
+    "average_completion_rate": 0.8793,
+    "max_completion_time": 506.16,
+    "min_completion_time": 13.72
+  },
+  "device_analysis": {
+    "iPhone 12 Mini": {
+      "total": 2,
+      "passed": 2,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.836
+    },
+    "iPhone 13": {
+      "total": 2,
+      "passed": 2,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.849
+    },
+    "iPhone 14 Pro Max": {
+      "total": 2,
+      "passed": 2,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.869
+    },
+    "iPad Air": {
+      "total": 1,
+      "passed": 1,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.938
+    },
+    "Google Pixel 5a": {
+      "total": 2,
+      "passed": 2,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.875
+    },
+    "Samsung Galaxy S22": {
+      "total": 1,
+      "passed": 1,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.927
+    },
+    "OnePlus 9 Pro": {
+      "total": 1,
+      "passed": 1,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.875
+    },
+    "Samsung Galaxy Tab S8": {
+      "total": 1,
+      "passed": 1,
+      "success_rate": 100.0,
+      "avg_satisfaction": 0.864
+    }
+  },
+  "screen_size_analysis": {
+    "small": {
+      "total": 4,
+      "passed": 4,
+      "success_rate": 100.0,
+      "avg_completion_time": 34.47
+    },
+    "medium": {
+      "total": 3,
+      "passed": 3,
+      "success_rate": 100.0,
+      "avg_completion_time": 34.08
+    },
+    "large": {
+      "total": 3,
+      "passed": 3,
+      "success_rate": 100.0,
+      "avg_completion_time": 143.29
+    },
+    "extra_large": {
+      "total": 2,
+      "passed": 2,
+      "success_rate": 100.0,
+      "avg_completion_time": 301.07
+    }
+  },
+  "accessibility_analysis": {
+    "excellent": 10,
+    "good": 2,
+    "needs_improvement": 0,
+    "average_score": 0.9175
+  },
+  "failed_test_details": [],
+  "top_performing_devices": [
+    [
+      "iPad Air",
+      0.938
+    ],
+    [
+      "Samsung Galaxy S22",
+      0.927
+    ],
+    [
+      "Google Pixel 5a",
+      0.875
+    ],
+    [
+      "OnePlus 9 Pro",
+      0.875
+    ],
+    [
+      "iPhone 14 Pro Max",
+      0.869
+    ]
+  ],
+  "device_recommendations": [
+    "\ud83d\udcf1 Optimize iPhone 12 Mini for small screens: Focus on touch targets and readability",
+    "\ud83d\udcf1 Optimize Google Pixel 5a for small screens: Focus on touch targets and readability"
+  ],
+  "ux_improvement_priorities": [
+    "\u2705 EXCELLENT: All UX tests meeting performance and accessibility standards"
+  ],
+  "optimization_recommendations": [],
+  "detailed_results": [
+    {
+      "test_id": "MOBILE-UX-001",
+      "test_name": "Mobile Navigation Menu Accessibility",
+      "device_name": "iPhone 12 Mini",
+      "device_type": "ios_iphone",
+      "screen_size": "small",
+      "screen_resolution": "375x667",
+      "passed": true,
+      "completion_time": 26.000791806411755,
+      "accessibility_score": 0.9268465685567717,
+      "user_satisfaction_score": 0.8083442955569551,
+      "completion_rate": 0.806189688017834,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 1.034327292864399,
+        "interaction_response_time": 0.05759360272681696,
+        "scroll_smoothness": 0.9007239726680144,
+        "touch_accuracy": 0.9741564085009037,
+        "gesture_recognition": 0.9058559930018338,
+        "keyboard_display_time": 0.494508223478789,
+        "network_requests": 30,
+        "memory_usage_mb": 109.25521514591512
+      },
+      "timestamp": "2025-11-30T16:40:49.532236"
+    },
+    {
+      "test_id": "MOBILE-UX-002",
+      "test_name": "Assessment Landing Page First Impression",
+      "device_name": "iPhone 13",
+      "device_type": "ios_iphone",
+      "screen_size": "medium",
+      "screen_resolution": "390x844",
+      "passed": true,
+      "completion_time": 13.722530278920777,
+      "accessibility_score": 0.906750742971945,
+      "user_satisfaction_score": 0.8530347750013263,
+      "completion_rate": 0.9032464632649222,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.6545613481381065,
+        "interaction_response_time": 0.10435791605551903,
+        "scroll_smoothness": 0.9331148678644985,
+        "touch_accuracy": 0.9394781435516878,
+        "gesture_recognition": 0.9491831457975944,
+        "keyboard_display_time": 0.38383294711930105,
+        "network_requests": 23,
+        "memory_usage_mb": 54.16206929223302
+      },
+      "timestamp": "2025-11-30T16:40:49.532299"
+    },
+    {
+      "test_id": "MOBILE-UX-003",
+      "test_name": "Question Presentation and Interaction",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "ios_iphone",
+      "screen_size": "large",
+      "screen_resolution": "428x926",
+      "passed": true,
+      "completion_time": 46.84852593426656,
+      "accessibility_score": 0.9114696427752123,
+      "user_satisfaction_score": 0.8975900771923918,
+      "completion_rate": 0.8358193031940709,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.247295265425387,
+        "interaction_response_time": 0.15477452006067993,
+        "scroll_smoothness": 0.8051193473782003,
+        "touch_accuracy": 0.9654822825830534,
+        "gesture_recognition": 0.9247956507046661,
+        "keyboard_display_time": 0.46567649566883773,
+        "network_requests": 22,
+        "memory_usage_mb": 74.34242497131719
+      },
+      "timestamp": "2025-11-30T16:40:49.532350"
+    },
+    {
+      "test_id": "MOBILE-UX-004",
+      "test_name": "Big Five Assessment Flow Completion",
+      "device_name": "iPad Air",
+      "device_type": "ios_ipad",
+      "screen_size": "extra_large",
+      "screen_resolution": "1024x1366",
+      "passed": true,
+      "completion_time": 506.1649877901692,
+      "accessibility_score": 0.9177950043896091,
+      "user_satisfaction_score": 0.9381061290817951,
+      "completion_rate": 0.9478433314079883,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.6071162943755533,
+        "interaction_response_time": 0.13083510080838534,
+        "scroll_smoothness": 0.808110913401595,
+        "touch_accuracy": 0.8891828833797285,
+        "gesture_recognition": 0.9550125415655499,
+        "keyboard_display_time": 0.39363367510584546,
+        "network_requests": 49,
+        "memory_usage_mb": 51.82483092249692
+      },
+      "timestamp": "2025-11-30T16:40:49.532392"
+    },
+    {
+      "test_id": "MOBILE-UX-005",
+      "test_name": "Mobile Keyboard and Text Input",
+      "device_name": "Google Pixel 5a",
+      "device_type": "android_phone",
+      "screen_size": "small",
+      "screen_resolution": "360x640",
+      "passed": true,
+      "completion_time": 53.350557339706135,
+      "accessibility_score": 0.9172620402016484,
+      "user_satisfaction_score": 0.8882782225776756,
+      "completion_rate": 0.8289320228089075,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.6891784698925685,
+        "interaction_response_time": 0.1596656032425105,
+        "scroll_smoothness": 0.8040192572197288,
+        "touch_accuracy": 0.9077539195724883,
+        "gesture_recognition": 0.8970247852721314,
+        "keyboard_display_time": 0.36716455959569094,
+        "network_requests": 39,
+        "memory_usage_mb": 64.44885292535324
+      },
+      "timestamp": "2025-11-30T16:40:49.532436"
+    },
+    {
+      "test_id": "MOBILE-UX-006",
+      "test_name": "Touch Target and Gesture Testing",
+      "device_name": "Samsung Galaxy S22",
+      "device_type": "android_phone",
+      "screen_size": "medium",
+      "screen_resolution": "412x915",
+      "passed": true,
+      "completion_time": 31.775991535427895,
+      "accessibility_score": 0.9353829252363152,
+      "user_satisfaction_score": 0.9273022954098935,
+      "completion_rate": 0.9314353343006152,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.9134714706409754,
+        "interaction_response_time": 0.17996123845965634,
+        "scroll_smoothness": 0.9482648149712857,
+        "touch_accuracy": 0.9368486684653725,
+        "gesture_recognition": 0.8875845549490455,
+        "keyboard_display_time": 0.35540343671759234,
+        "network_requests": 41,
+        "memory_usage_mb": 105.4226532691353
+      },
+      "timestamp": "2025-11-30T16:40:49.532476"
+    },
+    {
+      "test_id": "MOBILE-UX-007",
+      "test_name": "Mobile Performance and Load Times",
+      "device_name": "OnePlus 9 Pro",
+      "device_type": "android_phone",
+      "screen_size": "large",
+      "screen_resolution": "480x853",
+      "passed": true,
+      "completion_time": 45.748535755425095,
+      "accessibility_score": 0.9541657555691851,
+      "user_satisfaction_score": 0.8748866086792237,
+      "completion_rate": 0.91624040091598,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.2756078119624252,
+        "interaction_response_time": 0.052586729111974255,
+        "scroll_smoothness": 0.8793423539065242,
+        "touch_accuracy": 0.9505085146499476,
+        "gesture_recognition": 0.9220649906780438,
+        "keyboard_display_time": 0.38666716070098905,
+        "network_requests": 47,
+        "memory_usage_mb": 112.21729107159005
+      },
+      "timestamp": "2025-11-30T16:40:49.532515"
+    },
+    {
+      "test_id": "MOBILE-UX-008",
+      "test_name": "Network Condition Adaptability",
+      "device_name": "Samsung Galaxy Tab S8",
+      "device_type": "android_tablet",
+      "screen_size": "extra_large",
+      "screen_resolution": "800x1280",
+      "passed": true,
+      "completion_time": 95.98048998895212,
+      "accessibility_score": 0.905359962895501,
+      "user_satisfaction_score": 0.8644930820882823,
+      "completion_rate": 0.9399284203646359,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 1.6570531867188312,
+        "interaction_response_time": 0.07681867203303219,
+        "scroll_smoothness": 0.836770958396785,
+        "touch_accuracy": 0.9533964821673664,
+        "gesture_recognition": 0.9547234702067712,
+        "keyboard_display_time": 0.32393605486731936,
+        "network_requests": 36,
+        "memory_usage_mb": 118.06606231578276
+      },
+      "timestamp": "2025-11-30T16:40:49.532553"
+    },
+    {
+      "test_id": "MOBILE-UX-009",
+      "test_name": "Mobile Screen Reader Accessibility",
+      "device_name": "iPhone 13",
+      "device_type": "ios_iphone",
+      "screen_size": "medium",
+      "screen_resolution": "390x844",
+      "passed": true,
+      "completion_time": 56.75120630595621,
+      "accessibility_score": 0.8846526853434523,
+      "user_satisfaction_score": 0.8442641073526926,
+      "completion_rate": 0.9488186173155431,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.001420774196206,
+        "interaction_response_time": 0.09510915363182411,
+        "scroll_smoothness": 0.8834053165124002,
+        "touch_accuracy": 0.9748930260849771,
+        "gesture_recognition": 0.9338066910947647,
+        "keyboard_display_time": 0.34291234826702566,
+        "network_requests": 37,
+        "memory_usage_mb": 56.05283120277895
+      },
+      "timestamp": "2025-11-30T16:40:49.532591"
+    },
+    {
+      "test_id": "MOBILE-UX-010",
+      "test_name": "Mobile Color Contrast and Visual Accessibility",
+      "device_name": "iPhone 12 Mini",
+      "device_type": "ios_iphone",
+      "screen_size": "small",
+      "screen_resolution": "375x667",
+      "passed": true,
+      "completion_time": 24.179652113503426,
+      "accessibility_score": 0.8862211045801459,
+      "user_satisfaction_score": 0.8644319378446381,
+      "completion_rate": 0.7518703449494551,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 1.5926007066156163,
+        "interaction_response_time": 0.08194982985146038,
+        "scroll_smoothness": 0.8973741584974055,
+        "touch_accuracy": 0.8570115271022898,
+        "gesture_recognition": 0.9397212931433147,
+        "keyboard_display_time": 0.47790024096591727,
+        "network_requests": 22,
+        "memory_usage_mb": 115.16048453109404
+      },
+      "timestamp": "2025-11-30T16:40:49.532641"
+    },
+    {
+      "test_id": "MOBILE-UX-011",
+      "test_name": "Mobile Assessment Completion Rate",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "ios_iphone",
+      "screen_size": "large",
+      "screen_resolution": "428x926",
+      "passed": true,
+      "completion_time": 337.2583837812347,
+      "accessibility_score": 0.9395025940232575,
+      "user_satisfaction_score": 0.8412202258313956,
+      "completion_rate": 0.8710090930486629,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.138725079632141,
+        "interaction_response_time": 0.1619223550925467,
+        "scroll_smoothness": 0.8949821803372776,
+        "touch_accuracy": 0.9339903461914785,
+        "gesture_recognition": 0.9296751127436953,
+        "keyboard_display_time": 0.3770526701763095,
+        "network_requests": 28,
+        "memory_usage_mb": 58.61097799324441
+      },
+      "timestamp": "2025-11-30T16:40:49.532680"
+    },
+    {
+      "test_id": "MOBILE-UX-012",
+      "test_name": "Mobile Gamification and Engagement",
+      "device_name": "Google Pixel 5a",
+      "device_type": "android_phone",
+      "screen_size": "small",
+      "screen_resolution": "360x640",
+      "passed": true,
+      "completion_time": 34.360207720406954,
+      "accessibility_score": 0.924298491407101,
+      "user_satisfaction_score": 0.8625277706145015,
+      "completion_rate": 0.8703574361551678,
+      "interaction_issues": [],
+      "performance_metrics": {
+        "load_time": 2.209007747690099,
+        "interaction_response_time": 0.1750902373452745,
+        "scroll_smoothness": 0.9237452417824342,
+        "touch_accuracy": 0.958082426977612,
+        "gesture_recognition": 0.8952473477121332,
+        "keyboard_display_time": 0.2920843042997098,
+        "network_requests": 27,
+        "memory_usage_mb": 94.61939655619264
+      },
+      "timestamp": "2025-11-30T16:40:49.532719"
+    }
+  ]
+}

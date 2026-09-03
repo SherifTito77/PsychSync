@@ -4,12 +4,12 @@ Handles production deployment, health checks, monitoring, and rollback procedure
 """
 
 import asyncio
+import logging
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
-import uuid
 
 import yaml
 
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 class DeploymentEnvironment(Enum):
     """Deployment environments"""
+
     DEVELOPMENT = "development"
     STAGING = "staging"
     PRODUCTION = "production"
@@ -25,6 +26,7 @@ class DeploymentEnvironment(Enum):
 
 class DeploymentStatus(Enum):
     """Deployment status"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     SUCCESS = "success"
@@ -36,6 +38,7 @@ class DeploymentStatus(Enum):
 
 class HealthCheckStatus(Enum):
     """Health check status"""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -44,6 +47,7 @@ class HealthCheckStatus(Enum):
 
 class ComponentStatus(Enum):
     """Component status"""
+
     RUNNING = "running"
     STOPPED = "stopped"
     ERROR = "error"
@@ -53,6 +57,7 @@ class ComponentStatus(Enum):
 
 class RollbackStrategy(Enum):
     """Rollback strategies"""
+
     IMMEDIATE = "immediate"
     GRACEFUL = "graceful"
     MANUAL = "manual"
@@ -62,6 +67,7 @@ class RollbackStrategy(Enum):
 @dataclass
 class DeploymentConfig:
     """Deployment configuration"""
+
     version: str
     environment: DeploymentEnvironment
     build_number: str
@@ -89,6 +95,7 @@ class DeploymentConfig:
 @dataclass
 class HealthCheck:
     """Health check definition"""
+
     name: str
     endpoint: str
     method: str = "GET"
@@ -103,6 +110,7 @@ class HealthCheck:
 @dataclass
 class HealthCheckResult:
     """Health check result"""
+
     check_name: str
     status: HealthCheckStatus
     response_time: float
@@ -114,6 +122,7 @@ class HealthCheckResult:
 @dataclass
 class SystemHealth:
     """Overall system health status"""
+
     overall_status: HealthCheckStatus
     component_status: dict[str, ComponentStatus]
     health_checks: list[HealthCheckResult]
@@ -128,6 +137,7 @@ class SystemHealth:
 @dataclass
 class Deployment:
     """Deployment record"""
+
     id: str
     config: DeploymentConfig
     status: DeploymentStatus
@@ -146,6 +156,7 @@ class Deployment:
 @dataclass
 class RollbackPlan:
     """Rollback plan definition"""
+
     id: str
     deployment_id: str
     target_version: str
@@ -161,6 +172,7 @@ class RollbackPlan:
 @dataclass
 class PerformanceMetrics:
     """Performance metrics collection"""
+
     timestamp: datetime
     cpu_usage: float
     memory_usage: float
@@ -196,7 +208,7 @@ class DeploymentService:
                 expected_status=200,
                 timeout=30,
                 retries=3,
-                critical=True
+                critical=True,
             ),
             HealthCheck(
                 name="database_connection",
@@ -205,7 +217,7 @@ class DeploymentService:
                 expected_status=200,
                 timeout=10,
                 retries=2,
-                critical=True
+                critical=True,
             ),
             HealthCheck(
                 name="redis_connection",
@@ -214,7 +226,7 @@ class DeploymentService:
                 expected_status=200,
                 timeout=5,
                 retries=2,
-                critical=True
+                critical=True,
             ),
             HealthCheck(
                 name="api_readiness",
@@ -223,7 +235,7 @@ class DeploymentService:
                 expected_status=200,
                 timeout=30,
                 retries=3,
-                critical=True
+                critical=True,
             ),
             HealthCheck(
                 name="authentication_service",
@@ -232,7 +244,7 @@ class DeploymentService:
                 expected_status=200,
                 timeout=15,
                 retries=2,
-                critical=True
+                critical=True,
             ),
             HealthCheck(
                 name="email_service",
@@ -241,8 +253,8 @@ class DeploymentService:
                 expected_status=200,
                 timeout=10,
                 retries=1,
-                critical=False
-            )
+                critical=False,
+            ),
         ]
 
     async def create_deployment_config(
@@ -252,7 +264,7 @@ class DeploymentService:
         build_number: str,
         commit_hash: str,
         docker_image: str,
-        **kwargs
+        **kwargs,
     ) -> DeploymentConfig:
         """Create deployment configuration"""
         config = DeploymentConfig(
@@ -263,7 +275,7 @@ class DeploymentService:
             build_date=datetime.utcnow(),
             docker_image=docker_image,
             namespace=f"psychsync-{environment.value}",
-            **kwargs
+            **kwargs,
         )
 
         # Environment-specific overrides
@@ -279,9 +291,7 @@ class DeploymentService:
         return config
 
     async def start_deployment(
-        self,
-        config: DeploymentConfig,
-        skip_pre_checks: bool = False
+        self, config: DeploymentConfig, skip_pre_checks: bool = False
     ) -> Deployment:
         """Start deployment process"""
         deployment_id = str(uuid.uuid4())
@@ -290,13 +300,15 @@ class DeploymentService:
             id=deployment_id,
             config=config,
             status=DeploymentStatus.PENDING,
-            started_at=datetime.utcnow()
+            started_at=datetime.utcnow(),
         )
 
         self.deployments[deployment_id] = deployment
         self.current_deployment = deployment
 
-        logger.info(f"Starting deployment {deployment_id} to {config.environment.value}")
+        logger.info(
+            f"Starting deployment {deployment_id} to {config.environment.value}"
+        )
 
         try:
             # Pre-deployment checks
@@ -305,7 +317,9 @@ class DeploymentService:
 
             # Update status
             deployment.status = DeploymentStatus.IN_PROGRESS
-            deployment.deployment_logs.append(f"Starting deployment to {config.environment.value}")
+            deployment.deployment_logs.append(
+                f"Starting deployment to {config.environment.value}"
+            )
 
             # Execute deployment
             await self._execute_deployment(deployment)
@@ -316,16 +330,22 @@ class DeploymentService:
             # Mark as successful
             deployment.status = DeploymentStatus.SUCCESS
             deployment.completed_at = datetime.utcnow()
-            deployment.duration = (deployment.completed_at - deployment.started_at).total_seconds()
+            deployment.duration = (
+                deployment.completed_at - deployment.started_at
+            ).total_seconds()
             deployment.success = True
             deployment.deployment_logs.append("Deployment completed successfully")
 
-            logger.info(f"Deployment {deployment_id} completed successfully in {deployment.duration:.2f}s")
+            logger.info(
+                f"Deployment {deployment_id} completed successfully in {deployment.duration:.2f}s"
+            )
 
         except Exception as e:
             deployment.status = DeploymentStatus.FAILED
             deployment.completed_at = datetime.utcnow()
-            deployment.duration = (deployment.completed_at - deployment.started_at).total_seconds()
+            deployment.duration = (
+                deployment.completed_at - deployment.started_at
+            ).total_seconds()
             deployment.success = False
             deployment.error_message = str(e)
             deployment.deployment_logs.append(f"Deployment failed: {e!s}")
@@ -333,7 +353,10 @@ class DeploymentService:
             logger.error(f"Deployment {deployment_id} failed: {e!s}")
 
             # Trigger rollback if enabled and in production
-            if config.rollback_enabled and config.environment == DeploymentEnvironment.PRODUCTION:
+            if (
+                config.rollback_enabled
+                and config.environment == DeploymentEnvironment.PRODUCTION
+            ):
                 await self._trigger_rollback(deployment)
 
         return deployment
@@ -348,13 +371,18 @@ class DeploymentService:
 
         # Verify all critical health checks are passing
         failed_critical = [
-            check for check in deployment.pre_deployment_checks
-            if check.status != HealthCheckStatus.HEALTHY and
-               any(hc.name == check.check_name and hc.critical for hc in self.health_checks)
+            check
+            for check in deployment.pre_deployment_checks
+            if check.status != HealthCheckStatus.HEALTHY
+            and any(
+                hc.name == check.check_name and hc.critical for hc in self.health_checks
+            )
         ]
 
         if failed_critical:
-            raise Exception(f"Critical health checks failed: {[check.check_name for check in failed_critical]}")
+            raise Exception(
+                f"Critical health checks failed: {[check.check_name for check in failed_critical]}"
+            )
 
         # Check environment-specific requirements
         if deployment.config.environment == DeploymentEnvironment.PRODUCTION:
@@ -398,9 +426,13 @@ class DeploymentService:
         # Wait for rollout to complete
         await self._wait_for_rollout_completion(deployment)
 
-        deployment.deployment_logs.append(f"Deployment executed successfully: {config.version}")
+        deployment.deployment_logs.append(
+            f"Deployment executed successfully: {config.version}"
+        )
 
-    async def _generate_kubernetes_manifests(self, config: DeploymentConfig) -> list[dict[str, Any]]:
+    async def _generate_kubernetes_manifests(
+        self, config: DeploymentConfig
+    ) -> list[dict[str, Any]]:
         """Generate Kubernetes manifests for deployment"""
         manifests = []
 
@@ -411,10 +443,7 @@ class DeploymentService:
             "metadata": {
                 "name": "psychsync-api",
                 "namespace": config.namespace,
-                "labels": {
-                    "app": "psychsync-api",
-                    "version": config.version
-                }
+                "labels": {"app": "psychsync-api", "version": config.version},
             },
             "spec": {
                 "replicas": config.replicas,
@@ -422,66 +451,62 @@ class DeploymentService:
                     "type": config.rollout_strategy,
                     "rollingUpdate": {
                         "maxUnavailable": config.max_unavailable,
-                        "maxSurge": config.max_surge
-                    }
+                        "maxSurge": config.max_surge,
+                    },
                 },
-                "selector": {
-                    "matchLabels": {
-                        "app": "psychsync-api"
-                    }
-                },
+                "selector": {"matchLabels": {"app": "psychsync-api"}},
                 "template": {
                     "metadata": {
-                        "labels": {
-                            "app": "psychsync-api",
-                            "version": config.version
-                        }
+                        "labels": {"app": "psychsync-api", "version": config.version}
                     },
                     "spec": {
-                        "containers": [{
-                            "name": "psychsync-api",
-                            "image": config.docker_image,
-                            "ports": [{
-                                "containerPort": 8000,
-                                "protocol": "TCP"
-                            }],
-                            "resources": {
-                                "requests": {
-                                    "cpu": config.cpu_request,
-                                    "memory": config.memory_request
+                        "containers": [
+                            {
+                                "name": "psychsync-api",
+                                "image": config.docker_image,
+                                "ports": [{"containerPort": 8000, "protocol": "TCP"}],
+                                "resources": {
+                                    "requests": {
+                                        "cpu": config.cpu_request,
+                                        "memory": config.memory_request,
+                                    },
+                                    "limits": {
+                                        "cpu": config.cpu_limit,
+                                        "memory": config.memory_limit,
+                                    },
                                 },
-                                "limits": {
-                                    "cpu": config.cpu_limit,
-                                    "memory": config.memory_limit
-                                }
-                            },
-                            "env": [
-                                {"name": "ENVIRONMENT", "value": config.environment.value},
-                                {"name": "VERSION", "value": config.version}
-                            ] + [
-                                {"name": k, "value": v}
-                                for k, v in config.environment_variables.items()
-                            ],
-                            "livenessProbe": {
-                                "httpGet": {
-                                    "path": config.health_check_endpoint,
-                                    "port": 8000
+                                "env": [
+                                    {
+                                        "name": "ENVIRONMENT",
+                                        "value": config.environment.value,
+                                    },
+                                    {"name": "VERSION", "value": config.version},
+                                ]
+                                + [
+                                    {"name": k, "value": v}
+                                    for k, v in config.environment_variables.items()
+                                ],
+                                "livenessProbe": {
+                                    "httpGet": {
+                                        "path": config.health_check_endpoint,
+                                        "port": 8000,
+                                    },
+                                    "initialDelaySeconds": 30,
+                                    "periodSeconds": 10,
                                 },
-                                "initialDelaySeconds": 30,
-                                "periodSeconds": 10
-                            },
-                            "readinessProbe": {
-                                "httpGet": {
-                                    "path": config.readiness_check_endpoint,
-                                    "port": 8000
+                                "readinessProbe": {
+                                    "httpGet": {
+                                        "path": config.readiness_check_endpoint,
+                                        "port": 8000,
+                                    },
+                                    "initialDelaySeconds": 5,
+                                    "periodSeconds": 5,
                                 },
-                                "initialDelaySeconds": 5,
-                                "periodSeconds": 5
                             }
-                        }]
-                    }
-                }
-            }
+                        ]
+                    },
+                },
+            },
         }
         manifests.append(deployment_manifest)
 
@@ -491,19 +516,13 @@ class DeploymentService:
             "kind": "Service",
             "metadata": {
                 "name": "psychsync-api-service",
-                "namespace": config.namespace
+                "namespace": config.namespace,
             },
             "spec": {
-                "selector": {
-                    "app": "psychsync-api"
-                },
-                "ports": [{
-                    "port": 80,
-                    "targetPort": 8000,
-                    "protocol": "TCP"
-                }],
-                "type": "ClusterIP"
-            }
+                "selector": {"app": "psychsync-api"},
+                "ports": [{"port": 80, "targetPort": 8000, "protocol": "TCP"}],
+                "type": "ClusterIP",
+            },
         }
         manifests.append(service_manifest)
 
@@ -511,35 +530,33 @@ class DeploymentService:
         hpa_manifest = {
             "apiVersion": "autoscaling/v2",
             "kind": "HorizontalPodAutoscaler",
-            "metadata": {
-                "name": "psychsync-api-hpa",
-                "namespace": config.namespace
-            },
+            "metadata": {"name": "psychsync-api-hpa", "namespace": config.namespace},
             "spec": {
                 "scaleTargetRef": {
                     "apiVersion": "apps/v1",
                     "kind": "Deployment",
-                    "name": "psychsync-api"
+                    "name": "psychsync-api",
                 },
                 "minReplicas": config.replicas,
                 "maxReplicas": config.replicas * 3,
-                "metrics": [{
-                    "type": "Resource",
-                    "resource": {
-                        "name": "cpu",
-                        "target": {
-                            "type": "Utilization",
-                            "averageUtilization": 70
-                        }
+                "metrics": [
+                    {
+                        "type": "Resource",
+                        "resource": {
+                            "name": "cpu",
+                            "target": {"type": "Utilization", "averageUtilization": 70},
+                        },
                     }
-                }]
-            }
+                ],
+            },
         }
         manifests.append(hpa_manifest)
 
         return manifests
 
-    async def _apply_kubernetes_manifests(self, manifests: list[dict[str, Any]], deployment: Deployment):
+    async def _apply_kubernetes_manifests(
+        self, manifests: list[dict[str, Any]], deployment: Deployment
+    ):
         """Apply Kubernetes manifests"""
         for manifest in manifests:
             # Convert to YAML and apply using kubectl
@@ -588,13 +605,18 @@ class DeploymentService:
 
         # Verify all critical health checks are passing
         failed_critical = [
-            check for check in deployment.post_deployment_checks
-            if check.status != HealthCheckStatus.HEALTHY and
-               any(hc.name == check.check_name and hc.critical for hc in self.health_checks)
+            check
+            for check in deployment.post_deployment_checks
+            if check.status != HealthCheckStatus.HEALTHY
+            and any(
+                hc.name == check.check_name and hc.critical for hc in self.health_checks
+            )
         ]
 
         if failed_critical:
-            raise Exception(f"Post-deployment health checks failed: {[check.check_name for check in failed_critical]}")
+            raise Exception(
+                f"Post-deployment health checks failed: {[check.check_name for check in failed_critical]}"
+            )
 
         # Run smoke tests
         await self._run_smoke_tests(deployment)
@@ -605,11 +627,7 @@ class DeploymentService:
         """Run smoke tests after deployment"""
         deployment.deployment_logs.append("Running smoke tests")
 
-        smoke_test_endpoints = [
-            "/health",
-            "/api/v1/health",
-            "/docs"
-        ]
+        smoke_test_endpoints = ["/health", "/api/v1/health", "/docs"]
 
         for endpoint in smoke_test_endpoints:
             # Simulate smoke test
@@ -621,9 +639,7 @@ class DeploymentService:
         deployment.deployment_logs.append("Triggering automatic rollback")
 
         rollback_plan = await self.create_rollback_plan(
-            failed_deployment.id,
-            "previous_stable_version",
-            RollbackStrategy.AUTOMATIC
+            failed_deployment.id, "previous_stable_version", RollbackStrategy.AUTOMATIC
         )
 
         try:
@@ -637,7 +653,7 @@ class DeploymentService:
         deployment_id: str,
         target_version: str,
         strategy: RollbackStrategy,
-        **kwargs
+        **kwargs,
     ) -> RollbackPlan:
         """Create rollback plan"""
         rollback_id = str(uuid.uuid4())
@@ -651,22 +667,22 @@ class DeploymentService:
                 "Critical health check failures",
                 "High error rate (>5%)",
                 "Response time degradation",
-                "Manual rollback trigger"
+                "Manual rollback trigger",
             ],
             rollback_steps=[
                 "Scale down current deployment",
                 "Deploy previous stable version",
                 "Verify health checks",
                 "Update load balancer",
-                "Notify stakeholders"
+                "Notify stakeholders",
             ],
             verification_steps=[
                 "Run health checks",
                 "Execute smoke tests",
                 "Verify user functionality",
-                "Check performance metrics"
+                "Check performance metrics",
             ],
-            **kwargs
+            **kwargs,
         )
 
         self.rollback_plans[rollback_id] = plan
@@ -683,12 +699,16 @@ class DeploymentService:
         if not deployment:
             raise ValueError(f"Deployment not found for rollback: {plan.deployment_id}")
 
-        logger.info(f"Executing rollback {rollback_id} to version {plan.target_version}")
+        logger.info(
+            f"Executing rollback {rollback_id} to version {plan.target_version}"
+        )
 
         try:
             # Update deployment status
             deployment.status = DeploymentStatus.ROLLING_BACK
-            deployment.deployment_logs.append(f"Starting rollback to {plan.target_version}")
+            deployment.deployment_logs.append(
+                f"Starting rollback to {plan.target_version}"
+            )
 
             # Execute rollback steps
             for step in plan.rollback_steps:
@@ -738,9 +758,13 @@ class DeploymentService:
 
         # Determine overall health
         critical_failures = [
-            result for result in health_results
-            if result.status == HealthCheckStatus.UNHEALTHY and
-               any(hc.name == result.check_name and hc.critical for hc in self.health_checks)
+            result
+            for result in health_results
+            if result.status == HealthCheckStatus.UNHEALTHY
+            and any(
+                hc.name == result.check_name and hc.critical
+                for hc in self.health_checks
+            )
         ]
 
         if critical_failures:
@@ -765,11 +789,13 @@ class DeploymentService:
             resource_usage={
                 "cpu": metrics.cpu_usage,
                 "memory": metrics.memory_usage,
-                "disk": metrics.disk_usage
-            }
+                "disk": metrics.disk_usage,
+            },
         )
 
-    async def _execute_health_check(self, health_check: HealthCheck) -> HealthCheckResult:
+    async def _execute_health_check(
+        self, health_check: HealthCheck
+    ) -> HealthCheckResult:
         """Execute individual health check"""
         start_time = datetime.utcnow()
 
@@ -787,23 +813,24 @@ class DeploymentService:
                     check_name=health_check.name,
                     status=HealthCheckStatus.HEALTHY,
                     response_time=response_time,
-                    status_code=200
+                    status_code=200,
                 )
             # Non-critical checks occasionally degrade
             import random
+
             if secrets.SystemRandom().random() < 0.1:  # 10% chance of degradation
                 return HealthCheckResult(
                     check_name=health_check.name,
                     status=HealthCheckStatus.DEGRADED,
                     response_time=response_time + random.uniform(0.5, 2.0),
                     status_code=200,
-                    error_message="Response time above threshold"
+                    error_message="Response time above threshold",
                 )
             return HealthCheckResult(
                 check_name=health_check.name,
                 status=HealthCheckStatus.HEALTHY,
                 response_time=response_time,
-                status_code=200
+                status_code=200,
             )
 
         except Exception as e:
@@ -812,7 +839,7 @@ class DeploymentService:
                 check_name=health_check.name,
                 status=HealthCheckStatus.UNHEALTHY,
                 response_time=response_time,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def _collect_performance_metrics(self) -> PerformanceMetrics:
@@ -827,14 +854,14 @@ class DeploymentService:
             disk_usage=random.uniform(40, 60),
             network_io={
                 "bytes_in": random.uniform(1000, 5000),
-                "bytes_out": random.uniform(500, 2000)
+                "bytes_out": random.uniform(500, 2000),
             },
             active_connections=secrets.randbelow(90) + 10,
             requests_per_second=random.uniform(10, 50),
             average_response_time=random.uniform(0.1, 1.0),
             error_rate=random.uniform(0.01, 0.05),
             queue_size=secrets.randbelow(10) + 0,
-            database_connections=secrets.randbelow(15) + 5
+            database_connections=secrets.randbelow(15) + 5,
         )
 
     async def get_deployment_history(self, limit: int = 10) -> list[Deployment]:
@@ -868,7 +895,7 @@ class DeploymentService:
             "system_health": asdict(health),
             "performance_metrics": asdict(metrics),
             "rollback_available": deployment.config.rollback_enabled,
-            "time_elapsed": (datetime.utcnow() - deployment.started_at).total_seconds()
+            "time_elapsed": (datetime.utcnow() - deployment.started_at).total_seconds(),
         }
 
     async def generate_deployment_report(self, deployment_id: str) -> dict[str, Any]:
@@ -887,22 +914,42 @@ class DeploymentService:
                 "success": deployment.success,
                 "duration": deployment.duration,
                 "started_at": deployment.started_at.isoformat(),
-                "completed_at": deployment.completed_at.isoformat() if deployment.completed_at else None
+                "completed_at": (
+                    deployment.completed_at.isoformat()
+                    if deployment.completed_at
+                    else None
+                ),
             },
             "configuration": asdict(deployment.config),
-            "pre_deployment_checks": [asdict(check) for check in deployment.pre_deployment_checks],
-            "post_deployment_checks": [asdict(check) for check in deployment.post_deployment_checks],
+            "pre_deployment_checks": [
+                asdict(check) for check in deployment.pre_deployment_checks
+            ],
+            "post_deployment_checks": [
+                asdict(check) for check in deployment.post_deployment_checks
+            ],
             "deployment_logs": deployment.deployment_logs,
-            "rollback_info": {
-                "enabled": deployment.config.rollback_enabled,
-                "rollback_id": deployment.rollback_id,
-                "rollback_plan": asdict(self.rollback_plans[deployment.rollback_id]) if deployment.rollback_id else None
-            } if deployment.rollback_id else None,
+            "rollback_info": (
+                {
+                    "enabled": deployment.config.rollback_enabled,
+                    "rollback_id": deployment.rollback_id,
+                    "rollback_plan": (
+                        asdict(self.rollback_plans[deployment.rollback_id])
+                        if deployment.rollback_id
+                        else None
+                    ),
+                }
+                if deployment.rollback_id
+                else None
+            ),
             "performance_impact": await self._analyze_performance_impact(deployment),
-            "recommendations": await self._generate_deployment_recommendations(deployment)
+            "recommendations": await self._generate_deployment_recommendations(
+                deployment
+            ),
         }
 
-    async def _analyze_performance_impact(self, deployment: Deployment) -> dict[str, Any]:
+    async def _analyze_performance_impact(
+        self, deployment: Deployment
+    ) -> dict[str, Any]:
         """Analyze performance impact of deployment"""
         # This would compare pre and post deployment metrics
         return {
@@ -910,10 +957,12 @@ class DeploymentService:
             "memory_impact": "minimal",
             "response_time_impact": "improved",
             "error_rate_impact": "reduced",
-            "user_experience": "positive"
+            "user_experience": "positive",
         }
 
-    async def _generate_deployment_recommendations(self, deployment: Deployment) -> list[str]:
+    async def _generate_deployment_recommendations(
+        self, deployment: Deployment
+    ) -> list[str]:
         """Generate deployment recommendations"""
         recommendations = []
 
@@ -923,19 +972,26 @@ class DeploymentService:
             recommendations.append("Consider implementing more thorough testing")
 
         if deployment.duration and deployment.duration > 600:  # 10 minutes
-            recommendations.append("Consider optimizing deployment strategy to reduce downtime")
+            recommendations.append(
+                "Consider optimizing deployment strategy to reduce downtime"
+            )
 
         # Analyze post-deployment health checks
         degraded_checks = [
-            check for check in deployment.post_deployment_checks
+            check
+            for check in deployment.post_deployment_checks
             if check.status == HealthCheckStatus.DEGRADED
         ]
 
         if degraded_checks:
-            recommendations.append(f"Investigate degraded health checks: {[check.check_name for check in degraded_checks]}")
+            recommendations.append(
+                f"Investigate degraded health checks: {[check.check_name for check in degraded_checks]}"
+            )
 
         if deployment.success:
-            recommendations.append("Deployment was successful - proceed with monitoring")
+            recommendations.append(
+                "Deployment was successful - proceed with monitoring"
+            )
             recommendations.append("Consider updating rollback target to this version")
 
         return recommendations
@@ -951,7 +1007,7 @@ class DeploymentService:
                 " Database migrations ready",
                 " Backup procedures verified",
                 " Rollback plan prepared",
-                " Stakeholder notification sent"
+                " Stakeholder notification sent",
             ],
             "deployment": [
                 " Maintenance window scheduled",
@@ -959,7 +1015,7 @@ class DeploymentService:
                 " SSL certificates valid",
                 " Monitoring alerts configured",
                 " Log aggregation setup",
-                " Error tracking enabled"
+                " Error tracking enabled",
             ],
             "post_deployment": [
                 "¡ Health checks passing",
@@ -968,21 +1024,21 @@ class DeploymentService:
                 "¡ User functionality verified",
                 "¡ Error rates acceptable",
                 "¡ Rollback window closed",
-                "¡ Stakeholders notified of success"
+                "¡ Stakeholders notified of success",
             ],
             "emergency_contacts": [
                 "DevOps Team: devops@psychsync.com",
                 "Engineering Lead: eng-lead@psychsync.com",
                 "Product Manager: pm@psychsync.com",
-                "Support Team: support@psychsync.com"
+                "Support Team: support@psychsync.com",
             ],
             "rollback_triggers": [
                 "Critical health check failures",
                 "Error rate > 5%",
                 "Response time > 5 seconds",
                 "User complaints > 10/hour",
-                "Manual trigger by team lead"
-            ]
+                "Manual trigger by team lead",
+            ],
         }
 
 

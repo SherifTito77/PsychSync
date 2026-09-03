@@ -5,8 +5,8 @@ Includes: Dolibarr, OpenCATS (ATS), and Jorani
 File: app/integrations/hris/additional_connectors.py
 """
 
-from datetime import date
 import logging
+from datetime import date
 
 import pymysql
 
@@ -51,7 +51,9 @@ class DolibarrConnector(HRISConnector):
 
         # Dolibarr uses DOLAPIKEY header
         if self.api_key:
-            self.session.headers.update({"DOLAPIKEY": self.api_key, "Accept": "application/json"})
+            self.session.headers.update(
+                {"DOLAPIKEY": self.api_key, "Accept": "application/json"}
+            )
 
     def _get_db_connection(self):
         """Get database connection."""
@@ -65,7 +67,7 @@ class DolibarrConnector(HRISConnector):
                 response = self._make_request("GET", "/users")
                 if response:
                     return True
-            except:
+            except Exception as e:
                 pass
 
         # Try database

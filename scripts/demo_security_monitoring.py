@@ -16,22 +16,23 @@ Usage:
 
 import asyncio
 import json
-import tempfile
 import os
-from pathlib import Path
-from datetime import datetime
 
 # Add project root to path
 import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.monitoring.security_metrics import (
-    SecurityMetricsCollector,
-    SecurityMetrics,
-    VulnerabilityFinding,
-    SeverityLevel
-)
 from app.monitoring.prometheus_metrics import generate_prometheus_metrics
+from app.monitoring.security_metrics import (
+    SecurityMetrics,
+    SecurityMetricsCollector,
+    SeverityLevel,
+    VulnerabilityFinding,
+)
 
 
 def create_mock_sast_results():
@@ -41,12 +42,7 @@ def create_mock_sast_results():
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": [
             {
-                "tool": {
-                    "driver": {
-                        "name": "Semgrep",
-                        "version": "1.0.0"
-                    }
-                },
+                "tool": {"driver": {"name": "Semgrep", "version": "1.0.0"}},
                 "results": [
                     {
                         "ruleId": "python.sql-injection",
@@ -60,13 +56,10 @@ def create_mock_sast_results():
                                     "artifactLocation": {
                                         "uri": "app/services/user_service.py"
                                     },
-                                    "region": {
-                                        "startLine": 127,
-                                        "endLine": 127
-                                    }
+                                    "region": {"startLine": 127, "endLine": 127},
                                 }
                             }
-                        ]
+                        ],
                     },
                     {
                         "ruleId": "python.assert",
@@ -77,46 +70,34 @@ def create_mock_sast_results():
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "app/main.py"
-                                    },
-                                    "region": {
-                                        "startLine": 45,
-                                        "endLine": 45
-                                    }
+                                    "artifactLocation": {"uri": "app/main.py"},
+                                    "region": {"startLine": 45, "endLine": 45},
                                 }
                             }
-                        ]
+                        ],
                     },
                     {
                         "ruleId": "python.best-practice",
                         "level": "info",
-                        "message": {
-                            "text": "Consider using enum for constants"
-                        },
+                        "message": {"text": "Consider using enum for constants"},
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "app/core/config.py"
-                                    },
-                                    "region": {
-                                        "startLine": 12,
-                                        "endLine": 12
-                                    }
+                                    "artifactLocation": {"uri": "app/core/config.py"},
+                                    "region": {"startLine": 12, "endLine": 12},
                                 }
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
-        ]
+        ],
     }
 
 
 def create_mock_dast_results():
     """Create mock OWASP ZAP XML results"""
-    return '''<?xml version="1.0"?>
+    return """<?xml version="1.0"?>
 <OWASPZAPReport>
     <site name="http://staging.psychsync.com">
         <alerts>
@@ -152,7 +133,7 @@ def create_mock_dast_results():
             </alert>
         </alerts>
     </site>
-</OWASPZAPReport>'''
+</OWASPZAPReport>"""
 
 
 def create_mock_sca_results():
@@ -162,12 +143,7 @@ def create_mock_sca_results():
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": [
             {
-                "tool": {
-                    "driver": {
-                        "name": "Trivy",
-                        "version": "0.40.0"
-                    }
-                },
+                "tool": {"driver": {"name": "Trivy", "version": "0.40.0"}},
                 "results": [
                     {
                         "ruleId": "CVE-2023-38501 (HIGH)",
@@ -178,12 +154,10 @@ def create_mock_sca_results():
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "requirements.txt"
-                                    }
+                                    "artifactLocation": {"uri": "requirements.txt"}
                                 }
                             }
-                        ]
+                        ],
                     },
                     {
                         "ruleId": "CVE-2023-45857 (MEDIUM)",
@@ -194,12 +168,10 @@ def create_mock_sca_results():
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "requirements.txt"
-                                    }
+                                    "artifactLocation": {"uri": "requirements.txt"}
                                 }
                             }
-                        ]
+                        ],
                     },
                     {
                         "ruleId": "CVE-2023-39117 (MEDIUM)",
@@ -210,12 +182,10 @@ def create_mock_sca_results():
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "requirements.txt"
-                                    }
+                                    "artifactLocation": {"uri": "requirements.txt"}
                                 }
                             }
-                        ]
+                        ],
                     },
                     {
                         "ruleId": "CVE-2023-44487 (LOW)",
@@ -226,25 +196,23 @@ def create_mock_sca_results():
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "requirements.txt"
-                                    }
+                                    "artifactLocation": {"uri": "requirements.txt"}
                                 }
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
-        ]
+        ],
     }
 
 
 async def demo_complete_workflow():
     """Demonstrate the complete security monitoring workflow"""
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("🔒 PSYCHSYNC SECURITY MONITORING SYSTEM DEMO")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Step 1: Create mock scan results
     print("📝 Step 1: Creating mock scan results...")
@@ -257,15 +225,15 @@ async def demo_complete_workflow():
     dast_data = create_mock_dast_results()
     sca_data = create_mock_sca_results()
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(sast_data, f)
         sast_path = f.name
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
         f.write(dast_data)
         dast_path = f.name
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(sca_data, f)
         sca_path = f.name
 
@@ -288,7 +256,7 @@ async def demo_complete_workflow():
             scan_date=datetime.utcnow(),
             sast_findings=sast_findings,
             dast_findings=dast_findings,
-            sca_findings=sca_findings
+            sca_findings=sca_findings,
         )
 
         summary = metrics.get_summary()
@@ -300,8 +268,8 @@ async def demo_complete_workflow():
 
         # Step 4: Calculate security score
         print("📈 Step 4: Calculating security score...")
-        score = summary['security_score']
-        grade = summary['security_grade']
+        score = summary["security_score"]
+        grade = summary["security_grade"]
 
         print(f"   ✓ Security Score: {score}/100")
         print(f"   ✓ Security Grade: {grade}\n")
@@ -325,11 +293,11 @@ async def demo_complete_workflow():
 
         for i, vuln in enumerate(top_vulns, 1):
             severity_icon = {
-                'critical': '🔴',
-                'high': '🟠',
-                'medium': '🟡',
-                'low': '🟢'
-            }.get(vuln['severity'], '⚪')
+                "critical": "🔴",
+                "high": "🟠",
+                "medium": "🟡",
+                "low": "🟢",
+            }.get(vuln["severity"], "⚪")
 
             print(f"   {i}. {severity_icon} {vuln['title']}")
             print(f"      Severity: {vuln['severity'].upper()}")
@@ -344,7 +312,7 @@ async def demo_complete_workflow():
         # Show a snippet of Prometheus metrics
         print("   ✓ Sample Prometheus metrics:")
         print("─" * 70)
-        lines = prometheus_text.split('\n')
+        lines = prometheus_text.split("\n")
         for line in lines[:20]:  # Show first 20 lines
             print(f"   {line}")
         if len(lines) > 20:
@@ -357,16 +325,24 @@ async def demo_complete_workflow():
 
         print("   ✓ Dashboard data structure:")
         print(f"      ├── Overview: {len(dashboard_data.get('overview', {}))} fields")
-        print(f"      ├── Severity breakdown: {len(dashboard_data.get('severity_breakdown', {}))} levels")
-        print(f"      ├── By source: {len(dashboard_data.get('by_source', {}))} sources")
+        print(
+            f"      ├── Severity breakdown: {len(dashboard_data.get('severity_breakdown', {}))} levels"
+        )
+        print(
+            f"      ├── By source: {len(dashboard_data.get('by_source', {}))} sources"
+        )
         print(f"      ├── By tool: {len(dashboard_data.get('by_tool', {}))} tools")
-        print(f"      ├── Top vulnerabilities: {len(dashboard_data.get('top_vulnerabilities', []))} items")
-        print(f"      └── Compliance: {len(dashboard_data.get('compliance', {}))} standards\n")
+        print(
+            f"      ├── Top vulnerabilities: {len(dashboard_data.get('top_vulnerabilities', []))} items"
+        )
+        print(
+            f"      └── Compliance: {len(dashboard_data.get('compliance', {}))} standards\n"
+        )
 
         # Final summary
-        print("="*70)
+        print("=" * 70)
         print("📋 DEMO SUMMARY")
-        print("="*70)
+        print("=" * 70)
         print(f"\n🔒 Security Score: {score}/100 ({grade})")
         print(f"📊 Total Findings: {summary['total_findings']}")
         print(f"   🔴 Critical: {summary['critical_severity']}")
@@ -381,9 +357,9 @@ async def demo_complete_workflow():
             print(f"   Severity: {v['severity'].upper()}")
             print(f"   Location: {v['location']}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("✅ Demo completed successfully!")
-        print("="*70 + "\n")
+        print("=" * 70 + "\n")
 
         print("💡 Next Steps:")
         print("   1. Review the findings in the GitHub Security tab")

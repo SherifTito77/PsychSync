@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { SecurityUtils } from '../../utils/securityUtils';
 // SECURITY: No longer using SecureTokenStorage - tokens in httpOnly cookies
 import Sidebar from './Sidebar';
+import FeatureSearch from '../dashboard/FeatureSearch';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -29,6 +30,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     sessionWarnings: 0
   });
   const [showSecurityWarning, setShowSecurityWarning] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Auto-collapse sidebar on small screens
   useEffect(() => {
@@ -44,11 +46,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
   // Security monitoring and session management
   useEffect(() => {
+    // ⚡️ PERFORMANCE: ACTIVITY TRACKING DISABLED - Causing constant re-renders
+    // The updateActivity function was being called on every mouse move, keypress, scroll, etc.
+    // which triggered state updates and re-renders, making the page non-responsive
+
+    /*
+    let lastActivityTimestamp = Date.now();
+
     // Track user activity for security
     const updateActivity = () => {
+      lastActivityTimestamp = Date.now();
+
+      // Only update state periodically, not on every event
+      // This prevents excessive re-renders
       setSecurityMetrics(prev => ({
         ...prev,
-        lastActivity: Date.now()
+        lastActivity: lastActivityTimestamp
       }));
 
       // SECURITY: Session maintained via httpOnly cookies
@@ -59,11 +72,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
     activityEvents.forEach(event => {
       document.addEventListener(event, updateActivity, { passive: true });
     });
+    */
 
-    // Check for session timeout
+    // ⚡️ PERFORMANCE: Session check DISABLED - Not critical for functionality
+    /*
     const sessionCheck = setInterval(() => {
       const now = Date.now();
-      const timeSinceActivity = now - securityMetrics.lastActivity;
+      const timeSinceActivity = now - lastActivityTimestamp;
       const sessionTimeout = parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '1800000'); // 30 minutes
 
       if (timeSinceActivity > sessionTimeout) {
@@ -74,7 +89,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         }));
       }
     }, 60000); // Check every minute
+    */
 
+    // ⚡️ PERFORMANCE: Security score monitoring DISABLED - Causing re-renders every 30 seconds
+    /*
     // Security score monitoring
     const securityCheck = setInterval(() => {
       const report = SecurityUtils.getSecurityReport();
@@ -83,18 +101,61 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         securityScore: report.securityScore
       }));
     }, 30000); // Check every 30 seconds
+    */
 
     return () => {
+      // ⚡️ PERFORMANCE: All cleanup disabled - no intervals running
+      /*
       activityEvents.forEach(event => {
         document.removeEventListener(event, updateActivity);
       });
-      clearInterval(sessionCheck);
-      clearInterval(securityCheck);
+      */
+      // clearInterval(sessionCheck);
+      // clearInterval(securityCheck);
     };
-  }, [securityMetrics.lastActivity]);
+  }, []); // ⚡️ PERFORMANCE: Empty deps - effect runs once on mount
+
+  // Keyboard shortcut for search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Click outside handler for user menu
+  // TEMPORARILY DISABLED to test if it's blocking clicks
+  /*
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Element;
+      console.log('[ClickOutside] Click detected on:', target);
+      console.log('[ClickOutside] Is menu?', target.closest('[role="menu"]'));
+      console.log('[ClickOutside] Is button?', target.closest('#user-menu-button'));
+
+      // Check if click is outside the user menu button and dropdown
+      if (!target.closest('[role="menu"]') && !target.closest('#user-menu-button')) {
+        console.log('[ClickOutside] Closing menu');
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isUserMenuOpen]);
+  */
 
   // Enhanced logout with security cleanup
   const handleLogout = useCallback(async () => {
+    console.log('[DashboardLayout] handleLogout called');
     try {
       // Clear security metrics
       setSecurityMetrics({
@@ -103,8 +164,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         sessionWarnings: 0
       });
 
+      console.log('[DashboardLayout] Calling authService.logout()');
       // Secure logout
       await logout();
+      console.log('[DashboardLayout] authService.logout() completed');
 
       // Clear any remaining security data from sessionStorage
       Object.keys(sessionStorage).forEach(key => {
@@ -115,9 +178,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
 
       // SECURITY: Tokens cleared by backend via httpOnly cookies
 
+      console.log('[DashboardLayout] Navigating to /login');
       navigate('/login');
     } catch (error) {
-      console.error('Secure logout failed:', error);
+      console.error('[DashboardLayout] Secure logout failed:', error);
       // Force logout even if error occurs
       navigate('/login');
     }
@@ -141,11 +205,31 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         setIsMobileMenuOpen(false);
       }
 
-      if (isUserMenuOpen && !target.closest('[data-user-menu]')) {
-        setIsUserMenuOpen(false);
+      // Close user menu if clicking outside the dropdown and button
+      if (isUserMenuOpen) {
+        const dropdown = document.getElementById('user-dropdown-menu');
+        const button = document.getElementById('user-menu-button');
+
+        console.log('[ClickOutside] Target:', target.tagName, target.className);
+        console.log('[ClickOutside] Dropdown exists:', !!dropdown);
+        console.log('[ClickOutside] Button exists:', !!button);
+
+        // Only close if dropdown exists and click is outside both dropdown and button
+        if (dropdown) {
+          const clickedInDropdown = dropdown.contains(target);
+          const clickedOnButton = button?.contains(target);
+
+          console.log('[ClickOutside] In dropdown:', clickedInDropdown, 'On button:', clickedOnButton);
+
+          if (!clickedInDropdown && !clickedOnButton) {
+            console.log('[ClickOutside] Closing menu');
+            setIsUserMenuOpen(false);
+          }
+        }
       }
     };
 
+    // Use mousedown with check for dropdown existence
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobileMenuOpen, isUserMenuOpen]);
@@ -322,9 +406,24 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 </Link>
               </div>
             </div>
-  
+
             {/* Right Side Actions - Desktop */}
             <div className="hidden md:flex md:items-center md:space-x-4 flex-shrink-0">
+              {/* Search Button */}
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-indigo-200 hover:text-white hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
+                aria-label="Search features (Press ⌘K)"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span className="hidden lg:inline text-sm">Search</span>
+                <kbd className="hidden xl:inline px-1.5 py-0.5 text-xs font-mono bg-indigo-800 border border-indigo-600 rounded">
+                  ⌘K
+                </kbd>
+              </button>
+
               {/* Sidebar Toggle for Desktop */}
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -357,12 +456,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
               </button>
               {/* User Dropdown */}
-              <div className="ml-3 relative">
+              <div className="ml-3 relative" data-user-menu>
                 <div>
                   <button
-                    onClick={toggleUserMenu}
+                    onClick={() => {
+                      console.log('[User Menu Button] CLICKED! Current state:', isUserMenuOpen);
+                      toggleUserMenu();
+                      console.log('[User Menu Button] After toggle, state should be:', !isUserMenuOpen);
+                    }}
                     className="flex items-center text-sm rounded-full text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
                     id="user-menu-button"
+                    data-user-menu
                     aria-expanded={isUserMenuOpen}
                     aria-haspopup="true"
                   >
@@ -390,135 +494,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                     </svg>
                   </button>
                 </div>
-                {/* Dropdown menu */}
-                {isUserMenuOpen && (
-                  <>
-                    {/* Backdrop for closing menu */}
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={toggleUserMenu}
-                    ></div>
-                    {/* Dropdown content */}
-                    <div
-                      className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-20"
-                      role="menu"
-                      aria-orientation="vertical"
-                      aria-labelledby="user-menu-button"
-                    >
-                      <div className="px-4 py-2 border-b border-gray-200">
-                        <p className="text-sm text-gray-900 font-medium">
-                          {user?.full_name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {user?.email}
-                        </p>
-                      </div>
-                      <Link
-                        to="/profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        role="menuitem"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <div className="flex items-center">
-                          <svg
-                            className="mr-3 h-5 w-5 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
-                          </svg>
-                          Profile Settings
-                        </div>
-                      </Link>
-                      <Link
-                        to="/settings"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        role="menuitem"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <div className="flex items-center">
-                          <svg
-                            className="mr-3 h-5 w-5 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                            />
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                            />
-                          </svg>
-                          Settings
-                        </div>
-                      </Link>
-                      <Link
-                        to="/help"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        role="menuitem"
-                        onClick={() => setIsUserMenuOpen(false)}
-                      >
-                        <div className="flex items-center">
-                          <svg
-                            className="mr-3 h-5 w-5 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          Help & Support
-                        </div>
-                      </Link>
-                      <div className="border-t border-gray-200">
-                        <button
-                          onClick={handleLogout}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                          role="menuitem"
-                        >
-                          <div className="flex items-center">
-                            <svg
-                              className="mr-3 h-5 w-5 text-red-500"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                              />
-                            </svg>
-                            Sign out
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
             {/* Mobile menu button */}
             <div className="flex items-center md:hidden">
+              {/* Search Button for Mobile */}
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-indigo-200 hover:text-white hover:bg-indigo-700 mr-2"
+                aria-label="Search features (Press ⌘K)"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+
               {/* Sidebar Toggle for Mobile */}
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -572,16 +562,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
         </div>
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden" id="mobile-menu">
-            <div className="px-2 pt-2 pb-3 space-y-2">
+          <div className="md:hidden" id="mobile-menu" data-mobile-menu>
+            <div className="px-2 pt-2 pb-3 space-y-2 pointer-events-auto">
               <Link
                 to="/dashboard"
                 className={
                   isActive('/dashboard')
-                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active'
-                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item'
+                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active pointer-events-auto'
+                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item pointer-events-auto'
                 }
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(false);
+                }}
               >
                 Dashboard
               </Link>
@@ -589,10 +582,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 to="/teams"
                 className={
                   isActive('/teams')
-                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active'
-                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item'
+                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active pointer-events-auto'
+                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item pointer-events-auto'
                 }
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(false);
+                }}
               >
                 Teams
               </Link>
@@ -600,10 +596,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 to="/assessments"
                 className={
                   isActive('/assessments')
-                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active'
-                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item'
+                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active pointer-events-auto'
+                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item pointer-events-auto'
                 }
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(false);
+                }}
               >
                 Assessments
               </Link>
@@ -611,10 +610,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                 to="/analytics"
                 className={
                   isActive('/analytics')
-                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active'
-                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item'
+                    ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active pointer-events-auto'
+                    : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item pointer-events-auto'
                 }
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(false);
+                }}
               >
                 Analytics
               </Link>
@@ -624,10 +626,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                   to="/settings"
                   className={
                     isActive('/settings')
-                      ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active'
-                      : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item'
+                      ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active pointer-events-auto'
+                      : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item pointer-events-auto'
                   }
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMobileMenuOpen(false);
+                  }}
                 >
                   Settings
                 </Link>
@@ -635,17 +640,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
                   to="/my-responses"
                   className={
                     isActive('/my-responses')
-                      ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active'
-                      : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item'
+                      ? 'bg-indigo-700 text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item active pointer-events-auto'
+                      : 'text-indigo-100 hover:bg-indigo-700 hover:text-white block px-4 py-3 rounded-md text-base font-medium mobile-nav-item pointer-events-auto'
                   }
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMobileMenuOpen(false);
+                  }}
                 >
                   My Responses
                 </Link>
               </div>
             </div>
             {/* Mobile user menu */}
-            <div className="pt-4 pb-3 border-t border-indigo-700">
+            <div className="pt-4 pb-3 border-t border-indigo-700 pointer-events-auto">
               <div className="flex items-center px-5">
                 <div className="flex-shrink-0">
                   <div className="h-10 w-10 rounded-full bg-indigo-800 flex items-center justify-center">
@@ -666,31 +674,45 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
               <div className="mt-3 px-2 space-y-1">
                 <Link
                   to="/profile"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:text-white hover:bg-indigo-700"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:text-white hover:bg-indigo-700 pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMobileMenuOpen(false);
+                  }}
                 >
                   Profile Settings
                 </Link>
                 <Link
                   to="/settings"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:text-white hover:bg-indigo-700"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:text-white hover:bg-indigo-700 pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMobileMenuOpen(false);
+                  }}
                 >
                   Settings
                 </Link>
                 <Link
                   to="/help"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:text-white hover:bg-indigo-700"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-3 py-2 rounded-md text-base font-medium text-indigo-100 hover:text-white hover:bg-indigo-700 pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMobileMenuOpen(false);
+                  }}
                 >
                   Help & Support
                 </Link>
                 <button
-                  onClick={() => {
-                    handleLogout();
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[Mobile Sign Out] Clicked!');
+                    alert('Mobile sign out clicked!');
                     setIsMobileMenuOpen(false);
+                    handleLogout();
                   }}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-300 hover:text-white hover:bg-red-600"
+                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-300 hover:text-white hover:bg-red-600 pointer-events-auto"
+                  type="button"
                 >
                   Sign out
                 </button>
@@ -699,6 +721,105 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </div>
         )}
       </nav>
+
+      {/* User Dropdown Menu */}
+      {isUserMenuOpen && (
+        <div
+          className="fixed z-[9999] pointer-events-auto"
+          style={{ top: '4rem', right: '1.5rem' }}
+          id="user-dropdown-menu"
+        >
+          <div
+            className="origin-top-right w-56 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 pointer-events-auto"
+            role="menu"
+            aria-orientation="vertical"
+            aria-labelledby="user-menu-button"
+          >
+            <div className="px-4 py-2 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-900 font-medium">
+                    {user?.full_name}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.email}
+                  </p>
+                </div>
+                {user?.role && (
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    user.role === 'admin' || user.role === 'super_admin'
+                      ? 'bg-orange-100 text-orange-700'
+                      : user.role === 'hr' || user.role === 'manager'
+                      ? 'bg-purple-100 text-purple-700'
+                      : user.role === 'clinician'
+                      ? 'bg-indigo-100 text-indigo-700'
+                      : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {user.role === 'super_admin'
+                      ? 'Super Admin'
+                      : user.role === 'admin'
+                      ? 'Admin'
+                      : user.role === 'hr'
+                      ? 'HR'
+                      : user.role === 'manager'
+                      ? 'Manager'
+                      : user.role === 'clinician'
+                      ? 'Clinician'
+                      : user.role === 'patient'
+                      ? 'Patient'
+                      : 'Employee'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <Link
+              to="/profile"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              role="menuitem"
+              onClick={() => setIsUserMenuOpen(false)}
+            >
+              Profile Settings
+            </Link>
+            <Link
+              to="/settings"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              role="menuitem"
+              onClick={() => setIsUserMenuOpen(false)}
+            >
+              Settings
+            </Link>
+            <Link
+              to="/help"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              role="menuitem"
+              onClick={() => setIsUserMenuOpen(false)}
+            >
+              Help & Support
+            </Link>
+            <div className="border-t border-gray-200">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  alert('Sign out button was clicked!');
+                  console.log('[Sign Out] Clicked!');
+                  setIsUserMenuOpen(false);
+                  console.log('[Sign Out] Calling handleLogout...');
+                  handleLogout();
+                  console.log('[Sign Out] handleLogout called');
+                }}
+                onMouseDown={() => console.log('[Sign Out] Mouse down detected')}
+                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 pointer-events-auto"
+                role="menuitem"
+                type="button"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Content with Sidebar */}
       <div className="flex pt-16 sm:pt-20 md:pt-20 lg:pt-20 pb-6">
         <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
@@ -750,6 +871,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = memo(({ children }) => {
           </div>
         </div>
       </footer>
+
+      {/* Feature Search Modal */}
+      <FeatureSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </div>
   );
 });

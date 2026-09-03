@@ -3,21 +3,24 @@ AI-Behavioral Integration Service
 Integrates AI personality processors with behavioral pattern recognition for enhanced insights
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import AI processors
-from ai.processors.big_five import BigFiveProcessor
-from ai.processors.enneagram_processor import EnneagramProcessor
-from ai.processors.mbti_processor import MBTIProcessor
-from ai.processors.predictive_index import PredictiveIndexProcessor
+from app.ai.processors.big_five import BigFiveProcessor
+from app.ai.processors.enneagram_processor import EnneagramProcessor
+from app.ai.processors.mbti_processor import MBTIProcessor
+from app.ai.processors.predictive_index import PredictiveIndexProcessor
 from app.services.anomaly_detection import AdvancedAnomalyDetector
 
 # Import behavioral services
-from app.services.behavioral_pattern_recognition import BehavioralPatternRecognizer, PatternType
+from app.services.behavioral_pattern_recognition import (
+    BehavioralPatternRecognizer,
+    PatternType,
+)
 
 # Try to import NLP service - may fail due to spacy/pydantic incompatibility
 try:
@@ -69,7 +72,9 @@ class AIBehavioralIntegrationService:
             Comprehensive user profile with AI-enhanced insights
         """
         try:
-            logger.info(f"Generating comprehensive AI-behavioral profile for user {user_id}")
+            logger.info(
+                f"Generating comprehensive AI-behavioral profile for user {user_id}"
+            )
 
             # Get behavioral pattern analysis
             behavioral_analysis = await self.pattern_recognizer.analyze_user_behavior(
@@ -116,7 +121,9 @@ class AIBehavioralIntegrationService:
             }
 
         except Exception as e:
-            logger.error(f"Error generating comprehensive profile for user {user_id}: {e}")
+            logger.error(
+                f"Error generating comprehensive profile for user {user_id}: {e}"
+            )
             return {
                 "user_id": user_id,
                 "error": str(e),
@@ -163,15 +170,19 @@ class AIBehavioralIntegrationService:
 
                     try:
                         # Process assessment results with AI
-                        processed_result = processor._safe_process(response.responses or {})
+                        processed_result = processor._safe_process(
+                            response.responses or {}
+                        )
 
                         personality_insights["available_assessments"].append(
                             {
                                 "framework": framework_code,
                                 "assessment_id": str(assessment.id),
-                                "completed_at": response.completed_at.isoformat()
-                                if response.completed_at
-                                else None,
+                                "completed_at": (
+                                    response.completed_at.isoformat()
+                                    if response.completed_at
+                                    else None
+                                ),
                                 "processed_result": processed_result,
                             }
                         )
@@ -183,21 +194,25 @@ class AIBehavioralIntegrationService:
                             )
 
                     except Exception as e:
-                        logger.warning(f"Error processing {framework_code} assessment: {e}")
+                        logger.warning(
+                            f"Error processing {framework_code} assessment: {e}"
+                        )
                         continue
 
             # Cross-framework analysis
             if len(personality_insights["available_assessments"]) > 1:
-                personality_insights[
-                    "cross_framework_analysis"
-                ] = await self._analyze_cross_framework_patterns(
-                    personality_insights["available_assessments"]
+                personality_insights["cross_framework_analysis"] = (
+                    await self._analyze_cross_framework_patterns(
+                        personality_insights["available_assessments"]
+                    )
                 )
 
             # Development potential analysis
-            personality_insights[
-                "development_potential"
-            ] = await self._analyze_development_potential(personality_insights["unified_profile"])
+            personality_insights["development_potential"] = (
+                await self._analyze_development_potential(
+                    personality_insights["unified_profile"]
+                )
+            )
 
         except Exception as e:
             logger.error(f"Error getting personality insights for user {user_id}: {e}")
@@ -221,7 +236,9 @@ class AIBehavioralIntegrationService:
             enhanced_pattern["personality_context"] = personality_context
 
             # AI-based interpretation
-            ai_interpretation = await self._ai_interpret_pattern(pattern, personality_insights)
+            ai_interpretation = await self._ai_interpret_pattern(
+                pattern, personality_insights
+            )
             enhanced_pattern["ai_interpretation"] = ai_interpretation
 
             # Predictive insights
@@ -251,12 +268,16 @@ class AIBehavioralIntegrationService:
             # Social patterns influenced by extraversion and agreeableness
             if "extraversion" in unified_profile:
                 extraversion = unified_profile["extraversion"]
-                context["personality_drivers"].append(f"Extraversion level: {extraversion:.2f}")
+                context["personality_drivers"].append(
+                    f"Extraversion level: {extraversion:.2f}"
+                )
                 context["compatibility_score"] = extraversion
 
             if "agreeableness" in unified_profile:
                 agreeableness = unified_profile["agreeableness"]
-                context["personality_drivers"].append(f"Agreeableness level: {agreeableness:.2f}")
+                context["personality_drivers"].append(
+                    f"Agreeableness level: {agreeableness:.2f}"
+                )
 
         elif pattern.get("pattern_type") == PatternType.PERFORMANCE.value:
             # Performance patterns influenced by conscientiousness
@@ -278,7 +299,9 @@ class AIBehavioralIntegrationService:
             # Risk patterns influenced by neuroticism and emotional stability
             if "neuroticism" in unified_profile:
                 neuroticism = unified_profile["neuroticism"]
-                context["personality_drivers"].append(f"Neuroticism level: {neuroticism:.2f}")
+                context["personality_drivers"].append(
+                    f"Neuroticism level: {neuroticism:.2f}"
+                )
                 # Higher neuroticism increases risk pattern likelihood
                 context["compatibility_score"] = 1.0 - neuroticism
 
@@ -382,7 +405,9 @@ class AIBehavioralIntegrationService:
                 predictions["influencing_factors"].append(
                     "Low conscientiousness may lead to pattern degradation"
                 )
-                predictions["recommendations"].append("Implement external accountability measures")
+                predictions["recommendations"].append(
+                    "Implement external accountability measures"
+                )
 
         if "openness" in unified_profile:
             openness = unified_profile["openness"]
@@ -390,7 +415,9 @@ class AIBehavioralIntegrationService:
                 predictions["influencing_factors"].append(
                     "High openness suggests adaptability to new patterns"
                 )
-                predictions["recommendations"].append("Introduce variety to maintain engagement")
+                predictions["recommendations"].append(
+                    "Introduce variety to maintain engagement"
+                )
 
         return predictions
 
@@ -417,9 +444,14 @@ class AIBehavioralIntegrationService:
 
         if "social" in pattern_types and unified_profile.get("extraversion", 0.5) > 0.6:
             predictions["short_term_trends"]["social_engagement"] = "increasing"
-            predictions["opportunities"].append("Leadership opportunities in team settings")
+            predictions["opportunities"].append(
+                "Leadership opportunities in team settings"
+            )
 
-        if "performance" in pattern_types and unified_profile.get("conscientiousness", 0.5) > 0.7:
+        if (
+            "performance" in pattern_types
+            and unified_profile.get("conscientiousness", 0.5) > 0.7
+        ):
             predictions["short_term_trends"]["productivity"] = "improving"
             predictions["opportunities"].append("Complex project assignments")
 
@@ -440,7 +472,9 @@ class AIBehavioralIntegrationService:
             predictions["risk_factors"].append(
                 "High behavioral risk may impact long-term performance"
             )
-            predictions["recommendations"] = ["Address risk factors through targeted interventions"]
+            predictions["recommendations"] = [
+                "Address risk factors through targeted interventions"
+            ]
 
         return predictions
 
@@ -479,7 +513,9 @@ class AIBehavioralIntegrationService:
                 )
 
         # Pattern-based recommendations
-        high_confidence_patterns = [p for p in enhanced_patterns if p.get("confidence", 0) > 0.7]
+        high_confidence_patterns = [
+            p for p in enhanced_patterns if p.get("confidence", 0) > 0.7
+        ]
         for pattern in high_confidence_patterns:
             ai_interpretation = pattern.get("ai_interpretation", {})
             actionable_insights = ai_interpretation.get("actionable_insights", [])
@@ -491,7 +527,9 @@ class AIBehavioralIntegrationService:
             recommendations.append(
                 "Prioritize addressing high-risk behavioral patterns through professional support"
             )
-            recommendations.append("Consider personality-aligned stress management techniques")
+            recommendations.append(
+                "Consider personality-aligned stress management techniques"
+            )
 
         # Remove duplicates and limit to top recommendations
         unique_recommendations = list(set(recommendations))
@@ -510,10 +548,16 @@ class AIBehavioralIntegrationService:
         }
 
         # Behavioral pattern confidence
-        data_quality = behavioral_analysis.get("data_quality", {}).get("overall_quality", 0.0)
+        data_quality = behavioral_analysis.get("data_quality", {}).get(
+            "overall_quality", 0.0
+        )
         patterns_count = len(behavioral_analysis.get("patterns", []))
-        pattern_confidence = min(patterns_count / 10.0, 1.0)  # More patterns = higher confidence
-        confidence_scores["behavioral_patterns"] = (data_quality + pattern_confidence) / 2.0
+        pattern_confidence = min(
+            patterns_count / 10.0, 1.0
+        )  # More patterns = higher confidence
+        confidence_scores["behavioral_patterns"] = (
+            data_quality + pattern_confidence
+        ) / 2.0
 
         # Personality insights confidence
         assessments_count = len(personality_insights.get("available_assessments", []))
@@ -634,16 +678,20 @@ class AIBehavioralIntegrationService:
         summary["data_sources"] = data_sources
 
         # Integration quality
-        summary["integration_quality"] = confidence_scores.get("overall_confidence", 0.0)
+        summary["integration_quality"] = confidence_scores.get(
+            "overall_confidence", 0.0
+        )
 
         # Key insights
-        risk_level = behavioral_analysis.get("risk_assessment", {}).get("risk_level", "low")
+        risk_level = behavioral_analysis.get("risk_assessment", {}).get(
+            "risk_level", "low"
+        )
         if risk_level != "low":
             summary["key_insights"].append(f"Behavioral risk level: {risk_level}")
 
-        leadership_potential = personality_insights.get("development_potential", {}).get(
-            "leadership_potential", 0.0
-        )
+        leadership_potential = personality_insights.get(
+            "development_potential", {}
+        ).get("leadership_potential", 0.0)
         if leadership_potential > 0.7:
             summary["key_insights"].append("High leadership potential detected")
 

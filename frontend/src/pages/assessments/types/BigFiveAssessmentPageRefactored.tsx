@@ -78,10 +78,10 @@ const BigFiveAssessmentPageRefactored: React.FC = () => {
     try {
       setError(null);
 
-      const response = await apiClient.get('/assessment-questions/big-five');
+      const response = await apiClient.get('/assessments/assessment-questions/big-five');
 
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
+      if (response.data && (response.data as any).success) {
+        const backendAssessment = (response.data as any).assessment;
         const bigFiveAssessment: BigFiveAssessment = {
           id: backendAssessment.id,
           title: backendAssessment.title,

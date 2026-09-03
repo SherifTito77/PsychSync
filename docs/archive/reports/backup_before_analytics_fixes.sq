@@ -1,0 +1,5041 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict FaDKU55kX4NS8P3jwTO4YTvuexgNpPxYhsvZOd2IR8FcwZneHgQiVa2fcUembjT
+
+-- Dumped from database version 14.20 (Homebrew)
+-- Dumped by pg_dump version 14.20 (Homebrew)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: citext; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner:
+--
+
+COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
+
+
+--
+-- Name: alertlevel; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.alertlevel AS ENUM (
+    'NORMAL',
+    'ELEVATED',
+    'HIGH',
+    'CRITICAL'
+);
+
+
+ALTER TYPE public.alertlevel OWNER TO sheriftito;
+
+--
+-- Name: assessmentcategory; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.assessmentcategory AS ENUM (
+    'PERSONALITY',
+    'SKILLS',
+    'BEHAVIORAL',
+    'COGNITIVE'
+);
+
+
+ALTER TYPE public.assessmentcategory OWNER TO sheriftito;
+
+--
+-- Name: assessmentstatus; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.assessmentstatus AS ENUM (
+    'DRAFT',
+    'PUBLISHED',
+    'ARCHIVED'
+);
+
+
+ALTER TYPE public.assessmentstatus OWNER TO sheriftito;
+
+--
+-- Name: connectionstatus; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.connectionstatus AS ENUM (
+    'ACTIVE',
+    'INACTIVE',
+    'ERROR',
+    'EXPIRED',
+    'REVOKED'
+);
+
+
+ALTER TYPE public.connectionstatus OWNER TO sheriftito;
+
+--
+-- Name: emailprovider; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.emailprovider AS ENUM (
+    'GMAIL',
+    'OUTLOOK',
+    'EXCHANGE',
+    'IMAP'
+);
+
+
+ALTER TYPE public.emailprovider OWNER TO sheriftito;
+
+--
+-- Name: incidentseverity; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.incidentseverity AS ENUM (
+    'LOW',
+    'MEDIUM',
+    'HIGH',
+    'CRITICAL'
+);
+
+
+ALTER TYPE public.incidentseverity OWNER TO sheriftito;
+
+--
+-- Name: incidentstatus; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.incidentstatus AS ENUM (
+    'REPORTED',
+    'INVESTIGATING',
+    'RESOLVED',
+    'CLOSED',
+    'ESCALATED'
+);
+
+
+ALTER TYPE public.incidentstatus OWNER TO sheriftito;
+
+--
+-- Name: responsestatus; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.responsestatus AS ENUM (
+    'IN_PROGRESS',
+    'COMPLETED',
+    'ABANDONED'
+);
+
+
+ALTER TYPE public.responsestatus OWNER TO sheriftito;
+
+--
+-- Name: safetyincidenttype; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.safetyincidenttype AS ENUM (
+    'PHYSICAL_INJURY',
+    'WORKPLACE_HAZARD',
+    'EQUIPMENT_MALFUNCTION',
+    'SECURITY_BREACH',
+    'MEDICAL_EMERGENCY',
+    'PSYCHOLOGICAL_INCIDENT',
+    'ENVIRONMENTAL_HAZARD',
+    'COMMUNICATION_SAFETY',
+    'BULLYING_HARASSMENT',
+    'OTHER'
+);
+
+
+ALTER TYPE public.safetyincidenttype OWNER TO sheriftito;
+
+--
+-- Name: teamrole; Type: TYPE; Schema: public; Owner: sheriftito
+--
+
+CREATE TYPE public.teamrole AS ENUM (
+    'OWNER',
+    'ADMIN',
+    'MEMBER'
+);
+
+
+ALTER TYPE public.teamrole OWNER TO sheriftito;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: alembic_version; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.alembic_version (
+    version_num character varying(255) NOT NULL
+);
+
+
+ALTER TABLE public.alembic_version OWNER TO sheriftito;
+
+--
+-- Name: analytics; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.analytics (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    entity_type character varying(50) NOT NULL,
+    entity_id uuid NOT NULL,
+    analytics_type character varying(100) NOT NULL,
+    category character varying(100),
+    raw_data jsonb,
+    processed_data jsonb,
+    insights jsonb,
+    overall_score double precision,
+    confidence_level double precision,
+    trend_data jsonb,
+    comparison_data jsonb,
+    period_start timestamp with time zone NOT NULL,
+    period_end timestamp with time zone NOT NULL,
+    sample_size integer,
+    algorithm_version character varying(50),
+    processing_time_ms integer,
+    status character varying(20) NOT NULL,
+    data_quality_score double precision,
+    completeness_score double precision,
+    view_count integer,
+    last_viewed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    creator_id uuid
+);
+
+
+ALTER TABLE public.analytics OWNER TO sheriftito;
+
+--
+-- Name: analytics_events; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.analytics_events (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    event_type character varying(100) NOT NULL,
+    entity_type character varying(50) NOT NULL,
+    entity_id uuid NOT NULL,
+    event_data jsonb,
+    processed boolean,
+    processed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.analytics_events OWNER TO sheriftito;
+
+--
+-- Name: assessment_assignments; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.assessment_assignments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    assessment_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    assigned_at timestamp without time zone DEFAULT now(),
+    completed boolean
+);
+
+
+ALTER TABLE public.assessment_assignments OWNER TO sheriftito;
+
+--
+-- Name: assessment_questions; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.assessment_questions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    section_id uuid NOT NULL,
+    question_type character varying NOT NULL,
+    question_text text NOT NULL,
+    "order" integer,
+    is_required boolean,
+    config json
+);
+
+
+ALTER TABLE public.assessment_questions OWNER TO sheriftito;
+
+--
+-- Name: assessment_responses; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.assessment_responses (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    assessment_id uuid NOT NULL,
+    respondent_id uuid NOT NULL,
+    status public.responsestatus,
+    responses json,
+    started_at timestamp without time zone DEFAULT now(),
+    completed_at timestamp without time zone
+);
+
+
+ALTER TABLE public.assessment_responses OWNER TO sheriftito;
+
+--
+-- Name: assessment_sections; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.assessment_sections (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    assessment_id uuid NOT NULL,
+    title character varying NOT NULL,
+    description text,
+    "order" integer
+);
+
+
+ALTER TABLE public.assessment_sections OWNER TO sheriftito;
+
+--
+-- Name: assessments; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.assessments (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    title character varying NOT NULL,
+    description text,
+    category public.assessmentcategory NOT NULL,
+    status public.assessmentstatus,
+    created_by_id uuid NOT NULL,
+    team_id uuid,
+    organization_id uuid,
+    framework_code character varying(50),
+    started_at timestamp without time zone,
+    completed_at timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now(),
+    updated_at timestamp without time zone DEFAULT now(),
+    tenant_id uuid
+);
+
+
+ALTER TABLE public.assessments OWNER TO sheriftito;
+
+--
+-- Name: clinical_alerts; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.clinical_alerts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    screening_id uuid,
+    user_id uuid NOT NULL,
+    org_id uuid NOT NULL,
+    alert_type character varying(50) NOT NULL,
+    severity character varying(20) NOT NULL,
+    alert_message text NOT NULL,
+    acknowledged boolean DEFAULT false,
+    acknowledged_by uuid,
+    acknowledged_at timestamp with time zone,
+    resolution_status character varying(50) DEFAULT 'pending'::character varying,
+    resolution_notes text,
+    resolved_by uuid,
+    resolved_at timestamp with time zone,
+    escalated boolean DEFAULT false,
+    escalation_level character varying(50),
+    escalation_notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.clinical_alerts OWNER TO sheriftito;
+
+--
+-- Name: TABLE clinical_alerts; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.clinical_alerts IS 'HIPAA: Crisis alerts requiring immediate clinical response';
+
+
+--
+-- Name: clinical_audit_logs; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.clinical_audit_logs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    entity_type character varying(50) NOT NULL,
+    entity_id uuid NOT NULL,
+    accessed_by uuid NOT NULL,
+    user_role character varying(50) NOT NULL,
+    action character varying(50) NOT NULL,
+    action_details jsonb,
+    ip_address character varying(45),
+    user_agent text,
+    session_id character varying(255),
+    authorization_method character varying(50),
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.clinical_audit_logs OWNER TO sheriftito;
+
+--
+-- Name: TABLE clinical_audit_logs; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.clinical_audit_logs IS 'HIPAA: Immutable audit trail - 6 year minimum retention';
+
+
+--
+-- Name: clinical_consents; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.clinical_consents (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    org_id uuid NOT NULL,
+    consent_type character varying(50) NOT NULL,
+    consent_version character varying(20) NOT NULL,
+    consented boolean DEFAULT false,
+    consent_text text NOT NULL,
+    screening_types jsonb,
+    data_sharing_scope jsonb,
+    withdrawn boolean DEFAULT false,
+    withdrawn_at timestamp with time zone,
+    withdrawal_reason text,
+    ip_address character varying(45),
+    user_agent text,
+    consented_at timestamp with time zone DEFAULT now(),
+    expires_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.clinical_consents OWNER TO sheriftito;
+
+--
+-- Name: TABLE clinical_consents; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.clinical_consents IS 'HIPAA: Explicit consent tracking for clinical assessments';
+
+
+--
+-- Name: clinical_referrals; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.clinical_referrals (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    screening_id uuid,
+    alert_id uuid,
+    user_id uuid NOT NULL,
+    org_id uuid NOT NULL,
+    referral_type character varying(100) NOT NULL,
+    urgency character varying(20) NOT NULL,
+    provider_name text,
+    provider_contact text,
+    provider_specialty character varying(100),
+    status character varying(50) DEFAULT 'pending'::character varying,
+    user_contacted boolean DEFAULT false,
+    user_contacted_at timestamp with time zone,
+    appointment_scheduled boolean DEFAULT false,
+    appointment_date timestamp with time zone,
+    appointment_completed boolean DEFAULT false,
+    follow_up_required boolean DEFAULT true,
+    follow_up_date timestamp with time zone,
+    follow_up_notes text,
+    consent_obtained boolean DEFAULT false,
+    consent_date timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.clinical_referrals OWNER TO sheriftito;
+
+--
+-- Name: TABLE clinical_referrals; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.clinical_referrals IS 'HIPAA: Referrals to mental health professionals';
+
+
+--
+-- Name: clinical_screenings; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.clinical_screenings (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    org_id uuid NOT NULL,
+    screening_type character varying(50) NOT NULL,
+    version character varying(20) DEFAULT '2.0'::character varying,
+    responses jsonb NOT NULL,
+    total_score numeric(10,2),
+    severity_level character varying(50),
+    subscale_scores jsonb,
+    risk_level character varying(20),
+    risk_flags jsonb,
+    crisis_alert boolean DEFAULT false NOT NULL,
+    validated_by uuid,
+    validation_notes text,
+    validated_at timestamp with time zone,
+    referral_made boolean DEFAULT false,
+    referral_type character varying(100),
+    follow_up_date timestamp with time zone,
+    follow_up_completed boolean DEFAULT false,
+    informed_consent boolean DEFAULT false,
+    consent_timestamp timestamp with time zone,
+    consent_version character varying(20) DEFAULT '2.0'::character varying,
+    started_at timestamp with time zone DEFAULT now(),
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now(),
+    deleted_at timestamp with time zone
+);
+
+
+ALTER TABLE public.clinical_screenings OWNER TO sheriftito;
+
+--
+-- Name: TABLE clinical_screenings; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.clinical_screenings IS 'HIPAA: Stores PHI for mental health screening assessments';
+
+
+--
+-- Name: communication_analyses; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.communication_analyses (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    email_metadata_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    sentiment_score numeric(3,2),
+    sentiment_label character varying(20),
+    sentiment_confidence numeric(3,2),
+    tone_categories json,
+    formality_score numeric(3,2),
+    assertiveness_score numeric(3,2),
+    emotion_scores json,
+    primary_emotion character varying(50),
+    emotion_intensity numeric(3,2),
+    communication_style character varying(50),
+    clarity_score numeric(3,2),
+    complexity_score numeric(3,2),
+    stress_indicators json,
+    urgency_level character varying(20),
+    collaboration_signals json,
+    conflict_indicators json,
+    conflict_probability numeric(3,2),
+    work_hours boolean,
+    response_pattern character varying(50),
+    engagement_level numeric(3,2),
+    network_centrality_score numeric(5,2),
+    information_flow json,
+    psychological_safety_indicators json,
+    leadership_signals json,
+    teamwork_indicators json,
+    analysis_version character varying(20),
+    model_confidence numeric(3,2),
+    processing_time_ms integer,
+    analyzed_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.communication_analyses OWNER TO sheriftito;
+
+--
+-- Name: TABLE communication_analyses; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.communication_analyses IS 'Results of NLP analysis on email communications';
+
+
+--
+-- Name: COLUMN communication_analyses.email_metadata_id; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.email_metadata_id IS 'Email metadata being analyzed';
+
+
+--
+-- Name: COLUMN communication_analyses.user_id; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.user_id IS 'Primary user for this analysis (usually sender)';
+
+
+--
+-- Name: COLUMN communication_analyses.sentiment_score; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.sentiment_score IS 'Sentiment score (-1.0 to 1.0)';
+
+
+--
+-- Name: COLUMN communication_analyses.sentiment_label; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.sentiment_label IS 'Sentiment classification';
+
+
+--
+-- Name: COLUMN communication_analyses.sentiment_confidence; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.sentiment_confidence IS 'Confidence in sentiment analysis';
+
+
+--
+-- Name: COLUMN communication_analyses.tone_categories; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.tone_categories IS 'Tone breakdown: professional, friendly, urgent, etc.';
+
+
+--
+-- Name: COLUMN communication_analyses.formality_score; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.formality_score IS 'Formality level (0.0 informal to 1.0 very formal)';
+
+
+--
+-- Name: COLUMN communication_analyses.assertiveness_score; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.assertiveness_score IS 'Assertiveness level (0.0 passive to 1.0 very assertive)';
+
+
+--
+-- Name: COLUMN communication_analyses.emotion_scores; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.emotion_scores IS 'Emotion scores: joy, anger, fear, sadness, etc.';
+
+
+--
+-- Name: COLUMN communication_analyses.primary_emotion; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.primary_emotion IS 'Dominant emotion detected';
+
+
+--
+-- Name: COLUMN communication_analyses.emotion_intensity; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.emotion_intensity IS 'Intensity of primary emotion (0.0 to 1.0)';
+
+
+--
+-- Name: COLUMN communication_analyses.communication_style; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.communication_style IS 'Communication style: collaborative, direct, supportive, etc.';
+
+
+--
+-- Name: COLUMN communication_analyses.clarity_score; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.clarity_score IS 'Clarity and conciseness score';
+
+
+--
+-- Name: COLUMN communication_analyses.complexity_score; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.complexity_score IS 'Linguistic complexity score';
+
+
+--
+-- Name: COLUMN communication_analyses.stress_indicators; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.stress_indicators IS 'Detected stress indicators with counts';
+
+
+--
+-- Name: COLUMN communication_analyses.urgency_level; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.urgency_level IS 'Urgency level based on language';
+
+
+--
+-- Name: COLUMN communication_analyses.collaboration_signals; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.collaboration_signals IS 'Positive collaboration indicators';
+
+
+--
+-- Name: COLUMN communication_analyses.conflict_indicators; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.conflict_indicators IS 'Potential conflict signals';
+
+
+--
+-- Name: COLUMN communication_analyses.conflict_probability; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.conflict_probability IS 'Probability of conflict (0.0 to 1.0)';
+
+
+--
+-- Name: COLUMN communication_analyses.work_hours; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.work_hours IS 'Whether sent during typical work hours';
+
+
+--
+-- Name: COLUMN communication_analyses.response_pattern; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.response_pattern IS 'Response time pattern: immediate, delayed, etc.';
+
+
+--
+-- Name: COLUMN communication_analyses.engagement_level; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.engagement_level IS 'Engagement and involvement score';
+
+
+--
+-- Name: COLUMN communication_analyses.network_centrality_score; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.network_centrality_score IS 'Centrality in communication network';
+
+
+--
+-- Name: COLUMN communication_analyses.information_flow; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.information_flow IS 'Information flow indicators';
+
+
+--
+-- Name: COLUMN communication_analyses.psychological_safety_indicators; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.psychological_safety_indicators IS 'Indicators of psychological safety in communication';
+
+
+--
+-- Name: COLUMN communication_analyses.leadership_signals; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.leadership_signals IS 'Leadership and influence indicators';
+
+
+--
+-- Name: COLUMN communication_analyses.teamwork_indicators; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.teamwork_indicators IS 'Teamwork and collaboration quality';
+
+
+--
+-- Name: COLUMN communication_analyses.analysis_version; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.analysis_version IS 'Version of analysis pipeline';
+
+
+--
+-- Name: COLUMN communication_analyses.model_confidence; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.model_confidence IS 'Overall confidence in analysis results';
+
+
+--
+-- Name: COLUMN communication_analyses.processing_time_ms; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.communication_analyses.processing_time_ms IS 'Time taken to analyze (milliseconds)';
+
+
+--
+-- Name: comparative_effectiveness; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.comparative_effectiveness (
+    id uuid NOT NULL,
+    intervention_a_id uuid NOT NULL,
+    intervention_b_id uuid NOT NULL,
+    metric_name character varying(100) NOT NULL,
+    comparison_method character varying(100) NOT NULL,
+    effect_size_difference numeric(10,4) NOT NULL,
+    statistical_significance boolean,
+    confidence_interval jsonb,
+    practical_significance character varying(20),
+    cost_effectiveness_ratio numeric(10,4),
+    time_to_effect integer,
+    duration_effect integer,
+    side_effects_profile jsonb,
+    participant_preference numeric(3,2),
+    implementation_difficulty jsonb,
+    contextual_applicability jsonb,
+    recommendation character varying(100),
+    comparison_metadata jsonb,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.comparative_effectiveness OWNER TO sheriftito;
+
+--
+-- Name: composite_satisfaction_indices; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.composite_satisfaction_indices (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid,
+    period_type character varying(20) NOT NULL,
+    period_start timestamp with time zone NOT NULL,
+    period_end timestamp with time zone NOT NULL,
+    csat_score double precision,
+    nps_raw integer,
+    nps_normalized double precision,
+    ces_score double precision,
+    csi_score double precision NOT NULL,
+    performance_level character varying(20) NOT NULL,
+    previous_csi_score double precision,
+    change_amount double precision,
+    change_percentage double precision,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.composite_satisfaction_indices OWNER TO sheriftito;
+
+--
+-- Name: contract_violations; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.contract_violations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid NOT NULL,
+    reported_by uuid NOT NULL,
+    violation_type character varying(100) NOT NULL,
+    category character varying(50) NOT NULL,
+    severity character varying(50) NOT NULL,
+    title character varying(255) NOT NULL,
+    description text NOT NULL,
+    labor_law_violated character varying(255),
+    incident_date_range jsonb,
+    affected_employees jsonb,
+    evidence_urls jsonb,
+    witness_statements jsonb,
+    status character varying(50) DEFAULT 'open'::character varying,
+    assigned_investigator_id uuid,
+    investigation_notes text,
+    resolution_notes text,
+    corrective_actions jsonb,
+    legal_review_required boolean DEFAULT false,
+    legal_review_findings text,
+    legal_reviewer_id uuid,
+    legal_review_date timestamp without time zone,
+    resolved_at timestamp without time zone,
+    resolved_by uuid,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now(),
+    law_reference text,
+    detected_at timestamp without time zone DEFAULT now(),
+    detection_method character varying(100),
+    detected_by uuid,
+    evidence_data jsonb,
+    affected_employees_count integer DEFAULT 1,
+    estimated_financial_impact double precision,
+    legal_risk_score integer,
+    assigned_to uuid,
+    legal_review_notes text
+);
+
+
+ALTER TABLE public.contract_violations OWNER TO sheriftito;
+
+--
+-- Name: customer_lifecycle_stages; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.customer_lifecycle_stages (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    organization_id uuid,
+    tenant_id uuid,
+    current_stage character varying(50) NOT NULL,
+    previous_stage character varying(50),
+    stage_entry_date timestamp with time zone NOT NULL,
+    stage_exit_date timestamp with time zone,
+    days_in_stage integer,
+    entered_via character varying(100),
+    conversion_source character varying(100),
+    context jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.customer_lifecycle_stages OWNER TO sheriftito;
+
+--
+-- Name: demographic_profiles; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.demographic_profiles (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    gender character varying(50),
+    race character varying(50),
+    ethnicity character varying(50),
+    age_range character varying(20),
+    religion character varying(50),
+    disability_status character varying(50),
+    sexual_orientation character varying(50),
+    gender_identity character varying(50),
+    veteran_status character varying(50),
+    marital_status character varying(50),
+    data_classification character varying(20) DEFAULT 'sensitive'::character varying,
+    consent_given boolean DEFAULT true,
+    last_updated timestamp without time zone DEFAULT now(),
+    verified boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.demographic_profiles OWNER TO sheriftito;
+
+--
+-- Name: discrimination_complaints; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.discrimination_complaints (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid NOT NULL,
+    complainant_id uuid,
+    is_anonymous boolean DEFAULT false,
+    anonymous_fingerprint character varying(255),
+    complaint_type character varying(50) NOT NULL,
+    discrimination_type character varying(100) NOT NULL,
+    description text NOT NULL,
+    incident_date timestamp without time zone,
+    incident_location character varying(100),
+    perpetrator_type character varying(50),
+    perpetrator_id uuid,
+    witness_ids jsonb,
+    evidence_urls jsonb,
+    severity character varying(20) NOT NULL,
+    credible boolean DEFAULT true,
+    status character varying(50) DEFAULT 'open'::character varying,
+    assigned_investigator_id uuid,
+    priority character varying(20) DEFAULT 'medium'::character varying,
+    investigation_findings text,
+    substantiated boolean,
+    resolution_notes text,
+    corrective_actions jsonb,
+    resolved_at timestamp without time zone,
+    resolved_by uuid,
+    legal_review_required boolean DEFAULT false,
+    external_legal_aid boolean DEFAULT false,
+    legal_aid_contact jsonb,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.discrimination_complaints OWNER TO sheriftito;
+
+--
+-- Name: email_connections; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.email_connections (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    provider public.emailprovider NOT NULL,
+    email_address character varying(255) NOT NULL,
+    access_token_encrypted text,
+    refresh_token_encrypted text,
+    token_expires_at timestamp with time zone,
+    connection_status public.connectionstatus NOT NULL,
+    last_sync_at timestamp with time zone,
+    error_message text,
+    monitored_folders json,
+    privacy_settings json,
+    exclude_patterns json,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.email_connections OWNER TO sheriftito;
+
+--
+-- Name: TABLE email_connections; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.email_connections IS 'Secure email connections with privacy controls';
+
+
+--
+-- Name: COLUMN email_connections.user_id; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.user_id IS 'User who owns this email connection';
+
+
+--
+-- Name: COLUMN email_connections.provider; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.provider IS 'Email provider (Gmail, Outlook, etc.)';
+
+
+--
+-- Name: COLUMN email_connections.email_address; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.email_address IS 'Email address being analyzed';
+
+
+--
+-- Name: COLUMN email_connections.access_token_encrypted; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.access_token_encrypted IS 'Encrypted OAuth access token';
+
+
+--
+-- Name: COLUMN email_connections.refresh_token_encrypted; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.refresh_token_encrypted IS 'Encrypted OAuth refresh token';
+
+
+--
+-- Name: COLUMN email_connections.token_expires_at; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.token_expires_at IS 'When the access token expires';
+
+
+--
+-- Name: COLUMN email_connections.connection_status; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.connection_status IS 'Current status of the connection';
+
+
+--
+-- Name: COLUMN email_connections.last_sync_at; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.last_sync_at IS 'Last successful sync timestamp';
+
+
+--
+-- Name: COLUMN email_connections.error_message; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.error_message IS 'Last error message if connection failed';
+
+
+--
+-- Name: COLUMN email_connections.monitored_folders; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.monitored_folders IS 'List of folders/labels to monitor';
+
+
+--
+-- Name: COLUMN email_connections.privacy_settings; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.privacy_settings IS 'Privacy controls and preferences';
+
+
+--
+-- Name: COLUMN email_connections.exclude_patterns; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_connections.exclude_patterns IS 'Patterns to exclude from analysis';
+
+
+--
+-- Name: email_metadata; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.email_metadata (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    connection_id uuid NOT NULL,
+    message_id character varying(255) NOT NULL,
+    thread_id character varying(255),
+    subject_hash character varying(64) NOT NULL,
+    sender_email character varying(255),
+    recipient_emails character varying[],
+    cc_emails character varying[],
+    all_participants character varying[],
+    sent_at timestamp with time zone NOT NULL,
+    received_at timestamp with time zone,
+    response_time_minutes integer,
+    is_reply boolean,
+    is_forwarded boolean,
+    word_count integer,
+    has_attachments boolean,
+    urgency_indicators integer,
+    folder_label character varying(100),
+    email_type character varying(50),
+    is_internal boolean,
+    domain character varying(100),
+    processed_at timestamp with time zone,
+    analysis_version character varying(20)
+);
+
+
+ALTER TABLE public.email_metadata OWNER TO sheriftito;
+
+--
+-- Name: TABLE email_metadata; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON TABLE public.email_metadata IS 'Email metadata for analysis - no content stored for privacy';
+
+
+--
+-- Name: COLUMN email_metadata.connection_id; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.connection_id IS 'Email connection this metadata belongs to';
+
+
+--
+-- Name: COLUMN email_metadata.message_id; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.message_id IS 'Unique message identifier from email provider';
+
+
+--
+-- Name: COLUMN email_metadata.thread_id; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.thread_id IS 'Thread/conversation identifier';
+
+
+--
+-- Name: COLUMN email_metadata.subject_hash; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.subject_hash IS 'SHA-256 hash of subject for deduplication';
+
+
+--
+-- Name: COLUMN email_metadata.sender_email; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.sender_email IS 'Sender email address';
+
+
+--
+-- Name: COLUMN email_metadata.recipient_emails; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.recipient_emails IS 'List of recipient email addresses';
+
+
+--
+-- Name: COLUMN email_metadata.cc_emails; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.cc_emails IS 'List of CC recipient email addresses';
+
+
+--
+-- Name: COLUMN email_metadata.all_participants; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.all_participants IS 'All participants for network analysis';
+
+
+--
+-- Name: COLUMN email_metadata.sent_at; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.sent_at IS 'When email was sent';
+
+
+--
+-- Name: COLUMN email_metadata.received_at; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.received_at IS 'When email was received';
+
+
+--
+-- Name: COLUMN email_metadata.response_time_minutes; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.response_time_minutes IS 'Minutes between this email and its reply';
+
+
+--
+-- Name: COLUMN email_metadata.is_reply; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.is_reply IS 'Whether this email is a reply';
+
+
+--
+-- Name: COLUMN email_metadata.is_forwarded; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.is_forwarded IS 'Whether this email was forwarded';
+
+
+--
+-- Name: COLUMN email_metadata.word_count; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.word_count IS 'Word count (calculated before content is discarded)';
+
+
+--
+-- Name: COLUMN email_metadata.has_attachments; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.has_attachments IS 'Whether email has attachments';
+
+
+--
+-- Name: COLUMN email_metadata.urgency_indicators; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.urgency_indicators IS 'Count of urgency indicators in subject/content';
+
+
+--
+-- Name: COLUMN email_metadata.folder_label; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.folder_label IS 'Folder or label where email was found';
+
+
+--
+-- Name: COLUMN email_metadata.email_type; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.email_type IS 'Email classification (meeting, update, request, etc.)';
+
+
+--
+-- Name: COLUMN email_metadata.is_internal; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.is_internal IS 'Whether communication is within same domain';
+
+
+--
+-- Name: COLUMN email_metadata.domain; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.domain IS 'Domain of sender for external/internal classification';
+
+
+--
+-- Name: COLUMN email_metadata.processed_at; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.processed_at IS 'When this metadata was processed';
+
+
+--
+-- Name: COLUMN email_metadata.analysis_version; Type: COMMENT; Schema: public; Owner: sheriftito
+--
+
+COMMENT ON COLUMN public.email_metadata.analysis_version IS 'Version of analysis pipeline used';
+
+
+--
+-- Name: employee_rights_resources; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.employee_rights_resources (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    country_code character varying(2) NOT NULL,
+    resource_type character varying(50) NOT NULL,
+    title character varying(255) NOT NULL,
+    description text,
+    content text,
+    url text,
+    language character varying(10) DEFAULT 'en'::character varying,
+    difficulty_level character varying(20),
+    reading_time_minutes integer,
+    tags jsonb,
+    verified boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now(),
+    summary text,
+    target_audience jsonb,
+    skill_level character varying(50),
+    thumbnail_url character varying(500),
+    video_url character varying(500),
+    duration_minutes integer,
+    display_order integer DEFAULT 0,
+    is_featured boolean DEFAULT false,
+    view_count integer DEFAULT 0,
+    helpful_count integer DEFAULT 0,
+    not_helpful_count integer DEFAULT 0,
+    created_by uuid,
+    is_published boolean DEFAULT false,
+    approved_by uuid,
+    approved_at timestamp without time zone
+);
+
+
+ALTER TABLE public.employee_rights_resources OWNER TO sheriftito;
+
+--
+-- Name: equity_analyses; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.equity_analyses (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid NOT NULL,
+    analysis_type character varying(50) NOT NULL,
+    analysis_date timestamp without time zone DEFAULT now() NOT NULL,
+    analyzed_by uuid,
+    time_period_start timestamp without time zone,
+    time_period_end timestamp without time zone,
+    total_employees_analyzed integer DEFAULT 0,
+    departments_analyzed jsonb,
+    protected_classes_analyzed jsonb,
+    disparity_detected boolean DEFAULT false,
+    severity_level character varying(20),
+    statistical_significance double precision,
+    confidence_interval character varying(50),
+    effect_size double precision,
+    effect_size_interpretation character varying(50),
+    group_statistics jsonb,
+    baseline_group character varying(100),
+    affected_groups jsonb,
+    estimated_pay_gap double precision,
+    affected_employees_count integer,
+    recommended_actions jsonb,
+    priority_level character varying(20),
+    status character varying(50) DEFAULT 'pending_review'::character varying,
+    reviewed_by uuid,
+    reviewed_at timestamp without time zone,
+    review_notes text,
+    follow_up_required boolean DEFAULT false,
+    follow_up_date timestamp without time zone,
+    follow_up_completed boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.equity_analyses OWNER TO sheriftito;
+
+--
+-- Name: framework_questions; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.framework_questions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    text character varying NOT NULL,
+    framework_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    type character varying NOT NULL,
+    assessment_id uuid
+);
+
+
+ALTER TABLE public.framework_questions OWNER TO sheriftito;
+
+--
+-- Name: frameworks; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.frameworks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying NOT NULL,
+    description character varying,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.frameworks OWNER TO sheriftito;
+
+--
+-- Name: growth_milestones; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.growth_milestones (
+    id uuid NOT NULL,
+    trajectory_id uuid NOT NULL,
+    milestone_name character varying(255) NOT NULL,
+    milestone_type character varying(50) NOT NULL,
+    target_value numeric(10,4) NOT NULL,
+    target_date timestamp with time zone,
+    achievement_probability numeric(3,2),
+    current_progress numeric(3,2),
+    milestone_status character varying(30) NOT NULL,
+    priority character varying(20) NOT NULL,
+    difficulty_level character varying(20) NOT NULL,
+    required_resources character varying[],
+    prerequisite_skills character varying[] NOT NULL,
+    success_metrics jsonb,
+    achievement_date timestamp with time zone,
+    achievement_notes text,
+    celebration_criteria jsonb,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.growth_milestones OWNER TO sheriftito;
+
+--
+-- Name: growth_potential_analysis; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.growth_potential_analysis (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    analysis_date timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    potential_score numeric(3,2) NOT NULL,
+    potential_category character varying(30) NOT NULL,
+    growth_readiness numeric(3,2),
+    learning_agility numeric(3,2),
+    adaptability_score numeric(3,2),
+    time_to_mastery integer,
+    ceiling_estimate numeric(10,4),
+    growth_velocity_percentile numeric(3,2),
+    key_drivers character varying[],
+    limiting_factors character varying[],
+    development_focus_areas character varying[],
+    optimal_development_path character varying[] NOT NULL,
+    career_trajectory_alignment numeric(3,2),
+    success_probability numeric(3,2),
+    roi_estimate numeric(5,2),
+    risk_factors jsonb,
+    confidence_factors jsonb,
+    analysis_methodology jsonb,
+    comparative_benchmarks jsonb,
+    recommendations character varying[],
+    next_review_date timestamp with time zone,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.growth_potential_analysis OWNER TO sheriftito;
+
+--
+-- Name: growth_trajectories; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.growth_trajectories (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    team_id uuid,
+    organization_id uuid,
+    trajectory_type character varying(50) NOT NULL,
+    competency_domain character varying(100) NOT NULL,
+    model_type character varying(50) NOT NULL,
+    model_parameters jsonb NOT NULL,
+    training_data_points integer NOT NULL,
+    training_start_date timestamp with time zone NOT NULL,
+    training_end_date timestamp with time zone NOT NULL,
+    model_accuracy numeric(5,4),
+    confidence_level numeric(3,2),
+    prediction_horizon_days integer NOT NULL,
+    growth_velocity numeric(10,6),
+    acceleration_rate numeric(10,8),
+    asymptotic_potential numeric(10,4),
+    growth_stage character varying(30),
+    plateau_probability numeric(3,2),
+    inflection_point_date timestamp with time zone,
+    development_recommendations character varying[],
+    optimal_intervention_timing timestamp with time zone,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.growth_trajectories OWNER TO sheriftito;
+
+--
+-- Name: hiring_metrics; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.hiring_metrics (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid NOT NULL,
+    analysis_id uuid,
+    job_title character varying(100),
+    department character varying(100),
+    job_level character varying(50),
+    period_start timestamp without time zone NOT NULL,
+    period_end timestamp without time zone NOT NULL,
+    demographic_dimension character varying(50) NOT NULL,
+    demographic_value character varying(50) NOT NULL,
+    applicants_count integer DEFAULT 0,
+    interviewed_count integer DEFAULT 0,
+    offered_count integer DEFAULT 0,
+    hired_count integer DEFAULT 0,
+    interview_rate double precision,
+    offer_rate double precision,
+    acceptance_rate double precision,
+    overall_hire_rate double precision,
+    baseline_hire_rate double precision,
+    rate_difference double precision,
+    percent_difference double precision,
+    p_value double precision,
+    statistically_significant boolean DEFAULT false,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.hiring_metrics OWNER TO sheriftito;
+
+--
+-- Name: intervention_effectiveness; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.intervention_effectiveness (
+    id uuid NOT NULL,
+    intervention_id uuid NOT NULL,
+    metric_name character varying(100) NOT NULL,
+    effect_size numeric(10,4) NOT NULL,
+    confidence_interval_lower numeric(10,4),
+    confidence_interval_upper numeric(10,4),
+    p_value numeric(10,6),
+    statistical_significance boolean,
+    test_type character varying(100) NOT NULL,
+    sample_size_pre integer,
+    sample_size_post integer,
+    pre_intervention_mean numeric(10,4),
+    post_intervention_mean numeric(10,4),
+    pre_intervention_std numeric(10,4),
+    post_intervention_std numeric(10,4),
+    percent_improvement numeric(5,2),
+    clinical_significance character varying(20),
+    practical_significance boolean,
+    effect_category character varying(50) NOT NULL,
+    analysis_method character varying(100) NOT NULL,
+    control_group_used boolean NOT NULL,
+    control_group_details jsonb,
+    effect_duration_days integer,
+    sustainability_score numeric(3,2),
+    external_validity character varying(20),
+    limitations character varying[],
+    recommendations text,
+    statistical_assumptions_met jsonb,
+    analysis_metadata jsonb,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.intervention_effectiveness OWNER TO sheriftito;
+
+--
+-- Name: intervention_outcomes; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.intervention_outcomes (
+    id uuid NOT NULL,
+    intervention_id uuid NOT NULL,
+    overall_success_score numeric(3,2) NOT NULL,
+    target_achievement_rate numeric(3,2),
+    roi_estimate numeric(12,2),
+    cost_per_outcome numeric(12,2),
+    participant_satisfaction numeric(3,2),
+    stakeholder_satisfaction numeric(3,2),
+    sustainability_rating character varying(20),
+    scalability_rating character varying(20),
+    replication_confidence numeric(3,2),
+    unexpected_outcomes jsonb,
+    lessons_learned character varying[],
+    best_practices character varying[],
+    next_steps character varying[],
+    success_factors jsonb,
+    failure_factors jsonb,
+    contextual_factors jsonb,
+    overall_recommendation character varying(20) NOT NULL,
+    justification text,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.intervention_outcomes OWNER TO sheriftito;
+
+--
+-- Name: intervention_participants; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.intervention_participants (
+    id uuid NOT NULL,
+    intervention_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    participant_role character varying(50) NOT NULL,
+    enrollment_date timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    completion_date timestamp with time zone,
+    participation_level character varying(20),
+    completion_status character varying(20) NOT NULL,
+    engagement_score numeric(3,2),
+    attendance_rate numeric(3,2),
+    notes text,
+    custom_attributes jsonb,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.intervention_participants OWNER TO sheriftito;
+
+--
+-- Name: interventions; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.interventions (
+    id uuid NOT NULL,
+    organization_id uuid,
+    team_id uuid,
+    created_by uuid NOT NULL,
+    title character varying(255) NOT NULL,
+    description text,
+    intervention_type character varying(100) NOT NULL,
+    category character varying(100) NOT NULL,
+    target_metrics character varying[],
+    expected_outcomes character varying[],
+    success_criteria jsonb,
+    start_date timestamp with time zone NOT NULL,
+    end_date timestamp with time zone,
+    duration_days integer,
+    status character varying(50) NOT NULL,
+    priority character varying(20) NOT NULL,
+    budget numeric(12,2),
+    participants_target integer,
+    actual_participants integer,
+    implementation_details jsonb,
+    external_references character varying[],
+    tags character varying[],
+    is_active boolean NOT NULL,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.interventions OWNER TO sheriftito;
+
+--
+-- Name: key_results; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.key_results (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    objective_id uuid NOT NULL,
+    owner_id uuid NOT NULL,
+    title character varying(255) NOT NULL,
+    description text,
+    target_value double precision NOT NULL,
+    current_value double precision DEFAULT 0.0,
+    unit_of_measure character varying(50),
+    baseline_value double precision,
+    start_date timestamp with time zone NOT NULL,
+    end_date timestamp with time zone NOT NULL,
+    status character varying(20) DEFAULT 'not_started'::character varying,
+    confidence_level character varying(20),
+    weight double precision DEFAULT 1.0,
+    progress_percentage double precision DEFAULT 0.0,
+    final_value double precision,
+    outcome_summary text,
+    depends_on_kr_ids jsonb,
+    tags jsonb,
+    context jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    achieved_at timestamp with time zone
+);
+
+
+ALTER TABLE public.key_results OWNER TO sheriftito;
+
+--
+-- Name: kr_progress_updates; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.kr_progress_updates (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    key_result_id uuid NOT NULL,
+    updated_by uuid NOT NULL,
+    current_value double precision NOT NULL,
+    progress_percentage double precision NOT NULL,
+    status character varying(20) NOT NULL,
+    notes text,
+    blockers text,
+    next_steps text,
+    confidence_level character varying(20),
+    sentiment character varying(20),
+    update_date timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.kr_progress_updates OWNER TO sheriftito;
+
+--
+-- Name: labor_laws; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.labor_laws (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    country_code character varying(2) NOT NULL,
+    country_name character varying(100) NOT NULL,
+    state_region character varying(100),
+    continent character varying(2),
+    law_name character varying(255) NOT NULL,
+    law_code character varying(100),
+    category character varying(50) NOT NULL,
+    description text,
+    min_wage double precision,
+    max_weekly_hours integer,
+    overtime_threshold integer,
+    overtime_rate double precision,
+    mandatory_break_minutes integer,
+    min_vacation_days integer,
+    discrimination_protection_level integer,
+    safety_protection_level integer,
+    privacy_protection_level integer,
+    termination_protection_level integer,
+    is_active boolean DEFAULT true,
+    verified boolean DEFAULT false,
+    source_url text,
+    effective_date date,
+    last_updated timestamp without time zone DEFAULT now(),
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    provisions jsonb,
+    resources jsonb,
+    verified_by uuid,
+    verified_date timestamp without time zone
+);
+
+
+ALTER TABLE public.labor_laws OWNER TO sheriftito;
+
+--
+-- Name: legal_aid_resources; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.legal_aid_resources (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    country_code character varying(2) NOT NULL,
+    state_region character varying(100),
+    city character varying(100),
+    resource_type character varying(50) NOT NULL,
+    name character varying(255) NOT NULL,
+    description text,
+    phone character varying(50),
+    email character varying(255),
+    website text,
+    address text,
+    specializations jsonb,
+    languages_spoken jsonb,
+    free_consultation boolean DEFAULT false,
+    sliding_scale boolean DEFAULT false,
+    consultation_fee numeric(10,2),
+    hourly_rate numeric(10,2),
+    emergency_services boolean DEFAULT false,
+    availability character varying(100),
+    verified boolean DEFAULT false,
+    rating double precision,
+    response_time_hours integer,
+    created_at timestamp without time zone DEFAULT now() NOT NULL,
+    updated_at timestamp without time zone DEFAULT now(),
+    review_count integer DEFAULT 0,
+    operating_hours jsonb,
+    pro_bono boolean DEFAULT false,
+    last_verified timestamp without time zone
+);
+
+
+ALTER TABLE public.legal_aid_resources OWNER TO sheriftito;
+
+--
+-- Name: objectives; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.objectives (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    title character varying(255) NOT NULL,
+    description text,
+    objective_type character varying(50) NOT NULL,
+    organization_id uuid,
+    tenant_id uuid,
+    owner_id uuid NOT NULL,
+    team character varying(100),
+    period character varying(10) NOT NULL,
+    year integer NOT NULL,
+    start_date timestamp with time zone NOT NULL,
+    end_date timestamp with time zone NOT NULL,
+    status character varying(20) DEFAULT 'draft'::character varying,
+    progress_percentage double precision DEFAULT 0.0,
+    parent_objective_id uuid,
+    strategic_priority character varying(50),
+    confidence_level character varying(20),
+    outcome_summary text,
+    tags jsonb,
+    context jsonb,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    completed_at timestamp with time zone
+);
+
+
+ALTER TABLE public.objectives OWNER TO sheriftito;
+
+--
+-- Name: organizations; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.organizations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(255) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.organizations OWNER TO sheriftito;
+
+--
+-- Name: pay_equity_records; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.pay_equity_records (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid NOT NULL,
+    analysis_id uuid,
+    demographic_dimension character varying(50) NOT NULL,
+    demographic_value character varying(50) NOT NULL,
+    department character varying(100),
+    job_level character varying(50),
+    employee_count integer DEFAULT 0,
+    mean_salary numeric(12,2),
+    median_salary numeric(12,2),
+    min_salary numeric(12,2),
+    max_salary numeric(12,2),
+    std_deviation double precision,
+    salary_gap_percent double precision,
+    salary_gap_amount numeric(12,2),
+    adjusted_salary_gap numeric(12,2),
+    p_value double precision,
+    statistically_significant boolean DEFAULT false,
+    period_start timestamp without time zone,
+    period_end timestamp without time zone,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.pay_equity_records OWNER TO sheriftito;
+
+--
+-- Name: permissions; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.permissions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    code character varying(50) NOT NULL,
+    category character varying(50) NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.permissions OWNER TO sheriftito;
+
+--
+-- Name: post_intervention_measurements; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.post_intervention_measurements (
+    id uuid NOT NULL,
+    intervention_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    metric_name character varying(100) NOT NULL,
+    metric_value numeric(10,4) NOT NULL,
+    metric_type character varying(50) NOT NULL,
+    measurement_date timestamp with time zone NOT NULL,
+    follow_up_period_days integer,
+    measurement_method character varying(100),
+    data_source character varying(100),
+    confidence_level numeric(3,2),
+    sample_size integer,
+    statistical_notes text,
+    qualitative_notes text,
+    sustainability_indicators jsonb,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.post_intervention_measurements OWNER TO sheriftito;
+
+--
+-- Name: pre_intervention_measurements; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.pre_intervention_measurements (
+    id uuid NOT NULL,
+    intervention_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    metric_name character varying(100) NOT NULL,
+    metric_value numeric(10,4) NOT NULL,
+    metric_type character varying(50) NOT NULL,
+    measurement_date timestamp with time zone NOT NULL,
+    baseline_period_start timestamp with time zone,
+    baseline_period_end timestamp with time zone,
+    measurement_method character varying(100),
+    data_source character varying(100),
+    confidence_level numeric(3,2),
+    sample_size integer,
+    statistical_notes text,
+    qualitative_notes text,
+    baseline_metadata jsonb,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.pre_intervention_measurements OWNER TO sheriftito;
+
+--
+-- Name: promotion_tracking; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.promotion_tracking (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    organization_id uuid NOT NULL,
+    analysis_id uuid,
+    user_id uuid,
+    promotion_date timestamp without time zone NOT NULL,
+    from_level character varying(50),
+    to_level character varying(50),
+    from_department character varying(100),
+    to_department character varying(100),
+    months_in_previous_role integer,
+    performance_rating character varying(20),
+    years_of_experience integer,
+    peer_group_average_promotion_time integer,
+    promotion_speed_percentile double precision,
+    delayed_promotion boolean DEFAULT false,
+    delay_reason text,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.promotion_tracking OWNER TO sheriftito;
+
+--
+-- Name: responses; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.responses (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    assessment_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    question_id uuid NOT NULL,
+    answer_text text,
+    answer_value integer,
+    answer_data jsonb,
+    score double precision,
+    normalized_score double precision,
+    response_time_ms integer,
+    confidence_rating integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.responses OWNER TO sheriftito;
+
+--
+-- Name: rights_knowledge_checks; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.rights_knowledge_checks (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    country_code character varying(2) NOT NULL,
+    question text NOT NULL,
+    options jsonb NOT NULL,
+    correct_answer character varying(10) NOT NULL,
+    explanation text,
+    difficulty_level character varying(20) DEFAULT 'intermediate'::character varying,
+    topic character varying(100) NOT NULL,
+    category character varying(50),
+    active boolean DEFAULT true,
+    created_at timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.rights_knowledge_checks OWNER TO sheriftito;
+
+--
+-- Name: roles; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.roles (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying(50) NOT NULL,
+    description text,
+    scope character varying(20) NOT NULL,
+    is_system_role boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.roles OWNER TO sheriftito;
+
+--
+-- Name: safety_follow_up_actions; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.safety_follow_up_actions (
+    id uuid NOT NULL,
+    incident_id uuid NOT NULL,
+    action_type character varying(100) NOT NULL,
+    description text NOT NULL,
+    priority public.incidentseverity,
+    assigned_to_id uuid,
+    due_date timestamp with time zone,
+    status character varying(50),
+    completion_date timestamp with time zone,
+    completion_notes text,
+    verification_required boolean,
+    verified_by_id uuid,
+    verification_date timestamp with time zone,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+
+ALTER TABLE public.safety_follow_up_actions OWNER TO sheriftito;
+
+--
+-- Name: safety_incidents; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.safety_incidents (
+    id uuid NOT NULL,
+    incident_type public.safetyincidenttype NOT NULL,
+    severity public.incidentseverity NOT NULL,
+    status public.incidentstatus,
+    reporter_id uuid NOT NULL,
+    affected_user_id uuid,
+    organization_id uuid NOT NULL,
+    team_id uuid,
+    title character varying(200) NOT NULL,
+    description text NOT NULL,
+    location character varying(200),
+    date_occurred timestamp with time zone NOT NULL,
+    date_reported timestamp with time zone,
+    witnesses json,
+    evidence_files json,
+    immediate_actions json,
+    investigator_id uuid,
+    investigation_notes text,
+    root_cause text,
+    prevention_measures json,
+    resolution_date timestamp with time zone,
+    resolution_details text,
+    lessons_learned text,
+    compliance_required boolean,
+    compliance_reported boolean,
+    compliance_date timestamp with time zone,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+
+ALTER TABLE public.safety_incidents OWNER TO sheriftito;
+
+--
+-- Name: safety_resources; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.safety_resources (
+    id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    title character varying(200) NOT NULL,
+    description text,
+    resource_type character varying(100) NOT NULL,
+    category character varying(100),
+    content text,
+    file_url character varying(500),
+    external_links json,
+    is_public boolean,
+    required_roles character varying[],
+    targeted_teams character varying[],
+    tags character varying[],
+    language character varying(10),
+    last_reviewed timestamp with time zone,
+    next_review_date timestamp with time zone,
+    view_count integer,
+    last_accessed timestamp with time zone,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+
+ALTER TABLE public.safety_resources OWNER TO sheriftito;
+
+--
+-- Name: safety_training; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.safety_training (
+    id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    title character varying(200) NOT NULL,
+    description text,
+    training_type character varying(100) NOT NULL,
+    category character varying(100),
+    content_url character varying(500),
+    duration_minutes integer,
+    passing_score double precision,
+    required_for_roles character varying[],
+    required_for_teams character varying[],
+    renewal_period_days integer,
+    is_active boolean,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+
+ALTER TABLE public.safety_training OWNER TO sheriftito;
+
+--
+-- Name: safety_training_completions; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.safety_training_completions (
+    id uuid NOT NULL,
+    training_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    completion_date timestamp with time zone,
+    score double precision,
+    passed boolean,
+    certificate_url character varying(500),
+    expiry_date timestamp with time zone,
+    reminder_sent boolean,
+    created_at timestamp with time zone
+);
+
+
+ALTER TABLE public.safety_training_completions OWNER TO sheriftito;
+
+--
+-- Name: satisfaction_surveys; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.satisfaction_surveys (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    survey_type character varying(20) NOT NULL,
+    touchpoint_type character varying(50),
+    user_id uuid NOT NULL,
+    organization_id uuid,
+    tenant_id uuid,
+    score integer NOT NULL,
+    feedback_text text,
+    follow_up_consent boolean DEFAULT true,
+    nps_category character varying(20),
+    survey_channel character varying(50),
+    response_time_seconds integer,
+    ip_address character varying(45),
+    user_agent text,
+    context jsonb,
+    sent_at timestamp with time zone NOT NULL,
+    responded_at timestamp with time zone DEFAULT now(),
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.satisfaction_surveys OWNER TO sheriftito;
+
+--
+-- Name: team_members; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.team_members (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    team_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    role public.teamrole NOT NULL
+);
+
+
+ALTER TABLE public.team_members OWNER TO sheriftito;
+
+--
+-- Name: teams; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.teams (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    description text,
+    created_by_id uuid,
+    updated_at timestamp with time zone DEFAULT now(),
+    organization_id uuid NOT NULL,
+    tenant_id uuid
+);
+
+
+ALTER TABLE public.teams OWNER TO sheriftito;
+
+--
+-- Name: trajectory_benchmarks; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.trajectory_benchmarks (
+    id uuid NOT NULL,
+    competency_domain character varying(100) NOT NULL,
+    role_category character varying(100) NOT NULL,
+    experience_level character varying(50) NOT NULL,
+    sample_size integer NOT NULL,
+    median_trajectory jsonb NOT NULL,
+    percentile_25_trajectory jsonb,
+    percentile_75_trajectory jsonb,
+    growth_velocity_stats jsonb,
+    time_to_mastery_stats jsonb,
+    plateau_probability_stats jsonb,
+    key_success_factors character varying[],
+    common_barriers character varying[],
+    optimal_development_patterns jsonb,
+    industry_specific_factors jsonb,
+    benchmark_metadata jsonb,
+    data_collection_period jsonb,
+    last_updated timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.trajectory_benchmarks OWNER TO sheriftito;
+
+--
+-- Name: trajectory_predictions; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.trajectory_predictions (
+    id uuid NOT NULL,
+    trajectory_id uuid NOT NULL,
+    prediction_date timestamp with time zone NOT NULL,
+    predicted_value numeric(10,4) NOT NULL,
+    confidence_interval_lower numeric(10,4),
+    confidence_interval_upper numeric(10,4),
+    prediction_accuracy numeric(5,4),
+    growth_rate numeric(10,6),
+    milestone_achieved boolean NOT NULL,
+    risk_assessment jsonb,
+    external_factors jsonb,
+    development_opportunities character varying[],
+    potential_barriers character varying[],
+    intervention_suggestions character varying[],
+    prediction_metadata jsonb,
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.trajectory_predictions OWNER TO sheriftito;
+
+--
+-- Name: trajectory_simulations; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.trajectory_simulations (
+    id uuid NOT NULL,
+    trajectory_id uuid NOT NULL,
+    simulation_type character varying(50) NOT NULL,
+    scenario_description text,
+    intervention_scenario jsonb,
+    environmental_factors jsonb,
+    simulated_trajectory jsonb NOT NULL,
+    outcome_probability numeric(3,2),
+    success_probability numeric(3,2),
+    expected_time_to_goal integer,
+    confidence_in_simulation numeric(3,2),
+    sensitivity_analysis jsonb,
+    risk_assessment jsonb,
+    resource_requirements jsonb,
+    alternative_scenarios jsonb,
+    simulation_parameters jsonb,
+    validation_metrics jsonb,
+    actionable_insights character varying[],
+    recommended_actions character varying[],
+    created_at timestamp with time zone DEFAULT '2026-01-06 11:07:41.444146+07'::timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.trajectory_simulations OWNER TO sheriftito;
+
+--
+-- Name: user_roles; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.user_roles (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    role_id uuid NOT NULL,
+    organization_id uuid,
+    team_id uuid,
+    granted_by uuid,
+    granted_at timestamp with time zone DEFAULT now(),
+    expires_at timestamp with time zone
+);
+
+
+ALTER TABLE public.user_roles OWNER TO sheriftito;
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.users (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    email public.citext NOT NULL,
+    password_hash text NOT NULL,
+    full_name text,
+    avatar_url text,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone,
+    organization_id uuid,
+    tenant_id uuid
+);
+
+
+ALTER TABLE public.users OWNER TO sheriftito;
+
+--
+-- Name: wellness_alerts; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.wellness_alerts (
+    id uuid NOT NULL,
+    assessment_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    alert_type character varying(100) NOT NULL,
+    severity public.alertlevel NOT NULL,
+    title character varying(200) NOT NULL,
+    message text NOT NULL,
+    trigger_metrics json,
+    threshold_values json,
+    status character varying(50),
+    acknowledged_by_id uuid,
+    acknowledged_date timestamp with time zone,
+    resolution_notes text,
+    resolved_date timestamp with time zone,
+    recommended_actions json,
+    actions_taken json,
+    follow_up_required boolean,
+    follow_up_date timestamp with time zone,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+
+ALTER TABLE public.wellness_alerts OWNER TO sheriftito;
+
+--
+-- Name: wellness_assessments; Type: TABLE; Schema: public; Owner: sheriftito
+--
+
+CREATE TABLE public.wellness_assessments (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    team_id uuid,
+    assessment_date timestamp with time zone,
+    assessment_type character varying(100) NOT NULL,
+    stress_level double precision,
+    burnout_risk double precision,
+    work_life_balance double precision,
+    mental_health_score double precision,
+    physical_wellness double precision,
+    sleep_quality double precision,
+    social_connection double precision,
+    job_satisfaction double precision,
+    engagement_level double precision,
+    overall_wellness_score double precision,
+    risk_factors json,
+    alert_level public.alertlevel,
+    work_hours_per_week double precision,
+    overtime_hours double precision,
+    recent_incidents integer,
+    support_systems json,
+    ai_insights json,
+    recommendations json,
+    confidence_score double precision,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone
+);
+
+
+ALTER TABLE public.wellness_assessments OWNER TO sheriftito;
+
+--
+-- Data for Name: alembic_version; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.alembic_version (version_num) FROM stdin;
+001_base_tables
+\.
+
+
+--
+-- Data for Name: analytics; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.analytics (id, entity_type, entity_id, analytics_type, category, raw_data, processed_data, insights, overall_score, confidence_level, trend_data, comparison_data, period_start, period_end, sample_size, algorithm_version, processing_time_ms, status, data_quality_score, completeness_score, view_count, last_viewed_at, created_at, updated_at, creator_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: analytics_events; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.analytics_events (id, event_type, entity_type, entity_id, event_data, processed, processed_at, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: assessment_assignments; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.assessment_assignments (id, assessment_id, user_id, assigned_at, completed) FROM stdin;
+\.
+
+
+--
+-- Data for Name: assessment_questions; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.assessment_questions (id, section_id, question_type, question_text, "order", is_required, config) FROM stdin;
+\.
+
+
+--
+-- Data for Name: assessment_responses; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.assessment_responses (id, assessment_id, respondent_id, status, responses, started_at, completed_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: assessment_sections; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.assessment_sections (id, assessment_id, title, description, "order") FROM stdin;
+\.
+
+
+--
+-- Data for Name: assessments; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.assessments (id, title, description, category, status, created_by_id, team_id, organization_id, framework_code, started_at, completed_at, created_at, updated_at, tenant_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: clinical_alerts; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.clinical_alerts (id, screening_id, user_id, org_id, alert_type, severity, alert_message, acknowledged, acknowledged_by, acknowledged_at, resolution_status, resolution_notes, resolved_by, resolved_at, escalated, escalation_level, escalation_notes, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: clinical_audit_logs; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.clinical_audit_logs (id, entity_type, entity_id, accessed_by, user_role, action, action_details, ip_address, user_agent, session_id, authorization_method, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: clinical_consents; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.clinical_consents (id, user_id, org_id, consent_type, consent_version, consented, consent_text, screening_types, data_sharing_scope, withdrawn, withdrawn_at, withdrawal_reason, ip_address, user_agent, consented_at, expires_at, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: clinical_referrals; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.clinical_referrals (id, screening_id, alert_id, user_id, org_id, referral_type, urgency, provider_name, provider_contact, provider_specialty, status, user_contacted, user_contacted_at, appointment_scheduled, appointment_date, appointment_completed, follow_up_required, follow_up_date, follow_up_notes, consent_obtained, consent_date, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: clinical_screenings; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.clinical_screenings (id, user_id, org_id, screening_type, version, responses, total_score, severity_level, subscale_scores, risk_level, risk_flags, crisis_alert, validated_by, validation_notes, validated_at, referral_made, referral_type, follow_up_date, follow_up_completed, informed_consent, consent_timestamp, consent_version, started_at, completed_at, created_at, updated_at, deleted_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: communication_analyses; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.communication_analyses (id, email_metadata_id, user_id, sentiment_score, sentiment_label, sentiment_confidence, tone_categories, formality_score, assertiveness_score, emotion_scores, primary_emotion, emotion_intensity, communication_style, clarity_score, complexity_score, stress_indicators, urgency_level, collaboration_signals, conflict_indicators, conflict_probability, work_hours, response_pattern, engagement_level, network_centrality_score, information_flow, psychological_safety_indicators, leadership_signals, teamwork_indicators, analysis_version, model_confidence, processing_time_ms, analyzed_at, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: comparative_effectiveness; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.comparative_effectiveness (id, intervention_a_id, intervention_b_id, metric_name, comparison_method, effect_size_difference, statistical_significance, confidence_interval, practical_significance, cost_effectiveness_ratio, time_to_effect, duration_effect, side_effects_profile, participant_preference, implementation_difficulty, contextual_applicability, recommendation, comparison_metadata, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: composite_satisfaction_indices; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.composite_satisfaction_indices (id, organization_id, period_type, period_start, period_end, csat_score, nps_raw, nps_normalized, ces_score, csi_score, performance_level, previous_csi_score, change_amount, change_percentage, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: contract_violations; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.contract_violations (id, organization_id, reported_by, violation_type, category, severity, title, description, labor_law_violated, incident_date_range, affected_employees, evidence_urls, witness_statements, status, assigned_investigator_id, investigation_notes, resolution_notes, corrective_actions, legal_review_required, legal_review_findings, legal_reviewer_id, legal_review_date, resolved_at, resolved_by, created_at, updated_at, law_reference, detected_at, detection_method, detected_by, evidence_data, affected_employees_count, estimated_financial_impact, legal_risk_score, assigned_to, legal_review_notes) FROM stdin;
+\.
+
+
+--
+-- Data for Name: customer_lifecycle_stages; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.customer_lifecycle_stages (id, user_id, organization_id, tenant_id, current_stage, previous_stage, stage_entry_date, stage_exit_date, days_in_stage, entered_via, conversion_source, context, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: demographic_profiles; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.demographic_profiles (id, user_id, organization_id, gender, race, ethnicity, age_range, religion, disability_status, sexual_orientation, gender_identity, veteran_status, marital_status, data_classification, consent_given, last_updated, verified, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: discrimination_complaints; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.discrimination_complaints (id, organization_id, complainant_id, is_anonymous, anonymous_fingerprint, complaint_type, discrimination_type, description, incident_date, incident_location, perpetrator_type, perpetrator_id, witness_ids, evidence_urls, severity, credible, status, assigned_investigator_id, priority, investigation_findings, substantiated, resolution_notes, corrective_actions, resolved_at, resolved_by, legal_review_required, external_legal_aid, legal_aid_contact, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: email_connections; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.email_connections (id, user_id, provider, email_address, access_token_encrypted, refresh_token_encrypted, token_expires_at, connection_status, last_sync_at, error_message, monitored_folders, privacy_settings, exclude_patterns, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: email_metadata; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.email_metadata (id, connection_id, message_id, thread_id, subject_hash, sender_email, recipient_emails, cc_emails, all_participants, sent_at, received_at, response_time_minutes, is_reply, is_forwarded, word_count, has_attachments, urgency_indicators, folder_label, email_type, is_internal, domain, processed_at, analysis_version) FROM stdin;
+\.
+
+
+--
+-- Data for Name: employee_rights_resources; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.employee_rights_resources (id, country_code, resource_type, title, description, content, url, language, difficulty_level, reading_time_minutes, tags, verified, created_at, updated_at, summary, target_audience, skill_level, thumbnail_url, video_url, duration_minutes, display_order, is_featured, view_count, helpful_count, not_helpful_count, created_by, is_published, approved_by, approved_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: equity_analyses; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.equity_analyses (id, organization_id, analysis_type, analysis_date, analyzed_by, time_period_start, time_period_end, total_employees_analyzed, departments_analyzed, protected_classes_analyzed, disparity_detected, severity_level, statistical_significance, confidence_interval, effect_size, effect_size_interpretation, group_statistics, baseline_group, affected_groups, estimated_pay_gap, affected_employees_count, recommended_actions, priority_level, status, reviewed_by, reviewed_at, review_notes, follow_up_required, follow_up_date, follow_up_completed, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: framework_questions; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.framework_questions (id, text, framework_id, created_at, updated_at, type, assessment_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: frameworks; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.frameworks (id, name, description, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: growth_milestones; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.growth_milestones (id, trajectory_id, milestone_name, milestone_type, target_value, target_date, achievement_probability, current_progress, milestone_status, priority, difficulty_level, required_resources, prerequisite_skills, success_metrics, achievement_date, achievement_notes, celebration_criteria, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: growth_potential_analysis; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.growth_potential_analysis (id, user_id, analysis_date, potential_score, potential_category, growth_readiness, learning_agility, adaptability_score, time_to_mastery, ceiling_estimate, growth_velocity_percentile, key_drivers, limiting_factors, development_focus_areas, optimal_development_path, career_trajectory_alignment, success_probability, roi_estimate, risk_factors, confidence_factors, analysis_methodology, comparative_benchmarks, recommendations, next_review_date, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: growth_trajectories; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.growth_trajectories (id, user_id, team_id, organization_id, trajectory_type, competency_domain, model_type, model_parameters, training_data_points, training_start_date, training_end_date, model_accuracy, confidence_level, prediction_horizon_days, growth_velocity, acceleration_rate, asymptotic_potential, growth_stage, plateau_probability, inflection_point_date, development_recommendations, optimal_intervention_timing, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: hiring_metrics; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.hiring_metrics (id, organization_id, analysis_id, job_title, department, job_level, period_start, period_end, demographic_dimension, demographic_value, applicants_count, interviewed_count, offered_count, hired_count, interview_rate, offer_rate, acceptance_rate, overall_hire_rate, baseline_hire_rate, rate_difference, percent_difference, p_value, statistically_significant, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: intervention_effectiveness; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.intervention_effectiveness (id, intervention_id, metric_name, effect_size, confidence_interval_lower, confidence_interval_upper, p_value, statistical_significance, test_type, sample_size_pre, sample_size_post, pre_intervention_mean, post_intervention_mean, pre_intervention_std, post_intervention_std, percent_improvement, clinical_significance, practical_significance, effect_category, analysis_method, control_group_used, control_group_details, effect_duration_days, sustainability_score, external_validity, limitations, recommendations, statistical_assumptions_met, analysis_metadata, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: intervention_outcomes; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.intervention_outcomes (id, intervention_id, overall_success_score, target_achievement_rate, roi_estimate, cost_per_outcome, participant_satisfaction, stakeholder_satisfaction, sustainability_rating, scalability_rating, replication_confidence, unexpected_outcomes, lessons_learned, best_practices, next_steps, success_factors, failure_factors, contextual_factors, overall_recommendation, justification, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: intervention_participants; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.intervention_participants (id, intervention_id, user_id, participant_role, enrollment_date, completion_date, participation_level, completion_status, engagement_score, attendance_rate, notes, custom_attributes, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: interventions; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.interventions (id, organization_id, team_id, created_by, title, description, intervention_type, category, target_metrics, expected_outcomes, success_criteria, start_date, end_date, duration_days, status, priority, budget, participants_target, actual_participants, implementation_details, external_references, tags, is_active, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: key_results; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.key_results (id, objective_id, owner_id, title, description, target_value, current_value, unit_of_measure, baseline_value, start_date, end_date, status, confidence_level, weight, progress_percentage, final_value, outcome_summary, depends_on_kr_ids, tags, context, created_at, updated_at, achieved_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: kr_progress_updates; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.kr_progress_updates (id, key_result_id, updated_by, current_value, progress_percentage, status, notes, blockers, next_steps, confidence_level, sentiment, update_date, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: labor_laws; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.labor_laws (id, country_code, country_name, state_region, continent, law_name, law_code, category, description, min_wage, max_weekly_hours, overtime_threshold, overtime_rate, mandatory_break_minutes, min_vacation_days, discrimination_protection_level, safety_protection_level, privacy_protection_level, termination_protection_level, is_active, verified, source_url, effective_date, last_updated, created_at, provisions, resources, verified_by, verified_date) FROM stdin;
+c2befe1f-86ce-4621-a6e1-c6682b9b49aa	US	United States	\N	NA	Fair Labor Standards Act (FLSA)	29 U.S.C. § 201	working_hours	Establishes minimum wage, overtime pay, recordkeeping, and youth employment standards.	7.25	40	40	1.5	\N	0	8	7	6	5	t	t	https://www.dol.gov/agencies/whd/flsa	\N	2026-01-16 17:10:41.417662	2026-01-16 17:10:41.417662	\N	\N	\N	\N
+68981d7a-e5ff-420b-bfd4-0bd6e7595071	US	United States	\N	NA	Title VII of the Civil Rights Act	42 U.S.C. § 2000e	discrimination_protection	Prohibits employment discrimination based on race, color, religion, sex, or national origin.	\N	\N	\N	\N	\N	\N	9	8	7	7	t	t	https://www.eeoc.gov/laws/guidance/title-vii-civil-rights-act-1964	\N	2026-01-16 17:10:41.417662	2026-01-16 17:10:41.417662	\N	\N	\N	\N
+9402b9cd-e87e-48e9-a410-339884447fd8	UK	United Kingdom	\N	EU	National Minimum Wage Act 1998	NMWA 1998	wages_compensation	Establishes the national minimum wage for workers in the UK.	10.42	48	48	1.25	20	28	9	8	8	7	t	t	https://www.legislation.gov.uk/ukpga/1998/8/contents	\N	2026-01-16 17:10:41.417662	2026-01-16 17:10:41.417662	\N	\N	\N	\N
+415cbba5-e6ac-433f-905b-6f599baa7e34	UK	United Kingdom	\N	EU	Equality Act 2010	EqA 2010	discrimination_protection	Protects people from discrimination based on protected characteristics.	\N	\N	\N	\N	\N	\N	10	8	8	8	t	t	https://www.legislation.gov.uk/ukpga/2010/15/contents	\N	2026-01-16 17:10:41.417662	2026-01-16 17:10:41.417662	\N	\N	\N	\N
+\.
+
+
+--
+-- Data for Name: legal_aid_resources; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.legal_aid_resources (id, country_code, state_region, city, resource_type, name, description, phone, email, website, address, specializations, languages_spoken, free_consultation, sliding_scale, consultation_fee, hourly_rate, emergency_services, availability, verified, rating, response_time_hours, created_at, updated_at, review_count, operating_hours, pro_bono, last_verified) FROM stdin;
+76cd6646-e0d2-4402-9f57-dfa59c267f5c	US	CA	San Francisco	legal_aid_org	Legal Aid Society of San Francisco	Provides free legal services to low-income residents in employment law cases.	(415) 863-9761	info@lasf.org	https://www.lasf.org	575 Market Street, Suite 400, San Francisco, CA 94105	["employment", "discrimination", "wrongful_termination", "wages"]	["en", "es", "zh", "tl"]	t	t	\N	\N	f	\N	t	4.5	48	2026-01-16 17:10:41.420002	2026-01-16 17:10:41.420002	0	\N	f	\N
+7d212c44-c003-4b6c-b582-8f069a13f469	US	\N	\N	hotline	EEOC Toll-Free Hotline	Equal Employment Opportunity Commission hotline for discrimination charges.	1-800-669-4000	\N	https://www.eeoc.gov	\N	["discrimination", "harassment", "retaliation"]	["en", "es"]	t	f	\N	\N	f	\N	t	4.8	1	2026-01-16 17:10:41.420002	2026-01-16 17:10:41.420002	0	\N	f	\N
+\.
+
+
+--
+-- Data for Name: objectives; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.objectives (id, title, description, objective_type, organization_id, tenant_id, owner_id, team, period, year, start_date, end_date, status, progress_percentage, parent_objective_id, strategic_priority, confidence_level, outcome_summary, tags, context, created_at, updated_at, completed_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: organizations; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.organizations (id, name, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: pay_equity_records; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.pay_equity_records (id, organization_id, analysis_id, demographic_dimension, demographic_value, department, job_level, employee_count, mean_salary, median_salary, min_salary, max_salary, std_deviation, salary_gap_percent, salary_gap_amount, adjusted_salary_gap, p_value, statistically_significant, period_start, period_end, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: permissions; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.permissions (id, code, category, description, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: post_intervention_measurements; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.post_intervention_measurements (id, intervention_id, user_id, metric_name, metric_value, metric_type, measurement_date, follow_up_period_days, measurement_method, data_source, confidence_level, sample_size, statistical_notes, qualitative_notes, sustainability_indicators, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: pre_intervention_measurements; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.pre_intervention_measurements (id, intervention_id, user_id, metric_name, metric_value, metric_type, measurement_date, baseline_period_start, baseline_period_end, measurement_method, data_source, confidence_level, sample_size, statistical_notes, qualitative_notes, baseline_metadata, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: promotion_tracking; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.promotion_tracking (id, organization_id, analysis_id, user_id, promotion_date, from_level, to_level, from_department, to_department, months_in_previous_role, performance_rating, years_of_experience, peer_group_average_promotion_time, promotion_speed_percentile, delayed_promotion, delay_reason, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: responses; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.responses (id, assessment_id, user_id, question_id, answer_text, answer_value, answer_data, score, normalized_score, response_time_ms, confidence_rating, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: rights_knowledge_checks; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.rights_knowledge_checks (id, country_code, question, options, correct_answer, explanation, difficulty_level, topic, category, active, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.roles (id, name, description, scope, is_system_role, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: safety_follow_up_actions; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.safety_follow_up_actions (id, incident_id, action_type, description, priority, assigned_to_id, due_date, status, completion_date, completion_notes, verification_required, verified_by_id, verification_date, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: safety_incidents; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.safety_incidents (id, incident_type, severity, status, reporter_id, affected_user_id, organization_id, team_id, title, description, location, date_occurred, date_reported, witnesses, evidence_files, immediate_actions, investigator_id, investigation_notes, root_cause, prevention_measures, resolution_date, resolution_details, lessons_learned, compliance_required, compliance_reported, compliance_date, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: safety_resources; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.safety_resources (id, organization_id, title, description, resource_type, category, content, file_url, external_links, is_public, required_roles, targeted_teams, tags, language, last_reviewed, next_review_date, view_count, last_accessed, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: safety_training; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.safety_training (id, organization_id, title, description, training_type, category, content_url, duration_minutes, passing_score, required_for_roles, required_for_teams, renewal_period_days, is_active, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: safety_training_completions; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.safety_training_completions (id, training_id, user_id, completion_date, score, passed, certificate_url, expiry_date, reminder_sent, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: satisfaction_surveys; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.satisfaction_surveys (id, survey_type, touchpoint_type, user_id, organization_id, tenant_id, score, feedback_text, follow_up_consent, nps_category, survey_channel, response_time_seconds, ip_address, user_agent, context, sent_at, responded_at, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: team_members; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.team_members (id, team_id, user_id, role) FROM stdin;
+\.
+
+
+--
+-- Data for Name: teams; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.teams (id, name, created_at, description, created_by_id, updated_at, organization_id, tenant_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: trajectory_benchmarks; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.trajectory_benchmarks (id, competency_domain, role_category, experience_level, sample_size, median_trajectory, percentile_25_trajectory, percentile_75_trajectory, growth_velocity_stats, time_to_mastery_stats, plateau_probability_stats, key_success_factors, common_barriers, optimal_development_patterns, industry_specific_factors, benchmark_metadata, data_collection_period, last_updated, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: trajectory_predictions; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.trajectory_predictions (id, trajectory_id, prediction_date, predicted_value, confidence_interval_lower, confidence_interval_upper, prediction_accuracy, growth_rate, milestone_achieved, risk_assessment, external_factors, development_opportunities, potential_barriers, intervention_suggestions, prediction_metadata, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: trajectory_simulations; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.trajectory_simulations (id, trajectory_id, simulation_type, scenario_description, intervention_scenario, environmental_factors, simulated_trajectory, outcome_probability, success_probability, expected_time_to_goal, confidence_in_simulation, sensitivity_analysis, risk_assessment, resource_requirements, alternative_scenarios, simulation_parameters, validation_metrics, actionable_insights, recommended_actions, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: user_roles; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.user_roles (id, user_id, role_id, organization_id, team_id, granted_by, granted_at, expires_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.users (id, email, password_hash, full_name, avatar_url, is_active, created_at, updated_at, deleted_at, organization_id, tenant_id) FROM stdin;
+\.
+
+
+--
+-- Data for Name: wellness_alerts; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.wellness_alerts (id, assessment_id, user_id, alert_type, severity, title, message, trigger_metrics, threshold_values, status, acknowledged_by_id, acknowledged_date, resolution_notes, resolved_date, recommended_actions, actions_taken, follow_up_required, follow_up_date, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: wellness_assessments; Type: TABLE DATA; Schema: public; Owner: sheriftito
+--
+
+COPY public.wellness_assessments (id, user_id, organization_id, team_id, assessment_date, assessment_type, stress_level, burnout_risk, work_life_balance, mental_health_score, physical_wellness, sleep_quality, social_connection, job_satisfaction, engagement_level, overall_wellness_score, risk_factors, alert_level, work_hours_per_week, overtime_hours, recent_incidents, support_systems, ai_insights, recommendations, confidence_score, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Name: alembic_version alembic_version_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.alembic_version
+    ADD CONSTRAINT alembic_version_pkey PRIMARY KEY (version_num);
+
+
+--
+-- Name: analytics_events analytics_events_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.analytics_events
+    ADD CONSTRAINT analytics_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: analytics analytics_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.analytics
+    ADD CONSTRAINT analytics_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: assessment_assignments assessment_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_assignments
+    ADD CONSTRAINT assessment_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: assessment_questions assessment_questions_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_questions
+    ADD CONSTRAINT assessment_questions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: assessment_responses assessment_responses_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_responses
+    ADD CONSTRAINT assessment_responses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: assessment_sections assessment_sections_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_sections
+    ADD CONSTRAINT assessment_sections_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: assessments assessments_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessments
+    ADD CONSTRAINT assessments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinical_alerts clinical_alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_alerts
+    ADD CONSTRAINT clinical_alerts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinical_audit_logs clinical_audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_audit_logs
+    ADD CONSTRAINT clinical_audit_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinical_consents clinical_consents_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_consents
+    ADD CONSTRAINT clinical_consents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinical_referrals clinical_referrals_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_referrals
+    ADD CONSTRAINT clinical_referrals_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: clinical_screenings clinical_screenings_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_screenings
+    ADD CONSTRAINT clinical_screenings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: communication_analyses communication_analyses_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.communication_analyses
+    ADD CONSTRAINT communication_analyses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: comparative_effectiveness comparative_effectiveness_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.comparative_effectiveness
+    ADD CONSTRAINT comparative_effectiveness_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: composite_satisfaction_indices composite_satisfaction_indices_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.composite_satisfaction_indices
+    ADD CONSTRAINT composite_satisfaction_indices_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contract_violations contract_violations_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_lifecycle_stages customer_lifecycle_stages_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.customer_lifecycle_stages
+    ADD CONSTRAINT customer_lifecycle_stages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: demographic_profiles demographic_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.demographic_profiles
+    ADD CONSTRAINT demographic_profiles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: demographic_profiles demographic_profiles_user_id_key; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.demographic_profiles
+    ADD CONSTRAINT demographic_profiles_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: discrimination_complaints discrimination_complaints_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.discrimination_complaints
+    ADD CONSTRAINT discrimination_complaints_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: email_connections email_connections_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.email_connections
+    ADD CONSTRAINT email_connections_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: email_metadata email_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.email_metadata
+    ADD CONSTRAINT email_metadata_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: employee_rights_resources employee_rights_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.employee_rights_resources
+    ADD CONSTRAINT employee_rights_resources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: equity_analyses equity_analyses_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.equity_analyses
+    ADD CONSTRAINT equity_analyses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: framework_questions framework_questions_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.framework_questions
+    ADD CONSTRAINT framework_questions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: frameworks frameworks_name_key; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.frameworks
+    ADD CONSTRAINT frameworks_name_key UNIQUE (name);
+
+
+--
+-- Name: frameworks frameworks_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.frameworks
+    ADD CONSTRAINT frameworks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: growth_milestones growth_milestones_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_milestones
+    ADD CONSTRAINT growth_milestones_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: growth_potential_analysis growth_potential_analysis_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_potential_analysis
+    ADD CONSTRAINT growth_potential_analysis_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: growth_trajectories growth_trajectories_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_trajectories
+    ADD CONSTRAINT growth_trajectories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: hiring_metrics hiring_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.hiring_metrics
+    ADD CONSTRAINT hiring_metrics_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: intervention_effectiveness intervention_effectiveness_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.intervention_effectiveness
+    ADD CONSTRAINT intervention_effectiveness_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: intervention_outcomes intervention_outcomes_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.intervention_outcomes
+    ADD CONSTRAINT intervention_outcomes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: intervention_participants intervention_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.intervention_participants
+    ADD CONSTRAINT intervention_participants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: interventions interventions_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.interventions
+    ADD CONSTRAINT interventions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: key_results key_results_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.key_results
+    ADD CONSTRAINT key_results_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: kr_progress_updates kr_progress_updates_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.kr_progress_updates
+    ADD CONSTRAINT kr_progress_updates_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: labor_laws labor_laws_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.labor_laws
+    ADD CONSTRAINT labor_laws_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: legal_aid_resources legal_aid_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.legal_aid_resources
+    ADD CONSTRAINT legal_aid_resources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: objectives objectives_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.objectives
+    ADD CONSTRAINT objectives_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pay_equity_records pay_equity_records_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.pay_equity_records
+    ADD CONSTRAINT pay_equity_records_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: permissions permissions_code_key; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.permissions
+    ADD CONSTRAINT permissions_code_key UNIQUE (code);
+
+
+--
+-- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.permissions
+    ADD CONSTRAINT permissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_intervention_measurements post_intervention_measurements_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.post_intervention_measurements
+    ADD CONSTRAINT post_intervention_measurements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pre_intervention_measurements pre_intervention_measurements_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.pre_intervention_measurements
+    ADD CONSTRAINT pre_intervention_measurements_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: promotion_tracking promotion_tracking_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.promotion_tracking
+    ADD CONSTRAINT promotion_tracking_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: responses responses_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.responses
+    ADD CONSTRAINT responses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rights_knowledge_checks rights_knowledge_checks_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.rights_knowledge_checks
+    ADD CONSTRAINT rights_knowledge_checks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: roles roles_name_key; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_name_key UNIQUE (name);
+
+
+--
+-- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safety_follow_up_actions safety_follow_up_actions_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_follow_up_actions
+    ADD CONSTRAINT safety_follow_up_actions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safety_incidents safety_incidents_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_incidents
+    ADD CONSTRAINT safety_incidents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safety_resources safety_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_resources
+    ADD CONSTRAINT safety_resources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safety_training_completions safety_training_completions_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_training_completions
+    ADD CONSTRAINT safety_training_completions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: safety_training safety_training_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_training
+    ADD CONSTRAINT safety_training_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: satisfaction_surveys satisfaction_surveys_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.satisfaction_surveys
+    ADD CONSTRAINT satisfaction_surveys_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: team_members team_members_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.team_members
+    ADD CONSTRAINT team_members_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: teams teams_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trajectory_benchmarks trajectory_benchmarks_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.trajectory_benchmarks
+    ADD CONSTRAINT trajectory_benchmarks_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trajectory_predictions trajectory_predictions_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.trajectory_predictions
+    ADD CONSTRAINT trajectory_predictions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: trajectory_simulations trajectory_simulations_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.trajectory_simulations
+    ADD CONSTRAINT trajectory_simulations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: team_members uq_team_member_user; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.team_members
+    ADD CONSTRAINT uq_team_member_user UNIQUE (team_id, user_id);
+
+
+--
+-- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.user_roles
+    ADD CONSTRAINT user_roles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: wellness_alerts wellness_alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_alerts
+    ADD CONSTRAINT wellness_alerts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: wellness_assessments wellness_assessments_pkey; Type: CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_assessments
+    ADD CONSTRAINT wellness_assessments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_alerts_critical; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_alerts_critical ON public.clinical_alerts USING btree (severity, acknowledged);
+
+
+--
+-- Name: idx_alerts_org; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_alerts_org ON public.clinical_alerts USING btree (org_id, resolution_status);
+
+
+--
+-- Name: idx_alerts_unresolved; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_alerts_unresolved ON public.clinical_alerts USING btree (resolution_status, created_at);
+
+
+--
+-- Name: idx_assessments_created_at; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_assessments_created_at ON public.assessments USING btree (created_at);
+
+
+--
+-- Name: idx_assessments_status; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_assessments_status ON public.assessments USING btree (status);
+
+
+--
+-- Name: idx_assessments_tenant_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_assessments_tenant_id ON public.assessments USING btree (tenant_id);
+
+
+--
+-- Name: idx_audit_entity; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_audit_entity ON public.clinical_audit_logs USING btree (entity_type, entity_id);
+
+
+--
+-- Name: idx_audit_time; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_audit_time ON public.clinical_audit_logs USING btree (created_at);
+
+
+--
+-- Name: idx_audit_user; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_audit_user ON public.clinical_audit_logs USING btree (accessed_by, created_at);
+
+
+--
+-- Name: idx_clinical_crisis; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_clinical_crisis ON public.clinical_screenings USING btree (crisis_alert, created_at);
+
+
+--
+-- Name: idx_clinical_org_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_clinical_org_type ON public.clinical_screenings USING btree (org_id, screening_type);
+
+
+--
+-- Name: idx_clinical_risk_level; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_clinical_risk_level ON public.clinical_screenings USING btree (risk_level, created_at);
+
+
+--
+-- Name: idx_clinical_user_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_clinical_user_type ON public.clinical_screenings USING btree (user_id, screening_type);
+
+
+--
+-- Name: idx_comm_analysis_conflict; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_comm_analysis_conflict ON public.communication_analyses USING btree (conflict_probability);
+
+
+--
+-- Name: idx_comm_analysis_sentiment; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_comm_analysis_sentiment ON public.communication_analyses USING btree (sentiment_score, sentiment_label);
+
+
+--
+-- Name: idx_comm_analysis_style; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_comm_analysis_style ON public.communication_analyses USING btree (communication_style);
+
+
+--
+-- Name: idx_comm_analysis_urgency; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_comm_analysis_urgency ON public.communication_analyses USING btree (urgency_level);
+
+
+--
+-- Name: idx_comm_analysis_user_date; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_comm_analysis_user_date ON public.communication_analyses USING btree (user_id, analyzed_at);
+
+
+--
+-- Name: idx_consent_expiry; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_consent_expiry ON public.clinical_consents USING btree (expires_at);
+
+
+--
+-- Name: idx_consent_user_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_consent_user_type ON public.clinical_consents USING btree (user_id, consent_type, consented);
+
+
+--
+-- Name: idx_contract_violations_org; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_contract_violations_org ON public.contract_violations USING btree (organization_id);
+
+
+--
+-- Name: idx_contract_violations_severity; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_contract_violations_severity ON public.contract_violations USING btree (severity);
+
+
+--
+-- Name: idx_contract_violations_status; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_contract_violations_status ON public.contract_violations USING btree (status);
+
+
+--
+-- Name: idx_contract_violations_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_contract_violations_type ON public.contract_violations USING btree (violation_type);
+
+
+--
+-- Name: idx_csi_org_period; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_csi_org_period ON public.composite_satisfaction_indices USING btree (organization_id, period_start);
+
+
+--
+-- Name: idx_csi_score; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_csi_score ON public.composite_satisfaction_indices USING btree (csi_score);
+
+
+--
+-- Name: idx_demographic_profiles_org; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_demographic_profiles_org ON public.demographic_profiles USING btree (organization_id);
+
+
+--
+-- Name: idx_demographic_profiles_user; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_demographic_profiles_user ON public.demographic_profiles USING btree (user_id);
+
+
+--
+-- Name: idx_discrimination_complaints_org_status; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_discrimination_complaints_org_status ON public.discrimination_complaints USING btree (organization_id, status);
+
+
+--
+-- Name: idx_discrimination_complaints_severity; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_discrimination_complaints_severity ON public.discrimination_complaints USING btree (severity);
+
+
+--
+-- Name: idx_discrimination_complaints_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_discrimination_complaints_type ON public.discrimination_complaints USING btree (complaint_type);
+
+
+--
+-- Name: idx_email_metadata_connection_sent; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_email_metadata_connection_sent ON public.email_metadata USING btree (connection_id, sent_at);
+
+
+--
+-- Name: idx_email_metadata_folder; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_email_metadata_folder ON public.email_metadata USING btree (folder_label);
+
+
+--
+-- Name: idx_email_metadata_sender_date; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_email_metadata_sender_date ON public.email_metadata USING btree (sender_email, sent_at);
+
+
+--
+-- Name: idx_email_metadata_subject_hash; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_email_metadata_subject_hash ON public.email_metadata USING btree (subject_hash);
+
+
+--
+-- Name: idx_email_metadata_thread_date; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_email_metadata_thread_date ON public.email_metadata USING btree (thread_id, sent_at);
+
+
+--
+-- Name: idx_employee_rights_country; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_employee_rights_country ON public.employee_rights_resources USING btree (country_code);
+
+
+--
+-- Name: idx_employee_rights_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_employee_rights_type ON public.employee_rights_resources USING btree (resource_type);
+
+
+--
+-- Name: idx_equity_analyses_date; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_equity_analyses_date ON public.equity_analyses USING btree (analysis_date);
+
+
+--
+-- Name: idx_equity_analyses_org_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_equity_analyses_org_type ON public.equity_analyses USING btree (organization_id, analysis_type);
+
+
+--
+-- Name: idx_equity_analyses_severity; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_equity_analyses_severity ON public.equity_analyses USING btree (severity_level);
+
+
+--
+-- Name: idx_hiring_metrics_dimension; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_hiring_metrics_dimension ON public.hiring_metrics USING btree (demographic_dimension);
+
+
+--
+-- Name: idx_hiring_metrics_org_period; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_hiring_metrics_org_period ON public.hiring_metrics USING btree (organization_id, period_start, period_end);
+
+
+--
+-- Name: idx_key_results_objective; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_key_results_objective ON public.key_results USING btree (objective_id);
+
+
+--
+-- Name: idx_key_results_status; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_key_results_status ON public.key_results USING btree (status);
+
+
+--
+-- Name: idx_kr_updates_kr_date; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_kr_updates_kr_date ON public.kr_progress_updates USING btree (key_result_id, update_date);
+
+
+--
+-- Name: idx_labor_laws_category; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_labor_laws_category ON public.labor_laws USING btree (category);
+
+
+--
+-- Name: idx_labor_laws_country; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_labor_laws_country ON public.labor_laws USING btree (country_code);
+
+
+--
+-- Name: idx_labor_laws_region; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_labor_laws_region ON public.labor_laws USING btree (state_region);
+
+
+--
+-- Name: idx_legal_aid_country; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_legal_aid_country ON public.legal_aid_resources USING btree (country_code);
+
+
+--
+-- Name: idx_legal_aid_region; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_legal_aid_region ON public.legal_aid_resources USING btree (state_region);
+
+
+--
+-- Name: idx_legal_aid_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_legal_aid_type ON public.legal_aid_resources USING btree (resource_type);
+
+
+--
+-- Name: idx_lifecycle_org_stage; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_lifecycle_org_stage ON public.customer_lifecycle_stages USING btree (organization_id, current_stage);
+
+
+--
+-- Name: idx_lifecycle_user_stage; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_lifecycle_user_stage ON public.customer_lifecycle_stages USING btree (user_id, current_stage);
+
+
+--
+-- Name: idx_objectives_period_year; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_objectives_period_year ON public.objectives USING btree (period, year);
+
+
+--
+-- Name: idx_objectives_status; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_objectives_status ON public.objectives USING btree (status);
+
+
+--
+-- Name: idx_pay_equity_analysis; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_pay_equity_analysis ON public.pay_equity_records USING btree (analysis_id);
+
+
+--
+-- Name: idx_pay_equity_org_dimension; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_pay_equity_org_dimension ON public.pay_equity_records USING btree (organization_id, demographic_dimension);
+
+
+--
+-- Name: idx_referrals_pending; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_referrals_pending ON public.clinical_referrals USING btree (status, urgency, created_at);
+
+
+--
+-- Name: idx_referrals_user; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_referrals_user ON public.clinical_referrals USING btree (user_id, status);
+
+
+--
+-- Name: idx_responses_assessment_user; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_responses_assessment_user ON public.responses USING btree (assessment_id, user_id);
+
+
+--
+-- Name: idx_responses_created_at; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_responses_created_at ON public.responses USING btree (created_at);
+
+
+--
+-- Name: idx_rights_knowledge_country; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_rights_knowledge_country ON public.rights_knowledge_checks USING btree (country_code);
+
+
+--
+-- Name: idx_rights_knowledge_topic; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_rights_knowledge_topic ON public.rights_knowledge_checks USING btree (topic);
+
+
+--
+-- Name: idx_satisfaction_org_date; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_satisfaction_org_date ON public.satisfaction_surveys USING btree (organization_id, responded_at);
+
+
+--
+-- Name: idx_satisfaction_survey_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_satisfaction_survey_type ON public.satisfaction_surveys USING btree (survey_type);
+
+
+--
+-- Name: idx_team_members_lookup; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_team_members_lookup ON public.team_members USING btree (team_id, user_id, role);
+
+
+--
+-- Name: idx_team_members_role; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_team_members_role ON public.team_members USING btree (role);
+
+
+--
+-- Name: idx_team_members_team_role; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_team_members_team_role ON public.team_members USING btree (team_id, role);
+
+
+--
+-- Name: idx_team_members_team_user; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_team_members_team_user ON public.team_members USING btree (team_id, user_id);
+
+
+--
+-- Name: idx_team_members_user_active; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_team_members_user_active ON public.team_members USING btree (user_id);
+
+
+--
+-- Name: idx_teams_creator; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_teams_creator ON public.teams USING btree (created_by_id, created_at);
+
+
+--
+-- Name: idx_teams_lookup; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_teams_lookup ON public.teams USING btree (organization_id, id);
+
+
+--
+-- Name: idx_teams_name_search; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_teams_name_search ON public.teams USING btree (name);
+
+
+--
+-- Name: idx_teams_org_created; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_teams_org_created ON public.teams USING btree (organization_id, created_at);
+
+
+--
+-- Name: idx_teams_organization_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_teams_organization_id ON public.teams USING btree (organization_id);
+
+
+--
+-- Name: idx_teams_tenant_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_teams_tenant_id ON public.teams USING btree (tenant_id);
+
+
+--
+-- Name: idx_user_roles_role; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_user_roles_role ON public.user_roles USING btree (role_id);
+
+
+--
+-- Name: idx_user_roles_unique; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE UNIQUE INDEX idx_user_roles_unique ON public.user_roles USING btree (user_id, role_id, organization_id, COALESCE(team_id, '00000000-0000-0000-0000-000000000000'::uuid));
+
+
+--
+-- Name: idx_user_roles_user; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_user_roles_user ON public.user_roles USING btree (user_id);
+
+
+--
+-- Name: idx_users_created_at; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_users_created_at ON public.users USING btree (created_at);
+
+
+--
+-- Name: idx_users_is_active; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_users_is_active ON public.users USING btree (is_active);
+
+
+--
+-- Name: idx_users_tenant_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX idx_users_tenant_id ON public.users USING btree (tenant_id);
+
+
+--
+-- Name: ix_analytics_entity_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_analytics_entity_id ON public.analytics USING btree (entity_id);
+
+
+--
+-- Name: ix_communication_analyses_analyzed_at; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_analyzed_at ON public.communication_analyses USING btree (analyzed_at);
+
+
+--
+-- Name: ix_communication_analyses_communication_style; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_communication_style ON public.communication_analyses USING btree (communication_style);
+
+
+--
+-- Name: ix_communication_analyses_conflict_probability; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_conflict_probability ON public.communication_analyses USING btree (conflict_probability);
+
+
+--
+-- Name: ix_communication_analyses_email_metadata_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_email_metadata_id ON public.communication_analyses USING btree (email_metadata_id);
+
+
+--
+-- Name: ix_communication_analyses_primary_emotion; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_primary_emotion ON public.communication_analyses USING btree (primary_emotion);
+
+
+--
+-- Name: ix_communication_analyses_sentiment_label; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_sentiment_label ON public.communication_analyses USING btree (sentiment_label);
+
+
+--
+-- Name: ix_communication_analyses_sentiment_score; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_sentiment_score ON public.communication_analyses USING btree (sentiment_score);
+
+
+--
+-- Name: ix_communication_analyses_urgency_level; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_urgency_level ON public.communication_analyses USING btree (urgency_level);
+
+
+--
+-- Name: ix_communication_analyses_user_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_communication_analyses_user_id ON public.communication_analyses USING btree (user_id);
+
+
+--
+-- Name: ix_email_connections_email_address; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_connections_email_address ON public.email_connections USING btree (email_address);
+
+
+--
+-- Name: ix_email_connections_user_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_connections_user_id ON public.email_connections USING btree (user_id);
+
+
+--
+-- Name: ix_email_metadata_connection_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_connection_id ON public.email_metadata USING btree (connection_id);
+
+
+--
+-- Name: ix_email_metadata_domain; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_domain ON public.email_metadata USING btree (domain);
+
+
+--
+-- Name: ix_email_metadata_email_type; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_email_type ON public.email_metadata USING btree (email_type);
+
+
+--
+-- Name: ix_email_metadata_folder_label; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_folder_label ON public.email_metadata USING btree (folder_label);
+
+
+--
+-- Name: ix_email_metadata_received_at; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_received_at ON public.email_metadata USING btree (received_at);
+
+
+--
+-- Name: ix_email_metadata_sender_email; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_sender_email ON public.email_metadata USING btree (sender_email);
+
+
+--
+-- Name: ix_email_metadata_sent_at; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_sent_at ON public.email_metadata USING btree (sent_at);
+
+
+--
+-- Name: ix_email_metadata_subject_hash; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_subject_hash ON public.email_metadata USING btree (subject_hash);
+
+
+--
+-- Name: ix_email_metadata_thread_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_email_metadata_thread_id ON public.email_metadata USING btree (thread_id);
+
+
+--
+-- Name: ix_responses_assessment_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_responses_assessment_id ON public.responses USING btree (assessment_id);
+
+
+--
+-- Name: ix_responses_user_id; Type: INDEX; Schema: public; Owner: sheriftito
+--
+
+CREATE INDEX ix_responses_user_id ON public.responses USING btree (user_id);
+
+
+--
+-- Name: analytics analytics_creator_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.analytics
+    ADD CONSTRAINT analytics_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.users(id);
+
+
+--
+-- Name: assessment_assignments assessment_assignments_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_assignments
+    ADD CONSTRAINT assessment_assignments_assessment_id_fkey FOREIGN KEY (assessment_id) REFERENCES public.assessments(id);
+
+
+--
+-- Name: assessment_assignments assessment_assignments_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_assignments
+    ADD CONSTRAINT assessment_assignments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: assessment_questions assessment_questions_section_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_questions
+    ADD CONSTRAINT assessment_questions_section_id_fkey FOREIGN KEY (section_id) REFERENCES public.assessment_sections(id);
+
+
+--
+-- Name: assessment_responses assessment_responses_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_responses
+    ADD CONSTRAINT assessment_responses_assessment_id_fkey FOREIGN KEY (assessment_id) REFERENCES public.assessments(id);
+
+
+--
+-- Name: assessment_responses assessment_responses_respondent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_responses
+    ADD CONSTRAINT assessment_responses_respondent_id_fkey FOREIGN KEY (respondent_id) REFERENCES public.users(id);
+
+
+--
+-- Name: assessment_sections assessment_sections_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessment_sections
+    ADD CONSTRAINT assessment_sections_assessment_id_fkey FOREIGN KEY (assessment_id) REFERENCES public.assessments(id);
+
+
+--
+-- Name: assessments assessments_created_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessments
+    ADD CONSTRAINT assessments_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: assessments assessments_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessments
+    ADD CONSTRAINT assessments_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: assessments assessments_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.assessments
+    ADD CONSTRAINT assessments_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id);
+
+
+--
+-- Name: clinical_alerts clinical_alerts_acknowledged_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_alerts
+    ADD CONSTRAINT clinical_alerts_acknowledged_by_fkey FOREIGN KEY (acknowledged_by) REFERENCES public.users(id);
+
+
+--
+-- Name: clinical_alerts clinical_alerts_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_alerts
+    ADD CONSTRAINT clinical_alerts_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_alerts clinical_alerts_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_alerts
+    ADD CONSTRAINT clinical_alerts_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id);
+
+
+--
+-- Name: clinical_alerts clinical_alerts_screening_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_alerts
+    ADD CONSTRAINT clinical_alerts_screening_id_fkey FOREIGN KEY (screening_id) REFERENCES public.clinical_screenings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_alerts clinical_alerts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_alerts
+    ADD CONSTRAINT clinical_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_audit_logs clinical_audit_logs_accessed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_audit_logs
+    ADD CONSTRAINT clinical_audit_logs_accessed_by_fkey FOREIGN KEY (accessed_by) REFERENCES public.users(id);
+
+
+--
+-- Name: clinical_consents clinical_consents_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_consents
+    ADD CONSTRAINT clinical_consents_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_consents clinical_consents_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_consents
+    ADD CONSTRAINT clinical_consents_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_referrals clinical_referrals_alert_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_referrals
+    ADD CONSTRAINT clinical_referrals_alert_id_fkey FOREIGN KEY (alert_id) REFERENCES public.clinical_alerts(id);
+
+
+--
+-- Name: clinical_referrals clinical_referrals_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_referrals
+    ADD CONSTRAINT clinical_referrals_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_referrals clinical_referrals_screening_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_referrals
+    ADD CONSTRAINT clinical_referrals_screening_id_fkey FOREIGN KEY (screening_id) REFERENCES public.clinical_screenings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_referrals clinical_referrals_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_referrals
+    ADD CONSTRAINT clinical_referrals_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_screenings clinical_screenings_org_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_screenings
+    ADD CONSTRAINT clinical_screenings_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_screenings clinical_screenings_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_screenings
+    ADD CONSTRAINT clinical_screenings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: clinical_screenings clinical_screenings_validated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.clinical_screenings
+    ADD CONSTRAINT clinical_screenings_validated_by_fkey FOREIGN KEY (validated_by) REFERENCES public.users(id);
+
+
+--
+-- Name: comparative_effectiveness comparative_effectiveness_intervention_a_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.comparative_effectiveness
+    ADD CONSTRAINT comparative_effectiveness_intervention_a_id_fkey FOREIGN KEY (intervention_a_id) REFERENCES public.interventions(id);
+
+
+--
+-- Name: comparative_effectiveness comparative_effectiveness_intervention_b_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.comparative_effectiveness
+    ADD CONSTRAINT comparative_effectiveness_intervention_b_id_fkey FOREIGN KEY (intervention_b_id) REFERENCES public.interventions(id);
+
+
+--
+-- Name: contract_violations contract_violations_assigned_investigator_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_assigned_investigator_id_fkey FOREIGN KEY (assigned_investigator_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: contract_violations contract_violations_assigned_to_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: contract_violations contract_violations_detected_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_detected_by_fkey FOREIGN KEY (detected_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: contract_violations contract_violations_legal_reviewer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_legal_reviewer_id_fkey FOREIGN KEY (legal_reviewer_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: contract_violations contract_violations_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_violations contract_violations_reported_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_violations contract_violations_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.contract_violations
+    ADD CONSTRAINT contract_violations_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: demographic_profiles demographic_profiles_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.demographic_profiles
+    ADD CONSTRAINT demographic_profiles_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: demographic_profiles demographic_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.demographic_profiles
+    ADD CONSTRAINT demographic_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: discrimination_complaints discrimination_complaints_assigned_investigator_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.discrimination_complaints
+    ADD CONSTRAINT discrimination_complaints_assigned_investigator_id_fkey FOREIGN KEY (assigned_investigator_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: discrimination_complaints discrimination_complaints_complainant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.discrimination_complaints
+    ADD CONSTRAINT discrimination_complaints_complainant_id_fkey FOREIGN KEY (complainant_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: discrimination_complaints discrimination_complaints_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.discrimination_complaints
+    ADD CONSTRAINT discrimination_complaints_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: discrimination_complaints discrimination_complaints_perpetrator_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.discrimination_complaints
+    ADD CONSTRAINT discrimination_complaints_perpetrator_id_fkey FOREIGN KEY (perpetrator_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: discrimination_complaints discrimination_complaints_resolved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.discrimination_complaints
+    ADD CONSTRAINT discrimination_complaints_resolved_by_fkey FOREIGN KEY (resolved_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: email_metadata email_metadata_connection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.email_metadata
+    ADD CONSTRAINT email_metadata_connection_id_fkey FOREIGN KEY (connection_id) REFERENCES public.email_connections(id) ON DELETE CASCADE;
+
+
+--
+-- Name: employee_rights_resources employee_rights_resources_approved_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.employee_rights_resources
+    ADD CONSTRAINT employee_rights_resources_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: employee_rights_resources employee_rights_resources_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.employee_rights_resources
+    ADD CONSTRAINT employee_rights_resources_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: equity_analyses equity_analyses_analyzed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.equity_analyses
+    ADD CONSTRAINT equity_analyses_analyzed_by_fkey FOREIGN KEY (analyzed_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: equity_analyses equity_analyses_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.equity_analyses
+    ADD CONSTRAINT equity_analyses_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: equity_analyses equity_analyses_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.equity_analyses
+    ADD CONSTRAINT equity_analyses_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: users fk_users_tenant_org; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT fk_users_tenant_org FOREIGN KEY (tenant_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: framework_questions framework_questions_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.framework_questions
+    ADD CONSTRAINT framework_questions_assessment_id_fkey FOREIGN KEY (assessment_id) REFERENCES public.assessments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: framework_questions framework_questions_framework_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.framework_questions
+    ADD CONSTRAINT framework_questions_framework_id_fkey FOREIGN KEY (framework_id) REFERENCES public.frameworks(id);
+
+
+--
+-- Name: growth_milestones growth_milestones_trajectory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_milestones
+    ADD CONSTRAINT growth_milestones_trajectory_id_fkey FOREIGN KEY (trajectory_id) REFERENCES public.growth_trajectories(id) ON DELETE CASCADE;
+
+
+--
+-- Name: growth_potential_analysis growth_potential_analysis_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_potential_analysis
+    ADD CONSTRAINT growth_potential_analysis_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: growth_trajectories growth_trajectories_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_trajectories
+    ADD CONSTRAINT growth_trajectories_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: growth_trajectories growth_trajectories_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_trajectories
+    ADD CONSTRAINT growth_trajectories_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id);
+
+
+--
+-- Name: growth_trajectories growth_trajectories_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.growth_trajectories
+    ADD CONSTRAINT growth_trajectories_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: hiring_metrics hiring_metrics_analysis_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.hiring_metrics
+    ADD CONSTRAINT hiring_metrics_analysis_id_fkey FOREIGN KEY (analysis_id) REFERENCES public.equity_analyses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: hiring_metrics hiring_metrics_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.hiring_metrics
+    ADD CONSTRAINT hiring_metrics_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: intervention_effectiveness intervention_effectiveness_intervention_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.intervention_effectiveness
+    ADD CONSTRAINT intervention_effectiveness_intervention_id_fkey FOREIGN KEY (intervention_id) REFERENCES public.interventions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: intervention_outcomes intervention_outcomes_intervention_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.intervention_outcomes
+    ADD CONSTRAINT intervention_outcomes_intervention_id_fkey FOREIGN KEY (intervention_id) REFERENCES public.interventions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: intervention_participants intervention_participants_intervention_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.intervention_participants
+    ADD CONSTRAINT intervention_participants_intervention_id_fkey FOREIGN KEY (intervention_id) REFERENCES public.interventions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: intervention_participants intervention_participants_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.intervention_participants
+    ADD CONSTRAINT intervention_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: interventions interventions_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.interventions
+    ADD CONSTRAINT interventions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+
+
+--
+-- Name: interventions interventions_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.interventions
+    ADD CONSTRAINT interventions_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: interventions interventions_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.interventions
+    ADD CONSTRAINT interventions_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id);
+
+
+--
+-- Name: labor_laws labor_laws_verified_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.labor_laws
+    ADD CONSTRAINT labor_laws_verified_by_fkey FOREIGN KEY (verified_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: pay_equity_records pay_equity_records_analysis_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.pay_equity_records
+    ADD CONSTRAINT pay_equity_records_analysis_id_fkey FOREIGN KEY (analysis_id) REFERENCES public.equity_analyses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pay_equity_records pay_equity_records_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.pay_equity_records
+    ADD CONSTRAINT pay_equity_records_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_intervention_measurements post_intervention_measurements_intervention_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.post_intervention_measurements
+    ADD CONSTRAINT post_intervention_measurements_intervention_id_fkey FOREIGN KEY (intervention_id) REFERENCES public.interventions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: post_intervention_measurements post_intervention_measurements_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.post_intervention_measurements
+    ADD CONSTRAINT post_intervention_measurements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: pre_intervention_measurements pre_intervention_measurements_intervention_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.pre_intervention_measurements
+    ADD CONSTRAINT pre_intervention_measurements_intervention_id_fkey FOREIGN KEY (intervention_id) REFERENCES public.interventions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pre_intervention_measurements pre_intervention_measurements_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.pre_intervention_measurements
+    ADD CONSTRAINT pre_intervention_measurements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: promotion_tracking promotion_tracking_analysis_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.promotion_tracking
+    ADD CONSTRAINT promotion_tracking_analysis_id_fkey FOREIGN KEY (analysis_id) REFERENCES public.equity_analyses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: promotion_tracking promotion_tracking_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.promotion_tracking
+    ADD CONSTRAINT promotion_tracking_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: promotion_tracking promotion_tracking_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.promotion_tracking
+    ADD CONSTRAINT promotion_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: responses responses_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.responses
+    ADD CONSTRAINT responses_assessment_id_fkey FOREIGN KEY (assessment_id) REFERENCES public.assessments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: responses responses_question_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.responses
+    ADD CONSTRAINT responses_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.assessment_questions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: responses responses_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.responses
+    ADD CONSTRAINT responses_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: safety_follow_up_actions safety_follow_up_actions_assigned_to_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_follow_up_actions
+    ADD CONSTRAINT safety_follow_up_actions_assigned_to_id_fkey FOREIGN KEY (assigned_to_id) REFERENCES public.users(id);
+
+
+--
+-- Name: safety_follow_up_actions safety_follow_up_actions_incident_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_follow_up_actions
+    ADD CONSTRAINT safety_follow_up_actions_incident_id_fkey FOREIGN KEY (incident_id) REFERENCES public.safety_incidents(id);
+
+
+--
+-- Name: safety_follow_up_actions safety_follow_up_actions_verified_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_follow_up_actions
+    ADD CONSTRAINT safety_follow_up_actions_verified_by_id_fkey FOREIGN KEY (verified_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: safety_incidents safety_incidents_affected_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_incidents
+    ADD CONSTRAINT safety_incidents_affected_user_id_fkey FOREIGN KEY (affected_user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: safety_incidents safety_incidents_investigator_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_incidents
+    ADD CONSTRAINT safety_incidents_investigator_id_fkey FOREIGN KEY (investigator_id) REFERENCES public.users(id);
+
+
+--
+-- Name: safety_incidents safety_incidents_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_incidents
+    ADD CONSTRAINT safety_incidents_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: safety_incidents safety_incidents_reporter_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_incidents
+    ADD CONSTRAINT safety_incidents_reporter_id_fkey FOREIGN KEY (reporter_id) REFERENCES public.users(id);
+
+
+--
+-- Name: safety_incidents safety_incidents_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_incidents
+    ADD CONSTRAINT safety_incidents_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id);
+
+
+--
+-- Name: safety_resources safety_resources_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_resources
+    ADD CONSTRAINT safety_resources_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: safety_training_completions safety_training_completions_training_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_training_completions
+    ADD CONSTRAINT safety_training_completions_training_id_fkey FOREIGN KEY (training_id) REFERENCES public.safety_training(id);
+
+
+--
+-- Name: safety_training_completions safety_training_completions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_training_completions
+    ADD CONSTRAINT safety_training_completions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: safety_training safety_training_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.safety_training
+    ADD CONSTRAINT safety_training_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: team_members team_members_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.team_members
+    ADD CONSTRAINT team_members_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id);
+
+
+--
+-- Name: team_members team_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.team_members
+    ADD CONSTRAINT team_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: teams teams_created_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_created_by_id_fkey FOREIGN KEY (created_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: teams teams_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.teams
+    ADD CONSTRAINT teams_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: trajectory_predictions trajectory_predictions_trajectory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.trajectory_predictions
+    ADD CONSTRAINT trajectory_predictions_trajectory_id_fkey FOREIGN KEY (trajectory_id) REFERENCES public.growth_trajectories(id) ON DELETE CASCADE;
+
+
+--
+-- Name: trajectory_simulations trajectory_simulations_trajectory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.trajectory_simulations
+    ADD CONSTRAINT trajectory_simulations_trajectory_id_fkey FOREIGN KEY (trajectory_id) REFERENCES public.growth_trajectories(id) ON DELETE CASCADE;
+
+
+--
+-- Name: users users_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: wellness_alerts wellness_alerts_acknowledged_by_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_alerts
+    ADD CONSTRAINT wellness_alerts_acknowledged_by_id_fkey FOREIGN KEY (acknowledged_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: wellness_alerts wellness_alerts_assessment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_alerts
+    ADD CONSTRAINT wellness_alerts_assessment_id_fkey FOREIGN KEY (assessment_id) REFERENCES public.wellness_assessments(id);
+
+
+--
+-- Name: wellness_alerts wellness_alerts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_alerts
+    ADD CONSTRAINT wellness_alerts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: wellness_assessments wellness_assessments_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_assessments
+    ADD CONSTRAINT wellness_assessments_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: wellness_assessments wellness_assessments_team_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_assessments
+    ADD CONSTRAINT wellness_assessments_team_id_fkey FOREIGN KEY (team_id) REFERENCES public.teams(id);
+
+
+--
+-- Name: wellness_assessments wellness_assessments_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sheriftito
+--
+
+ALTER TABLE ONLY public.wellness_assessments
+    ADD CONSTRAINT wellness_assessments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict FaDKU55kX4NS8P3jwTO4YTvuexgNpPxYhsvZOd2IR8FcwZneHgQiVa2fcUembjT

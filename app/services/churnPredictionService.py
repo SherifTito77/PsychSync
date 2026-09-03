@@ -4,11 +4,17 @@
 Calculates churn risk scores based on behavioral signals and usage patterns.
 """
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Any
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import and_, case, desc, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, and_, case
+
+from app.db.models.churn_prediction import (
+    ChurnRiskScore,
+    ChurnTriggerCooldown,
+    ChurnTriggerExecution,
+)
 from app.db.models.user import User
-from app.db.models.churn_prediction import ChurnRiskScore, ChurnTriggerExecution, ChurnTriggerCooldown
 from app.db.models.user_activation import UserActivation
 
 
@@ -39,7 +45,7 @@ class ChurnRiskCalculator:
             "assessment_limit": self._calculate_assessment_limit(user),
             "login_frequency": self._calculate_login_frequency(user),
             "survey_sentiment": self._calculate_survey_sentiment(user),
-            "competitor_research": self._calculate_competitor_research(user)
+            "competitor_research": self._calculate_competitor_research(user),
         }
 
         # Weighted average for overall score
@@ -51,28 +57,31 @@ class ChurnRiskCalculator:
             "assessment_limit": 0.10,
             "support_sentiment": 0.08,
             "adoption_stagnation": 0.05,
-            "survey_sentiment": 0.05
+            "survey_sentiment": 0.05,
         }
 
         overall_score = sum(
-            signals[signal]["risk_score"] * weights[signal]
-            for signal in signals
+            signals[signal]["risk_score"] * weights[signal] for signal in signals
         )
 
         # Determine risk category
         overall_risk = (
-            "critical" if overall_score >= 80 else
-            "high" if overall_score >= 60 else
-            "medium" if overall_score >= 40 else
-            "low" if overall_score >= 20 else
-            "safe"
+            "critical"
+            if overall_score >= 80
+            else (
+                "high"
+                if overall_score >= 60
+                else (
+                    "medium"
+                    if overall_score >= 40
+                    else "low" if overall_score >= 20 else "safe"
+                )
+            )
         )
 
         # Identify top risk factors
         sorted_signals = sorted(
-            signals.items(),
-            key=lambda x: x[1]["risk_score"],
-            reverse=True
+            signals.items(), key=lambda x: x[1]["risk_score"], reverse=True
         )[:3]
 
         primary_factors = [s[0] for s in sorted_signals if s[1]["risk_score"] > 0]
@@ -82,7 +91,9 @@ class ChurnRiskCalculator:
             "overall_score": int(overall_score),
             "signal_scores": {k: v["risk_score"] for k, v in signals.items()},
             "primary_risk_factors": primary_factors,
-            "recommended_actions": self._get_recommendations(overall_risk, primary_factors)
+            "recommended_actions": self._get_recommendations(
+                overall_risk, primary_factors
+            ),
         }
 
     def _calculate_usage_decline(self, user: User) -> Dict[str, Any]:
@@ -101,7 +112,9 @@ class ChurnRiskCalculator:
         if previous_assessments == 0:
             decline = 0
         else:
-            decline = ((previous_assessments - current_assessments) / previous_assessments) * 100
+            decline = (
+                (previous_assessments - current_assessments) / previous_assessments
+            ) * 100
 
         is_declining = decline > 50 or current_assessments == 0
         risk_score = max(decline, 0) if is_declining else 0
@@ -111,7 +124,7 @@ class ChurnRiskCalculator:
             "assessments_previous_30_days": previous_assessments,
             "decline_percentage": round(decline, 2),
             "is_declining": is_declining,
-            "risk_score": int(min(risk_score, 100))
+            "risk_score": int(min(risk_score, 100)),
         }
 
     def _calculate_adoption_stagnation(self, user: User) -> Dict[str, Any]:
@@ -127,7 +140,7 @@ class ChurnRiskCalculator:
             "days_since_new_feature_used": days_since_new_feature,
             "uses_core_features_only": not used_advanced,
             "is_stagnating": is_stagnating,
-            "risk_score": risk_score
+            "risk_score": risk_score,
         }
 
     def _calculate_failed_conversion(self, user: User) -> Dict[str, Any]:
@@ -144,7 +157,7 @@ class ChurnRiskCalculator:
             "checkout_initiated": checkouts > 0,
             "checkout_completed": completed > 0,
             "has_failed_conversion": has_failed,
-            "risk_score": 80 if has_failed else 0
+            "risk_score": 80 if has_failed else 0,
         }
 
     def _calculate_support_sentiment(self, user: User) -> Dict[str, Any]:
@@ -160,7 +173,7 @@ class ChurnRiskCalculator:
             "support_tickets_last_30_days": tickets_last_30,
             "negative_sentiment_tickets": negative_tickets,
             "has_sentiment_decline": has_decline,
-            "risk_score": int(min(risk_score, 100))
+            "risk_score": int(min(risk_score, 100)),
         }
 
     def _calculate_assessment_limit(self, user: User) -> Dict[str, Any]:
@@ -173,7 +186,9 @@ class ChurnRiskCalculator:
         days_since = 0  # TODO: Calculate days since limit reached
         viewed_pricing = False  # TODO: Check pricing_page_view event
 
-        risk_score = 70 if (limit_reached and not viewed_pricing and days_since >= 7) else 0
+        risk_score = (
+            70 if (limit_reached and not viewed_pricing and days_since >= 7) else 0
+        )
 
         return {
             "assessments_completed": assessments_completed,
@@ -181,7 +196,7 @@ class ChurnRiskCalculator:
             "limit_reached": limit_reached,
             "days_since_limit_reached": days_since,
             "viewed_pricing_page": viewed_pricing,
-            "risk_score": risk_score
+            "risk_score": risk_score,
         }
 
     def _calculate_login_frequency(self, user: User) -> Dict[str, Any]:
@@ -204,7 +219,7 @@ class ChurnRiskCalculator:
             "login_decline_percentage": round(decline, 2),
             "days_since_last_login": days_since,
             "is_declining": is_declining,
-            "risk_score": int(max(decline, days_since * 2) if is_declining else 0)
+            "risk_score": int(max(decline, days_since * 2) if is_declining else 0),
         }
 
     def _calculate_survey_sentiment(self, user: User) -> Dict[str, Any]:
@@ -220,7 +235,7 @@ class ChurnRiskCalculator:
             "mentioned_competitors": has_churn_signals,
             "mentioned_cancellation": has_churn_signals,
             "is_negative_sentiment": is_negative,
-            "risk_score": 70 if is_negative else 0
+            "risk_score": 70 if is_negative else 0,
         }
 
     def _calculate_competitor_research(self, user: User) -> Dict[str, Any]:
@@ -237,7 +252,11 @@ class ChurnRiskCalculator:
             "viewed_competitor_comparison": viewed_comparison,
             "exported_data_for_migration": exported_data,
             "is_researching_competitors": is_researching,
-            "risk_score": 90 if exported_data else (60 if (viewed_comparison or mentioned_competitor) else 0)
+            "risk_score": (
+                90
+                if exported_data
+                else (60 if (viewed_comparison or mentioned_competitor) else 0)
+            ),
         }
 
     def _get_recommendations(self, risk_level: str, factors: List[str]) -> List[str]:
@@ -247,29 +266,26 @@ class ChurnRiskCalculator:
                 "Immediate customer success outreach within 24 hours",
                 "Offer personalized discount or incentive",
                 "Schedule executive call if enterprise",
-                "Assign dedicated success manager"
+                "Assign dedicated success manager",
             ],
             "high": [
                 "Customer success outreach within 72 hours",
                 "Send personalized re-engagement email",
                 "Offer training or resources",
-                "Check for unresolved support issues"
+                "Check for unresolved support issues",
             ],
             "medium": [
                 "Add to automated nurturing campaign",
                 "Send feature highlight newsletter",
                 "Invite to webinar or training",
-                "Monitor for signal escalation"
+                "Monitor for signal escalation",
             ],
             "low": [
                 "Continue normal monitoring",
                 "Include in monthly newsletter",
-                "Track risk score trends"
+                "Track risk score trends",
             ],
-            "safe": [
-                "No action needed",
-                "Continue normal engagement"
-            ]
+            "safe": ["No action needed", "Continue normal engagement"],
         }
 
         return recommendations.get(risk_level, [])
@@ -313,12 +329,11 @@ class ChurnTriggerService:
             self._log_execution(user_id, trigger_config, result)
 
             # Set cooldown
-            self._set_cooldown(user_id, trigger_config["name"], trigger_config["cooldown_days"])
+            self._set_cooldown(
+                user_id, trigger_config["name"], trigger_config["cooldown_days"]
+            )
 
-            executed.append({
-                "trigger": trigger_config["name"],
-                "result": result
-            })
+            executed.append({"trigger": trigger_config["name"], "result": result})
 
         # Store risk score
         self._store_risk_score(user_id, risk_data)
@@ -334,43 +349,47 @@ class ChurnTriggerService:
                 "condition": lambda r: r >= 80,
                 "action": "email",
                 "priority": "critical",
-                "cooldown_days": 30
+                "cooldown_days": 30,
             },
             {
                 "name": "competitor_research_detected",
                 "condition": lambda r, f: "competitor_research" in f,
                 "action": "win_back_offer",
                 "priority": "critical",
-                "cooldown_days": 60
+                "cooldown_days": 60,
             },
             {
                 "name": "assessment_limit_reached",
                 "condition": lambda r, f: "assessment_limit" in f,
                 "action": "upgrade_reminder",
                 "priority": "medium",
-                "cooldown_days": 7
+                "cooldown_days": 7,
             },
             {
                 "name": "negative_nps_detected",
                 "condition": lambda r, f: "survey_sentiment" in f,
                 "action": "follow_up_survey",
                 "priority": "high",
-                "cooldown_days": 14
+                "cooldown_days": 14,
             },
             {
                 "name": "login_frequency_decline",
                 "condition": lambda r: r >= 40,
                 "action": "we_miss_you_email",
                 "priority": "medium",
-                "cooldown_days": 14
-            }
+                "cooldown_days": 14,
+            },
         ]
 
         # Filter triggers by risk level
         if risk_level == "critical":
             return [t for t in all_triggers if t["priority"] in ["critical", "high"]]
         elif risk_level == "high":
-            return [t for t in all_triggers if t["priority"] in ["critical", "high", "medium"]]
+            return [
+                t
+                for t in all_triggers
+                if t["priority"] in ["critical", "high", "medium"]
+            ]
         elif risk_level == "medium":
             return [t for t in all_triggers if t["priority"] in ["medium", "high"]]
         else:
@@ -378,15 +397,21 @@ class ChurnTriggerService:
 
     def _is_on_cooldown(self, user_id: str, trigger_name: str) -> bool:
         """Check if trigger is on cooldown for user"""
-        cooldown = self.db.query(ChurnTriggerCooldown).filter(
-            ChurnTriggerCooldown.user_id == user_id,
-            ChurnTriggerCooldown.trigger_name == trigger_name,
-            ChurnTriggerCooldown.cooldown_until > datetime.utcnow()
-        ).first()
+        cooldown = (
+            self.db.query(ChurnTriggerCooldown)
+            .filter(
+                ChurnTriggerCooldown.user_id == user_id,
+                ChurnTriggerCooldown.trigger_name == trigger_name,
+                ChurnTriggerCooldown.cooldown_until > datetime.utcnow(),
+            )
+            .first()
+        )
 
         return cooldown is not None
 
-    def _execute_trigger_action(self, user_id: str, trigger_config: Dict, risk_data: Dict) -> str:
+    def _execute_trigger_action(
+        self, user_id: str, trigger_config: Dict, risk_data: Dict
+    ) -> str:
         """Execute the trigger action"""
         action = trigger_config["action"]
 
@@ -403,7 +428,7 @@ class ChurnTriggerService:
             trigger_name=trigger_config["name"],
             priority=trigger_config["priority"],
             action_taken=f"Executed {trigger_config['action']} action",
-            result=result
+            result=result,
         )
 
         self.db.add(execution)
@@ -416,14 +441,12 @@ class ChurnTriggerService:
         # Delete existing cooldown
         self.db.query(ChurnTriggerCooldown).filter(
             ChurnTriggerCooldown.user_id == user_id,
-            ChurnTriggerCooldown.trigger_name == trigger_name
+            ChurnTriggerCooldown.trigger_name == trigger_name,
         ).delete()
 
         # Create new cooldown
         cooldown = ChurnTriggerCooldown(
-            user_id=user_id,
-            trigger_name=trigger_name,
-            cooldown_until=cooldown_until
+            user_id=user_id, trigger_name=trigger_name, cooldown_until=cooldown_until
         )
 
         self.db.add(cooldown)
@@ -432,23 +455,43 @@ class ChurnTriggerService:
     def _store_risk_score(self, user_id: str, risk_data: Dict):
         """Store calculated risk score in database"""
         # Check if user already has a risk score from today
-        existing = self.db.query(ChurnRiskScore).filter(
-            ChurnRiskScore.user_id == user_id,
-            func.date(ChurnRiskScore.calculated_at) == func.date(datetime.utcnow())
-        ).first()
+        existing = (
+            self.db.query(ChurnRiskScore)
+            .filter(
+                ChurnRiskScore.user_id == user_id,
+                func.date(ChurnRiskScore.calculated_at) == func.date(datetime.utcnow()),
+            )
+            .first()
+        )
 
         if existing:
             # Update existing
             existing.overall_risk = risk_data["overall_risk"]
             existing.overall_score = risk_data["overall_score"]
-            existing.usage_decline_score = risk_data["signal_scores"].get("usage_decline")
-            existing.adoption_stagnation_score = risk_data["signal_scores"].get("adoption_stagnation")
-            existing.failed_conversion_score = risk_data["signal_scores"].get("failed_conversion")
-            existing.support_sentiment_score = risk_data["signal_scores"].get("support_sentiment")
-            existing.assessment_limit_score = risk_data["signal_scores"].get("assessment_limit")
-            existing.login_frequency_score = risk_data["signal_scores"].get("login_frequency")
-            existing.survey_sentiment_score = risk_data["signal_scores"].get("survey_sentiment")
-            existing.competitor_research_score = risk_data["signal_scores"].get("competitor_research")
+            existing.usage_decline_score = risk_data["signal_scores"].get(
+                "usage_decline"
+            )
+            existing.adoption_stagnation_score = risk_data["signal_scores"].get(
+                "adoption_stagnation"
+            )
+            existing.failed_conversion_score = risk_data["signal_scores"].get(
+                "failed_conversion"
+            )
+            existing.support_sentiment_score = risk_data["signal_scores"].get(
+                "support_sentiment"
+            )
+            existing.assessment_limit_score = risk_data["signal_scores"].get(
+                "assessment_limit"
+            )
+            existing.login_frequency_score = risk_data["signal_scores"].get(
+                "login_frequency"
+            )
+            existing.survey_sentiment_score = risk_data["signal_scores"].get(
+                "survey_sentiment"
+            )
+            existing.competitor_research_score = risk_data["signal_scores"].get(
+                "competitor_research"
+            )
             existing.primary_risk_factors = risk_data["primary_risk_factors"]
         else:
             # Create new
@@ -457,14 +500,26 @@ class ChurnTriggerService:
                 overall_risk=risk_data["overall_risk"],
                 overall_score=risk_data["overall_score"],
                 usage_decline_score=risk_data["signal_scores"].get("usage_decline"),
-                adoption_stagnation_score=risk_data["signal_scores"].get("adoption_stagnation"),
-                failed_conversion_score=risk_data["signal_scores"].get("failed_conversion"),
-                support_sentiment_score=risk_data["signal_scores"].get("support_sentiment"),
-                assessment_limit_score=risk_data["signal_scores"].get("assessment_limit"),
+                adoption_stagnation_score=risk_data["signal_scores"].get(
+                    "adoption_stagnation"
+                ),
+                failed_conversion_score=risk_data["signal_scores"].get(
+                    "failed_conversion"
+                ),
+                support_sentiment_score=risk_data["signal_scores"].get(
+                    "support_sentiment"
+                ),
+                assessment_limit_score=risk_data["signal_scores"].get(
+                    "assessment_limit"
+                ),
                 login_frequency_score=risk_data["signal_scores"].get("login_frequency"),
-                survey_sentiment_score=risk_data["signal_scores"].get("survey_sentiment"),
-                competitor_research_score=risk_data["signal_scores"].get("competitor_research"),
-                primary_risk_factors=risk_data["primary_risk_factors"]
+                survey_sentiment_score=risk_data["signal_scores"].get(
+                    "survey_sentiment"
+                ),
+                competitor_research_score=risk_data["signal_scores"].get(
+                    "competitor_research"
+                ),
+                primary_risk_factors=risk_data["primary_risk_factors"],
             )
 
             self.db.add(score)

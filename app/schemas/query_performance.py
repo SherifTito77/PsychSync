@@ -14,8 +14,9 @@ from pydantic import BaseModel, Field
 class SlowQueryBase(BaseModel):
     """SlowQueryBase class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     query_text: str
     query_signature: str = Field(..., min_length=1, max_length=200)
     performance_tier: str = Field(..., pattern="^(critical|slow|moderate|acceptable)$")
@@ -29,8 +30,9 @@ Description of class purpose and functionality.
 class SlowQueryCreate(SlowQueryBase):
     """Schema definition for SlowQuery.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     query_hash: str
     file_path: Optional[str] = None
     line_number: Optional[int] = None
@@ -48,8 +50,9 @@ Validates and serializes data for API requests/responses.
 class SlowQueryUpdate(BaseModel):
     """Schema definition for SlowQuery.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     is_optimized: Optional[bool] = None
     optimization_applied_at: Optional[datetime] = None
     ai_suggestion: Optional[str] = None
@@ -60,8 +63,9 @@ Validates and serializes data for API requests/responses.
 class SlowQueryInDB(SlowQueryBase):
     """SlowQueryInDB class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     id: UUID
     query_hash: str
     file_path: Optional[str] = None
@@ -84,16 +88,18 @@ Description of class purpose and functionality.
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class SlowQuery(SlowQueryInDB):
     """SlowQuery class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     pass
 
 
@@ -101,8 +107,9 @@ Description of class purpose and functionality.
 class IndexRecommendationBase(BaseModel):
     """IndexRecommendationBase class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     table_name: str
     index_name: str
     columns: list[str]
@@ -115,8 +122,9 @@ Description of class purpose and functionality.
 class IndexRecommendationCreate(IndexRecommendationBase):
     """Schema definition for IndexRecommendation.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     query_id: UUID
     estimated_speedup: Optional[float] = None
     affected_queries: int = 1
@@ -128,8 +136,9 @@ Validates and serializes data for API requests/responses.
 class IndexRecommendationUpdate(BaseModel):
     """Schema definition for IndexRecommendation.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     is_created: Optional[bool] = None
     created_at: Optional[datetime] = None
     priority: Optional[str] = None
@@ -138,8 +147,9 @@ Validates and serializes data for API requests/responses.
 class IndexRecommendationInDB(IndexRecommendationBase):
     """IndexRecommendationInDB class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     id: UUID
     query_id: UUID
     estimated_speedup: Optional[float] = None
@@ -154,16 +164,18 @@ Description of class purpose and functionality.
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class IndexRecommendation(IndexRecommendationInDB):
     """IndexRecommendation class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     pass
 
 
@@ -171,8 +183,9 @@ Description of class purpose and functionality.
 class QueryPerformanceHistoryBase(BaseModel):
     """QueryPerformanceHistoryBase class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     execution_time_ms: float
     rows_examined: Optional[int] = None
     rows_returned: Optional[int] = None
@@ -181,8 +194,9 @@ Description of class purpose and functionality.
 class QueryPerformanceHistoryInDB(QueryPerformanceHistoryBase):
     """QueryPerformanceHistoryInDB class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     id: UUID
     query_id: UUID
     recorded_at: datetime
@@ -191,16 +205,18 @@ Description of class purpose and functionality.
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class QueryPerformanceHistory(QueryPerformanceHistoryInDB):
     """QueryPerformanceHistory class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     pass
 
 
@@ -208,8 +224,9 @@ Description of class purpose and functionality.
 class QueryOptimizationReportBase(BaseModel):
     """QueryOptimizationReportBase class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     report_date: datetime
     total_queries_analyzed: int
     slow_queries_count: int
@@ -222,8 +239,9 @@ Description of class purpose and functionality.
 class QueryOptimizationReportInDB(QueryOptimizationReportBase):
     """QueryOptimizationReportInDB class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     id: UUID
     total_optimization_potential_ms: float
     estimated_speedup_percentage: float
@@ -240,16 +258,18 @@ Description of class purpose and functionality.
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class QueryOptimizationReport(QueryOptimizationReportInDB):
     """QueryOptimizationReport class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     pass
 
 
@@ -257,8 +277,9 @@ Description of class purpose and functionality.
 class QueryPerformanceSummary(BaseModel):
     """QueryPerformanceSummary class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     total_queries: int
     slow_queries: int
     critical_queries: int
@@ -271,8 +292,9 @@ Description of class purpose and functionality.
 class QueryOptimizationTrend(BaseModel):
     """QueryOptimizationTrend class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     date: datetime
     avg_query_time_ms: float
     slow_queries_count: int
@@ -283,8 +305,9 @@ Description of class purpose and functionality.
 class OptimizationRecommendation(BaseModel):
     """OptimizationRecommendation class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     priority: str
     category: str  # index, query_rewrite, schema_change
     recommendation: str

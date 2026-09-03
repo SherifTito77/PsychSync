@@ -1,7 +1,7 @@
 // Behavioral Analytics Service
 // Handles API calls for behavioral pattern recognition and analysis
 
-import { apiClient } from './authService';
+import { apiClient } from './api';
 
 export interface BehavioralPattern {
   pattern_id: string;
@@ -116,23 +116,19 @@ class BehavioralAnalyticsService {
   // Individual Pattern Analysis
   async analyzeUserPatterns(
     userId: string,
-    timeWindowHours: number = 168,
-    patternTypes?: string[],
-    includeAnomalies: boolean = true
+    timePeriod: string = '30d',
+    behavioralCategories?: string[]
   ): Promise<PatternAnalysisResponse> {
     try {
-      const params = new URLSearchParams({
-        time_window_hours: timeWindowHours.toString(),
-        include_anomalies: includeAnomalies.toString(),
-      });
-
-      if (patternTypes && patternTypes.length > 0) {
-        patternTypes.forEach(type => params.append('pattern_types', type));
-      }
-
       const response = await apiClient.post(
-        `/api/v1/behavioral-patterns/analyze?${params}`,
-        { user_id: userId }
+        '/patterns/analyze',
+        {
+          analysis_scope: 'individual',
+          user_id: userId,
+          time_period: timePeriod,
+          behavioral_categories: behavioralCategories || ['temporal', 'sequential', 'social'],
+          analysis_options: {}
+        }
       );
 
       return response.data;
@@ -145,16 +141,17 @@ class BehavioralAnalyticsService {
   // Anomaly Detection
   async detectAnomalies(
     userId: string,
-    data?: number[],
-    method: string = 'ensemble',
-    sensitivity: number = 0.1
+    metricName: string = 'activity_score',
+    timePeriodDays: number = 30,
+    thresholdStdDev: number = 2.5
   ): Promise<{ anomalies: AnomalyResult[]; method_used: string; data_points_analyzed: number }> {
     try {
-      const response = await apiClient.post('/api/v1/behavioral-patterns/detect-anomalies', {
-        user_id: userId,
-        data,
-        method,
-        sensitivity,
+      const response = await apiClient.post('/anomalies/detect', {
+        entity_id: userId,
+        entity_type: 'user',
+        metric_name: metricName,
+        time_period_days: timePeriodDays,
+        threshold_std_dev: thresholdStdDev
       });
 
       return response.data;
@@ -172,7 +169,7 @@ class BehavioralAnalyticsService {
     userId?: string
   ): Promise<{ matches: any[]; total_matches: number }> {
     try {
-      const response = await apiClient.post('/api/v1/behavioral-patterns/match-patterns', {
+      const response = await apiClient.post('/behavioral-patterns/match-patterns', {
         user_data: userData,
         template_ids: templateIds,
         algorithms: algorithms,
@@ -204,7 +201,7 @@ class BehavioralAnalyticsService {
       }
 
       const response = await apiClient.post(
-        `/api/v1/behavioral-patterns/compare?${params}`,
+        `/behavioral-patterns/compare?${params}`,
         { user_ids: userIds }
       );
 
@@ -229,7 +226,7 @@ class BehavioralAnalyticsService {
   }> {
     try {
       const response = await apiClient.get(
-        `/api/v1/behavioral-patterns/insights/${userId}?time_range=${timeRange}`
+        `/behavioral-patterns/insights/${userId}?time_range=${timeRange}`
       );
 
       return response.data;
@@ -251,8 +248,9 @@ class BehavioralAnalyticsService {
         include_predictions: includePredictions.toString(),
       });
 
-      const response = await apiClient.get(
-        `/api/v1/behavioral-analytics/team-insights/${teamId}?${params}`
+      const response = await apiClient.post(
+        `/team/insights?${params}`,
+        { team_id: teamId }
       );
 
       return response.data;
@@ -281,7 +279,7 @@ class BehavioralAnalyticsService {
       outcomeTypes.forEach(type => params.append('outcome_types', type));
 
       const response = await apiClient.get(
-        `/api/v1/behavioral-analytics/hr-outcomes/${organizationId}?${params}`
+        `/behavioral-analytics/hr-outcomes/${organizationId}?${params}`
       );
 
       return response.data;
@@ -317,7 +315,7 @@ class BehavioralAnalyticsService {
       });
 
       const response = await apiClient.get(
-        `/api/v1/behavioral-analytics/turnover-risk/${organizationId}?${params}`
+        `/behavioral-analytics/turnover-risk/${organizationId}?${params}`
       );
 
       return response.data;
@@ -333,7 +331,7 @@ class BehavioralAnalyticsService {
     total_templates: number;
   }> {
     try {
-      const response = await apiClient.get('/api/v1/behavioral-patterns/templates');
+      const response = await apiClient.get('/patterns/catalog');
       return response.data;
     } catch (error) {
       console.error('Error getting pattern templates:', error);
@@ -363,7 +361,7 @@ class BehavioralAnalyticsService {
       }
 
       const response = await apiClient.get(
-        `/api/v1/behavioral-patterns/metrics/summary?${params}`
+        `/behavioral-patterns/metrics/summary?${params}`
       );
 
       return response.data;
@@ -392,7 +390,7 @@ class BehavioralAnalyticsService {
   }> {
     try {
       // This would integrate with clinical assessment endpoints
-      const response = await apiClient.get(`/api/v1/assessments/user/${userId}/mental-health-summary`);
+      const response = await apiClient.get(`/assessments/user/${userId}/mental-health-summary`);
       return response.data;
     } catch (error) {
       console.error('Error getting mental health insights:', error);
@@ -419,11 +417,255 @@ class BehavioralAnalyticsService {
   }> {
     try {
       const response = await apiClient.get(
-        `/api/v1/wellness/metrics/${userId}?time_range=${timeRange}`
+        `/wellness/metrics/${userId}?time_range=${timeRange}`
       );
       return response.data;
     } catch (error) {
       console.error('Error getting wellness metrics:', error);
+      throw error;
+    }
+  }
+
+  // Quick Stats
+  async getQuickStats(userId: string, timeRange: string = '30d'): Promise<{
+    assessmentsCompleted: number;
+    assessmentsChange: number;
+    wellnessScore: number;
+    wellnessChange: number;
+    riskFactorsDetected: number;
+    riskFactorsChange: number;
+    goalsAchieved: number;
+    goalsCompletionRate: number;
+    streakDays: number;
+  }> {
+    try {
+      const response = await apiClient.get(`/behavioral/quick-stats/${userId}?time_range=${timeRange}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting quick stats:', error);
+      // Return default values on error
+      return {
+        assessmentsCompleted: 0,
+        assessmentsChange: 0,
+        wellnessScore: 0,
+        wellnessChange: 0,
+        riskFactorsDetected: 0,
+        riskFactorsChange: 0,
+        goalsAchieved: 0,
+        goalsCompletionRate: 0,
+        streakDays: 0
+      };
+    }
+  }
+
+  // Comparison Data
+  async getComparisonData(userId: string, timeRange: string = '30d'): Promise<{
+    currentPeriod: {
+      wellnessScore: number;
+      engagementScore: number;
+      productivityScore: number;
+    };
+    previousPeriod: {
+      wellnessScore: number;
+      engagementScore: number;
+      productivityScore: number;
+    };
+    peerAverage: {
+      wellnessScore: number;
+      engagementScore: number;
+      productivityScore: number;
+    };
+    percentileRankings: {
+      wellness: number;
+      engagement: number;
+      productivity: number;
+    };
+  }> {
+    try {
+      const response = await apiClient.get(`/behavioral/comparison/${userId}?time_range=${timeRange}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting comparison data:', error);
+      throw error;
+    }
+  }
+
+  // Alerts & Notifications
+  async getAlerts(userId: string): Promise<{
+    warnings: Array<{
+      id: string;
+      type: 'warning';
+      title: string;
+      message: string;
+      severity: 'low' | 'medium' | 'high';
+      actionLabel?: string;
+      actionLink?: string;
+      timestamp: string;
+      dismissible: boolean;
+    }>;
+    achievements: Array<{
+      id: string;
+      type: 'achievement';
+      title: string;
+      message: string;
+      timestamp: string;
+    }>;
+    tips: Array<{
+      id: string;
+      type: 'info';
+      title: string;
+      message: string;
+      timestamp: string;
+    }>;
+  }> {
+    try {
+      const response = await apiClient.get(`/behavioral/alerts/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting alerts:', error);
+      throw error;
+    }
+  }
+
+  async getRecommendations(userId: string): Promise<{
+    recommendations: Array<{
+      id: string;
+      title: string;
+      description: string;
+      category: 'immediate' | 'short-term' | 'long-term';
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      impactScore: number;
+      effortLevel: 'low' | 'medium' | 'high';
+      estimatedTime: string;
+      actionSteps: string[];
+      status: 'pending' | 'in-progress' | 'completed' | 'dismissed';
+    }>;
+  }> {
+    try {
+      const response = await apiClient.get(`/behavioral/recommendations/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+      throw error;
+    }
+  }
+
+  // Goals
+  async getGoals(userId: string): Promise<{
+    goals: Array<{
+      id: string;
+      title: string;
+      description: string;
+      category: 'wellness' | 'mental-health' | 'performance' | 'habits';
+      targetValue: number;
+      currentValue: number;
+      unit: string;
+      deadline: string;
+      streak: number;
+      status: 'on-track' | 'behind' | 'completed' | 'not-started';
+    }>;
+  }> {
+    try {
+      const response = await apiClient.get(`/behavioral/goals/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting goals:', error);
+      throw error;
+    }
+  }
+
+  async updateGoalProgress(goalId: string, progress: number): Promise<void> {
+    try {
+      await apiClient.put(`/behavioral/goals/${goalId}`, { progress });
+    } catch (error) {
+      console.error('Error updating goal:', error);
+      throw error;
+    }
+  }
+
+  async createGoal(goal: {
+    title: string;
+    description: string;
+    category: string;
+    targetValue: number;
+    unit: string;
+    deadline: string;
+  }): Promise<void> {
+    try {
+      await apiClient.post('/behavioral/goals', goal);
+    } catch (error) {
+      console.error('Error creating goal:', error);
+      throw error;
+    }
+  }
+
+  // Export functionality
+  async exportReport(format: string, options: {
+    sections: string[];
+    includeCharts: boolean;
+    timestamp: string;
+  }): Promise<Blob> {
+    try {
+      const response = await apiClient.post('/behavioral/export', {
+        format,
+        ...options
+      }, {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      throw error;
+    }
+  }
+
+  async generateShareLink(options: {
+    expiresIn: string;
+    allowDownload: boolean;
+  }): Promise<{ shareLink: string; expiresAt: string }> {
+    try {
+      const response = await apiClient.post('/behavioral/share', options);
+      return response.data;
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      throw error;
+    }
+  }
+
+  async scheduleEmailReport(options: {
+    schedule: string;
+    sections: string[];
+  }): Promise<void> {
+    try {
+      await apiClient.post('/behavioral/schedule-report', options);
+    } catch (error) {
+      console.error('Error scheduling report:', error);
+      throw error;
+    }
+  }
+
+  // Trend Forecasts
+  async getTrendForecasts(userId: string): Promise<{
+    wellnessForecast: {
+      current: number;
+      predicted7Days: number;
+      predicted30Days: number;
+      predicted90Days: number;
+      trend: 'improving' | 'stable' | 'declining';
+    };
+    burnoutRiskForecast: {
+      current: number;
+      predicted7Days: number;
+      predicted30Days: number;
+      riskLevel: 'low' | 'medium' | 'high';
+    };
+    confidence: number;
+  }> {
+    try {
+      const response = await apiClient.get(`/behavioral/forecasts/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting forecasts:', error);
       throw error;
     }
   }

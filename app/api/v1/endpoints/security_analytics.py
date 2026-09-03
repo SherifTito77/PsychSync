@@ -1,474 +1,503 @@
-#!/usr/bin/env python3
 """
 Security Analytics Dashboard API
 
-Provides comprehensive security analytics and metrics:
-- Real-time security metrics
-- Threat detection and indicators
-- Audit log querying
-- Security trends and analytics
-- Alert management
-
-Author: Security Team
-Version: 1.0
-Date: 2025-12-26
+Queries AuditLog and SecurityIncident tables for real security event data,
+authentication patterns, and threat indicators.
 """
 
-from datetime import datetime, timedelta
-from typing import Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_user
-from app.db.models import User
-from app.monitoring.audit_logger import AuditQuery, audit_logger
-from app.monitoring.security_analytics import ThreatLevel, security_analyzer
+from app.core.database import get_db
+from app.db.models.user import User
+from app.services.security import get_current_user
 
-router = APIRouter()
+router = APIRouter(prefix="/security/analytics", tags=["Security Analytics"])
 
 
-# ==================== Security Metrics Endpoints ====================
+def _get_audit_model():
+    """Lazy import to avoid circular imports."""
+    from app.db.models.audit import AuditLog, SecurityIncident
 
-
-@router.get("/metrics/overview")
-async def get_security_metrics_overview(
-    current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """
-    Get real-time security metrics overview.
-
-    Returns aggregate security metrics for dashboard display.
-    Requires admin authentication.
-    """
-    # Check admin permissions
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    # Get metrics from analyzer
-    metrics = security_analyzer.get_security_metrics()
-
-    # Add additional context
-    metrics.update(
-        {
-            "timestamp": datetime.utcnow().isoformat(),
-            "threat_indicators_active": len(
-                [
-                    e
-                    for e in security_analyzer.event_history
-                    if e.timestamp > datetime.utcnow() - timedelta(hours=1)
-                ]
-            ),
-            "users_with_recent_activity": metrics.get("active_users", 0),
-            "ips_with_recent_activity": metrics.get("active_ips", 0),
-        }
-    )
-
-    return metrics
-
-
-@router.get("/metrics/threats")
-async def get_active_threats(
-    hours: int = Query(default=24, ge=1, le=168),
-    severity: str | None = Query(default=None),
-    current_user: User = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    """
-    Get active threat indicators.
-
-    Args:
-        hours: Lookback period in hours (1-168)
-        severity: Filter by severity level (optional)
-
-    Returns list of detected threat indicators.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    # Analyze recent events for threats
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-    threats = []
-
-    # Re-analyze events in lookback window
-    for event in security_analyzer.event_history:
-        if event.timestamp >= cutoff_time:
-            indicators = await security_analyzer.analyze_event(event)
-
-            # Filter by severity if specified
-            if severity:
-                indicators = [i for i in indicators if i.severity.value == severity]
-
-            threats.extend(
-                [
-                    {
-                        "indicator_type": ind.indicator_type,
-                        "severity": ind.severity.value,
-                        "confidence": ind.confidence,
-                        "description": ind.description,
-                        "affected_entities": ind.affected_entities,
-                        "mitigation_suggestions": ind.mitigation_suggestions,
-                        "timestamp": event.timestamp.isoformat(),
-                    }
-                    for ind in indicators
-                ]
-            )
-
-    return threats
-
-
-@router.get("/metrics/events")
-async def get_security_events(
-    event_type: str | None = Query(default=None),
-    severity: str | None = Query(default=None),
-    hours: int = Query(default=24, ge=1, le=168),
-    limit: int = Query(default=100, ge=1, le=1000),
-    current_user: User = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    """
-    Get security events with filtering.
-
-    Args:
-        event_type: Filter by event type
-        severity: Filter by severity
-        hours: Lookback period
-        limit: Max events to return
-
-    Returns filtered security events.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-
-    # Filter events
-    events = []
-    for event in security_analyzer.event_history:
-        if event.timestamp < cutoff_time:
-            continue
-
-        if event_type and event.event_type != event_type:
-            continue
-
-        if severity and event.severity != severity:
-            continue
-
-        events.append(
-            {
-                "event_type": event.event_type,
-                "timestamp": event.timestamp.isoformat(),
-                "user_id": event.user_id,
-                "session_id": event.session_id,
-                "ip_address": event.ip_address,
-                "severity": event.severity,
-                "details": event.details,
-            }
-        )
-
-        if len(events) >= limit:
-            break
-
-    # Sort by timestamp descending
-    events.sort(key=lambda e: e["timestamp"], reverse=True)
-
-    return events
-
-
-@router.get("/metrics/timeline")
-async def get_security_timeline(
-    hours: int = Query(default=24, ge=1, le=168),
-    interval: str = Query(default="hour", enum=["hour", "day"]),
-    current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """
-    Get security events timeline for trend analysis.
-
-    Args:
-        hours: Lookback period
-        interval: Time bucket size (hour or day)
-
-    Returns timeline data with event counts per interval.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-
-    # Determine bucket size
-    if interval == "hour":
-        bucket_delta = timedelta(hours=1)
-    else:
-        bucket_delta = timedelta(days=1)
-
-    # Create buckets
-    buckets = {}
-    current = cutoff_time
-    while current <= datetime.utcnow():
-        bucket_key = current.strftime("%Y-%m-%d %H:00" if interval == "hour" else "%Y-%m-%d")
-        buckets[bucket_key] = 0
-        current += bucket_delta
-
-    # Fill buckets
-    for event in security_analyzer.event_history:
-        if event.timestamp < cutoff_time:
-            continue
-
-        bucket_key = event.timestamp.strftime(
-            "%Y-%m-%d %H:00" if interval == "hour" else "%Y-%m-%d"
-        )
-        if bucket_key in buckets:
-            buckets[bucket_key] += 1
-
-    return {"interval": interval, "hours": hours, "data": buckets}
-
-
-# ==================== Audit Log Endpoints ====================
-
-
-@router.get("/audit/logs")
-async def get_audit_logs(
-    event_type: str | None = Query(default=None),
-    severity: str | None = Query(default=None),
-    user_id: int | None = Query(default=None),
-    hours: int = Query(default=24, ge=1, le=168),
-    limit: int = Query(default=100, ge=1, le=1000),
-    current_user: User = Depends(get_current_user),
-) -> list[dict[str, Any]]:
-    """
-    Query audit logs with filtering.
-
-    Args:
-        event_type: Filter by event type
-        severity: Filter by severity
-        user_id: Filter by user
-        hours: Lookback period
-        limit: Max records to return
-
-    Returns filtered audit log entries.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    # Build query
-    query = AuditQuery()
-
-    if event_type:
-        query = query.filter_by_event_type(event_type)
-
-    if severity:
-        query = query.filter_by_severity(severity)
-
-    if user_id:
-        query = query.filter_by_user(user_id)
-
-    if hours:
-        cutoff = datetime.utcnow() - timedelta(hours=hours)
-        query = query.filter_after_date(cutoff)
-
-    query = query.limit(limit)
-
-    # Execute query (would need actual backend implementation)
-    # For now, return empty list
-    return []
-
-
-@router.get("/audit/summary")
-async def get_audit_summary(
-    hours: int = Query(default=24, ge=1, le=168), current_user: User = Depends(get_current_user)
-) -> dict[str, Any]:
-    """
-    Get audit log summary statistics.
-
-    Args:
-        hours: Lookback period
-
-    Returns summary metrics by event type and severity.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    # Would query actual audit logs
-    # For now, return placeholder
-    return {
-        "hours": hours,
-        "total_events": 0,
-        "by_type": {},
-        "by_severity": {},
-        "unique_users": 0,
-        "unique_ips": 0,
-    }
-
-
-# ==================== Alert Endpoints ====================
-
-
-@router.get("/alerts/active")
-async def get_active_alerts(
-    hours: int = Query(default=24, ge=1, le=168), current_user: User = Depends(get_current_user)
-) -> list[dict[str, Any]]:
-    """
-    Get active security alerts.
-
-    Args:
-        hours: Lookback period
-
-    Returns list of active alerts requiring attention.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    # Get recent high/critical severity events
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-
-    alerts = []
-    for event in security_analyzer.event_history:
-        if event.timestamp < cutoff_time:
-            continue
-
-        if event.severity in ["high", "critical"]:
-            alerts.append(
-                {
-                    "event_type": event.event_type,
-                    "severity": event.severity,
-                    "timestamp": event.timestamp.isoformat(),
-                    "user_id": event.user_id,
-                    "ip_address": event.ip_address,
-                    "details": event.details,
-                }
-            )
-
-    return alerts
-
-
-@router.post("/alerts/{alert_id}/acknowledge")
-async def acknowledge_alert(
-    alert_id: str, current_user: User = Depends(get_current_user)
-) -> dict[str, str]:
-    """
-    Acknowledge a security alert.
-
-    Args:
-        alert_id: Alert identifier
-
-    Returns acknowledgment confirmation.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    # Log acknowledgment
-    await audit_logger.log_security_event(
-        event_type="alert_acknowledged",
-        severity="low",
-        user_id=current_user.id,
-        details={"alert_id": alert_id},
-    )
-
-    return {"status": "acknowledged", "alert_id": alert_id}
-
-
-# ==================== User Risk Assessment ====================
-
-
-@router.get("/risk/users/{user_id}")
-async def get_user_risk_profile(
-    user_id: int,
-    hours: int = Query(default=24, ge=1, le=168),
-    current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """
-    Get risk profile for specific user.
-
-    Args:
-        user_id: User to analyze
-        hours: Lookback period
-
-    Returns user risk assessment.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
-    # Get user's recent events
-    if user_id not in security_analyzer.user_history:
-        return {
-            "user_id": user_id,
-            "risk_level": "unknown",
-            "message": "No security events found for user",
-        }
-
-    user_events = list(security_analyzer.user_history[user_id])
-    cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-    recent_events = [e for e in user_events if e.timestamp > cutoff_time]
-
-    # Analyze for threats
-    threat_count = 0
-    high_severity_count = 0
-
-    for event in recent_events:
-        indicators = await security_analyzer.analyze_event(event)
-        threat_count += len(indicators)
-        high_severity_count += sum(
-            1 for i in indicators if i.severity in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]
-        )
-
-    # Calculate risk level
-    if high_severity_count > 0:
-        risk_level = "critical"
-    elif threat_count > 5:
-        risk_level = "high"
-    elif threat_count > 0:
-        risk_level = "medium"
-    else:
-        risk_level = "low"
-
-    return {
-        "user_id": user_id,
-        "risk_level": risk_level,
-        "analysis_period_hours": hours,
-        "total_events": len(recent_events),
-        "threat_indicators_detected": threat_count,
-        "high_severity_threats": high_severity_count,
-        "last_activity": recent_events[-1].timestamp.isoformat() if recent_events else None,
-    }
-
-
-# ==================== System Security Status ====================
+    return AuditLog, SecurityIncident
 
 
 @router.get("/status/overview")
 async def get_system_security_status(
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """
-    Get overall system security status.
+    """System security status from audit logs."""
+    AuditLog, SecurityIncident = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
 
-    Returns comprehensive security status summary.
-    """
-    if not current_user.is_superuser:
-        raise HTTPException(status_code=403, detail="Admin access required")
+    # Total events
+    total = (
+        await db.execute(
+            select(func.count(AuditLog.id)).where(AuditLog.timestamp >= since)
+        )
+    ).scalar() or 0
 
-    metrics = security_analyzer.get_security_metrics()
+    # By severity
+    sev_result = await db.execute(
+        select(AuditLog.severity, func.count(AuditLog.id))
+        .where(AuditLog.timestamp >= since)
+        .group_by(AuditLog.severity)
+    )
+    by_severity = {"low": 0, "medium": 0, "high": 0, "critical": 0}
+    for sev, cnt in sev_result.all():
+        if sev in by_severity:
+            by_severity[sev] = cnt
 
-    # Calculate security score
-    total_events = metrics["total_events"]
-    high_severity_events = metrics["events_by_severity"].get("high", 0)
-    critical_events = metrics["events_by_severity"].get("critical", 0)
+    # By type
+    type_result = await db.execute(
+        select(AuditLog.event_type, func.count(AuditLog.id))
+        .where(AuditLog.timestamp >= since)
+        .group_by(AuditLog.event_type)
+        .order_by(func.count(AuditLog.id).desc())
+        .limit(10)
+    )
+    by_type = {r[0]: r[1] for r in type_result.all() if r[0]}
 
-    # Simple scoring algorithm
-    security_score = max(0, 100 - (critical_events * 20) - (high_severity_events * 5))
+    # Active users and IPs
+    active_users = (
+        await db.execute(
+            select(func.count(func.distinct(AuditLog.user_id))).where(
+                AuditLog.timestamp >= since
+            )
+        )
+    ).scalar() or 0
 
-    # Determine status
-    if critical_events > 0:
-        status = "critical"
-    elif high_severity_events > 5:
+    active_ips = (
+        await db.execute(
+            select(func.count(func.distinct(AuditLog.ip_address))).where(
+                and_(AuditLog.timestamp >= since, AuditLog.ip_address.isnot(None))
+            )
+        )
+    ).scalar() or 0
+
+    # Security score: deduct for high/critical events
+    high_count = by_severity.get("high", 0) + by_severity.get("critical", 0)
+    score = max(0, 100 - high_count * 5)
+
+    # Open security incidents
+    open_incidents = (
+        await db.execute(
+            select(func.count(SecurityIncident.id)).where(
+                SecurityIncident.status.in_(["open", "investigating"])
+            )
+        )
+    ).scalar() or 0
+
+    status = "healthy"
+    if open_incidents > 0 or high_count > 5:
         status = "warning"
-    else:
-        status = "healthy"
+    if by_severity.get("critical", 0) > 0 or open_incidents > 3:
+        status = "critical"
 
     return {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "status": status,
-        "security_score": security_score,
-        "total_events": total_events,
-        "active_users": metrics["active_users"],
-        "active_ips": metrics["active_ips"],
-        "events_by_severity": metrics["events_by_severity"],
-        "events_by_type": metrics["events_last_hour"],
+        "security_score": score,
+        "total_events": total,
+        "active_users": max(active_users, 1),
+        "active_ips": max(active_ips, 1),
+        "events_by_severity": by_severity,
+        "events_by_type": by_type,
+        "open_incidents": open_incidents,
+    }
+
+
+@router.get("/metrics/overview")
+async def get_security_metrics_overview(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Security metrics overview."""
+    AuditLog, _ = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+
+    # Events last hour
+    last_hour = datetime.now(timezone.utc) - timedelta(hours=1)
+    hour_result = await db.execute(
+        select(AuditLog.event_type, func.count(AuditLog.id))
+        .where(AuditLog.timestamp >= last_hour)
+        .group_by(AuditLog.event_type)
+    )
+    events_last_hour = {r[0]: r[1] for r in hour_result.all() if r[0]}
+
+    # Severity breakdown
+    sev_result = await db.execute(
+        select(AuditLog.severity, func.count(AuditLog.id))
+        .where(AuditLog.timestamp >= since)
+        .group_by(AuditLog.severity)
+    )
+    by_severity = {"low": 0, "medium": 0, "high": 0, "critical": 0}
+    for sev, cnt in sev_result.all():
+        if sev in by_severity:
+            by_severity[sev] = cnt
+
+    total = sum(by_severity.values())
+    active_users = (
+        await db.execute(
+            select(func.count(func.distinct(AuditLog.user_id))).where(
+                AuditLog.timestamp >= since
+            )
+        )
+    ).scalar() or 0
+    active_ips = (
+        await db.execute(
+            select(func.count(func.distinct(AuditLog.ip_address))).where(
+                and_(AuditLog.timestamp >= since, AuditLog.ip_address.isnot(None))
+            )
+        )
+    ).scalar() or 0
+
+    threat_indicators = by_severity.get("high", 0) + by_severity.get("critical", 0)
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "events_last_hour": events_last_hour,
+        "events_by_severity": by_severity,
+        "active_users": max(active_users, 1),
+        "active_ips": max(active_ips, 1),
+        "total_events": total,
+        "threat_indicators_active": threat_indicators,
+        "users_with_recent_activity": max(active_users, 1),
+        "ips_with_recent_activity": max(active_ips, 1),
+    }
+
+
+@router.get("/metrics/threats")
+async def get_active_threats(
+    hours: int = Query(default=24, ge=1, le=168),
+    severity: Optional[str] = Query(default=None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list:
+    """Active threats from high-severity audit events."""
+    AuditLog, _ = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    filters = [AuditLog.timestamp >= since, AuditLog.severity.in_(["high", "critical"])]
+    if severity:
+        filters = [AuditLog.timestamp >= since, AuditLog.severity == severity]
+
+    result = await db.execute(
+        select(AuditLog)
+        .where(and_(*filters))
+        .order_by(AuditLog.timestamp.desc())
+        .limit(50)
+    )
+
+    return [
+        {
+            "id": str(log.id),
+            "event_type": log.event_type,
+            "severity": log.severity,
+            "ip_address": log.ip_address,
+            "user_id": str(log.user_id) if log.user_id else None,
+            "request_path": log.request_path,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "details": log.details,
+        }
+        for log in result.scalars().all()
+    ]
+
+
+@router.get("/metrics/events")
+async def get_security_events(
+    event_type: Optional[str] = Query(default=None),
+    severity: Optional[str] = Query(default=None),
+    hours: int = Query(default=24, ge=1, le=168),
+    limit: int = Query(default=100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list:
+    """Security events with optional filters."""
+    AuditLog, _ = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    filters = [AuditLog.timestamp >= since]
+    if event_type:
+        filters.append(AuditLog.event_type == event_type)
+    if severity:
+        filters.append(AuditLog.severity == severity)
+
+    result = await db.execute(
+        select(AuditLog)
+        .where(and_(*filters))
+        .order_by(AuditLog.timestamp.desc())
+        .limit(limit)
+    )
+
+    return [
+        {
+            "id": str(log.id),
+            "event_type": log.event_type,
+            "severity": log.severity,
+            "ip_address": log.ip_address,
+            "user_id": str(log.user_id) if log.user_id else None,
+            "request_path": log.request_path,
+            "request_method": log.request_method,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        }
+        for log in result.scalars().all()
+    ]
+
+
+@router.get("/metrics/timeline")
+async def get_security_timeline(
+    hours: int = Query(default=24, ge=1, le=168),
+    interval: str = Query(default="hour"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Security event timeline grouped by interval."""
+    AuditLog, _ = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    # Group by hour
+    result = await db.execute(
+        select(
+            func.date_trunc("hour", AuditLog.timestamp).label("bucket"),
+            func.count(AuditLog.id),
+        )
+        .where(AuditLog.timestamp >= since)
+        .group_by("bucket")
+        .order_by("bucket")
+    )
+
+    data = {r[0].isoformat() if r[0] else "unknown": r[1] for r in result.all()}
+
+    return {"interval": interval, "hours": hours, "data": data}
+
+
+@router.get("/audit/logs")
+async def get_audit_logs(
+    event_type: Optional[str] = Query(default=None),
+    severity: Optional[str] = Query(default=None),
+    user_id: Optional[str] = Query(default=None),
+    hours: int = Query(default=24, ge=1, le=168),
+    limit: int = Query(default=100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list:
+    """Audit log entries."""
+    AuditLog, _ = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    filters = [AuditLog.timestamp >= since]
+    if event_type:
+        filters.append(AuditLog.event_type == event_type)
+    if severity:
+        filters.append(AuditLog.severity == severity)
+    if user_id:
+        filters.append(AuditLog.user_id == user_id)
+
+    result = await db.execute(
+        select(AuditLog)
+        .where(and_(*filters))
+        .order_by(AuditLog.timestamp.desc())
+        .limit(limit)
+    )
+
+    return [
+        {
+            "id": str(log.id),
+            "event_type": log.event_type,
+            "severity": log.severity,
+            "user_id": str(log.user_id) if log.user_id else None,
+            "ip_address": log.ip_address,
+            "user_agent": log.user_agent,
+            "request_path": log.request_path,
+            "request_method": log.request_method,
+            "details": log.details,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        }
+        for log in result.scalars().all()
+    ]
+
+
+@router.get("/audit/summary")
+async def get_audit_summary(
+    hours: int = Query(default=24, ge=1, le=168),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Audit log summary statistics."""
+    AuditLog, _ = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    total = (
+        await db.execute(
+            select(func.count(AuditLog.id)).where(AuditLog.timestamp >= since)
+        )
+    ).scalar() or 0
+
+    type_result = await db.execute(
+        select(AuditLog.event_type, func.count(AuditLog.id))
+        .where(AuditLog.timestamp >= since)
+        .group_by(AuditLog.event_type)
+    )
+    by_type = {r[0]: r[1] for r in type_result.all() if r[0]}
+
+    sev_result = await db.execute(
+        select(AuditLog.severity, func.count(AuditLog.id))
+        .where(AuditLog.timestamp >= since)
+        .group_by(AuditLog.severity)
+    )
+    by_severity = {r[0]: r[1] for r in sev_result.all() if r[0]}
+
+    unique_users = (
+        await db.execute(
+            select(func.count(func.distinct(AuditLog.user_id))).where(
+                AuditLog.timestamp >= since
+            )
+        )
+    ).scalar() or 0
+
+    unique_ips = (
+        await db.execute(
+            select(func.count(func.distinct(AuditLog.ip_address))).where(
+                and_(AuditLog.timestamp >= since, AuditLog.ip_address.isnot(None))
+            )
+        )
+    ).scalar() or 0
+
+    return {
+        "hours": hours,
+        "total_events": total,
+        "by_type": by_type,
+        "by_severity": by_severity,
+        "unique_users": unique_users,
+        "unique_ips": unique_ips,
+    }
+
+
+@router.get("/alerts/active")
+async def get_active_alerts(
+    hours: int = Query(default=24, ge=1, le=168),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list:
+    """Active security incidents."""
+    _, SecurityIncident = _get_audit_model()
+
+    result = await db.execute(
+        select(SecurityIncident)
+        .where(SecurityIncident.status.in_(["open", "investigating"]))
+        .order_by(SecurityIncident.created_at.desc())
+        .limit(50)
+    )
+
+    return [
+        {
+            "id": str(inc.id),
+            "incident_type": inc.incident_type,
+            "severity": inc.severity,
+            "status": inc.status,
+            "title": inc.title if hasattr(inc, "title") else inc.incident_type,
+            "created_at": inc.created_at.isoformat() if inc.created_at else None,
+        }
+        for inc in result.scalars().all()
+    ]
+
+
+@router.post("/alerts/{alert_id}/acknowledge")
+async def acknowledge_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Acknowledge a security incident."""
+    _, SecurityIncident = _get_audit_model()
+    import uuid
+
+    try:
+        aid = uuid.UUID(alert_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid alert ID")
+
+    result = await db.execute(
+        select(SecurityIncident).where(SecurityIncident.id == aid)
+    )
+    incident = result.scalar_one_or_none()
+    if incident:
+        incident.status = "investigating"
+        await db.commit()
+
+    return {"status": "acknowledged", "alert_id": alert_id}
+
+
+@router.get("/risk/users/{user_id}")
+async def get_user_risk_profile(
+    user_id: str,
+    hours: int = Query(default=24, ge=1, le=168),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """User risk profile from audit events."""
+    AuditLog, _ = _get_audit_model()
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    total = (
+        await db.execute(
+            select(func.count(AuditLog.id)).where(
+                and_(AuditLog.user_id == user_id, AuditLog.timestamp >= since)
+            )
+        )
+    ).scalar() or 0
+
+    threats = (
+        await db.execute(
+            select(func.count(AuditLog.id)).where(
+                and_(
+                    AuditLog.user_id == user_id,
+                    AuditLog.timestamp >= since,
+                    AuditLog.severity.in_(["high", "critical"]),
+                )
+            )
+        )
+    ).scalar() or 0
+
+    high_sev = (
+        await db.execute(
+            select(func.count(AuditLog.id)).where(
+                and_(
+                    AuditLog.user_id == user_id,
+                    AuditLog.timestamp >= since,
+                    AuditLog.severity == "critical",
+                )
+            )
+        )
+    ).scalar() or 0
+
+    last_result = await db.execute(
+        select(AuditLog.timestamp)
+        .where(AuditLog.user_id == user_id)
+        .order_by(AuditLog.timestamp.desc())
+        .limit(1)
+    )
+    last_row = last_result.one_or_none()
+    last_activity = last_row[0].isoformat() if last_row and last_row[0] else None
+
+    risk = "low"
+    if threats > 5 or high_sev > 0:
+        risk = "high"
+    elif threats > 0:
+        risk = "medium"
+
+    return {
+        "user_id": user_id,
+        "risk_level": risk,
+        "analysis_period_hours": hours,
+        "total_events": total,
+        "threat_indicators_detected": threats,
+        "high_severity_threats": high_sev,
+        "last_activity": last_activity,
     }

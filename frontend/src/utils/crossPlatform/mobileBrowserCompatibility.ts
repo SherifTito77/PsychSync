@@ -29,6 +29,7 @@ export interface CompatibilityIssue {
   cssFix?: string;
   javascriptFix?: string;
   workaround?: string;
+  recommendation?: string;
 }
 
 export class MobileBrowserCompatibility {
@@ -187,8 +188,16 @@ export class MobileBrowserCompatibility {
   position: sticky;
   top: 0;
   z-index: 100;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+
+  /* Firefox fallback - solid background */
+  background-color: rgba(255, 255, 255, 0.95);
+
+  /* Modern browsers - backdrop blur */
+  @supports (-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px)) {
+    background-color: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
 }
 
 /* Prevent scroll jumping */
@@ -287,13 +296,21 @@ html {
           ],
           solution: 'Use performance-optimized backdrop filters with hardware acceleration',
           cssFix: `
-/* Optimized backdrop filter for iOS */
+/* Optimized backdrop filter for iOS and modern browsers */
 .blur-overlay {
-  -webkit-backdrop-filter: blur(10px) saturate(180%);
-  backdrop-filter: blur(10px) saturate(180%);
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  will-change: transform;
+  /* Firefox fallback - solid background */
+  background-color: rgba(255, 255, 255, 0.9);
+
+  /* Modern browsers - backdrop blur */
+  @supports (-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px)) {
+    background-color: rgba(255, 255, 255, 0.6);
+    -webkit-backdrop-filter: blur(10px) saturate(180%);
+    backdrop-filter: blur(10px) saturate(180%);
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: transform;
+  }
+}
 }
 
 /* Alternative without performance hit */
@@ -624,12 +641,12 @@ const optimizeListPerformance = () => {
 
     // iOS Safari checks
     if (this.browserInfo.platform === 'ios') {
-      if (computedStyle.webkitOverflowScrolling !== 'touch') {
+      if ((computedStyle as any).webkitOverflowScrolling !== 'touch') {
         issues.push('Missing -webkit-overflow-scrolling: touch for iOS Safari');
         recommendations.push('Add -webkit-overflow-scrolling: touch to scrollable containers');
       }
 
-      if (computedStyle.webkitTapHighlightColor !== 'transparent') {
+      if ((computedStyle as any).webkitTapHighlightColor !== 'transparent') {
         issues.push('Default iOS tap highlight not disabled');
         recommendations.push('Add -webkit-tap-highlight-color: transparent');
       }

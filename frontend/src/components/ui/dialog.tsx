@@ -121,12 +121,12 @@ export const Dialog: React.FC<DialogProps> = ({
 
   if (!open) return null;
 
-  // Get size classes
+  // Get size classes with responsive mobile support
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
+    sm: 'max-w-[95vw] sm:max-w-md',
+    md: 'max-w-[95vw] sm:max-w-lg',
+    lg: 'max-w-[95vw] sm:max-w-2xl',
+    xl: 'max-w-[95vw] sm:max-w-4xl',
     full: 'max-w-full mx-4'
   };
 
@@ -150,12 +150,12 @@ export const Dialog: React.FC<DialogProps> = ({
       />
 
       {/* Dialog container */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
         <div
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
-          className={`relative bg-white rounded-lg shadow-xl transition-all w-full ${sizeClasses[size]} p-6`}
+          className={`relative bg-white rounded-lg shadow-xl transition-all w-full ${sizeClasses[size]} p-4 sm:p-6`}
         >
           {/* Provide title and description IDs to children */}
           {React.Children.map(children, (child, index) => {
@@ -211,9 +211,13 @@ export const DialogTitle: React.FC<DialogTitleProps> = ({ children, className = 
 
 export const DialogTrigger: React.FC<DialogTriggerProps> = ({ children, onClick, className = '' }) => {
   return (
-    <div onClick={onClick} className={className} role="button" tabIndex={0}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={className}
+    >
       {children}
-    </div>
+    </button>
   );
 };
 

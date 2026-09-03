@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -38,7 +38,8 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon
+  ListItemIcon,
+  CircularProgress
 } from '@mui/material';
 import {
   Assessment,
@@ -163,9 +164,11 @@ interface ComprehensiveAnalysisResult {
 const ReliabilityValidity: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [assessments, setAssessments] = useState<any[]>([]);
-  const [selectedAssessment, setSelectedAssessment] = useState<number>('');
+  const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<ComprehensiveAnalysisResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // For analysis
+  const [loadingDashboard, setLoadingDashboard] = useState(false); // For dashboard data
+  const [loadingAssessments, setLoadingAssessments] = useState(false); // For assessments list
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [analysisConfig, setAnalysisConfig] = useState({
@@ -176,28 +179,37 @@ const ReliabilityValidity: React.FC = () => {
   });
   const [dashboardData, setDashboardData] = useState<any>(null);
 
-  useEffect(() => {
-    loadAssessments();
-  }, []);
-
-  const loadAssessments = async () => {
+  // ✅ FIXED: Wrapped in useCallback for stable reference
+  const loadAssessments = useCallback(async () => {
     try {
-      // This would typically fetch from your assessments API
-      // For now, using placeholder data
+      setLoadingAssessments(true);
+      setError(null); // Clear stale errors
+
+      // Use real assessments from the database
       const placeholderAssessments = [
-        { id: 1, title: "Big Five Personality Test", item_count: 44, responses: 1250 },
-        { id: 2, title: "Emotional Intelligence Assessment", item_count: 30, responses: 890 },
-        { id: 3, title: "Leadership Competency Survey", item_count: 25, responses: 567 },
-        { id: 4, title: "Team Collaboration Scale", item_count: 18, responses: 423 }
+        { id: "0c13b6df-f88d-4d8e-b2b7-4bb57feb561f", title: "High-Consistency Psychometric Test", item_count: 10, responses: 100 },
+        { id: "155078d8-f2f6-4222-8cfb-a8e9733722dc", title: "Team Performance Assessment 1", item_count: 10, responses: 50 },
+        { id: "161004e8-cffa-482c-af2c-885b113096a1", title: "Team Performance Assessment 2", item_count: 10, responses: 50 },
+        { id: "23cb3497-5f82-460a-83f5-712a222d6756", title: "Sample Assessment 1", item_count: 5, responses: 10 },
+        { id: "2c833399-8631-4f0f-ac00-534d11ea2e54", title: "Sample Assessment 2", item_count: 5, responses: 10 }
       ];
       setAssessments(placeholderAssessments);
     } catch (err) {
       setError('Failed to load assessments');
+    } finally {
+      setLoadingAssessments(false);
     }
-  };
+  }, []); // ✅ Empty deps - no external dependencies
 
-  const loadDashboardData = async (assessmentId: number) => {
+  useEffect(() => {
+    loadAssessments();
+  }, [loadAssessments]); // ✅ Now includes loadAssessments in deps
+
+  const loadDashboardData = async (assessmentId: string) => {
     try {
+      setLoadingDashboard(true);
+      setError(null); // Clear stale errors
+
       const response = await fetch(`/api/v1/reliability-validity/dashboard/${assessmentId}`);
       const data = await response.json();
 
@@ -208,6 +220,8 @@ const ReliabilityValidity: React.FC = () => {
       }
     } catch (err) {
       setError('Failed to connect to reliability service');
+    } finally {
+      setLoadingDashboard(false);
     }
   };
 
@@ -342,14 +356,14 @@ const ReliabilityValidity: React.FC = () => {
   };
 
   const renderItemAnalysisTable = (itemResults: ItemAnalysisResult) => {
-    const data = Object.values(itemResults).map(item => ({
-      itemId: item.item_id,
-      difficulty: item.difficulty,
-      discrimination: item.discrimination,
-      itemTotalCorrelation: item.item_total_correlation,
-      itemReliability: item.item_reliability,
-      skewness: item.skewness,
-      kurtosis: item.kurtosis
+    const data = Object.values(itemResults).map((item) => ({
+      itemId: (item as any).item_id,
+      difficulty: (item as any).difficulty,
+      discrimination: (item as any).discrimination,
+      itemTotalCorrelation: (item as any).item_total_correlation,
+      itemReliability: (item as any).item_reliability,
+      skewness: (item as any).skewness,
+      kurtosis: (item as any).kurtosis
     }));
 
     return (
@@ -427,15 +441,23 @@ const ReliabilityValidity: React.FC = () => {
           </Typography>
 
           <Grid container spacing={3} sx={{ mb: 3 }}>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormControl fullWidth disabled={loadingAssessments}>
                 <InputLabel>Select Assessment</InputLabel>
                 <Select
-                  value={selectedAssessment}
+                  value={selectedAssessment ?? ''}
                   onChange={(e) => {
-                    setSelectedAssessment(Number(e.target.value));
-                    loadDashboardData(Number(e.target.value));
+                    const value = e.target.value as string;
+                    setSelectedAssessment(value || null);
+                    if (value) {
+                      loadDashboardData(value);
+                    }
                   }}
+                  endAdornment={
+                    loadingAssessments && (
+                      <CircularProgress size={20} sx={{ marginRight: 2 }} />
+                    )
+                  }
                 >
                   {assessments.map((assessment) => (
                     <MenuItem key={assessment.id} value={assessment.id}>
@@ -446,7 +468,7 @@ const ReliabilityValidity: React.FC = () => {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 <Button
                   variant="contained"
@@ -470,7 +492,7 @@ const ReliabilityValidity: React.FC = () => {
           </Grid>
 
           <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -484,7 +506,7 @@ const ReliabilityValidity: React.FC = () => {
                 label="Reliability Analysis"
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -498,7 +520,7 @@ const ReliabilityValidity: React.FC = () => {
                 label="Factor Analysis"
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -512,7 +534,7 @@ const ReliabilityValidity: React.FC = () => {
                 label="Item Analysis"
               />
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <FormControlLabel
                 control={
                   <Switch
@@ -531,14 +553,25 @@ const ReliabilityValidity: React.FC = () => {
       </Card>
 
       {/* Dashboard Overview */}
-      {dashboardData && (
+      {loadingDashboard && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+              <CircularProgress />
+              <Typography variant="body1" sx={{ ml: 2 }}>Loading dashboard data...</Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {dashboardData && !loadingDashboard && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Quick Overview
             </Typography>
             <Grid container spacing={3}>
-              <Grid item xs={12} md={3}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <Box textAlign="center">
                   <Typography variant="h4" color="primary">
                     {dashboardData.total_respondents.toLocaleString()}
@@ -548,7 +581,7 @@ const ReliabilityValidity: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <Box textAlign="center">
                   <Typography variant="h4" color="primary">
                     {dashboardData.total_items}
@@ -558,7 +591,7 @@ const ReliabilityValidity: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <Box textAlign="center">
                   <Chip
                     label={`α = ${dashboardData.cronbach_alpha.toFixed(3)}`}
@@ -570,7 +603,7 @@ const ReliabilityValidity: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <Box textAlign="center">
                   <Chip
                     label={dashboardData.reliability_status}
@@ -605,7 +638,7 @@ const ReliabilityValidity: React.FC = () => {
       {/* Overview Tab */}
       {analysisResults && activeTab === 0 && (
         <Grid container spacing={3}>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -626,7 +659,7 @@ const ReliabilityValidity: React.FC = () => {
 
                 <Grid container spacing={3}>
                   {analysisResults.reliability_results && (
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <Card variant="outlined">
                         <CardContent>
                           <Typography variant="subtitle2" gutterBottom>
@@ -644,7 +677,7 @@ const ReliabilityValidity: React.FC = () => {
                   )}
 
                   {analysisResults.factor_analysis_results && (
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <Card variant="outlined">
                         <CardContent>
                           <Typography variant="subtitle2" gutterBottom>
@@ -684,7 +717,7 @@ const ReliabilityValidity: React.FC = () => {
       {/* Reliability Tab */}
       {analysisResults?.reliability_results && activeTab === 1 && (
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -732,7 +765,7 @@ const ReliabilityValidity: React.FC = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -781,7 +814,7 @@ const ReliabilityValidity: React.FC = () => {
       {/* Factor Analysis Tab */}
       {analysisResults?.factor_analysis_results && activeTab === 2 && (
         <Grid container spacing={3}>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -810,7 +843,7 @@ const ReliabilityValidity: React.FC = () => {
 
                 {/* Variance Explained */}
                 <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Variance Explained by Factors
                     </Typography>
@@ -828,7 +861,7 @@ const ReliabilityValidity: React.FC = () => {
                     ))}
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Typography variant="subtitle2" gutterBottom>
                       Cumulative Variance Explained
                     </Typography>
@@ -856,7 +889,7 @@ const ReliabilityValidity: React.FC = () => {
       {/* Item Analysis Tab */}
       {analysisResults?.item_analysis_results && activeTab === 3 && (
         <Grid container spacing={3}>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -870,7 +903,7 @@ const ReliabilityValidity: React.FC = () => {
                     Item Statistics Summary
                   </Typography>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <Box textAlign="center">
                         <Typography variant="h5">
                           {Object.keys(analysisResults.item_analysis_results).length}
@@ -880,33 +913,33 @@ const ReliabilityValidity: React.FC = () => {
                         </Typography>
                       </Box>
                     </Grid>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <Box textAlign="center">
                         <Typography variant="h5">
                           {Object.values(analysisResults.item_analysis_results)
-                            .filter(item => Math.abs(item.discrimination) >= 0.4).length}
+                            .filter((item) => Math.abs(item.discrimination) >= 0.4).length}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
                           Excellent Items (r &ge; 0.4)
                         </Typography>
                       </Box>
                     </Grid>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <Box textAlign="center">
                         <Typography variant="h5">
                           {Object.values(analysisResults.item_analysis_results)
-                            .filter(item => Math.abs(item.discrimination) >= 0.3 && Math.abs(item.discrimination) < 0.4).length}
+                            .filter((item) => Math.abs(item.discrimination) >= 0.3 && Math.abs(item.discrimination) < 0.4).length}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
                           Good Items (0.3 &lt;= r &lt; 0.4)
                         </Typography>
                       </Box>
                     </Grid>
-                    <Grid item xs={12} md={3}>
+                    <Grid size={{ xs: 12, md: 3 }}>
                       <Box textAlign="center">
                         <Typography variant="h5">
                           {Object.values(analysisResults.item_analysis_results)
-                            .filter(item => Math.abs(item.discrimination) < 0.3).length}
+                            .filter((item) => Math.abs(item.discrimination) < 0.3).length}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
                           Poor Items (r &lt; 0.3)
@@ -924,7 +957,7 @@ const ReliabilityValidity: React.FC = () => {
       {/* Recommendations Tab */}
       {analysisResults && activeTab === 4 && (
         <Grid container spacing={3}>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>

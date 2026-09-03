@@ -1,6 +1,6 @@
 /**
  * Push Notification Utilities
- * 
+ *
  * Helper functions for web push notifications
  */
 
@@ -93,10 +93,10 @@ export const subscribeToPush = async (vapidPublicKey) => {
 
   try {
     const registration = await navigator.serviceWorker.ready;
-    
+
     // Check for existing subscription
     let subscription = await registration.pushManager.getSubscription();
-    
+
     if (!subscription) {
       // Create new subscription
       subscription = await registration.pushManager.subscribe({
@@ -104,7 +104,7 @@ export const subscribeToPush = async (vapidPublicKey) => {
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
       });
     }
-    
+
     return subscription;
   } catch (error) {
     console.error('Error subscribing to push:', error);
@@ -119,12 +119,12 @@ export const unsubscribeFromPush = async () => {
   try {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
-    
+
     if (subscription) {
       await subscription.unsubscribe();
       return true;
     }
-    
+
     return false;
   } catch (error) {
     console.error('Error unsubscribing:', error);

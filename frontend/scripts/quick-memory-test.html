@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PsychSync Memory Leak Load Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .test-status {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .status-value {
+            color: #667eea;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn-stop {
+            background: #dc3545;
+            color: white;
+        }
+
+        .log {
+            background: #212529;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+        }
+
+        .log-time {
+            color: #888;
+        }
+
+        .memory-chart {
+            margin-top: 20px;
+            height: 200px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-bar {
+            position: absolute;
+            bottom: 0;
+            width: 2%;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            transition: height 0.3s ease;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Memory Leak Load Test</h1>
+        <p class="subtitle">Automated browser testing for PsychSync application</p>
+
+        <div class="test-status">
+            <div class="status-item">
+                <span class="status-label">Status:</span>
+                <span class="status-value" id="status">Ready</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Elapsed Time:</span>
+                <span class="status-value" id="elapsed">00:00:00</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Iterations:</span>
+                <span class="status-value" id="iterations">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Target:</span>
+                <span class="status-value" id="target">60 iterations (10 min)</span>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress">0%</div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Current Memory</div>
+                <div class="metric-value" id="currentMemory">--</div>
+                <div class="metric-label">MB</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Memory Growth</div>
+                <div class="metric-value" id="memoryGrowth">--</div>
+                <div class="metric-label">MB</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Growth Rate</div>
+                <div class="metric-value" id="growthRate">--</div>
+                <div class="metric-label">MB/min</div>
+            </div>
+        </div>
+
+        <div class="controls" id="controls">
+            <button class="btn-primary" id="startBtn" onclick="startTest()">▶️ Start 10-Minute Test</button>
+            <button class="btn-secondary" id="quickBtn" onclick="startQuickTest()">⚡ Quick Test (2 min)</button>
+        </div>
+
+        <div class="controls hidden" id="stopControls">
+            <button class="btn-stop" onclick="stopTest()">⏹️ Stop Test</button>
+            <button class="btn-secondary" onclick="resetTest()">🔄 Reset</button>
+        </div>
+
+        <div class="alert alert-success" id="successAlert">
+            <strong>✅ Test Passed!</strong> Memory usage is stable. Growth is within acceptable limits.
+        </div>
+
+        <div class="alert alert-warning" id="warningAlert">
+            <strong>⚠️ Warning!</strong> Moderate memory growth detected. Review before deployment.
+        </div>
+
+        <div class="alert alert-error" id="errorAlert">
+            <strong>🚨 Test Failed!</strong> Significant memory growth detected. Likely memory leak - investigate before deployment.
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        let testInterval = null;
+        let metricsInterval = null;
+        let startTime = null;
+        let iterations = 0;
+        let initialMemory = null;
+        let memoryReadings = [];
+        let isRunning = false;
+
+        const targetIterations = {
+            quick: 12,    // 2 minutes (10-second intervals)
+            standard: 60  // 10 minutes (10-second intervals)
+        };
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#00ff00',
+                warn: '#ffaa00',
+                error: '#ff0000',
+                success: '#00ffaa'
+            };
+
+            logDiv.innerHTML += `<div class="log-entry" style="color: ${colors[type]}">
+                <span class="log-time">[${time}]</span> ${message}
+            </div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateMetrics() {
+            if (performance.memory) {
+                const currentMemory = performance.memory.usedJSHeapSize / 1048576; // MB
+                document.getElementById('currentMemory').textContent = currentMemory.toFixed(1);
+
+                if (initialMemory === null) {
+                    initialMemory = currentMemory;
+                    log(`Initial memory: ${initialMemory.toFixed(2)} MB`, 'info');
+                }
+
+                const growth = currentMemory - initialMemory;
+                document.getElementById('memoryGrowth').textContent = (growth > 0 ? '+' : '') + growth.toFixed(1);
+
+                const elapsed = (Date.now() - startTime) / 60000; // minutes
+                const rate = elapsed > 0 ? growth / elapsed : 0;
+                document.getElementById('growthRate').textContent = rate.toFixed(2);
+
+                memoryReadings.push({
+                    time: Date.now(),
+                    memory: currentMemory,
+                    growth: growth
+                });
+
+                // Check for memory leak every 10 iterations
+                if (iterations % 10 === 0 && iterations > 0) {
+                    if (growth > 50) {
+                        log(`⚠️ High memory growth: ${growth.toFixed(1)} MB`, 'warn');
+                    } else if (growth > 100) {
+                        log(`🚨 Critical memory growth: ${growth.toFixed(1)} MB`, 'error');
+                    } else {
+                        log(`✅ Memory stable: ${growth.toFixed(1)} MB growth`, 'success');
+                    }
+                }
+            }
+        }
+
+        function performAction() {
+            const actions = [
+                () => window.scrollTo(0, document.body.scrollHeight),
+                () => window.scrollTo(0, 0),
+                () => document.querySelectorAll('button').forEach((btn, i) => {
+                    if (i < 3) btn.click();
+                }),
+                () => {
+                    const links = document.querySelectorAll('a');
+                    if (links.length > 0) links[0].click();
+                },
+                () => window.history.back(),
+                () => window.history.forward(),
+            ];
+
+            const action = actions[Math.floor(Math.random() * actions.length)];
+
+            try {
+                action();
+                log(`Action ${iterations + 1}: Executed random action`, 'info');
+            } catch (error) {
+                log(`Action ${iterations + 1}: Failed (${error.message})`, 'warn');
+            }
+        }
+
+        function updateProgress() {
+            const elapsed = Date.now() - startTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            document.getElementById('elapsed').textContent =
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+            document.getElementById('iterations').textContent = iterations;
+
+            const maxIterations = parseInt(document.getElementById('target').textContent.match(/\d+/)[0]);
+            const progress = Math.min((iterations / maxIterations) * 100, 100);
+            document.getElementById('progress').style.width = progress + '%';
+            document.getElementById('progress').textContent = progress.toFixed(0) + '%';
+        }
+
+        function analyzeResults() {
+            const finalMemory = memoryReadings[memoryReadings.length - 1].memory;
+            const growth = finalMemory - initialMemory;
+            const elapsed = (Date.now() - startTime) / 60000;
+            const rate = growth / elapsed;
+
+            log('\n=== FINAL RESULTS ===', 'info');
+            log(`Initial Memory: ${initialMemory.toFixed(2)} MB`, 'info');
+            log(`Final Memory: ${finalMemory.toFixed(2)} MB`, 'info');
+            log(`Total Growth: ${growth.toFixed(2)} MB`, 'info');
+            log(`Test Duration: ${elapsed.toFixed(2)} minutes`, 'info');
+            log(`Growth Rate: ${rate.toFixed(2)} MB/min`, 'info');
+
+            // Determine result
+            const successAlert = document.getElementById('successAlert');
+            const warningAlert = document.getElementById('warningAlert');
+            const errorAlert = document.getElementById('errorAlert');
+
+            successAlert.style.display = 'none';
+            warningAlert.style.display = 'none';
+            errorAlert.style.display = 'none';
+
+            if (growth > 100) {
+                errorAlert.style.display = 'block';
+                log('❌ TEST FAILED: Memory growth > 100MB', 'error');
+                return 'FAILED';
+            } else if (growth > 50) {
+                warningAlert.style.display = 'block';
+                log('⚠️ TEST WARNING: Memory growth 50-100MB', 'warn');
+                return 'WARNING';
+            } else {
+                successAlert.style.display = 'block';
+                log('✅ TEST PASSED: Memory usage is stable', 'success');
+                return 'PASSED';
+            }
+        }
+
+        function startTest(duration = 'standard') {
+            if (isRunning) return;
+
+            isRunning = true;
+            startTime = Date.now();
+            iterations = 0;
+            initialMemory = null;
+            memoryReadings = [];
+
+            const maxIterations = targetIterations[duration];
+            document.getElementById('target').textContent = `${maxIterations} iterations (${duration === 'quick' ? '2' : '10'} min)`;
+
+            log('🚀 Starting memory leak load test...', 'info');
+            log(`Target: ${maxIterations} iterations`, 'info');
+            log(`Interval: 10 seconds per action`, 'info');
+
+            document.getElementById('status').textContent = 'Running';
+            document.getElementById('status').style.color = '#00ff00';
+            document.getElementById('controls').classList.add('hidden');
+            document.getElementById('stopControls').classList.remove('hidden');
+
+            // Clear any previous alerts
+            document.getElementById('successAlert').style.display = 'none';
+            document.getElementById('warningAlert').style.display = 'none';
+            document.getElementById('errorAlert').style.display = 'none';
+
+            // Perform actions every 10 seconds
+            testInterval = setInterval(() => {
+                if (iterations >= maxIterations) {
+                    stopTest();
+                    return;
+                }
+
+                iterations++;
+                performAction();
+                updateProgress();
+            }, 10000);
+
+            // Update metrics every 2 seconds
+            metricsInterval = setInterval(updateMetrics, 2000);
+
+            // Initial action
+            performAction();
+            updateMetrics();
+        }
+
+        function startQuickTest() {
+            startTest('quick');
+        }
+
+        function stopTest() {
+            if (!isRunning) return;
+
+            clearInterval(testInterval);
+            clearInterval(metricsInterval);
+
+            isRunning = false;
+            document.getElementById('status').textContent = 'Completed';
+            document.getElementById('status').style.color = '#667eea';
+
+            const result = analyzeResults();
+
+            log(`\n✨ Test ${result}`, result === 'PASSED' ? 'success' : result === 'WARNING' ? 'warn' : 'error');
+
+            // Download results
+            downloadResults();
+        }
+
+        function resetTest() {
+            if (isRunning) {
+                stopTest();
+            }
+
+            iterations = 0;
+            initialMemory = null;
+            memoryReadings = [];
+
+            document.getElementById('status').textContent = 'Ready';
+            document.getElementById('status').style.color = '#667eea';
+            document.getElementById('elapsed').textContent = '00:00:00';
+            document.getElementById('iterations').textContent = '0';
+            document.getElementById('currentMemory').textContent = '--';
+            document.getElementById('memoryGrowth').textContent = '--';
+            document.getElementById('growthRate').textContent = '--';
+            document.getElementById('progress').style.width = '0%';
+            document.getElementById('progress').textContent = '0%';
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('controls').classList.remove('hidden');
+            document.getElementById('stopControls').classList.add('hidden');
+            document.getElementById('successAlert').style.display = 'none';
+            document.getElementById('warningAlert').style.display = 'none';
+            document.getElementById('errorAlert').style.display = 'none';
+
+            log('🔄 Test reset. Ready to start new test.', 'info');
+        }
+
+        function downloadResults() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                duration: (Date.now() - startTime) / 1000,
+                iterations: iterations,
+                initialMemory: initialMemory,
+                finalMemory: memoryReadings[memoryReadings.length - 1].memory,
+                memoryGrowth: memoryReadings[memoryReadings.length - 1].growth,
+                growthRate: (memoryReadings[memoryReadings.length - 1].memory - initialMemory) / ((Date.now() - startTime) / 60000),
+                readings: memoryReadings
+            };
+
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `memory-test-results-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            log('📁 Results downloaded to memory-test-results.json', 'info');
+        }
+
+        // Initialize
+        log('✅ Memory test loaded. Click Start to begin testing.', 'info');
+
+        if (!performance.memory) {
+            log('⚠️ Performance.memory API not available. Use Chrome with --enable-precise-memory-info flag.', 'warn');
+        }
+    </script>
+</body>
+</html>

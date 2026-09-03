@@ -1,9 +1,10 @@
 // src/contexts/SubscriptionContext.tsx
 // Context for managing user subscription state and tier checks
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import {
   SubscriptionTier,
   UserSubscription,
+  SubscriptionPermissions,
   canAccessFeature,
   hasHitAssessmentLimit,
   getRemainingAssessments,
@@ -13,7 +14,7 @@ interface SubscriptionContextType {
   subscription: UserSubscription | null;
   isLoading: boolean;
   error: string | null;
-  canAccess: (feature: keyof UserSubscription) => boolean;
+  canAccess: (feature: keyof SubscriptionPermissions) => boolean;
   hasHitLimit: () => boolean;
   getRemaining: () => number;
   upgradeTier: (newTier: SubscriptionTier) => Promise<void>;
@@ -91,7 +92,7 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
 
   // Check if user can access a feature
   const canAccess = useCallback(
-    (feature: keyof UserSubscription): boolean => {
+    (feature: keyof SubscriptionPermissions): boolean => {
       return canAccessFeature(subscription, feature);
     },
     [subscription]
@@ -106,6 +107,11 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
   const getRemaining = useCallback((): number => {
     return getRemainingAssessments(subscription);
   }, [subscription]);
+
+  // ✅ MEMOIZED: setShowUpgradePrompt for consistent reference
+  const setShowUpgradePromptCallback = useCallback((show: boolean) => {
+    setShowUpgradePrompt(show);
+  }, []);
 
   // Upgrade tier (call payment flow)
   const upgradeTier = useCallback(async (newTier: SubscriptionTier) => {
@@ -128,7 +134,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     }
   }, [subscription]);
 
-  const value: SubscriptionContextType = {
+  // ✅ MEMOIZED: Context value only changes when dependencies change
+  const value: SubscriptionContextType = useMemo(() => ({
     subscription,
     isLoading,
     error,
@@ -138,8 +145,8 @@ export const SubscriptionProvider: React.FC<SubscriptionProviderProps> = ({ chil
     upgradeTier,
     refreshSubscription,
     showUpgradePrompt,
-    setShowUpgradePrompt,
-  };
+    setShowUpgradePrompt: setShowUpgradePromptCallback,
+  }), [subscription, isLoading, error, canAccess, hasHitLimit, getRemaining, upgradeTier, refreshSubscription, showUpgradePrompt, setShowUpgradePromptCallback]);
 
   return (
     <SubscriptionContext.Provider value={value}>

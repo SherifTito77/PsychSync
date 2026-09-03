@@ -29,13 +29,13 @@ Usage:
     service.invalidate_session(session_id)
 """
 
+import hashlib
+import logging
+import secrets
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import hashlib
-import logging
-import secrets
 from typing import Any
 
 # import uvicorn
@@ -45,8 +45,10 @@ from fastapi import Request
 # Session Configuration
 # ============================================================================
 
+
 class SessionConfig:
     """Session configuration"""
+
     # Rotation
     ROTATION_INTERVAL_MINUTES = 15
     ROTATION_ON_PRIVILEGE_CHANGE = True
@@ -78,8 +80,10 @@ class SessionConfig:
 # Session Status
 # ============================================================================
 
+
 class SessionStatus(Enum):
     """Session status"""
+
     ACTIVE = "active"
     IDLE_EXPIRED = "idle_expired"
     ABSOLUTE_EXPIRED = "absolute_expired"
@@ -92,9 +96,11 @@ class SessionStatus(Enum):
 # Session Data Classes
 # ============================================================================
 
+
 @dataclass
 class SessionData:
     """Session data"""
+
     session_id: str
     user_id: str
     user_role: str
@@ -150,6 +156,7 @@ class SessionData:
 # Main Session Service
 # ============================================================================
 
+
 class SessionService:
     """
     Secure session management service
@@ -176,7 +183,7 @@ class SessionService:
         user_role: str,
         request: Request,
         privileges: list[str] | None = None,
-        remember_me: bool = False
+        remember_me: bool = False,
     ) -> tuple[str, str]:
         """
         Create new session
@@ -225,7 +232,7 @@ class SessionService:
             csrf_token=csrf_token,
             privileges=privileges or [],
             is_elevated=False,
-            status=SessionStatus.ACTIVE
+            status=SessionStatus.ACTIVE,
         )
 
         # Enforce concurrent session limit
@@ -243,10 +250,7 @@ class SessionService:
         return session_id, csrf_token
 
     def validate_and_rotate(
-        self,
-        session_id: str,
-        request: Request,
-        csrf_token: str | None = None
+        self, session_id: str, request: Request, csrf_token: str | None = None
     ) -> tuple[bool, str | None, SessionStatus | None]:
         """
         Validate session and rotate if needed
@@ -268,9 +272,7 @@ class SessionService:
 
         # Check CSRF token
         if csrf_token and session.csrf_token != csrf_token:
-            self.logger.warning(
-                f"CSRF token mismatch for session {session_id[:8]}..."
-            )
+            self.logger.warning(f"CSRF token mismatch for session {session_id[:8]}...")
             session.status = SessionStatus.INVALIDATED
             return False, None, SessionStatus.INVALIDATED
 
@@ -298,11 +300,7 @@ class SessionService:
 
         return True, session_id, SessionStatus.ACTIVE
 
-    def _rotate_session(
-        self,
-        old_session_id: str,
-        request: Request
-    ) -> str:
+    def _rotate_session(self, old_session_id: str, request: Request) -> str:
         """
         Rotate session ID (session fixation prevention)
 
@@ -380,11 +378,7 @@ class SessionService:
 
         return True
 
-    def invalidate_all_user_sessions(
-        self,
-        user_id: str,
-        reason: str = ""
-    ) -> int:
+    def invalidate_all_user_sessions(self, user_id: str, reason: str = "") -> int:
         """
         Invalidate all sessions for a user
 
@@ -404,8 +398,7 @@ class SessionService:
                 count += 1
 
         self.logger.info(
-            f"Invalidated {count} session(s) for user {user_id}. "
-            f"Reason: {reason}"
+            f"Invalidated {count} session(s) for user {user_id}. " f"Reason: {reason}"
         )
 
         return count
@@ -425,8 +418,7 @@ class SessionService:
             # Invalidate oldest session
             oldest_session_id = user_sessions[0]
             self.invalidate_session(
-                oldest_session_id,
-                "Concurrent session limit exceeded"
+                oldest_session_id, "Concurrent session limit exceeded"
             )
 
     def _generate_device_fingerprint(self, request: Request) -> str:
@@ -497,10 +489,7 @@ class SessionService:
         }
 
     def elevate_session(
-        self,
-        session_id: str,
-        request: Request,
-        reason: str = "Privilege escalation"
+        self, session_id: str, request: Request, reason: str = "Privilege escalation"
     ) -> bool:
         """
         Elevate session privileges (triggers rotation)
@@ -588,11 +577,9 @@ class SessionService:
 # Helper Functions
 # ============================================================================
 
+
 def create_secure_session(
-    user_id: str,
-    user_role: str,
-    request: Request,
-    privileges: list[str] | None = None
+    user_id: str, user_role: str, request: Request, privileges: list[str] | None = None
 ) -> tuple[str, str]:
     """
     Convenience function to create secure session
@@ -612,9 +599,7 @@ def create_secure_session(
 
 
 def validate_session(
-    session_id: str,
-    request: Request,
-    csrf_token: str | None = None
+    session_id: str, request: Request, csrf_token: str | None = None
 ) -> tuple[bool, str | None]:
     """
     Convenience function to validate session

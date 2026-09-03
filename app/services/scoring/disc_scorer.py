@@ -32,7 +32,11 @@ class DISCScorer:
             "name": "Influence",
             "description": "Outgoing, enthusiastic, optimistic",
             "strengths": ["Enthusiasm", "Persuasion", "Building relationships"],
-            "challenges": ["Disorganization", "Impulsiveness", "Lack of follow-through"],
+            "challenges": [
+                "Disorganization",
+                "Impulsiveness",
+                "Lack of follow-through",
+            ],
             "motivators": ["Recognition", "Social approval", "Popularity"],
             "fears": ["Rejection", "Disapproval", "Loss of influence"],
         },
@@ -40,7 +44,11 @@ class DISCScorer:
             "name": "Steadiness",
             "description": "Supportive, cooperative, reliable",
             "strengths": ["Patience", "Team support", "Consistency"],
-            "challenges": ["Resistance to change", "Indecisiveness", "Avoiding conflict"],
+            "challenges": [
+                "Resistance to change",
+                "Indecisiveness",
+                "Avoiding conflict",
+            ],
             "motivators": ["Stability", "Appreciation", "Cooperation"],
             "fears": ["Loss of stability", "Sudden change", "Confrontation"],
         },
@@ -81,7 +89,9 @@ class DISCScorer:
 
         # Calculate each dimension
         for dimension, question_ids in scoring_config.get("dimensions", {}).items():
-            score = DISCScorer._calculate_dimension_score(dimension, question_ids, responses_data)
+            score = DISCScorer._calculate_dimension_score(
+                dimension, question_ids, responses_data
+            )
             dimension_scores[dimension] = score
 
         # Determine primary and secondary styles
@@ -100,9 +110,11 @@ class DISCScorer:
             "dimension_scores": dimension_scores,
             "primary_style": primary_style,
             "secondary_style": secondary_style,
-            "style_combination": f"{primary_style}{secondary_style}"
-            if secondary_style
-            else primary_style,
+            "style_combination": (
+                f"{primary_style}{secondary_style}"
+                if secondary_style
+                else primary_style
+            ),
             "interpretation": interpretation,
             "behavioral_insights": insights,
             "subscale_scores": dimension_scores,
@@ -130,7 +142,7 @@ class DISCScorer:
                 elif isinstance(value, str):
                     try:
                         value = float(value)
-                    except:
+                    except Exception as e:
                         continue
 
                 total_score += value
@@ -149,7 +161,9 @@ class DISCScorer:
     def _determine_styles(dimension_scores: dict[str, float]) -> tuple:
         """Determine primary and secondary DISC styles"""
         # Sort dimensions by score
-        sorted_dimensions = sorted(dimension_scores.items(), key=lambda x: x[1], reverse=True)
+        sorted_dimensions = sorted(
+            dimension_scores.items(), key=lambda x: x[1], reverse=True
+        )
 
         primary_style = sorted_dimensions[0][0] if sorted_dimensions else "D"
 
@@ -162,7 +176,9 @@ class DISCScorer:
         return primary_style, secondary_style
 
     @staticmethod
-    def _get_interpretation(scores: dict[str, float], primary: str, secondary: str = None) -> str:
+    def _get_interpretation(
+        scores: dict[str, float], primary: str, secondary: str = None
+    ) -> str:
         """Generate detailed interpretation"""
         interpretation = []
 
@@ -178,12 +194,16 @@ class DISCScorer:
             combination_desc = DISCScorer.STYLE_COMBINATIONS.get(
                 combination_key, f"Blend of {primary} and {secondary} traits"
             )
-            interpretation.append(f"Secondary Style: {secondary} - {secondary_info.get('name')}")
+            interpretation.append(
+                f"Secondary Style: {secondary} - {secondary_info.get('name')}"
+            )
             interpretation.append(f"Style Combination: {combination_desc}\n")
 
         # Detailed scores
         interpretation.append("Dimension Scores:")
-        for dimension, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
+        for dimension, score in sorted(
+            scores.items(), key=lambda x: x[1], reverse=True
+        ):
             dim_info = DISCScorer.STYLES.get(dimension, {})
             level = "High" if score >= 60 else "Moderate" if score >= 40 else "Low"
             interpretation.append(
@@ -193,7 +213,9 @@ class DISCScorer:
         return "\n".join(interpretation)
 
     @staticmethod
-    def _get_behavioral_insights(primary: str, secondary: str = None) -> dict[str, list[str]]:
+    def _get_behavioral_insights(
+        primary: str, secondary: str = None
+    ) -> dict[str, list[str]]:
         """Get behavioral insights for the style"""
         primary_info = DISCScorer.STYLES.get(primary, {})
 
@@ -256,9 +278,17 @@ class DISCScorer:
         """Get leadership characteristics"""
         styles = {
             "D": ["Decisive leader", "Takes charge quickly", "Focuses on results"],
-            "I": ["Inspirational leader", "Motivates through enthusiasm", "Builds team morale"],
+            "I": [
+                "Inspirational leader",
+                "Motivates through enthusiasm",
+                "Builds team morale",
+            ],
             "S": ["Supportive leader", "Develops team members", "Creates stability"],
-            "C": ["Expert leader", "Maintains high standards", "Leads through expertise"],
+            "C": [
+                "Expert leader",
+                "Maintains high standards",
+                "Leads through expertise",
+            ],
         }
         return styles.get(style, [])
 

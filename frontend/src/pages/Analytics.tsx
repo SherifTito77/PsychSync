@@ -173,7 +173,8 @@ const Analytics: React.FC = () => {
                     Average Score
                   </dt>
                   <dd className="text-lg font-semibold text-gray-900">
-                    {analytics.average_score ? `${analytics.average_score.toFixed(1)}%` : 'N/A'}
+                    {analytics.average_score !== undefined && analytics.average_score !== null ?
+                      `${Number(analytics.average_score).toFixed(1)}%` : 'N/A'}
                   </dd>
                 </dl>
               </div>
@@ -233,7 +234,8 @@ const Analytics: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {response.score ? `${response.score.toFixed(1)}%` : 'N/A'}
+                        {response.score !== undefined && response.score !== null ?
+                          `${Number(response.score).toFixed(1)}%` : 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

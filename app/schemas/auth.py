@@ -4,7 +4,7 @@
 
 from pydantic import BaseModel, EmailStr, field_validator  # ,validator
 
-from app.core.security import validate_password
+from app.services.security import validate_password
 
 
 class UserLogin(BaseModel):
@@ -27,7 +27,8 @@ class UserRegister(BaseModel):
         result = validate_password(v)
         if not result["valid"]:
             raise ValueError(
-                "Password does not meet security requirements: " + "; ".join(result["errors"])
+                "Password does not meet security requirements: "
+                + "; ".join(result["errors"])
             )
         return v
 
@@ -64,7 +65,8 @@ class PasswordChange(BaseModel):
         result = validate_password(v)
         if not result["valid"]:
             raise ValueError(
-                "Password does not meet security requirements: " + "; ".join(result["errors"])
+                "Password does not meet security requirements: "
+                + "; ".join(result["errors"])
             )
         return v
 
@@ -102,7 +104,8 @@ class PasswordResetConfirm(BaseModel):
         result = validate_password(v)
         if not result["valid"]:
             raise ValueError(
-                "Password does not meet security requirements: " + "; ".join(result["errors"])
+                "Password does not meet security requirements: "
+                + "; ".join(result["errors"])
             )
         return v
 

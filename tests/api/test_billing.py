@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -44,22 +48,28 @@ def create_subscription(client, auth_headers):
     response = client.post(
         "/subscribe",
         json={},
-        params={'tier': 'test_value', 'billing_cycle': 'test_value', 'trial_period_days': 'test_value', 'promotion_code': 'test_value', 'idempotency_key': 'test_value'}
+        params={
+            "tier": "test_value",
+            "billing_cycle": "test_value",
+            "trial_period_days": "test_value",
+            "promotion_code": "test_value",
+            "idempotency_key": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -67,12 +77,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -89,22 +100,26 @@ def cancel_subscription(client, auth_headers):
     response = client.post(
         "/cancel",
         json={},
-        params={'subscription_id': 'test_value', 'reason': 'test_value', 'immediate': 'test_value'}
+        params={
+            "subscription_id": "test_value",
+            "reason": "test_value",
+            "immediate": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -112,12 +127,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -134,22 +150,28 @@ def modify_subscription(client, auth_headers):
     response = client.post(
         "/modify",
         json={},
-        params={'subscription_id': 'test_value', 'new_tier': 'test_value', 'new_billing_cycle': 'test_value', 'prorate': 'test_value', 'idempotency_key': 'test_value'}
+        params={
+            "subscription_id": "test_value",
+            "new_tier": "test_value",
+            "new_billing_cycle": "test_value",
+            "prorate": "test_value",
+            "idempotency_key": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -157,12 +179,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -176,10 +199,7 @@ def get_pricing_tiers(client):
     Get all available pricing tiers
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/pricing"
-        
-    )
+    response = client.get("/pricing")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -187,16 +207,16 @@ def get_pricing_tiers(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -204,12 +224,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -223,10 +244,7 @@ def get_current_subscription(client, auth_headers):
     Get user's current subscription details
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/subscription/current"
-        
-    )
+    response = client.get("/subscription/current")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -234,16 +252,16 @@ def get_current_subscription(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -251,12 +269,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -270,10 +289,7 @@ def get_usage_metrics(client, auth_headers):
     Get user's current usage metrics
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/usage"
-        
-    )
+    response = client.get("/usage")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -281,16 +297,16 @@ def get_usage_metrics(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -298,12 +314,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -317,25 +334,21 @@ def check_feature_access(client, auth_headers):
     Check if user has access to a specific feature
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/feature-check",
-        json={},
-        params={'feature': 'test_value'}
-    )
+    response = client.post("/feature-check", json={}, params={"feature": "test_value"})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -343,12 +356,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -362,8 +376,8 @@ def get_invoices(client, auth_headers):
     Get user's invoice history
     """
     # TODO: Implement test logic
-    response = client.get("/invoices",
-        params={'limit': 'test_value', 'starting_after': 'test_value'}
+    response = client.get(
+        "/invoices", params={"limit": "test_value", "starting_after": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -372,16 +386,16 @@ def get_invoices(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -389,12 +403,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -411,22 +426,22 @@ def add_payment_method(client, auth_headers):
     response = client.post(
         "/payment-methods",
         json={},
-        params={'payment_method_id': 'test_value', 'set_as_default': 'test_value'}
+        params={"payment_method_id": "test_value", "set_as_default": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -434,12 +449,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -453,10 +469,7 @@ def get_payment_methods(client, auth_headers):
     Get user's saved payment methods
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/payment-methods"
-        
-    )
+    response = client.get("/payment-methods")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -464,16 +477,16 @@ def get_payment_methods(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -481,12 +494,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -501,24 +515,22 @@ def stripe_webhook(client):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/webhooks/stripe",
-        json={},
-        params={'stripe_signature': 'test_value'}
+        "/webhooks/stripe", json={}, params={"stripe_signature": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -526,12 +538,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -545,8 +558,9 @@ def get_billing_analytics(client, auth_headers):
     Get comprehensive billing analytics (admin only)
     """
     # TODO: Implement test logic
-    response = client.get("/admin/analytics",
-        params={'date_range_start': 'test_value', 'date_range_end': 'test_value'}
+    response = client.get(
+        "/admin/analytics",
+        params={"date_range_start": "test_value", "date_range_end": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -555,16 +569,16 @@ def get_billing_analytics(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -572,12 +586,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -594,7 +609,14 @@ def create_promotional_code(client, auth_headers):
     response = client.post(
         "/admin/promotions",
         json={},
-        params={'discount_type': 'test_value', 'amount_off': 'test_value', 'percent_off': 'test_value', 'duration': 'test_value', 'duration_in_months': 'test_value', 'metadata': 'test_value'}
+        params={
+            "discount_type": "test_value",
+            "amount_off": "test_value",
+            "percent_off": "test_value",
+            "duration": "test_value",
+            "duration_in_months": "test_value",
+            "metadata": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201, 202]

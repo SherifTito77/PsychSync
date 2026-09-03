@@ -3,25 +3,26 @@
  * High-performance scrolling for 1000+ items
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { tokens } from '@/utils/designTokens';
 
-interface VirtualizedListProps {
-  items: any[];
+interface VirtualizedListProps<T = unknown> {
+  items: T[];
   itemHeight: number;
   containerHeight: number;
-  renderItem: (item: any, index: number) => React.ReactNode;
-  onItemClick?: (item: any, index: number) => void;
+  renderItem: (item: T, index: number) => React.ReactNode;
+  onItemClick?: (item: T, index: number) => void;
   className?: string;
 }
 
-export const VirtualizedList: React.FC<VirtualizedListProps> = ({
+export const VirtualizedList = <T,>({
   items,
   itemHeight,
   containerHeight,
   renderItem,
   onItemClick,
   className = ''
-}) => {
+}: VirtualizedListProps<T>): React.ReactElement => {
   const [scrollTop, setScrollTop] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -40,53 +41,68 @@ export const VirtualizedList: React.FC<VirtualizedListProps> = ({
     return items.slice(visibleRange.startIndex, visibleRange.endIndex);
   }, [items, visibleRange]);
 
-  // Handle scroll
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  // Handle scroll - memoized
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
-  };
+  }, []);
 
-  // Handle item click
-  const handleItemClick = (item: any, index: number) => {
+  // Handle item click - memoized
+  const handleItemClick = useCallback((item: T, index: number) => {
     if (onItemClick) {
       onItemClick(item, visibleRange.startIndex + index);
     }
-  };
+  }, [onItemClick, visibleRange.startIndex]);
+
+  // Memoize container style
+  const containerStyle = useMemo(() => ({
+    height: containerHeight,
+    overflowY: 'auto' as const,
+    position: 'relative' as const
+  }), [containerHeight]);
+
+  // Memoize spacer style
+  const spacerStyle = useMemo(() => ({
+    height: items.length * itemHeight,
+    position: 'relative' as const
+  }), [items.length, itemHeight]);
+
+  // Memoize item handlers to prevent re-renders
+  const itemHandlers = useMemo(() => {
+    return visibleItems.map((item, index) => ({
+      onClick: () => handleItemClick(item, index)
+    }));
+  }, [visibleItems, handleItemClick]);
 
   return (
     <div
       ref={containerRef}
       className={`virtualized-list ${className}`}
-      style={{
-        height: containerHeight,
-        overflowY: 'auto',
-        position: 'relative'
-      }}
+      style={containerStyle}
       onScroll={handleScroll}
     >
       {/* Spacer to maintain scroll height */}
-      <div
-        style={{
-          height: items.length * itemHeight,
-          position: 'relative'
-        }}
-      >
+      <div style={spacerStyle}>
         {/* Visible items */}
-        {visibleItems.map((item, index) => (
-          <div
-            key={visibleRange.startIndex + index}
-            className="virtualized-item"
-            style={{
-              position: 'absolute',
-              top: (visibleRange.startIndex + index) * itemHeight,
-              left: 0,
-              right: 0,
-              height: itemHeight
-            }}
-            onClick={() => handleItemClick(item, index)}
-          >
-            {renderItem(item, visibleRange.startIndex + index)}
-          </div>
-        ))}
+        {visibleItems.map((item, index) => {
+          const itemStyle = useMemo(() => ({
+            position: 'absolute' as const,
+            top: (visibleRange.startIndex + index) * itemHeight,
+            left: 0,
+            right: 0,
+            height: itemHeight
+          }), [index, itemHeight, visibleRange.startIndex]);
+
+          return (
+            <div
+              key={visibleRange.startIndex + index}
+              className="virtualized-item"
+              style={itemStyle}
+              onClick={itemHandlers[index].onClick}
+            >
+              {renderItem(item, visibleRange.startIndex + index)}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -125,8 +141,19 @@ export const VirtualizedUserList: React.FC = () => {
     );
   }, [users, searchTerm]);
 
-  // Render individual user item
-  const renderUserItem = (user: User, index: number) => (
+  // Memoize user action handlers to prevent re-renders
+  const handleViewUser = useCallback((e: React.MouseEvent, user: User) => {
+    e.stopPropagation();
+    console.log('View user:', user);
+  }, []);
+
+  const handleEditUser = useCallback((e: React.MouseEvent, user: User) => {
+    e.stopPropagation();
+    console.log('Edit user:', user);
+  }, []);
+
+  // Render individual user item - memoized
+  const renderUserItem = useCallback((user: User, index: number) => (
     <div className="user-item">
       <div className="user-avatar">{user.avatar}</div>
       <div className="user-info">
@@ -136,31 +163,27 @@ export const VirtualizedUserList: React.FC = () => {
       </div>
       <div className="user-actions">
         <button
+          type="button"
           className="action-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('View user:', user);
-          }}
+          onClick={(e) => handleViewUser(e, user)}
         >
           View
         </button>
         <button
+          type="button"
           className="action-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('Edit user:', user);
-          }}
+          onClick={(e) => handleEditUser(e, user)}
         >
           Edit
         </button>
       </div>
     </div>
-  );
+  ), [handleViewUser, handleEditUser]);
 
-  const handleUserSelect = (user: User, index: number) => {
+  const handleUserSelect = useCallback((user: User, index: number) => {
     setSelectedUser(user);
     console.log(`Selected user at index ${index}:`, user);
-  };
+  }, []);
 
   return (
     <div style={{ padding: '20px', height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -181,8 +204,8 @@ export const VirtualizedUserList: React.FC = () => {
             width: '100%',
             maxWidth: '400px',
             padding: '12px',
-            fontSize: '16px',
-            border: '1px solid #ccc',
+            fontSize: 'var(--font-size-base)',
+            border: '1px solid var(--color-gray-300)',
             borderRadius: '4px',
             marginBottom: '10px'
           }}
@@ -191,9 +214,9 @@ export const VirtualizedUserList: React.FC = () => {
         {selectedUser && (
           <div style={{
             padding: '10px',
-            backgroundColor: '#e3f2fd',
+            backgroundColor: 'var(--color-blue-50)',
             borderRadius: '4px',
-            fontSize: '14px'
+            fontSize: 'var(--font-size-sm)'
           }}>
             Selected: <strong>{selectedUser.name}</strong> ({selectedUser.email})
           </div>
@@ -201,7 +224,7 @@ export const VirtualizedUserList: React.FC = () => {
       </div>
 
       {/* Virtualized list */}
-      <div style={{ flex: 1, border: '1px solid #ddd', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ flex: 1, border: '1px solid var(--color-gray-300)', borderRadius: '8px', overflow: 'hidden' }}>
         <VirtualizedList
           items={filteredUsers}
           itemHeight={80} // Height of each user item
@@ -216,22 +239,22 @@ export const VirtualizedUserList: React.FC = () => {
       <div style={{
         marginTop: '10px',
         padding: '10px',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: 'var(--color-gray-100)',
         borderRadius: '4px',
-        fontSize: '12px',
-        color: '#666'
+        fontSize: 'var(--font-size-xs)',
+        color: 'var(--color-gray-600)'
       }}>
         Total Users: {users.length} |
         Filtered: {filteredUsers.length} |
         Rendering: Only visible items (performance optimized)
       </div>
 
-      <style jsx>{`
+      <style>{`
         .user-item {
           display: flex;
           align-items: center;
           padding: 12px 16px;
-          border-bottom: 1px solid #eee;
+          border-bottom: 1px solid var(--color-gray-200);
           background: white;
           cursor: pointer;
           transition: background-color 0.2s ease;
@@ -240,14 +263,14 @@ export const VirtualizedUserList: React.FC = () => {
         }
 
         .user-item:hover {
-          background-color: #f8f9fa;
+          background-color: var(--color-gray-50);
         }
 
         .user-avatar {
           width: 48px;
           height: 48px;
           border-radius: 50%;
-          background: #007aff;
+          background: var(--color-primary-600);
           color: white;
           display: flex;
           align-items: center;
@@ -264,7 +287,7 @@ export const VirtualizedUserList: React.FC = () => {
 
         .user-name {
           font-weight: 600;
-          color: #333;
+          color: var(--color-gray-900);
           margin-bottom: 2px;
           white-space: nowrap;
           overflow: hidden;
@@ -272,7 +295,7 @@ export const VirtualizedUserList: React.FC = () => {
         }
 
         .user-email {
-          color: #666;
+          color: var(--color-gray-600);
           font-size: 14px;
           margin-bottom: 2px;
           white-space: nowrap;
@@ -281,7 +304,7 @@ export const VirtualizedUserList: React.FC = () => {
         }
 
         .user-role {
-          color: #007aff;
+          color: var(--color-primary-600);
           font-size: 12px;
           font-weight: 500;
         }
@@ -294,7 +317,7 @@ export const VirtualizedUserList: React.FC = () => {
 
         .action-btn {
           padding: 6px 12px;
-          border: 1px solid #ddd;
+          border: 1px solid var(--color-gray-300);
           border-radius: 4px;
           background: white;
           cursor: pointer;
@@ -303,15 +326,15 @@ export const VirtualizedUserList: React.FC = () => {
         }
 
         .action-btn:hover {
-          background-color: #f0f0f0;
-          border-color: #007aff;
-          color: #007aff;
+          background-color: var(--color-gray-200);
+          border-color: var(--color-primary-600);
+          color: var(--color-primary-600);
         }
 
         .virtualized-list {
           /* Custom scrollbar for better UX */
           scrollbar-width: thin;
-          scrollbar-color: #ccc #f5f5f5;
+          scrollbar-color: var(--color-gray-300) var(--color-gray-100);
         }
 
         .virtualized-list::-webkit-scrollbar {
@@ -319,16 +342,16 @@ export const VirtualizedUserList: React.FC = () => {
         }
 
         .virtualized-list::-webkit-scrollbar-track {
-          background: #f5f5f5;
+          background: var(--color-gray-100);
         }
 
         .virtualized-list::-webkit-scrollbar-thumb {
-          background: #ccc;
+          background: var(--color-gray-300);
           border-radius: 4px;
         }
 
         .virtualized-list::-webkit-scrollbar-thumb:hover {
-          background: #999;
+          background: var(--color-gray-500);
         }
 
         .virtualized-item {

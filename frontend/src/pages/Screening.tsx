@@ -137,18 +137,18 @@ const Screening: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Crisis Alert Banner */}
-      <Card className="mb-8 bg-red-50 border-red-200">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-red-800">Need Immediate Help?</h3>
-              <p className="text-red-600">If you're in crisis, please call 988 or 911</p>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      {/* Crisis Alert Banner - Mobile Optimized */}
+      <Card className="mb-6 sm:mb-8 bg-red-50 border-red-200">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1">
+              <h3 className="text-base sm:text-lg font-semibold text-red-800">Need Immediate Help?</h3>
+              <p className="text-sm sm:text-base text-red-600">If you're in crisis, please call 988 or 911</p>
             </div>
             <Button
               variant="outline"
-              className="text-red-600 border-red-300 hover:bg-red-100"
+              className="w-full sm:w-auto text-red-600 border-red-300 hover:bg-red-100 whitespace-nowrap"
               onClick={() => navigate('/screening/crisis-resources')}
             >
               Get Help Now
@@ -157,15 +157,15 @@ const Screening: React.FC = () => {
         </CardContent>
       </Card>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Clinical Screening Tools</h1>
-        <p className="text-gray-600">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Clinical Screening Tools</h1>
+        <p className="text-sm sm:text-base text-gray-600">
           Evidence-based mental health assessments with validated psychometric properties
         </p>
       </div>
 
-      {/* Screening Tools Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      {/* Screening Tools Grid - Mobile Optimized */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {screeningTools.map((tool, idx) => (
           <Card
             key={idx}
@@ -173,20 +173,22 @@ const Screening: React.FC = () => {
             onClick={() => navigate(tool.path)}
           >
             {tool.badge && (
-              <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+              <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
                 {tool.badge}
               </div>
             )}
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-3">
-                <span className="text-3xl">{tool.icon}</span>
-                <span>{tool.title}</span>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center space-x-2 sm:space-x-3">
+                <span className="text-2xl sm:text-3xl">{tool.icon}</span>
+                <span className="text-base sm:text-lg leading-tight">{tool.title}</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-700 mb-3">{tool.description}</p>
-              <p className="text-xs text-gray-500 mb-4">{tool.validity}</p>
-              <Button variant="outline" size="sm" className="w-full">
+              <p className="text-xs sm:text-sm text-gray-700 mb-2 sm:mb-3 line-clamp-2">
+                {tool.description}
+              </p>
+              <p className="text-xs text-gray-500 mb-3 sm:mb-4">{tool.validity}</p>
+              <Button variant="outline" size="sm" className="w-full text-sm">
                 Open Tool
               </Button>
             </CardContent>
@@ -194,15 +196,15 @@ const Screening: React.FC = () => {
         ))}
       </div>
 
-      {/* Important Disclaimer */}
+      {/* Important Disclaimer - Mobile Optimized */}
       <Card className="bg-yellow-50">
-        <CardHeader>
-          <CardTitle className="text-yellow-800">Important Notice</CardTitle>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg text-yellow-800">Important Notice</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-yellow-700">
+          <p className="text-sm sm:text-base text-yellow-700">
             <strong>This platform is not a substitute for professional medical care.</strong>
-            Mental health screenings are for informational purposes only. If you're experiencing
+            {' '}Mental health screenings are for informational purposes only. If you're experiencing
             mental health concerns, please consult with a qualified healthcare provider. In case
             of emergency, call 911 or go to the nearest emergency room.
           </p>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { useAsyncEffect } from '../../hooks/useAsyncEffect';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
 import { AlertTriangle, Shield, Server, Lock, Activity } from 'lucide-react';
 
 interface PortScanResult {
@@ -173,6 +174,9 @@ export const InfrastructureSecurityDashboard: React.FC = () => {
     }
   };
 
+  // Alias for getRiskLevelColor
+  const getRiskLevel = getRiskLevelColor;
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'critical':
@@ -210,14 +214,22 @@ export const InfrastructureSecurityDashboard: React.FC = () => {
     }
   };
 
+  // ✅ FIXED: Memory leak prevention - uses useEffect with cleanup
   useEffect(() => {
     fetchSecurityMetrics();
+  }, []);
 
+  useEffect(() => {
+    // Set up interval for auto-refresh
     if (autoRefresh) {
-      const interval = setInterval(fetchSecurityMetrics, 60000); // Refresh every minute
+      const interval = setInterval(() => {
+        fetchSecurityMetrics();
+      }, 60000); // Refresh every minute
+
+      // Return cleanup for the interval
       return () => clearInterval(interval);
     }
-  }, [fetchSecurityMetrics, autoRefresh]);
+  }, [autoRefresh]);
 
   if (!metrics) {
     return (

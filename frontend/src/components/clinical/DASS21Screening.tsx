@@ -330,9 +330,12 @@ const DASS21Screening: React.FC = () => {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/dass21', finalResponses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'dass21',
+        responses: responses
+      });
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening. Please try again.');
       console.error('DASS-21 submission error:', err);
     } finally {
@@ -438,7 +441,7 @@ const DASS21Screening: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -455,7 +458,8 @@ const DASS21Screening: React.FC = () => {
               </div>
 
               <RadioGroup
-                onValueChange={(value) => handleResponse(parseInt(value))}
+                value={String(responses[currentQuestion.id as keyof DASS21Response] || 0)}
+                onChange={(value) => handleResponse(parseInt(value))}
                 className="space-y-3"
               >
                 {currentQuestion.options.map((option) => (

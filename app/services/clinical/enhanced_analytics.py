@@ -11,20 +11,25 @@ Features:
 - Performance monitoring
 """
 
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, case
-from sqlalchemy.orm import selectinload
 import numpy as np
 from scipy import stats
+from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from app.db.models.clinical_screening import ClinicalScreening, ClinicalAlert
-from app.services.clinical.scoring_algorithms import PHQ9Scorer, GAD7Scorer
-from app.services.clinical.additional_scorers import MDQScorer, DAST10Scorer, AQ10Scorer, ACEScorer
+from app.db.models.clinical_screening import ClinicalAlert, ClinicalScreening
+from app.services.clinical.additional_scorers import (
+    ACEScorer,
+    AQ10Scorer,
+    DAST10Scorer,
+    MDQScorer,
+)
+from app.services.clinical.scoring_algorithms import GAD7Scorer, PHQ9Scorer
 
 
 class TrendDirection(Enum):
@@ -43,6 +48,7 @@ class RiskCategory(Enum):
 @dataclass
 class TrendAnalysis:
     """Trend analysis results"""
+
     direction: TrendDirection
     change_percentage: float
     confidence: float
@@ -54,6 +60,7 @@ class TrendAnalysis:
 @dataclass
 class ComparativeMetrics:
     """Comparative analytics metrics"""
+
     user_average: float
     population_average: float
     percentile_rank: float
@@ -64,6 +71,7 @@ class ComparativeMetrics:
 @dataclass
 class OutcomeMetrics:
     """Outcome measurement metrics"""
+
     baseline_score: float
     current_score: float
     change: float
@@ -88,10 +96,7 @@ class EnhancedClinicalAnalytics:
         self.db = db
 
     async def get_user_trends(
-        self,
-        user_id: str,
-        screening_type: str,
-        weeks: int = 12
+        self, user_id: str, screening_type: str, weeks: int = 12
     ) -> Optional[TrendAnalysis]:
         """
         Analyze screening score trends over time
@@ -107,14 +112,18 @@ class EnhancedClinicalAnalytics:
         cutoff_date = datetime.utcnow() - timedelta(weeks=weeks)
 
         # Get historical screenings
-        query = select(ClinicalScreening).where(
-            and_(
-                ClinicalScreening.user_id == user_id,
-                ClinicalScreening.screening_type == screening_type,
-                ClinicalScreening.completed_at >= cutoff_date,
-                ClinicalScreening.completed_at.isnot(None)
+        query = (
+            select(ClinicalScreening)
+            .where(
+                and_(
+                    ClinicalScreening.user_id == user_id,
+                    ClinicalScreening.screening_type == screening_type,
+                    ClinicalScreening.completed_at >= cutoff_date,
+                    ClinicalScreening.completed_at.isnot(None),
+                )
             )
-        ).order_by(ClinicalScreening.completed_at)
+            .order_by(ClinicalScreening.completed_at)
+        )
 
         result = await self.db.execute(query)
         screenings = result.scalars().all()
@@ -153,14 +162,12 @@ class EnhancedClinicalAnalytics:
             change_percentage=round(change_percentage, 2),
             confidence=round(1 - p_value, 2),
             slope=round(slope, 4),
-            r_squared=round(r_value ** 2, 4),
-            recommendation=recommendation
+            r_squared=round(r_value**2, 4),
+            recommendation=recommendation,
         )
 
     async def get_comparative_metrics(
-        self,
-        user_id: str,
-        screening_type: str
+        self, user_id: str, screening_type: str
     ) -> Optional[ComparativeMetrics]:
         """
         Compare user scores to population
@@ -173,13 +180,18 @@ class EnhancedClinicalAnalytics:
             ComparativeMetrics with population comparison
         """
         # Get user's latest score
-        user_query = select(ClinicalScreening).where(
-            and_(
-                ClinicalScreening.user_id == user_id,
-                ClinicalScreening.screening_type == screening_type,
-                ClinicalScreening.completed_at.isnot(None)
+        user_query = (
+            select(ClinicalScreening)
+            .where(
+                and_(
+                    ClinicalScreening.user_id == user_id,
+                    ClinicalScreening.screening_type == screening_type,
+                    ClinicalScreening.completed_at.isnot(None),
+                )
             )
-        ).order_by(ClinicalScreening.completed_at.desc()).limit(1)
+            .order_by(ClinicalScreening.completed_at.desc())
+            .limit(1)
+        )
 
         user_result = await self.db.execute(user_query)
         user_screening = user_result.scalar_one_or_none()
@@ -191,12 +203,12 @@ class EnhancedClinicalAnalytics:
 
         # Get population statistics
         pop_query = select(
-            func.avg(ClinicalScreening.total_score).label('mean'),
-            func.stddev(ClinicalScreening.total_score).label('stddev')
+            func.avg(ClinicalScreening.total_score).label("mean"),
+            func.stddev(ClinicalScreening.total_score).label("stddev"),
         ).where(
             and_(
                 ClinicalScreening.screening_type == screening_type,
-                ClinicalScreening.completed_at.isnot(None)
+                ClinicalScreening.completed_at.isnot(None),
             )
         )
 
@@ -225,7 +237,7 @@ class EnhancedClinicalAnalytics:
             population_average=round(pop_mean, 2),
             percentile_rank=round(percentile_rank, 2),
             z_score=round(z_score, 2),
-            interpretation=interpretation
+            interpretation=interpretation,
         )
 
     async def get_outcome_metrics(
@@ -233,7 +245,7 @@ class EnhancedClinicalAnalytics:
         user_id: str,
         screening_type: str,
         baseline_days: int = 30,
-        follow_up_days: int = 90
+        follow_up_days: int = 90,
     ) -> Optional[OutcomeMetrics]:
         """
         Measure clinical outcomes over time
@@ -252,25 +264,35 @@ class EnhancedClinicalAnalytics:
         follow_up_cutoff = now - timedelta(days=follow_up_days)
 
         # Get baseline and follow-up scores
-        baseline_query = select(ClinicalScreening).where(
-            and_(
-                ClinicalScreening.user_id == user_id,
-                ClinicalScreening.screening_type == screening_type,
-                ClinicalScreening.completed_at >= baseline_cutoff,
-                ClinicalScreening.completed_at < follow_up_cutoff
+        baseline_query = (
+            select(ClinicalScreening)
+            .where(
+                and_(
+                    ClinicalScreening.user_id == user_id,
+                    ClinicalScreening.screening_type == screening_type,
+                    ClinicalScreening.completed_at >= baseline_cutoff,
+                    ClinicalScreening.completed_at < follow_up_cutoff,
+                )
             )
-        ).order_by(ClinicalScreening.completed_at).limit(1)
+            .order_by(ClinicalScreening.completed_at)
+            .limit(1)
+        )
 
         baseline_result = await self.db.execute(baseline_query)
         baseline = baseline_result.scalar_one_or_none()
 
-        follow_up_query = select(ClinicalScreening).where(
-            and_(
-                ClinicalScreening.user_id == user_id,
-                ClinicalScreening.screening_type == screening_type,
-                ClinicalScreening.completed_at >= follow_up_cutoff
+        follow_up_query = (
+            select(ClinicalScreening)
+            .where(
+                and_(
+                    ClinicalScreening.user_id == user_id,
+                    ClinicalScreening.screening_type == screening_type,
+                    ClinicalScreening.completed_at >= follow_up_cutoff,
+                )
             )
-        ).order_by(ClinicalScreening.completed_at.desc()).limit(1)
+            .order_by(ClinicalScreening.completed_at.desc())
+            .limit(1)
+        )
 
         follow_up_result = await self.db.execute(follow_up_query)
         follow_up = follow_up_result.scalar_one_or_none()
@@ -284,13 +306,13 @@ class EnhancedClinicalAnalytics:
 
         # Minimal important change (MIC) values for different tools
         MIC_VALUES = {
-            'PHQ9': 5.0,
-            'GAD7': 4.0,
-            'MDQ': 3.0,
-            'DAST10': 2.0,
-            'AQ10': 2.0,
-            'ACE': 2.0,
-            'CSSRS': 1.0
+            "PHQ9": 5.0,
+            "GAD7": 4.0,
+            "MDQ": 3.0,
+            "DAST10": 2.0,
+            "AQ10": 2.0,
+            "ACE": 2.0,
+            "CSSRS": 1.0,
         }
 
         mic = MIC_VALUES.get(screening_type, 3.0)
@@ -303,13 +325,11 @@ class EnhancedClinicalAnalytics:
             change=round(change, 2),
             clinically_significant=clinically_significant,
             minimal_important_change=mic,
-            achieved=achieved
+            achieved=achieved,
         )
 
     async def get_population_health_metrics(
-        self,
-        org_id: str,
-        screening_type: Optional[str] = None
+        self, org_id: str, screening_type: Optional[str] = None
     ) -> Dict[str, any]:
         """
         Get population health metrics for organization
@@ -328,10 +348,7 @@ class EnhancedClinicalAnalytics:
 
         # Completion rates
         completed_query = select(func.count(ClinicalScreening.id)).where(
-            and_(
-                *where_conditions,
-                ClinicalScreening.completed_at.isnot(None)
-            )
+            and_(*where_conditions, ClinicalScreening.completed_at.isnot(None))
         )
 
         total_query = select(func.count(ClinicalScreening.id)).where(
@@ -343,18 +360,16 @@ class EnhancedClinicalAnalytics:
 
         completed_count = completed_result.scalar() or 0
         total_count = total_result.scalar() or 0
-        completion_rate = (completed_count / total_count * 100) if total_count > 0 else 0
+        completion_rate = (
+            (completed_count / total_count * 100) if total_count > 0 else 0
+        )
 
         # Risk distribution
-        risk_query = select(
-            ClinicalScreening.risk_level,
-            func.count(ClinicalScreening.id)
-        ).where(
-            and_(
-                *where_conditions,
-                ClinicalScreening.completed_at.isnot(None)
-            )
-        ).group_by(ClinicalScreening.risk_level)
+        risk_query = (
+            select(ClinicalScreening.risk_level, func.count(ClinicalScreening.id))
+            .where(and_(*where_conditions, ClinicalScreening.completed_at.isnot(None)))
+            .group_by(ClinicalScreening.risk_level)
+        )
 
         risk_result = await self.db.execute(risk_query)
         risk_distribution = {row[0]: row[1] for row in risk_result}
@@ -363,7 +378,7 @@ class EnhancedClinicalAnalytics:
         crisis_query = select(func.count(ClinicalAlert.id)).where(
             and_(
                 ClinicalAlert.org_id == org_id,
-                ClinicalAlert.created_at >= datetime.utcnow() - timedelta(days=30)
+                ClinicalAlert.created_at >= datetime.utcnow() - timedelta(days=30),
             )
         )
 
@@ -371,15 +386,15 @@ class EnhancedClinicalAnalytics:
         crisis_count = crisis_result.scalar() or 0
 
         return {
-            'completion_rate': round(completion_rate, 2),
-            'total_screenings': total_count,
-            'completed_screenings': completed_count,
-            'risk_distribution': risk_distribution,
-            'crisis_alerts_last_30_days': crisis_count,
-            'high_risk_count': risk_distribution.get('high', 0),
-            'moderate_risk_count': risk_distribution.get('moderate', 0),
-            'low_risk_count': risk_distribution.get('low', 0),
-            'critical_risk_count': risk_distribution.get('critical', 0)
+            "completion_rate": round(completion_rate, 2),
+            "total_screenings": total_count,
+            "completed_screenings": completed_count,
+            "risk_distribution": risk_distribution,
+            "crisis_alerts_last_30_days": crisis_count,
+            "high_risk_count": risk_distribution.get("high", 0),
+            "moderate_risk_count": risk_distribution.get("moderate", 0),
+            "low_risk_count": risk_distribution.get("low", 0),
+            "critical_risk_count": risk_distribution.get("critical", 0),
         }
 
     def _generate_trend_recommendation(
@@ -387,7 +402,7 @@ class EnhancedClinicalAnalytics:
         screening_type: str,
         direction: TrendDirection,
         change_percentage: float,
-        p_value: float
+        p_value: float,
     ) -> str:
         """Generate recommendation based on trend"""
 
@@ -407,10 +422,7 @@ class EnhancedClinicalAnalytics:
             return f"{screening_type} scores stable. Continue current monitoring."
 
     def _generate_comparative_interpretation(
-        self,
-        screening_type: str,
-        percentile_rank: float,
-        z_score: float
+        self, screening_type: str, percentile_rank: float, z_score: float
     ) -> str:
         """Generate interpretation of comparative metrics"""
 
@@ -426,9 +438,7 @@ class EnhancedClinicalAnalytics:
             return f"Scores well below population average (bottom 25%). Good outcome."
 
     async def get_screening_analytics_summary(
-        self,
-        user_id: str,
-        org_id: str
+        self, user_id: str, org_id: str
     ) -> Dict[str, any]:
         """
         Get comprehensive analytics summary for user
@@ -440,13 +450,13 @@ class EnhancedClinicalAnalytics:
         Returns:
             Comprehensive analytics summary
         """
-        screening_types = ['PHQ9', 'GAD7', 'MDQ', 'DAST10', 'AQ10', 'ACE']
+        screening_types = ["PHQ9", "GAD7", "MDQ", "DAST10", "AQ10", "ACE"]
 
         summary = {
-            'user_id': user_id,
-            'org_id': org_id,
-            'generated_at': datetime.utcnow().isoformat(),
-            'screenings': {}
+            "user_id": user_id,
+            "org_id": org_id,
+            "generated_at": datetime.utcnow().isoformat(),
+            "screenings": {},
         }
 
         for screening_type in screening_types:
@@ -459,21 +469,41 @@ class EnhancedClinicalAnalytics:
             # Get outcome metrics
             outcomes = await self.get_outcome_metrics(user_id, screening_type)
 
-            summary['screenings'][screening_type] = {
-                'trends': {
-                    'direction': trends.direction.value if trends else None,
-                    'change_percentage': trends.change_percentage if trends else None,
-                    'recommendation': trends.recommendation if trends else None
-                } if trends else None,
-                'comparative': {
-                    'percentile_rank': comparative.percentile_rank if comparative else None,
-                    'interpretation': comparative.interpretation if comparative else None
-                } if comparative else None,
-                'outcomes': {
-                    'change': outcomes.change if outcomes else None,
-                    'clinically_significant': outcomes.clinically_significant if outcomes else None,
-                    'achieved': outcomes.achieved if outcomes else None
-                } if outcomes else None
+            summary["screenings"][screening_type] = {
+                "trends": (
+                    {
+                        "direction": trends.direction.value if trends else None,
+                        "change_percentage": (
+                            trends.change_percentage if trends else None
+                        ),
+                        "recommendation": trends.recommendation if trends else None,
+                    }
+                    if trends
+                    else None
+                ),
+                "comparative": (
+                    {
+                        "percentile_rank": (
+                            comparative.percentile_rank if comparative else None
+                        ),
+                        "interpretation": (
+                            comparative.interpretation if comparative else None
+                        ),
+                    }
+                    if comparative
+                    else None
+                ),
+                "outcomes": (
+                    {
+                        "change": outcomes.change if outcomes else None,
+                        "clinically_significant": (
+                            outcomes.clinically_significant if outcomes else None
+                        ),
+                        "achieved": outcomes.achieved if outcomes else None,
+                    }
+                    if outcomes
+                    else None
+                ),
             }
 
         return summary
@@ -481,9 +511,7 @@ class EnhancedClinicalAnalytics:
 
 # Analytics API endpoint helpers
 async def generate_analytics_report(
-    db: AsyncSession,
-    user_id: str,
-    org_id: str
+    db: AsyncSession, user_id: str, org_id: str
 ) -> Dict[str, any]:
     """
     Generate comprehensive analytics report
@@ -493,8 +521,8 @@ async def generate_analytics_report(
     analytics = EnhancedClinicalAnalytics(db)
 
     report = {
-        'summary': await analytics.get_screening_analytics_summary(user_id, org_id),
-        'population_health': await analytics.get_population_health_metrics(org_id)
+        "summary": await analytics.get_screening_analytics_summary(user_id, org_id),
+        "population_health": await analytics.get_population_health_metrics(org_id),
     }
 
     return report

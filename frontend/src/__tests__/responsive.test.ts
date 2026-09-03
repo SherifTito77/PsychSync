@@ -1,6 +1,6 @@
 /**
  * Responsive UI Test Suite
- * 
+ *
  * Tests mobile viewport compatibility and responsive design
  * Ensures all components work on mobile, tablet, and desktop
  */
@@ -171,7 +171,7 @@ export const DEVICE_CHECKLIST = `
 - [ ] iPhone 14 Pro Max (430x932)
 - [ ] iPad (768x1024)
 - [ ] iPad Pro 12.9" (1024x1366)
-## Android Devices  
+## Android Devices
 - [ ] Samsung Galaxy S21 (360x800)
 - [ ] Google Pixel 6 (412x915)
 - [ ] Samsung Galaxy Tab (800x1280)

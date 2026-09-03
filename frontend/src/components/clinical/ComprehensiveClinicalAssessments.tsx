@@ -18,7 +18,7 @@ import React, { useState, useEffect } from 'react';
 import {
   AlertCircle, CheckCircle, Heart, Shield, Brain, Activity,
   ChevronRight, ChevronLeft, Phone, Mail, Clock, FileText,
-  AlertTriangle, Info, X, Send, Download, Calendar, Zap
+  AlertTriangle, Info, X, Send, Download, Calendar, Zap, Moon
 } from 'lucide-react';
 
 // ============================================================================
@@ -26,7 +26,7 @@ import {
 // ============================================================================
 
 interface AssessmentProps {
-  assessmentType: 'PHQ9' | 'GAD7' | 'MDQ' | 'DAST10' | 'AQ10' | 'ACE' | 'ASRS';
+  assessmentType: 'PHQ9' | 'GAD7' | 'MDQ' | 'DAST10' | 'AQ10' | 'ACE' | 'ASRS' | 'ISI';
   onComplete: (result: ScreeningResult) => void;
   onCancel?: () => void;
 }
@@ -452,6 +452,78 @@ const ASSESSMENT_CONFIGS: Record<string, {
       }
     ],
     crisisThreshold: 48
+  },
+  ISI: {
+    title: 'ISI - Insomnia Severity Index',
+    description: 'Assessment of insomnia severity and its impact on daytime functioning over the past 2 weeks',
+    icon: Moon,
+    color: 'indigo',
+    questions: [
+      { id: 1, text: 'Difficulty falling asleep', key: '1', type: 'rating',
+        options: [
+          { value: 0, label: 'No problem' },
+          { value: 1, label: 'Mild' },
+          { value: 2, label: 'Moderate' },
+          { value: 3, label: 'Severe' },
+          { value: 4, label: 'Very severe' }
+        ]
+      },
+      { id: 2, text: 'Difficulty staying asleep (waking up frequently)', key: '2', type: 'rating',
+        options: [
+          { value: 0, label: 'No problem' },
+          { value: 1, label: 'Mild' },
+          { value: 2, label: 'Moderate' },
+          { value: 3, label: 'Severe' },
+          { value: 4, label: 'Very severe' }
+        ]
+      },
+      { id: 3, text: 'Problems waking up too early', key: '3', type: 'rating',
+        options: [
+          { value: 0, label: 'No problem' },
+          { value: 1, label: 'Mild' },
+          { value: 2, label: 'Moderate' },
+          { value: 3, label: 'Severe' },
+          { value: 4, label: 'Very severe' }
+        ]
+      },
+      { id: 4, text: 'How satisfied/dissatisfied are you with your current sleep pattern?', key: '4', type: 'rating',
+        options: [
+          { value: 0, label: 'Very satisfied' },
+          { value: 1, label: 'Satisfied' },
+          { value: 2, label: 'Neutral' },
+          { value: 3, label: 'Dissatisfied' },
+          { value: 4, label: 'Very dissatisfied' }
+        ]
+      },
+      { id: 5, text: 'How noticeable to others do you think your sleep problem is in terms of impairing quality of life?', key: '5', type: 'rating',
+        options: [
+          { value: 0, label: 'Not noticeable' },
+          { value: 1, label: 'A little' },
+          { value: 2, label: 'Somewhat' },
+          { value: 3, label: 'Very much' },
+          { value: 4, label: 'Extremely' }
+        ]
+      },
+      { id: 6, text: 'How worried/distressed are you about your current sleep problem?', key: '6', type: 'rating',
+        options: [
+          { value: 0, label: 'Not worried' },
+          { value: 1, label: 'A little' },
+          { value: 2, label: 'Somewhat' },
+          { value: 3, label: 'Much' },
+          { value: 4, label: 'Very much' }
+        ]
+      },
+      { id: 7, text: 'To what extent do you consider your sleep problem to interfere with your daily functioning (e.g., daytime fatigue, mood, ability to concentrate)?', key: '7', type: 'rating',
+        options: [
+          { value: 0, label: 'Not at all' },
+          { value: 1, label: 'A little' },
+          { value: 2, label: 'Somewhat' },
+          { value: 3, label: 'Much' },
+          { value: 4, label: 'Very much' }
+        ]
+      }
+    ],
+    crisisThreshold: 22
   }
 };
 
@@ -472,7 +544,7 @@ const AssessmentConsent: React.FC<{
 
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/clinical/screening/consent', {
+      const response = await fetch('/api/v1/screening/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -620,7 +692,7 @@ export const ClinicalAssessment: React.FC<AssessmentProps> = ({
 
     setLoading(true);
     try {
-      const endpoint = `/api/v1/clinical/screening/${assessmentType.toLowerCase()}`;
+      const endpoint = `/api/v1/screening/${assessmentType.toLowerCase()}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -666,78 +738,91 @@ export const ClinicalAssessment: React.FC<AssessmentProps> = ({
 
   // Assessment questions
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-4 sm:py-8 px-3 sm:px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
+        {/* Header - Mobile Optimized */}
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className={`p-3 rounded-xl bg-${config.color}-100`}>
-              <Icon className={`w-8 h-8 text-${config.color}-600`} />
+            <div className="p-2 sm:p-3 rounded-xl bg-purple-100">
+              <Icon className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{config.title}</h1>
-              <p className="text-gray-600 mt-1">{config.description}</p>
+            <div className="flex-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight">
+                {config.title}
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 hidden sm:block">
+                {config.description}
+              </p>
             </div>
           </div>
+          {/* Mobile-only description */}
+          <p className="text-sm text-gray-600 sm:hidden ml-11">
+            {config.description}
+          </p>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
+        {/* Progress Bar - Mobile Optimized */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex justify-between text-xs sm:text-sm text-gray-600 mb-2">
             <span>Question {currentQuestion + 1} of {config.questions.length}</span>
-            <span>{Math.round(progress)}% Complete</span>
+            <span>{Math.round(progress)}%</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3 overflow-hidden">
             <div
-              className={`bg-${config.color}-600 h-full rounded-full transition-all duration-500 ease-out`}
+              className="bg-purple-600 h-full rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        {/* Question Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-8">
+        {/* Question Card - Mobile Optimized */}
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-6 sm:mb-8 leading-relaxed">
             {currentQ.text}
           </h2>
 
-          <div className="space-y-3">
+          {/* Option Buttons - Minimum touch target 44px */}
+          <div className="space-y-3 sm:space-y-3">
             {currentQ.options?.map((option) => (
               <button
                 key={option.label}
                 onClick={() => handleResponse(option.value)}
-                className={`w-full p-5 text-left rounded-xl border-2 transition-all duration-200 ${
+                className={`w-full min-h-[56px] sm:min-h-[60px] p-4 sm:p-5 text-left rounded-xl border-2 transition-all duration-200 ${
                   responses[currentQ.key] === option.value
-                    ? `border-${config.color}-600 bg-${config.color}-50 shadow-md`
+                    ? 'border-purple-600 bg-purple-50 shadow-md'
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
                 aria-label={option.label}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900 text-lg">{option.label}</span>
+                  <span className="font-medium text-gray-900 text-base sm:text-lg">
+                    {option.label}
+                  </span>
                   {responses[currentQ.key] === option.value && (
-                    <CheckCircle className={`w-6 h-6 text-${config.color}-600`} />
+                    <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 flex-shrink-0" />
                   )}
                 </div>
               </button>
             ))}
           </div>
 
-          {/* Crisis Notice for Suicide Question */}
+          {/* Crisis Notice for Suicide Question - Mobile Optimized */}
           {config.crisisQuestion === currentQ.id && (
-            <div className="mt-8 bg-red-50 border-l-4 border-red-600 p-5 rounded-lg">
+            <div className="mt-6 sm:mt-8 bg-red-50 border-l-4 border-red-600 p-4 sm:p-5 rounded-lg">
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-red-900 mb-2">If you are in crisis, please reach out:</p>
-                  <div className="space-y-2 text-red-800">
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-red-900 mb-2 text-sm sm:text-base">
+                    If you are in crisis, please reach out:
+                  </p>
+                  <div className="space-y-2 text-red-800 text-sm sm:text-base">
                     <p className="flex items-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      <strong>Call 988</strong> - Suicide & Crisis Lifeline (24/7)
+                      <Phone className="w-4 h-4 flex-shrink-0" />
+                      <span><strong>Call 988</strong> - Suicide & Crisis Lifeline (24/7)</span>
                     </p>
-                    <p className="flex items-center gap-2">
-                      <Mail className="w-4 h-4" />
-                      Text <strong>"HELLO"</strong> to <strong>741741</strong>
+                    <p className="flex items-start sm:items-center gap-2">
+                      <Mail className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0" />
+                      <span>Text <strong>"HELLO"</strong> to <strong>741741</strong></span>
                     </p>
                   </div>
                 </div>
@@ -746,11 +831,11 @@ export const ClinicalAssessment: React.FC<AssessmentProps> = ({
           )}
         </div>
 
-        {/* Navigation */}
-        <div className="flex gap-4">
+        {/* Navigation - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <button
             onClick={handleBack}
-            className="px-6 py-4 border-2 border-gray-300 rounded-xl font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2"
+            className="w-full sm:w-auto px-4 sm:px-6 py-4 border-2 border-gray-300 rounded-xl font-semibold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <ChevronLeft className="w-5 h-5" />
             {currentQuestion > 0 ? 'Previous' : 'Cancel'}
@@ -760,16 +845,17 @@ export const ClinicalAssessment: React.FC<AssessmentProps> = ({
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className={`flex-1 bg-${config.color}-600 text-white py-4 rounded-xl font-semibold hover:bg-${config.color}-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2`}
+              className="w-full sm:flex-1 bg-purple-600 text-white py-4 rounded-xl font-semibold hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Submitting...
+                  <span className="hidden sm:inline">Submitting...</span>
+                  <span className="sm:hidden">Submit</span>
                 </>
               ) : (
                 <>
-                  Submit Assessment
+                  <span>Submit Assessment</span>
                   <Send className="w-5 h-5" />
                 </>
               )}
@@ -870,7 +956,7 @@ const AssessmentResults: React.FC<{
                 {Object.entries(result.subscale_scores).map(([key, value]) => (
                   <div key={key} className="bg-white p-4 rounded-lg">
                     <p className="text-sm text-gray-600 capitalize">{key.replace(/_/g, ' ')}</p>
-                    <p className="text-2xl font-bold text-blue-600">{Math.round(value)}</p>
+                    <p className="text-2xl font-bold text-blue-600">{Math.round(value as number)}</p>
                   </div>
                 ))}
               </div>

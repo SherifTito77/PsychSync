@@ -4,19 +4,20 @@ Complete Security Integration Test
 Demonstrates all security controls working together
 """
 
-import pytest
 import asyncio
-import time
 import json
+import time
 from datetime import datetime, timedelta
+
+import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.core.security import create_token_pair, verify_token
-from app.core.config import settings
 from app.core.account_security import account_security_manager
-from app.core.session_management import session_manager
+from app.core.config import settings
 from app.core.security_monitoring import security_monitor
+from app.core.session_management import session_manager
+from app.main import app
+from app.services.security import create_token_pair, verify_token
 
 client = TestClient(app)
 
@@ -38,7 +39,8 @@ class TestCompleteSecurityIntegration:
         test_password = "SecureP@ssw0rd123!"
 
         # Password should be strong
-        from app.core.security import validate_password
+        from app.services.security import validate_password
+
         validation = validate_password(test_password)
         assert validation["valid"] is True
         assert validation["strength_score"] >= 80
@@ -49,7 +51,7 @@ class TestCompleteSecurityIntegration:
         register_data = {
             "email": "securitytest@example.com",
             "password": test_password,
-            "full_name": "Security Test User"
+            "full_name": "Security Test User",
         }
 
         response = client.post("/api/v1/register", json=register_data)
@@ -64,10 +66,10 @@ class TestCompleteSecurityIntegration:
         # Simulate failed login attempts
         lockout_triggered = False
         for attempt in range(settings.MAX_LOGIN_ATTEMPTS + 2):
-            response = client.post("/api/v1/token", data={
-                "username": email,
-                "password": f"wrong_password_{attempt}"
-            })
+            response = client.post(
+                "/api/v1/token",
+                data={"username": email, "password": f"wrong_password_{attempt}"},
+            )
 
             if "lockout" in response.text.lower() or "locked" in response.text.lower():
                 lockout_triggered = True
@@ -80,7 +82,7 @@ class TestCompleteSecurityIntegration:
         print("4️⃣ Testing Login Success with Security Monitoring...")
         login_data = {
             "username": "admin@psychsync.com",  # Assuming this exists for testing
-            "password": "SecureAdminPass123!"
+            "password": "SecureAdminPass123!",
         }
 
         response = client.post("/api/v1/token", data=login_data)
@@ -117,7 +119,7 @@ class TestCompleteSecurityIntegration:
             security_headers = [
                 "x-content-type-options",
                 "x-frame-options",
-                "x-xss-protection"
+                "x-xss-protection",
             ]
 
             missing_headers = []
@@ -125,7 +127,9 @@ class TestCompleteSecurityIntegration:
                 if header not in response.headers:
                     missing_headers.append(header)
 
-            assert len(missing_headers) == 0, f"Missing security headers: {missing_headers}"
+            assert (
+                len(missing_headers) == 0
+            ), f"Missing security headers: {missing_headers}"
             print("   ✅ Security headers properly configured")
 
             # 8. Test Session Management
@@ -138,7 +142,9 @@ class TestCompleteSecurityIntegration:
                     assert "device_id" in session_info
                     print("   ✅ Session management with device tracking working")
                 else:
-                    print("   ⚠️  Session info not found (device fingerprinting disabled)")
+                    print(
+                        "   ⚠️  Session info not found (device fingerprinting disabled)"
+                    )
             else:
                 print("   ℹ️  Device fingerprinting is disabled")
 
@@ -146,6 +152,7 @@ class TestCompleteSecurityIntegration:
             print("9️⃣ Testing CSRF Protection...")
             # CSRF should be configured in middleware
             from app.main import app
+
             csrf_configured = any(
                 "CSRF" in str(middleware.__class__)
                 for middleware in app.user_middleware
@@ -177,10 +184,10 @@ class TestCompleteSecurityIntegration:
         print("\n🛡️  Testing Error Handling Security...")
 
         # Test with invalid credentials
-        response = client.post("/api/v1/token", data={
-            "username": "nonexistent@example.com",
-            "password": "wrongpassword"
-        })
+        response = client.post(
+            "/api/v1/token",
+            data={"username": "nonexistent@example.com", "password": "wrongpassword"},
+        )
 
         # Should return generic error without revealing information
         assert response.status_code == 401
@@ -190,7 +197,9 @@ class TestCompleteSecurityIntegration:
         sensitive_terms = ["password", "email", "user", "database", "sql"]
         found_sensitive = [term for term in sensitive_terms if term in response_text]
 
-        assert len(found_sensitive) == 0, f"Found sensitive terms in error: {found_sensitive}"
+        assert (
+            len(found_sensitive) == 0
+        ), f"Found sensitive terms in error: {found_sensitive}"
         print("   ✅ Secure error handling working")
 
     def test_input_validation_security(self):
@@ -201,14 +210,13 @@ class TestCompleteSecurityIntegration:
         sql_payloads = [
             "admin'; DROP TABLE users; --",
             "admin' OR '1'='1",
-            "admin' UNION SELECT * FROM users --"
+            "admin' UNION SELECT * FROM users --",
         ]
 
         for payload in sql_payloads:
-            response = client.post("/api/v1/token", data={
-                "username": payload,
-                "password": "password123"
-            })
+            response = client.post(
+                "/api/v1/token", data={"username": payload, "password": "password123"}
+            )
 
             # Should not cause server errors
             assert response.status_code not in [500, 502, 503]
@@ -217,15 +225,18 @@ class TestCompleteSecurityIntegration:
         xss_payloads = [
             "<script>alert('XSS')</script>",
             "javascript:alert('XSS')",
-            "<img src=x onerror=alert('XSS')>"
+            "<img src=x onerror=alert('XSS')>",
         ]
 
         for payload in xss_payloads:
-            response = client.post("/api/v1/register", json={
-                "email": "test@example.com",
-                "password": "SecurePass123!",
-                "full_name": payload
-            })
+            response = client.post(
+                "/api/v1/register",
+                json={
+                    "email": "test@example.com",
+                    "password": "SecurePass123!",
+                    "full_name": payload,
+                },
+            )
 
             # Response should not contain unescaped XSS
             response_text = response.text.lower()
@@ -239,9 +250,9 @@ class TestCompleteSecurityIntegration:
         print("\n🔄 Testing Token Refresh Security...")
 
         # Test refresh endpoint (should require valid refresh token)
-        response = client.post("/api/v1/refresh", data={
-            "refresh_token": "invalid_refresh_token"
-        })
+        response = client.post(
+            "/api/v1/refresh", data={"refresh_token": "invalid_refresh_token"}
+        )
 
         # Should reject invalid refresh tokens
         assert response.status_code in [401, 422]
@@ -256,9 +267,9 @@ class TestCompleteSecurityIntegration:
         assert response.status_code == 401
 
         # Test logout with invalid token
-        response = client.post("/api/v1/logout", headers={
-            "Authorization": "Bearer invalid_token"
-        })
+        response = client.post(
+            "/api/v1/logout", headers={"Authorization": "Bearer invalid_token"}
+        )
         assert response.status_code == 401
 
         print("   ✅ Logout security working")
@@ -279,7 +290,7 @@ class TestCompleteSecurityIntegration:
                     user_agent="Test Browser",
                     success=True,
                     endpoint="/api/v1/token",
-                    metadata={"test": True}
+                    metadata={"test": True},
                 )
 
                 # Security monitoring should work without errors
@@ -296,8 +307,12 @@ class TestCompleteSecurityIntegration:
         print("\n⚙️  Testing Security Configuration...")
 
         # Test that security settings are properly configured
-        assert len(settings.SECRET_KEY) >= 64, "Secret key should be at least 64 characters"
-        assert settings.ACCESS_TOKEN_EXPIRE_MINUTES > 0, "Access token expiration should be positive"
+        assert (
+            len(settings.SECRET_KEY) >= 64
+        ), "Secret key should be at least 64 characters"
+        assert (
+            settings.ACCESS_TOKEN_EXPIRE_MINUTES > 0
+        ), "Access token expiration should be positive"
         assert settings.MAX_LOGIN_ATTEMPTS > 0, "Max login attempts should be positive"
 
         print("   ✅ Security configuration validated")
@@ -318,7 +333,7 @@ class TestCompleteSecurityIntegration:
             ("Error Handling", True),
             ("Session Management", True),
             ("Security Monitoring", settings.SECURITY_MONITORING_ENABLED),
-            ("Device Fingerprinting", settings.DEVICE_FINGERPRINTING_ENABLED)
+            ("Device Fingerprinting", settings.DEVICE_FINGERPRINTING_ENABLED),
         ]
 
         for item, expected in security_items:
@@ -334,7 +349,9 @@ class TestCompleteSecurityIntegration:
         print(f"   Implemented: {implemented_items}/{total_items} security features")
 
         # Should have high security score
-        assert security_score >= 80, f"Security score should be at least 80%, got {security_score:.1f}%"
+        assert (
+            security_score >= 80
+        ), f"Security score should be at least 80%, got {security_score:.1f}%"
 
         print("   ✅ Comprehensive security checklist passed")
 
@@ -352,7 +369,7 @@ class TestSecurityCompliance:
             ("A03 Injection", True),  # Implemented via input validation
             ("A05 Security Misconfiguration", True),  # Implemented via secure headers
             ("A07 Identification & Authentication Failures", True),  # Implemented
-            ("A09 Security Logging & Monitoring", settings.SECURITY_MONITORING_ENABLED)
+            ("A09 Security Logging & Monitoring", settings.SECURITY_MONITORING_ENABLED),
         ]
 
         for check, implemented in owasp_checks:

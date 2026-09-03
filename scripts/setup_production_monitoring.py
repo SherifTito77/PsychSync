@@ -9,17 +9,20 @@ Usage:
     python setup_production_monitoring.py
 """
 
+import json
+import logging
 import os
 import sys
-import json
 import time
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Any
-import logging
+from pathlib import Path
+from typing import Any, Dict, List
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 class ProductionMonitoringSetup:
     """Comprehensive production monitoring setup"""
@@ -34,7 +37,7 @@ class ProductionMonitoringSetup:
             "configuration_files": {},
             "integration_status": {},
             "recommendations": [],
-            "overall_status": "in_progress"
+            "overall_status": "in_progress",
         }
 
     def setup_monitoring(self) -> Dict[str, Any]:
@@ -88,7 +91,7 @@ class ProductionMonitoringSetup:
             "monitoring/metrics",
             "monitoring/dashboards",
             "monitoring/alerts",
-            "monitoring/scripts"
+            "monitoring/scripts",
         ]
 
         for directory in directories:
@@ -112,21 +115,21 @@ class ProductionMonitoringSetup:
                 "cache_hit_rate",
                 "database_queries",
                 "memory_usage",
-                "cpu_usage"
+                "cpu_usage",
             ],
             "thresholds": {
                 "response_time_ms": 2000,
                 "error_rate_percent": 5,
                 "cache_hit_rate_percent": 80,
                 "memory_usage_mb": 512,
-                "cpu_usage_percent": 70
+                "cpu_usage_percent": 70,
             },
-            "alert_channels": ["email", "slack"]
+            "alert_channels": ["email", "slack"],
         }
 
         # Save performance monitoring config
         perf_config_path = self.config_dir / "performance_monitoring.json"
-        with open(perf_config_path, 'w') as f:
+        with open(perf_config_path, "w") as f:
             json.dump(perf_config, f, indent=2)
 
         # Create performance monitoring script
@@ -160,7 +163,7 @@ if __name__ == "__main__":
 '''
 
         perf_script_path = self.monitoring_dir / "scripts" / "performance_monitor.py"
-        with open(perf_script_path, 'w') as f:
+        with open(perf_script_path, "w") as f:
             f.write(perf_script)
 
         # Make script executable
@@ -177,29 +180,19 @@ if __name__ == "__main__":
         error_config = {
             "enabled": True,
             "log_level": "INFO",
-            "error_types": [
-                "critical",
-                "error",
-                "warning",
-                "exception"
-            ],
-            "channels": {
-                "file": True,
-                "console": True,
-                "slack": False,
-                "email": False
-            },
+            "error_types": ["critical", "error", "warning", "exception"],
+            "channels": {"file": True, "console": True, "slack": False, "email": False},
             "retention_days": 30,
-            "max_file_size_mb": 100
+            "max_file_size_mb": 100,
         }
 
         # Save error tracking config
         error_config_path = self.config_dir / "error_tracking.json"
-        with open(error_config_path, 'w') as f:
+        with open(error_config_path, "w") as f:
             json.dump(error_config, f, indent=2)
 
         # Create logging configuration
-        logging_config = '''
+        logging_config = """
 {
     "version": 1,
     "disable_existing_loggers": False,
@@ -253,10 +246,10 @@ if __name__ == "__main__":
         }
     }
 }
-'''
+"""
 
         logging_config_path = self.monitoring_dir / "logging_config.json"
-        with open(logging_config_path, 'w') as f:
+        with open(logging_config_path, "w") as f:
             f.write(logging_config)
 
         self.results["monitoring_components"]["error_tracking"] = True
@@ -277,25 +270,25 @@ if __name__ == "__main__":
                 "background_sync_events",
                 "push_notification_delivery",
                 "app_launch_speed",
-                "user_engagement"
+                "user_engagement",
             ],
             "tracking": {
                 "daily_active_users": True,
                 "installation_events": True,
                 "offline_sessions": True,
                 "cache_hit_rates": True,
-                "error_rates": True
+                "error_rates": True,
             },
             "alerting": {
                 "pwa_score_threshold": 80,
                 "offline_session_threshold": 100,
-                "installation_rate_target": 15
-            }
+                "installation_rate_target": 15,
+            },
         }
 
         # Save PWA monitoring config
         pwa_config_path = self.config_dir / "pwa_monitoring.json"
-        with open(pwa_config_path, 'w') as f:
+        with open(pwa_config_path, "w") as f:
             json.dump(pwa_config, f, indent=2)
 
         # Create PWA monitoring script
@@ -348,7 +341,7 @@ if __name__ == "__main__":
 '''
 
         pwa_script_path = self.monitoring_dir / "scripts" / "pwa_monitor.py"
-        with open(pwa_script_path, 'w') as f:
+        with open(pwa_script_path, "w") as f:
             f.write(pwa_monitor_script)
 
         # Make script executable
@@ -370,26 +363,26 @@ if __name__ == "__main__":
                 "team_formations": True,
                 "feature_usage": True,
                 "user_engagement": True,
-                "conversion_rates": True
+                "conversion_rates": True,
             },
             "metrics": [
                 "daily_active_users",
                 "monthly_active_users",
                 "assessment_completion_rate",
                 "team_engagement_score",
-                "user_retention_rate"
+                "user_retention_rate",
             ],
             "reports": {
                 "daily_report": True,
                 "weekly_report": True,
                 "monthly_report": True,
-                "real_time_dashboard": True
-            }
+                "real_time_dashboard": True,
+            },
         }
 
         # Save analytics config
         analytics_config_path = self.config_dir / "analytics.json"
-        with open(analytics_config_path, 'w') as f:
+        with open(analytics_config_path, "w") as f:
             json.dump(analytics_config, f, indent=2)
 
         self.results["monitoring_components"]["analytics"] = True
@@ -406,38 +399,38 @@ if __name__ == "__main__":
                 "email": {
                     "enabled": False,
                     "smtp_server": "smtp.example.com",
-                    "recipients": ["admin@psychsync.com"]
+                    "recipients": ["admin@psychsync.com"],
                 },
                 "slack": {
                     "enabled": False,
-                    "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
-                }
+                    "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK",
+                },
             },
             "rules": [
                 {
                     "name": "high_error_rate",
                     "condition": "error_rate > 5",
                     "severity": "critical",
-                    "message": "Error rate is above 5%"
+                    "message": "Error rate is above 5%",
                 },
                 {
                     "name": "slow_response_time",
                     "condition": "response_time_ms > 2000",
                     "severity": "warning",
-                    "message": "Response time is above 2 seconds"
+                    "message": "Response time is above 2 seconds",
                 },
                 {
                     "name": "pwa_score_low",
                     "condition": "pwa_score < 80",
                     "severity": "warning",
-                    "message": "PWA score is below 80%"
-                }
-            ]
+                    "message": "PWA score is below 80%",
+                },
+            ],
         }
 
         # Save alerting config
         alerting_config_path = self.config_dir / "alerting.json"
-        with open(alerting_config_path, 'w') as f:
+        with open(alerting_config_path, "w") as f:
             json.dump(alerting_config, f, indent=2)
 
         self.results["monitoring_components"]["alerting"] = True
@@ -457,8 +450,8 @@ if __name__ == "__main__":
                     "installation_rate",
                     "offline_usage",
                     "cache_performance",
-                    "user_engagement"
-                ]
+                    "user_engagement",
+                ],
             },
             {
                 "name": "Application Performance Dashboard",
@@ -468,8 +461,8 @@ if __name__ == "__main__":
                     "request_rate",
                     "error_rate",
                     "throughput",
-                    "resource_usage"
-                ]
+                    "resource_usage",
+                ],
             },
             {
                 "name": "Business Metrics Dashboard",
@@ -479,18 +472,18 @@ if __name__ == "__main__":
                     "assessment_completions",
                     "team_formations",
                     "user_retention",
-                    "conversion_rates"
-                ]
-            }
+                    "conversion_rates",
+                ],
+            },
         ]
 
         # Save dashboard config
         dashboards_config_path = self.config_dir / "dashboards.json"
-        with open(dashboards_config_path, 'w') as f:
+        with open(dashboards_config_path, "w") as f:
             json.dump(dashboards, f, indent=2)
 
         # Create dashboard HTML template
-        dashboard_html = '''<!DOCTYPE html>
+        dashboard_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -640,10 +633,10 @@ if __name__ == "__main__":
     </script>
 </body>
 </html>
-'''
+"""
 
         dashboard_path = self.monitoring_dir / "dashboards" / "index.html"
-        with open(dashboard_path, 'w') as f:
+        with open(dashboard_path, "w") as f:
             f.write(dashboard_html)
 
         self.results["monitoring_components"]["dashboards"] = True
@@ -666,20 +659,18 @@ if __name__ == "__main__":
                 "analytics": "monitoring/config/analytics.json",
                 "alerting": "monitoring/config/alerting.json",
                 "dashboards": "monitoring/config/dashboards.json",
-                "logging": "monitoring/logging_config.json"
+                "logging": "monitoring/logging_config.json",
             },
             "scripts": {
                 "performance_monitor": "monitoring/scripts/performance_monitor.py",
-                "pwa_monitor": "monitoring/scripts/pwa_monitor.py"
+                "pwa_monitor": "monitoring/scripts/pwa_monitor.py",
             },
-            "dashboards": {
-                "main_dashboard": "monitoring/dashboards/index.html"
-            }
+            "dashboards": {"main_dashboard": "monitoring/dashboards/index.html"},
         }
 
         # Save master config
         master_config_path = self.monitoring_dir / "monitoring_config.json"
-        with open(master_config_path, 'w') as f:
+        with open(master_config_path, "w") as f:
             json.dump(master_config, f, indent=2)
 
         logger.info("  ✅ Master monitoring configuration generated")
@@ -690,9 +681,15 @@ if __name__ == "__main__":
 
         # Calculate setup completion
         total_components = len(self.results["monitoring_components"])
-        completed_components = sum(1 for status in self.results["monitoring_components"].values() if status)
+        completed_components = sum(
+            1 for status in self.results["monitoring_components"].values() if status
+        )
 
-        completion_rate = (completed_components / total_components) * 100 if total_components > 0 else 0
+        completion_rate = (
+            (completed_components / total_components) * 100
+            if total_components > 0
+            else 0
+        )
 
         # Generate recommendations
         recommendations = []
@@ -702,9 +699,13 @@ if __name__ == "__main__":
                     recommendations.append(f"Complete {component} setup")
 
         if not self.results["monitoring_components"].get("performance", False):
-            recommendations.append("Set up performance monitoring for optimal user experience")
+            recommendations.append(
+                "Set up performance monitoring for optimal user experience"
+            )
         if not self.results["monitoring_components"].get("pwa", False):
-            recommendations.append("Enable PWA-specific monitoring to track user engagement")
+            recommendations.append(
+                "Enable PWA-specific monitoring to track user engagement"
+            )
 
         self.results["setup_completion_rate"] = completion_rate
         self.results["recommendations"] = recommendations
@@ -724,9 +725,9 @@ if __name__ == "__main__":
 
     def display_summary(self):
         """Display setup summary"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🚀 PSYCHSYNC PRODUCTION MONITORING SETUP RESULTS")
-        print("="*60)
+        print("=" * 60)
         print(f"Setup Timestamp: {self.results['setup_timestamp']}")
         print(f"Environment: Production")
         print(f"Overall Status: {self.results['overall_status'].upper()}")
@@ -759,9 +760,9 @@ if __name__ == "__main__":
             print("  ✅ Main Dashboard: monitoring/dashboards/index.html")
         print()
 
-        if self.results.get('recommendations'):
+        if self.results.get("recommendations"):
             print("💡 Recommendations:")
-            for i, rec in enumerate(self.results['recommendations'], 1):
+            for i, rec in enumerate(self.results["recommendations"], 1):
                 print(f"  {i}. {rec}")
             print()
 
@@ -769,11 +770,14 @@ if __name__ == "__main__":
             "excellent": "🎉",
             "good": "✅",
             "basic": "⚠️",
-            "incomplete": "❌"
+            "incomplete": "❌",
         }.get(self.results["overall_status"], "❓")
 
-        print(f"{status_icon} Monitoring Setup: {self.results['overall_status'].upper()}")
-        print("="*60)
+        print(
+            f"{status_icon} Monitoring Setup: {self.results['overall_status'].upper()}"
+        )
+        print("=" * 60)
+
 
 def main():
     """Main setup execution"""
@@ -791,6 +795,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Setup failed: {e}")
         return False
+
 
 if __name__ == "__main__":
     success = main()

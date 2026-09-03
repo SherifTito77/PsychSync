@@ -37,20 +37,20 @@ def init_db():
     try:
         # Import all models to register them with Base
         from app.db.models import (
-            User, Organization, Team, TeamMember, 
+            User, Organization, Team, TeamMember,
             Assessment, Prediction
         )
-        
+
         # Create all tables
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully")
-        
+
         # Show created tables
         from sqlalchemy import inspect
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         print(f"📋 Tables created: {', '.join(tables)}")
-        
+
     except Exception as e:
         print(f"❌ Error creating database tables: {e}")
         import traceback

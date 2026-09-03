@@ -58,7 +58,7 @@ export function CrisisResources({ severity = 'moderate', showMessage = true }: C
       <CardContent className="space-y-4 pt-4">
         {/* Critical warning */}
         {isCritical && (
-          <Alert variant="destructive">
+          <Alert variant="error">
             <AlertDescription>
               <div className="space-y-2">
                 <div className="font-semibold text-lg">
@@ -86,7 +86,7 @@ export function CrisisResources({ severity = 'moderate', showMessage = true }: C
         {/* Resource list */}
         <div className="space-y-3">
           {CRISIS_RESOURCES.map((resource, idx) => (
-            <Alert key={idx} variant={idx === 2 ? 'destructive' : 'default'}>
+            <Alert key={idx} variant={idx === 2 ? "error" : "info"}>
               <AlertDescription>
                 <div className="flex items-start gap-3">
                   <div className="mt-1">
@@ -168,7 +168,7 @@ export default CrisisResources;
  */
 export function CrisisBanner({ message }: { message?: string }) {
   return (
-    <Alert variant="destructive" className="border-2 border-destructive">
+    <Alert variant="error" className="border-2 border-destructive">
       <AlertTriangle className="h-4 w-4" />
       <AlertDescription>
         <div className="flex items-center justify-between gap-4">

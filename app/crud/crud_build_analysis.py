@@ -11,10 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db.models.build_analysis import (
-    BuildFailure,
-    RootCauseAnalysis,
-    BuildPattern,
     BuildAnalysisReport,
+    BuildFailure,
+    BuildPattern,
+    RootCauseAnalysis,
 )
 
 
@@ -26,9 +26,13 @@ class CRUDBuildFailure:
         result = await db.execute(select(BuildFailure).where(BuildFailure.id == id))
         return result.scalar_one_or_none()
 
-    async def get_by_build_id(self, db: AsyncSession, *, build_id: str) -> Optional[BuildFailure]:
+    async def get_by_build_id(
+        self, db: AsyncSession, *, build_id: str
+    ) -> Optional[BuildFailure]:
         """Get build failure by build ID"""
-        result = await db.execute(select(BuildFailure).where(BuildFailure.build_id == build_id))
+        result = await db.execute(
+            select(BuildFailure).where(BuildFailure.build_id == build_id)
+        )
         return result.scalar_one_or_none()
 
     async def get_unresolved(
@@ -129,7 +133,13 @@ class CRUDBuildFailure:
         return obj
 
     async def resolve(
-        self, db: AsyncSession, *, failure_id: UUID, resolution_notes: str, fix_commit_hash: str, resolution_time_minutes: int
+        self,
+        db: AsyncSession,
+        *,
+        failure_id: UUID,
+        resolution_notes: str,
+        fix_commit_hash: str,
+        resolution_time_minutes: int
     ) -> Optional[BuildFailure]:
         """Mark build failure as resolved"""
         failure = await self.get(db, id=failure_id)
@@ -143,12 +153,30 @@ class CRUDBuildFailure:
         return failure
 
     async def mark_as_resolved(
-        self, db: AsyncSession, *, failure_id: UUID, resolution_notes: str, fix_commit_hash: str, resolution_time_minutes: int
+        self,
+        db: AsyncSession,
+        *,
+        failure_id: UUID,
+        resolution_notes: str,
+        fix_commit_hash: str,
+        resolution_time_minutes: int
     ) -> Optional[BuildFailure]:
         """Mark build failure as resolved (alias for resolve)"""
-        return await self.resolve(db, failure_id=failure_id, resolution_notes=resolution_notes, fix_commit_hash=fix_commit_hash, resolution_time_minutes=resolution_time_minutes)
+        return await self.resolve(
+            db,
+            failure_id=failure_id,
+            resolution_notes=resolution_notes,
+            fix_commit_hash=fix_commit_hash,
+            resolution_time_minutes=resolution_time_minutes,
+        )
 
-    def calculate_health_grade(self, total_failures, unresolved_failures, critical_failures, avg_resolution_time) -> str:
+    def calculate_health_grade(
+        self,
+        total_failures,
+        unresolved_failures,
+        critical_failures,
+        avg_resolution_time,
+    ) -> str:
         """Calculate overall health grade"""
         score = 100
 
@@ -204,7 +232,9 @@ class CRUDRootCauseAnalysis:
 
     async def get(self, db: AsyncSession, id: UUID) -> Optional[RootCauseAnalysis]:
         """Get analysis by ID"""
-        result = await db.execute(select(RootCauseAnalysis).where(RootCauseAnalysis.id == id))
+        result = await db.execute(
+            select(RootCauseAnalysis).where(RootCauseAnalysis.id == id)
+        )
         return result.scalar_one_or_none()
 
     async def get_by_failure_id(
@@ -286,7 +316,9 @@ class CRUDBuildAnalysisReport:
 
     async def get(self, db: AsyncSession, id: UUID) -> Optional[BuildAnalysisReport]:
         """Get report by ID"""
-        result = await db.execute(select(BuildAnalysisReport).where(BuildAnalysisReport.id == id))
+        result = await db.execute(
+            select(BuildAnalysisReport).where(BuildAnalysisReport.id == id)
+        )
         return result.scalar_one_or_none()
 
     async def get_latest(
@@ -294,7 +326,9 @@ class CRUDBuildAnalysisReport:
     ) -> list[BuildAnalysisReport]:
         """Get recent analysis reports"""
         result = await db.execute(
-            select(BuildAnalysisReport).order_by(BuildAnalysisReport.report_date.desc()).limit(limit)
+            select(BuildAnalysisReport)
+            .order_by(BuildAnalysisReport.report_date.desc())
+            .limit(limit)
         )
         return list(result.scalars().all())
 

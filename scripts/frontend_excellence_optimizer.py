@@ -15,19 +15,20 @@ Implements:
 """
 
 import asyncio
+import gzip
+import json
+import os
+import re
 import subprocess
 import sys
-import os
-import json
-import re
 import time
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-import requests
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
-import gzip
+
+import requests
 
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -377,7 +378,7 @@ class FrontendExcellenceOptimizer:
                 try:
                     with open(file_path, 'rb') as f:
                         gzipped_size = len(gzip.compress(f.read()))
-                except:
+                except Exception as e:
                     gzipped_size = file_size
 
                 relative_path = os.path.relpath(file_path, dist_path)

@@ -4,24 +4,24 @@ Satisfaction Scoring Service
 Business logic for calculating and managing CSAT, NPS, CES, and CSI scores.
 """
 
-from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict, Tuple
-from uuid import UUID
 import asyncio
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional, Tuple
+from uuid import UUID
 
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, case
 from sqlalchemy.sql import text
 
 from app.db.models.satisfaction import (
-    SatisfactionSurvey,
-    SatisfactionAggregation,
     CompositeSatisfactionIndex,
     CustomerLifecycleStage,
+    NPSCategory,
+    SatisfactionAggregation,
     SatisfactionFollowUp,
+    SatisfactionSurvey,
     SurveyType,
     TouchpointType,
-    NPSCategory
 )
 
 
@@ -55,7 +55,7 @@ class SatisfactionScoringService:
         survey_channel: str = "in_app",
         context: Optional[Dict] = None,
         organization_id: Optional[UUID] = None,
-        sent_at: Optional[datetime] = None
+        sent_at: Optional[datetime] = None,
     ) -> SatisfactionSurvey:
         """
         Record a satisfaction survey response.
@@ -97,7 +97,7 @@ class SatisfactionScoringService:
             survey_channel=survey_channel,
             context=context or {},
             sent_at=sent_at or datetime.now(timezone.utc),
-            responded_at=datetime.now(timezone.utc)
+            responded_at=datetime.now(timezone.utc),
         )
 
         self.db.add(survey)
@@ -115,7 +115,7 @@ class SatisfactionScoringService:
         ranges = {
             SurveyType.CSAT: (1, 5),
             SurveyType.NPS: (0, 10),
-            SurveyType.CES: (1, 7)
+            SurveyType.CES: (1, 7),
         }
 
         min_score, max_score = ranges[survey_type]
@@ -144,18 +144,20 @@ class SatisfactionScoringService:
             return score <= 3  # Difficult
         return False
 
-    async def _create_follow_up(self, survey: SatisfactionSurvey) -> SatisfactionFollowUp:
+    async def _create_follow_up(
+        self, survey: SatisfactionSurvey
+    ) -> SatisfactionFollowUp:
         """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+        Args:
+            db: Database session
+            **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+        Returns:
+            Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+        Raises:
+            ValidationError: If input data is invalid
         """
         """Create a follow-up action for low-scoring surveys."""
         # Determine alert level
@@ -179,7 +181,7 @@ Raises:
             alert_level=alert_level,
             follow_up_type="email",
             follow_up_status="pending",
-            due_at=due_at
+            due_at=due_at,
         )
 
         self.db.add(follow_up)
@@ -196,7 +198,7 @@ Raises:
         touchpoint_type: Optional[TouchpointType] = None,
         organization_id: Optional[UUID] = None,
         period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None
+        period_end: Optional[datetime] = None,
     ) -> Dict:
         """
         Calculate CSAT (Customer Satisfaction Score).
@@ -221,7 +223,7 @@ Raises:
             and_(
                 SatisfactionSurvey.survey_type == SurveyType.CSAT,
                 SatisfactionSurvey.responded_at >= period_start,
-                SatisfactionSurvey.responded_at <= period_end
+                SatisfactionSurvey.responded_at <= period_end,
             )
         )
 
@@ -239,7 +241,7 @@ Raises:
                 "total_responses": 0,
                 "satisfied_count": 0,
                 "average_score": 0.0,
-                "rating_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+                "rating_distribution": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
             }
 
         # Calculate metrics
@@ -259,7 +261,7 @@ Raises:
             "satisfied_count": satisfied_count,
             "average_score": round(average_score, 2),
             "rating_distribution": distribution,
-            "benchmark": self._get_csat_benchmark(csat_percentage)
+            "benchmark": self._get_csat_benchmark(csat_percentage),
         }
 
     def _get_csat_benchmark(self, csat_percentage: float) -> str:
@@ -281,7 +283,7 @@ Raises:
         self,
         organization_id: Optional[UUID] = None,
         period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None
+        period_end: Optional[datetime] = None,
     ) -> Dict:
         """
         Calculate NPS (Net Promoter Score).
@@ -307,7 +309,7 @@ Raises:
             and_(
                 SatisfactionSurvey.survey_type == SurveyType.NPS,
                 SatisfactionSurvey.responded_at >= period_start,
-                SatisfactionSurvey.responded_at <= period_end
+                SatisfactionSurvey.responded_at <= period_end,
             )
         )
 
@@ -327,7 +329,7 @@ Raises:
                 "passive_percentage": 0.0,
                 "detractor_count": 0,
                 "detractor_percentage": 0.0,
-                "benchmark": "no_data"
+                "benchmark": "no_data",
             }
 
         # Calculate metrics
@@ -349,7 +351,7 @@ Raises:
             "passive_percentage": round((passives / total_responses) * 100, 1),
             "detractor_count": detractors,
             "detractor_percentage": round(detractor_pct, 1),
-            "benchmark": self._get_nps_benchmark(nps_score)
+            "benchmark": self._get_nps_benchmark(nps_score),
         }
 
     def _get_nps_benchmark(self, nps_score: int) -> str:
@@ -372,7 +374,7 @@ Raises:
         touchpoint_type: Optional[TouchpointType] = None,
         organization_id: Optional[UUID] = None,
         period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None
+        period_end: Optional[datetime] = None,
     ) -> Dict:
         """
         Calculate CES (Customer Effort Score).
@@ -397,7 +399,7 @@ Raises:
             and_(
                 SatisfactionSurvey.survey_type == SurveyType.CES,
                 SatisfactionSurvey.responded_at >= period_start,
-                SatisfactionSurvey.responded_at <= period_end
+                SatisfactionSurvey.responded_at <= period_end,
             )
         )
 
@@ -415,7 +417,7 @@ Raises:
                 "total_responses": 0,
                 "easy_count": 0,
                 "ease_percentage": 0.0,
-                "benchmark": "no_data"
+                "benchmark": "no_data",
             }
 
         # Calculate metrics
@@ -429,7 +431,7 @@ Raises:
             "total_responses": total_responses,
             "easy_count": easy_count,
             "ease_percentage": round(ease_percentage, 1),
-            "benchmark": self._get_ces_benchmark(ces_score)
+            "benchmark": self._get_ces_benchmark(ces_score),
         }
 
     def _get_ces_benchmark(self, ces_score: float) -> str:
@@ -451,7 +453,7 @@ Raises:
         self,
         organization_id: Optional[UUID] = None,
         period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None
+        period_end: Optional[datetime] = None,
     ) -> Dict:
         """
         Calculate Composite Satisfaction Index (CSI).
@@ -475,37 +477,51 @@ Raises:
         period_end = period_end or datetime.now(timezone.utc)
 
         # Get component scores
-        csat_data = await self.calculate_csat(organization_id=organization_id,
-                                               period_start=period_start,
-                                               period_end=period_end)
-        nps_data = await self.calculate_nps(organization_id=organization_id,
-                                            period_start=period_start,
-                                            period_end=period_end)
-        ces_data = await self.calculate_ces(organization_id=organization_id,
-                                            period_start=period_start,
-                                            period_end=period_end)
+        csat_data = await self.calculate_csat(
+            organization_id=organization_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        nps_data = await self.calculate_nps(
+            organization_id=organization_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        ces_data = await self.calculate_ces(
+            organization_id=organization_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
 
         # Normalize scores to 0-100 scale
         csat_normalized = csat_data["csat_percentage"]
         nps_normalized = (nps_data["nps_score"] + 100) / 2
-        ces_normalized = (ces_data["ces_score"] / 7) * 100 if ces_data["ces_score"] > 0 else 0
+        ces_normalized = (
+            (ces_data["ces_score"] / 7) * 100 if ces_data["ces_score"] > 0 else 0
+        )
 
         # Calculate CSI
-        csi_score = (csat_normalized * 0.25) + (nps_normalized * 0.50) + (ces_normalized * 0.25)
+        csi_score = (
+            (csat_normalized * 0.25) + (nps_normalized * 0.50) + (ces_normalized * 0.25)
+        )
 
         # Get previous period for trend analysis
         previous_period_start = period_start - timedelta(days=90)
         previous_period_end = period_start
-        previous_csi = await self._get_previous_csi(organization_id,
-                                                     previous_period_start,
-                                                     previous_period_end)
+        previous_csi = await self._get_previous_csi(
+            organization_id, previous_period_start, previous_period_end
+        )
 
         # Calculate trend
         change_amount = None
         change_percentage = None
         if previous_csi is not None:
             change_amount = csi_score - previous_csi
-            change_percentage = ((csi_score - previous_csi) / previous_csi) * 100 if previous_csi > 0 else 0
+            change_percentage = (
+                ((csi_score - previous_csi) / previous_csi) * 100
+                if previous_csi > 0
+                else 0
+            )
 
         return {
             "csi_score": round(csi_score, 1),
@@ -515,27 +531,37 @@ Raises:
             "ces_score": round(ces_normalized, 1),
             "performance_level": self._get_csi_performance_level(csi_score),
             "previous_csi_score": previous_csi,
-            "change_amount": round(change_amount, 1) if change_amount is not None else None,
-            "change_percentage": round(change_percentage, 1) if change_percentage is not None else None
+            "change_amount": (
+                round(change_amount, 1) if change_amount is not None else None
+            ),
+            "change_percentage": (
+                round(change_percentage, 1) if change_percentage is not None else None
+            ),
         }
 
     async def _get_previous_csi(
         self,
         organization_id: Optional[UUID],
         period_start: datetime,
-        period_end: datetime
+        period_end: datetime,
     ) -> Optional[float]:
         """Get CSI score from previous period for trend comparison."""
         # Get component scores
-        csat_data = await self.calculate_csat(organization_id=organization_id,
-                                               period_start=period_start,
-                                               period_end=period_end)
-        nps_data = await self.calculate_nps(organization_id=organization_id,
-                                            period_start=period_start,
-                                            period_end=period_end)
-        ces_data = await self.calculate_ces(organization_id=organization_id,
-                                            period_start=period_start,
-                                            period_end=period_end)
+        csat_data = await self.calculate_csat(
+            organization_id=organization_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        nps_data = await self.calculate_nps(
+            organization_id=organization_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        ces_data = await self.calculate_ces(
+            organization_id=organization_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
 
         # Check if we have data
         if csat_data["total_responses"] == 0:
@@ -544,9 +570,13 @@ Raises:
         # Calculate CSI
         csat_normalized = csat_data["csat_percentage"]
         nps_normalized = (nps_data["nps_score"] + 100) / 2
-        ces_normalized = (ces_data["ces_score"] / 7) * 100 if ces_data["ces_score"] > 0 else 0
+        ces_normalized = (
+            (ces_data["ces_score"] / 7) * 100 if ces_data["ces_score"] > 0 else 0
+        )
 
-        csi_score = (csat_normalized * 0.25) + (nps_normalized * 0.50) + (ces_normalized * 0.25)
+        csi_score = (
+            (csat_normalized * 0.25) + (nps_normalized * 0.50) + (ces_normalized * 0.25)
+        )
         return csi_score
 
     def _get_csi_performance_level(self, csi_score: float) -> str:
@@ -573,7 +603,7 @@ Raises:
         organization_id: Optional[UUID] = None,
         entered_via: Optional[str] = None,
         conversion_source: Optional[str] = None,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
     ) -> CustomerLifecycleStage:
         """
         Update user's lifecycle stage.
@@ -592,12 +622,16 @@ Raises:
             Created CustomerLifecycleStage record
         """
         # Get current stage
-        current_stage_query = select(CustomerLifecycleStage).where(
-            and_(
-                CustomerLifecycleStage.user_id == user_id,
-                CustomerLifecycleStage.stage_exit_date.is_(None)
+        current_stage_query = (
+            select(CustomerLifecycleStage)
+            .where(
+                and_(
+                    CustomerLifecycleStage.user_id == user_id,
+                    CustomerLifecycleStage.stage_exit_date.is_(None),
+                )
             )
-        ).order_by(CustomerLifecycleStage.stage_entry_date.desc())
+            .order_by(CustomerLifecycleStage.stage_entry_date.desc())
+        )
 
         result = await self.db.execute(current_stage_query)
         current_stage_record = result.scalar_one_or_none()
@@ -605,7 +639,9 @@ Raises:
         # Close current stage if exists
         if current_stage_record:
             current_stage_record.stage_exit_date = datetime.now(timezone.utc)
-            days_in_stage = (datetime.now(timezone.utc) - current_stage_record.stage_entry_date).days
+            days_in_stage = (
+                datetime.now(timezone.utc) - current_stage_record.stage_entry_date
+            ).days
             current_stage_record.days_in_stage = days_in_stage
 
         # Create new stage record
@@ -614,11 +650,13 @@ Raises:
             organization_id=organization_id,
             tenant_id=organization_id,
             current_stage=new_stage,
-            previous_stage=current_stage_record.current_stage if current_stage_record else None,
+            previous_stage=(
+                current_stage_record.current_stage if current_stage_record else None
+            ),
             stage_entry_date=datetime.now(timezone.utc),
             entered_via=entered_via,
             conversion_source=conversion_source,
-            context=context or {}
+            context=context or {},
         )
 
         self.db.add(new_stage_record)
@@ -628,8 +666,7 @@ Raises:
         return new_stage_record
 
     async def get_lifecycle_summary(
-        self,
-        organization_id: Optional[UUID] = None
+        self, organization_id: Optional[UUID] = None
     ) -> Dict:
         """
         Get summary of customers by lifecycle stage.
@@ -642,13 +679,13 @@ Raises:
         """
         query = select(
             CustomerLifecycleStage.current_stage,
-            func.count(CustomerLifecycleStage.id).label('count')
-        ).where(
-            CustomerLifecycleStage.stage_exit_date.is_(None)
-        )
+            func.count(CustomerLifecycleStage.id).label("count"),
+        ).where(CustomerLifecycleStage.stage_exit_date.is_(None))
 
         if organization_id:
-            query = query.where(CustomerLifecycleStage.organization_id == organization_id)
+            query = query.where(
+                CustomerLifecycleStage.organization_id == organization_id
+            )
 
         query = query.group_by(CustomerLifecycleStage.current_stage)
 
@@ -661,7 +698,11 @@ Raises:
         for stage in stages:
             summary[stage.current_stage] = {
                 "count": stage.count,
-                "percentage": round((stage.count / total_customers * 100), 1) if total_customers > 0 else 0
+                "percentage": (
+                    round((stage.count / total_customers * 100), 1)
+                    if total_customers > 0
+                    else 0
+                ),
             }
 
         return summary

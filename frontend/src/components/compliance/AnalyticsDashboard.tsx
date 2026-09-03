@@ -250,23 +250,26 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ classNam
             <div className="mt-4">
               <h4 className="text-sm font-medium text-gray-900 mb-2">By Training Type</h4>
               <div className="space-y-2">
-                {Object.entries(analytics.trainingAnalytics.byType).map(([type, data]) => (
-                  <div key={type} className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600 capitalize">{type.replace('_', ' ')}</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-20 bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${
-                            data.completionRate >= 80 ? 'bg-green-500' :
-                            data.completionRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${data.completionRate}%` }}
-                        />
+                {Object.entries(analytics.trainingAnalytics.byType).map(([type, data]) => {
+                  const trainingData = data as { completionRate: number };
+                  return (
+                    <div key={type} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 capitalize">{type.replace('_', ' ')}</span>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              trainingData.completionRate >= 80 ? 'bg-green-500' :
+                              trainingData.completionRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${trainingData.completionRate}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-600">{trainingData.completionRate.toFixed(0)}%</span>
                       </div>
-                      <span className="text-xs text-gray-600">{data.completionRate.toFixed(0)}%</span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -296,7 +299,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ classNam
                 {Object.entries(analytics.feedbackAnalytics.byType).map(([type, count]) => (
                   <div key={type} className="flex items-center justify-between">
                     <span className="text-sm text-gray-600 capitalize">{type.replace('_', ' ')}</span>
-                    <span className="text-sm font-medium">{count}</span>
+                    <span className="text-sm font-medium">{count as number}</span>
                   </div>
                 ))}
               </div>
@@ -311,7 +314,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ classNam
                       color={severity === 'critical' ? 'red' : severity === 'high' ? 'orange' : 'yellow'}
                       size="sm"
                     >
-                      {count}
+                      {count as number}
                     </Badge>
                   </div>
                 ))}

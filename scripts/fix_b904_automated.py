@@ -37,16 +37,18 @@ def find_b904_issues(content: str) -> List[Tuple[int, str, str]]:
                         # Check if the raise doesn't have a 'cause' (from clause)
                         if child.cause is None:
                             # Get the full line from the original source
-                            issues.append((
-                                child.lineno,
-                                exception_var,
-                                self._get_raise_statement(content, child.lineno)
-                            ))
+                            issues.append(
+                                (
+                                    child.lineno,
+                                    exception_var,
+                                    self._get_raise_statement(content, child.lineno),
+                                )
+                            )
             self.generic_visit(node)
 
         def _get_raise_statement(self, content: str, lineno: int) -> str:
             """Extract the full raise statement from source."""
-            lines = content.split('\n')
+            lines = content.split("\n")
             if 0 < lineno <= len(lines):
                 return lines[lineno - 1].strip()
             return ""
@@ -74,14 +76,14 @@ def fix_b904_in_line(line: str, exception_var: str) -> str:
         comment = f"  #{line_parts[1].strip()}"
 
     # Find the raise statement
-    if re.match(r'^\s*raise\s+\w+', line):
+    if re.match(r"^\s*raise\s+\w+", line):
         # Check if it already has 'from'
-        if ' from ' not in line:
+        if " from " not in line:
             # Find where to insert 'from exception_var'
             # Usually before the closing parenthesis or at end of line
-            if ')' in line:
+            if ")" in line:
                 # Insert before the closing parenthesis
-                line = re.sub(r'\)(\s*)$', f' from {exception_var})\\1', line)
+                line = re.sub(r"\)(\s*)$", f" from {exception_var})\\1", line)
             else:
                 # Append at end
                 line = f"{line.rstrip()} from {exception_var}"
@@ -106,7 +108,7 @@ def fix_file(file_path: Path) -> int:
     if not issues:
         return 0
 
-    lines = content.split('\n')
+    lines = content.split("\n")
     fixes_applied = 0
 
     # Apply fixes in reverse order to maintain line numbers
@@ -121,20 +123,20 @@ def fix_file(file_path: Path) -> int:
                 fixes_applied += 1
 
     # Write back
-    file_path.write_text('\n'.join(lines))
+    file_path.write_text("\n".join(lines))
     return fixes_applied
 
 
 def main():
     """Main entry point."""
-    import subprocess
     import json
+    import subprocess
 
     # Get all files with B904 errors
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -146,7 +148,7 @@ def main():
     # Group by file
     files_with_errors = {}
     for error in errors:
-        filename = error['filename']
+        filename = error["filename"]
         if filename not in files_with_errors:
             files_with_errors[filename] = []
         files_with_errors[filename].append(error)
@@ -170,16 +172,14 @@ def main():
     # Verify
     print("\nVerifying fixes...")
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904'],
-        capture_output=True,
-        text=True
+        ["ruff", "check", "app/", "--select", "B904"], capture_output=True, text=True
     )
 
-    remaining = len(result.stdout.split('\n')) if result.stdout else 0
+    remaining = len(result.stdout.split("\n")) if result.stdout else 0
     print(f"Remaining B904 errors: {remaining}")
 
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit(main())

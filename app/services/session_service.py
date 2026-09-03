@@ -19,16 +19,16 @@ Author: Security Team
 Version: 1.0
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import json
 import logging
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 
-from fastapi import HTTPException, Request, status
 import redis.asyncio as aioredis
+from fastapi import HTTPException, Request, status
 
 from app.core.config import settings
 from app.db.models.user import User
@@ -332,7 +332,9 @@ class SessionRotationService:
         finally:
             await redis_client.close()
 
-    async def rotate_session(self, old_session_id: str, request: Request) -> SessionInfo:
+    async def rotate_session(
+        self, old_session_id: str, request: Request
+    ) -> SessionInfo:
         """
         Rotate session (create new session, revoke old one)
 
@@ -349,7 +351,9 @@ class SessionRotationService:
         old_session = self.active_sessions.get(old_session_id)
 
         if not old_session:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session"
+            )
 
         # Revoke old session
         await self.revoke_session(old_session_id, "Session rotated")
@@ -366,7 +370,9 @@ class SessionRotationService:
 
         return old_session  # Would return new session in production
 
-    async def revoke_session(self, session_id: str, reason: str = "User logout") -> None:
+    async def revoke_session(
+        self, session_id: str, reason: str = "User logout"
+    ) -> None:
         """
         Revoke a session
 
@@ -385,10 +391,16 @@ class SessionRotationService:
 
             logger.info(
                 f"Session revoked: {session_id}",
-                extra={"session_id": session_id, "user_id": session.user_id, "reason": reason},
+                extra={
+                    "session_id": session_id,
+                    "user_id": session.user_id,
+                    "reason": reason,
+                },
             )
 
-    async def revoke_all_user_sessions(self, user_id: str, reason: str = "Security action") -> int:
+    async def revoke_all_user_sessions(
+        self, user_id: str, reason: str = "Security action"
+    ) -> int:
         """
         Revoke all sessions for a user
 

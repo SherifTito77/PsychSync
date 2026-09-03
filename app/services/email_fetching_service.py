@@ -4,15 +4,16 @@ Email Fetching Service - Retrieves email metadata for analysis
 Privacy-first approach: only fetches headers, never content
 """
 
-from datetime import datetime, timedelta
 import hashlib
+import json
 import re
+from datetime import datetime, timedelta
 from typing import Any
 
 from dateutil import parser as date_parser
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-import requests
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging_config import logger
@@ -39,17 +40,26 @@ class EmailFetchingService:
         logger.info(f"Starting email fetch for connection {connection.id}")
 
         # Check if connection needs token refresh
-        if connection.token_expires_at and connection.token_expires_at <= datetime.utcnow():
+        if (
+            connection.token_expires_at
+            and connection.token_expires_at <= datetime.utcnow()
+        ):
             if not await self.connector_service.refresh_access_token(db, connection):
                 raise Exception("Failed to refresh access token")
 
         try:
             if connection.provider == EmailProvider.GMAIL:
-                return await self._fetch_gmail_emails(db, connection, max_messages, days_back)
+                return await self._fetch_gmail_emails(
+                    db, connection, max_messages, days_back
+                )
             if connection.provider in [EmailProvider.OUTLOOK, EmailProvider.OFFICE365]:
-                return await self._fetch_outlook_emails(db, connection, max_messages, days_back)
+                return await self._fetch_outlook_emails(
+                    db, connection, max_messages, days_back
+                )
             if connection.provider == EmailProvider.IMAP:
-                return await self._fetch_imap_emails(db, connection, max_messages, days_back)
+                return await self._fetch_imap_emails(
+                    db, connection, max_messages, days_back
+                )
             raise ValueError(f"Unsupported provider: {connection.provider}")
 
         except Exception as e:
@@ -61,24 +71,35 @@ class EmailFetchingService:
             raise
 
     async def _fetch_gmail_emails(
-        self, db: AsyncSession, connection: EmailConnection, max_messages: int, days_back: int
+        self,
+        db: AsyncSession,
+        connection: EmailConnection,
+        max_messages: int,
+        days_back: int,
     ) -> int:
         """Fetch emails from Gmail API"""
 
-        access_token = self.connector_service.decrypt_token(connection.access_token_encrypted)
+        access_token = self.connector_service.decrypt_token(
+            connection.access_token_encrypted
+        )
         credentials = Credentials(access_token)
 
         service = build("gmail", "v1", credentials=credentials)
 
         # Calculate date range
-        date_since = (datetime.utcnow() - timedelta(days=days_back)).strftime("%Y/%m/%d")
+        date_since = (datetime.utcnow() - timedelta(days=days_back)).strftime(
+            "%Y/%m/%d"
+        )
 
         # Search query for messages
         query = f"after:{date_since}"
 
         # Get list of messages
         results = (
-            service.users().messages().list(userId="me", q=query, maxResults=max_messages).execute()
+            service.users()
+            .messages()
+            .list(userId="me", q=query, maxResults=max_messages)
+            .execute()
         )
 
         messages = results.get("messages", [])
@@ -138,7 +159,10 @@ class EmailFetchingService:
         """Parse Gmail API message into EmailMetadata"""
 
         try:
-            headers = {h["name"]: h["value"] for h in message.get("payload", {}).get("headers", [])}
+            headers = {
+                h["name"]: h["value"]
+                for h in message.get("payload", {}).get("headers", [])
+            }
 
             # Extract basic info
             message_id = message["id"]
@@ -154,7 +178,7 @@ class EmailFetchingService:
                 try:
                     date_sent = date_parser.parse(date_sent_str)
                     date_received = date_sent
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     logger.warning(f"Could not parse date: {date_sent_str}")
 
             # Create subject hash for deduplication
@@ -174,7 +198,9 @@ class EmailFetchingService:
             for field in ["To", "Cc", "Bcc"]:
                 recipients = headers.get(field, "")
                 if recipients:
-                    for email_match in re.finditer(r"[\w\.-]+@[\w\.-]+\.\w+", recipients):
+                    for email_match in re.finditer(
+                        r"[\w\.-]+@[\w\.-]+\.\w+", recipients
+                    ):
                         all_participants.add(email_match.group())
 
             participants = list(all_participants)
@@ -182,7 +208,8 @@ class EmailFetchingService:
             # Determine if internal (all from same domain)
             user_domain = connection.email_address.split("@")[-1]
             is_internal = all(
-                "@" in email and email.split("@")[-1] == user_domain for email in participants
+                "@" in email and email.split("@")[-1] == user_domain
+                for email in participants
             )
 
             # Calculate participant count
@@ -192,7 +219,9 @@ class EmailFetchingService:
             thread_id = thread_id or message_id
 
             # Determine email direction
-            email_direction = self._determine_email_direction(sender, connection.email_address)
+            email_direction = self._determine_email_direction(
+                sender, connection.email_address
+            )
 
             return EmailMetadata(
                 message_id=message_id,
@@ -212,7 +241,9 @@ class EmailFetchingService:
             )
 
         except Exception as e:
-            logger.error(f"Error parsing Gmail message {message.get('id', 'unknown')}: {e}")
+            logger.error(
+                f"Error parsing Gmail message {message.get('id', 'unknown')}: {e}"
+            )
             return None
 
     def _count_gmail_attachments(self, message: dict) -> int:
@@ -231,17 +262,26 @@ class EmailFetchingService:
                 return count
 
             return count_parts_recursive(parts)
-        except:
+        except Exception as e:
             return 0
 
     async def _fetch_outlook_emails(
-        self, db: AsyncSession, connection: EmailConnection, max_messages: int, days_back: int
+        self,
+        db: AsyncSession,
+        connection: EmailConnection,
+        max_messages: int,
+        days_back: int,
     ) -> int:
         """Fetch emails from Outlook/Graph API"""
 
-        access_token = self.connector_service.decrypt_token(connection.access_token_encrypted)
+        access_token = self.connector_service.decrypt_token(
+            connection.access_token_encrypted
+        )
 
-        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
 
         # Calculate date filter
         date_since = (datetime.utcnow() - timedelta(days=days_back)).isoformat()
@@ -249,11 +289,15 @@ class EmailFetchingService:
         # Get messages
         url = f"https://graph.microsoft.com/v1.0/me/messages?$filter=receivedDateTime ge {date_since}&$top={max_messages}&$orderby=receivedDateTime desc"
 
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        # ✅ NON-BLOCKING - async HTTP request with httpx
+        import httpx
 
-        data = response.json()
-        messages = data.get("value", [])
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+
+            data = response.json()
+            messages = data.get("value", [])
 
         if not messages:
             logger.info(f"No messages found for Outlook connection {connection.id}")
@@ -303,7 +347,7 @@ class EmailFetchingService:
                 try:
                     date_sent = date_parser.parse(date_sent_str)
                     date_received = date_sent
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     logger.warning(f"Could not parse date: {date_sent_str}")
 
             # Create subject hash
@@ -329,13 +373,16 @@ class EmailFetchingService:
             # Determine if internal
             user_domain = connection.email_address.split("@")[-1]
             is_internal = all(
-                "@" in email and email.split("@")[-1] == user_domain for email in participants
+                "@" in email and email.split("@")[-1] == user_domain
+                for email in participants
             )
 
             participant_count = len(participants)
 
             # Determine email direction
-            email_direction = self._determine_email_direction(sender, connection.email_address)
+            email_direction = self._determine_email_direction(
+                sender, connection.email_address
+            )
 
             return EmailMetadata(
                 message_id=message_id,
@@ -355,17 +402,25 @@ class EmailFetchingService:
             )
 
         except Exception as e:
-            logger.error(f"Error parsing Outlook message {message.get('id', 'unknown')}: {e}")
+            logger.error(
+                f"Error parsing Outlook message {message.get('id', 'unknown')}: {e}"
+            )
             return None
 
     async def _fetch_imap_emails(
-        self, db: AsyncSession, connection: EmailConnection, max_messages: int, days_back: int
+        self,
+        db: AsyncSession,
+        connection: EmailConnection,
+        max_messages: int,
+        days_back: int,
     ) -> int:
         """Fetch emails from IMAP server (basic implementation)"""
 
         # This is a placeholder for IMAP implementation
         # In practice, you'd need server configuration, credentials, etc.
-        logger.warning(f"IMAP fetching not fully implemented for connection {connection.id}")
+        logger.warning(
+            f"IMAP fetching not fully implemented for connection {connection.id}"
+        )
 
         # Update connection status
         connection.sync_status = "completed"
@@ -391,12 +446,21 @@ class EmailFetchingService:
             return "outgoing"
         return "incoming"
 
-    async def _save_email_metadata(self, db: AsyncSession, email_data: dict[str, Any]):
+    async def _save_email_metadata(
+        self, db: AsyncSession, email_metadata: EmailMetadata
+    ):
         """Save email metadata to database, avoiding duplicates"""
 
         # Check if already exists
-        existing = result = await db.execute(query)
-        return result.scalars().all()
+        from app.db.models.email_metadata import EmailMetadata
+
+        result = await db.execute(
+            select(EmailMetadata).where(
+                EmailMetadata.message_id == email_metadata.message_id,
+                EmailMetadata.connection_id == email_metadata.connection_id,
+            )
+        )
+        existing = result.scalar_one_or_none()
 
         if existing:
             logger.debug(f"Email {email_metadata.message_id} already exists, skipping")
@@ -405,6 +469,7 @@ class EmailFetchingService:
         try:
             db.add(email_metadata)
             await db.commit()
+            await db.refresh(email_metadata)
             logger.debug(f"Saved email metadata for {email_metadata.message_id}")
         except Exception as e:
             logger.error(f"Error saving email metadata: {e}")
@@ -415,12 +480,12 @@ class EmailFetchingService:
         """Calculate response times for emails by analyzing thread patterns"""
 
         # Get all emails for the user
-        emails = (
-            db.query(EmailMetadata)
-            .filter(EmailMetadata.user_id == user_id)
+        result = await db.execute(
+            select(EmailMetadata)
+            .where(EmailMetadata.user_id == user_id)
             .order_by(EmailMetadata.date_received)
-            .all()
         )
+        emails = result.scalars().all()
 
         # Group by thread
         threads = {}
@@ -445,7 +510,9 @@ class EmailFetchingService:
                     and previous_email.date_received
                     and current_email.sender_address != previous_email.sender_address
                 ):
-                    time_diff = current_email.date_received - previous_email.date_received
+                    time_diff = (
+                        current_email.date_received - previous_email.date_received
+                    )
                     response_minutes = int(time_diff.total_seconds() / 60)
 
                     # Only consider reasonable response times (within 30 days)

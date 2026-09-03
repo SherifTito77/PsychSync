@@ -4,7 +4,7 @@
  */
 
 .alert {
-  @apply p-4 rounded-lg border flex items-start transition-all duration-300 ease-in-out;
+  @apply p-3 rounded-lg border flex items-start transition-all duration-300 ease-in-out text-sm;
 }
 
 /* Variant-specific styles */
@@ -26,7 +26,7 @@
 
 /* Icon styles */
 .icon {
-  @apply w-5 h-5 flex-shrink-0 mr-3;
+  @apply w-4 h-4 flex-shrink-0 mr-2;
 }
 
 /* Content area */
@@ -46,21 +46,21 @@
 
 /* Dismiss button */
 .dismissButton {
-  @apply ml-3 flex-shrink-0 inline-flex p-1 rounded-md hover:bg-black/5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-current transition-colors;
+  @apply ml-2 flex-shrink-0 inline-flex p-1 rounded-md hover:bg-black/5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-current transition-colors;
 }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
+/* Responsive adjustments - Mobile First */
+@media (min-width: 640px) {
   .alert {
-    @apply p-3 text-sm;
+    @apply p-4 text-base;
   }
 
   .icon {
-    @apply w-4 h-4 mr-2;
+    @apply w-5 h-5 mr-3;
   }
 
   .dismissButton {
-    @apply ml-2;
+    @apply ml-3;
   }
 }
 

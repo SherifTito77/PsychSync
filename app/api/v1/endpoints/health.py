@@ -4,13 +4,13 @@ Enhanced Health Check and Monitoring Endpoints
 Provides comprehensive system health monitoring with metrics
 """
 
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
 import psutil
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,12 +18,16 @@ from app.api.v1.deps import get_current_active_user, get_db
 from app.core.async_cache import cache_get, cache_set
 from app.core.cache_strategy import intelligent_cache
 from app.core.config import settings
+from app.core.pool_monitor import get_pool_monitor
 from app.core.responses import APIResponse, get_request_id
 from app.core.structured_logging import EventType, get_logger
 from app.db.models.user import User
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+# **Fixed Uptime Calculation:** Store application start time at module load
+_APP_START_TIME = time.time()
 
 
 @router.get("/health/public", summary="Public Health Check")
@@ -57,7 +61,7 @@ async def health_check(request: Request):
 
     try:
         # System metrics
-        cpu_percent = psutil.cpu_percent(interval=0.1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
 
@@ -166,7 +170,9 @@ async def detailed_health_check(
             }
 
             if not cache_health:
-                health_status = "degraded" if health_status == "healthy" else "unhealthy"
+                health_status = (
+                    "degraded" if health_status == "healthy" else "unhealthy"
+                )
 
         except Exception as cache_error:
             components["cache"] = {
@@ -178,7 +184,7 @@ async def detailed_health_check(
             health_status = "degraded" if health_status == "healthy" else "unhealthy"
 
         # System metrics
-        cpu_percent = psutil.cpu_percent(interval=0.1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
         load_avg = psutil.getloadavg() if hasattr(psutil, "getloadavg") else None
 
@@ -219,7 +225,11 @@ async def detailed_health_check(
         }
 
         # Log health status
-        log_level = EventType.SYSTEM_EVENT if health_status == "healthy" else EventType.ERROR_EVENT
+        log_level = (
+            EventType.SYSTEM_EVENT
+            if health_status == "healthy"
+            else EventType.ERROR_EVENT
+        )
         logger.log(
             log_level,
             f"Detailed health check: {health_status}",
@@ -328,7 +338,8 @@ async def get_cache_metrics(
     except Exception as e:
         logger.log_error(e, operation="get_cache_metrics")
         return APIResponse.server_error(
-            message="Failed to retrieve cache metrics", request_id=get_request_id(request)
+            message="Failed to retrieve cache metrics",
+            request_id=get_request_id(request),
         )
 
 
@@ -336,7 +347,9 @@ async def get_cache_metrics(
 # Provides business-level metrics like user activity, assessment completion rates, team growth
 
 
-async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> dict[str, Any]:
+async def get_business_metrics(
+    db: AsyncSession, org_id: UUID | None = None
+) -> dict[str, Any]:
     """
     Get business-level metrics for dashboard and monitoring
     """
@@ -347,7 +360,8 @@ async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> 
             base_user_conditions.append(User.organization_id == org_id)
 
         total_users_query = text(
-            "SELECT COUNT(*) FROM users" + (" WHERE organization_id = :org_id" if org_id else "")
+            "SELECT COUNT(*) FROM users"
+            + (" WHERE organization_id = :org_id" if org_id else "")
         )
         total_users_result = await db.execute(
             total_users_query, {"org_id": str(org_id)} if org_id else {}
@@ -372,12 +386,14 @@ async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> 
         try:
             active_users_result = await db.execute(
                 active_users_query,
-                {"since_date": seven_days_ago, "org_id": str(org_id)}
-                if org_id
-                else {"since_date": seven_days_ago},
+                (
+                    {"since_date": seven_days_ago, "org_id": str(org_id)}
+                    if org_id
+                    else {"since_date": seven_days_ago}
+                ),
             )
             active_users = active_users_result.scalar() or 0
-        except:
+        except Exception as e:
             # Fallback if user_activity_log table doesn't exist
             active_users = 0
 
@@ -393,9 +409,11 @@ async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> 
 
         new_users_result = await db.execute(
             new_users_query,
-            {"since_date": thirty_days_ago, "org_id": str(org_id)}
-            if org_id
-            else {"since_date": thirty_days_ago},
+            (
+                {"since_date": thirty_days_ago, "org_id": str(org_id)}
+                if org_id
+                else {"since_date": thirty_days_ago}
+            ),
         )
         new_users = new_users_result.scalar()
 
@@ -438,8 +456,7 @@ async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> 
                     (completed_assessments / max(total_assessments, 1)) * 100, 2
                 ),
             }
-        except:
-            # Tables might not exist in development
+        except Exception as e:  # Tables might not exist in development
             assessment_metrics = {
                 "total_assessments": 0,
                 "completed_assessments": 0,
@@ -463,7 +480,12 @@ async def get_business_metrics(db: AsyncSession, org_id: UUID | None = None) -> 
             e, operation="get_business_metrics", org_id=str(org_id) if org_id else None
         )
         return {
-            "users": {"total": 0, "active_last_7_days": 0, "new_last_30_days": 0, "active_rate": 0},
+            "users": {
+                "total": 0,
+                "active_last_7_days": 0,
+                "new_last_30_days": 0,
+                "active_rate": 0,
+            },
             "assessments": {
                 "total_assessments": 0,
                 "completed_assessments": 0,
@@ -502,9 +524,12 @@ async def get_business_metrics_endpoint(
         )
 
     except Exception as e:
-        logger.log_error(e, operation="get_business_metrics_endpoint", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="get_business_metrics_endpoint", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
-            message="Failed to retrieve business metrics", request_id=get_request_id(request)
+            message="Failed to retrieve business metrics",
+            request_id=get_request_id(request),
         )
 
 
@@ -512,27 +537,37 @@ async def get_business_metrics_endpoint(
 
 
 def get_uptime_seconds() -> int:
-    """Get application uptime in seconds"""
-    try:
-        import os
+    """
+    Get application uptime in seconds.
 
-        # Simple approximation - in production, this should be stored at startup
-        return int(time.time() - os.getpid())
-    except:
+    **Fixed Bug:** Previously used os.getpid() (process ID) instead of start time,
+    resulting in completely incorrect uptime calculations. Now uses the stored
+    application start time from module initialization.
+    """
+    try:
+        return int(time.time() - _APP_START_TIME)
+    except Exception as e:
+        logger.log_error(e, operation="get_uptime_seconds")
         return 0
 
 
 async def get_database_metrics(db: AsyncSession) -> dict[str, Any]:
-    """Get database performance metrics"""
+    """Get database performance metrics including pool health."""
     try:
-        # Connection pool metrics (if available)
-        metrics = {
-            "connection_pool": {
-                "size": "unknown",
-                "checked_in": "unknown",
-                "checked_out": "unknown",
+        monitor = get_pool_monitor()
+        if monitor:
+            pool_stats = monitor.get_stats()
+            metrics = {
+                "connection_pool": pool_stats["health"],
+                "leaks_detected": pool_stats["leaks"],
+                "cumulative": pool_stats["cumulative"],
             }
-        }
+        else:
+            metrics = {
+                "connection_pool": {
+                    "status": "monitor_not_initialized",
+                }
+            }
 
         # Test query performance
         start_time = time.time()
@@ -545,7 +580,11 @@ async def get_database_metrics(db: AsyncSession) -> dict[str, Any]:
         return metrics
 
     except Exception as e:
-        return {"connection_test": "failed", "error": str(e), "query_performance_ms": None}
+        return {
+            "connection_test": "failed",
+            "error": str(e),
+            "query_performance_ms": None,
+        }
 
 
 async def get_application_metrics() -> dict[str, Any]:
@@ -556,18 +595,28 @@ async def get_application_metrics() -> dict[str, Any]:
             "memory_mb": round(process.memory_info().rss / (1024**2), 2),
             "cpu_percent": round(process.cpu_percent(), 2),
             "threads": process.num_threads(),
-            "open_files": len(process.open_files()) if hasattr(process, "open_files") else 0,
-            "connections": len(process.connections()) if hasattr(process, "connections") else 0,
+            "open_files": (
+                len(process.open_files()) if hasattr(process, "open_files") else 0
+            ),
+            "connections": (
+                len(process.connections()) if hasattr(process, "connections") else 0
+            ),
         }
-    except:
-        return {"memory_mb": 0, "cpu_percent": 0, "threads": 0, "open_files": 0, "connections": 0}
+    except Exception as e:
+        return {
+            "memory_mb": 0,
+            "cpu_percent": 0,
+            "threads": 0,
+            "open_files": 0,
+            "connections": 0,
+        }
 
 
 def get_system_metrics() -> dict[str, Any]:
     """Get system-level metrics"""
     try:
         return {
-            "cpu_percent": round(psutil.cpu_percent(interval=0.1), 2),
+            "cpu_percent": round(psutil.cpu_percent(interval=None), 2),
             "memory": {
                 "total_gb": round(psutil.virtual_memory().total / (1024**3), 2),
                 "available_gb": round(psutil.virtual_memory().available / (1024**3), 2),
@@ -577,15 +626,20 @@ def get_system_metrics() -> dict[str, Any]:
                 "total_gb": round(psutil.disk_usage("/").total / (1024**3), 2),
                 "free_gb": round(psutil.disk_usage("/").free / (1024**3), 2),
                 "percent_used": round(
-                    (psutil.disk_usage("/").used / psutil.disk_usage("/").total) * 100, 2
+                    (psutil.disk_usage("/").used / psutil.disk_usage("/").total) * 100,
+                    2,
                 ),
             },
-            "load_average": psutil.getloadavg() if hasattr(psutil, "getloadavg") else None,
-            "boot_time": datetime.fromtimestamp(psutil.boot_time()).isoformat()
-            if hasattr(psutil, "boot_time")
-            else None,
+            "load_average": (
+                psutil.getloadavg() if hasattr(psutil, "getloadavg") else None
+            ),
+            "boot_time": (
+                datetime.fromtimestamp(psutil.boot_time()).isoformat()
+                if hasattr(psutil, "boot_time")
+                else None
+            ),
         }
-    except:
+    except Exception as e:
         return {
             "cpu_percent": 0,
             "memory": {"total_gb": 0, "available_gb": 0, "percent_used": 0},

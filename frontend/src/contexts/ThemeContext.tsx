@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { getTheme, setTheme as saveTheme } from '@/utils/wellnessStorage';
 
 type Theme = 'light' | 'dark';
@@ -23,14 +23,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  const toggleTheme = () => {
+  // ✅ MEMOIZED: Prevents unnecessary re-renders of consumers
+  const toggleTheme = useCallback(() => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setThemeState(newTheme);
     saveTheme(newTheme);
-  };
+  }, [theme]);
+
+  // ✅ MEMOIZED: Context value only changes when theme changes
+  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

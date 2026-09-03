@@ -4,10 +4,10 @@ Succession Planning Service
 Advanced leadership pipeline development and succession planning system for organizations.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -20,7 +20,9 @@ logger = logging.getLogger(__name__)
 class ReadinessLevel(Enum):
     READY_NOW = "ready_now"  # Can step into role immediately
     READY_1_2_YEARS = "ready_1_2_years"  # Ready within 1-2 years with development
-    READY_3_5_YEARS = "ready_3_5_years"  # Ready within 3-5 years with significant development
+    READY_3_5_YEARS = (
+        "ready_3_5_years"  # Ready within 3-5 years with significant development
+    )
     POTENTIAL = "potential"  # Has potential but needs substantial development
     NOT_READY = "not_ready"  # Not currently viable for succession
 
@@ -356,10 +358,17 @@ class SuccessionPlanner:
             leadership_roles = await self._get_leadership_roles(organization_id)
 
             # Analyze each pipeline level
-            pipeline_levels = ["executive", "senior_management", "middle_management", "team_lead"]
+            pipeline_levels = [
+                "executive",
+                "senior_management",
+                "middle_management",
+                "team_lead",
+            ]
 
             for level in pipeline_levels:
-                level_roles = [role for role in leadership_roles if role["level"] == level]
+                level_roles = [
+                    role for role in leadership_roles if role["level"] == level
+                ]
                 total_positions = len(level_roles)
 
                 if total_positions == 0:
@@ -383,7 +392,10 @@ class SuccessionPlanner:
                                 c
                                 for c in candidates
                                 if c.readiness_level
-                                in [ReadinessLevel.READY_NOW, ReadinessLevel.READY_1_2_YEARS]
+                                in [
+                                    ReadinessLevel.READY_NOW,
+                                    ReadinessLevel.READY_1_2_YEARS,
+                                ]
                             ]
                         )
                         ready_candidates += ready_count
@@ -392,10 +404,14 @@ class SuccessionPlanner:
                 gap_percentage = max(
                     0, (total_positions - ready_candidates) / total_positions * 100
                 )
-                bench_strength = ready_candidates / total_positions if total_positions > 0 else 0
+                bench_strength = (
+                    ready_candidates / total_positions if total_positions > 0 else 0
+                )
 
                 # Calculate diversity metrics
-                diversity_metrics = await self._calculate_diversity_metrics(all_candidates)
+                diversity_metrics = await self._calculate_diversity_metrics(
+                    all_candidates
+                )
 
                 # Assess risk level
                 risk_level = self._assess_pipeline_risk(
@@ -403,8 +419,10 @@ class SuccessionPlanner:
                 )
 
                 # Generate development recommendations
-                development_recommendations = await self._generate_pipeline_recommendations(
-                    level, gap_percentage, all_candidates
+                development_recommendations = (
+                    await self._generate_pipeline_recommendations(
+                        level, gap_percentage, all_candidates
+                    )
                 )
 
                 pipeline_analysis[level] = LeadershipPipeline(
@@ -422,7 +440,9 @@ class SuccessionPlanner:
             return pipeline_analysis
 
         except Exception as e:
-            logger.error(f"Error analyzing leadership pipeline for org {organization_id}: {e}")
+            logger.error(
+                f"Error analyzing leadership pipeline for org {organization_id}: {e}"
+            )
             raise
 
     async def identify_succession_candidates(
@@ -442,7 +462,9 @@ class SuccessionPlanner:
             # Get external candidates if requested
             external_candidates = []
             if include_external:
-                external_candidates = await self._identify_external_candidates(role_profile)
+                external_candidates = await self._identify_external_candidates(
+                    role_profile
+                )
 
             # Combine and rank all candidates
             all_candidates = internal_candidates + external_candidates
@@ -456,7 +478,9 @@ class SuccessionPlanner:
                 )
 
                 # Generate gap analysis
-                gap_analysis = await self._analyze_candidate_gaps(candidate_profile, role_profile)
+                gap_analysis = await self._analyze_candidate_gaps(
+                    candidate_profile, role_profile
+                )
 
                 # Create development plan
                 development_plan = await self._create_succession_development_plan(
@@ -474,8 +498,10 @@ class SuccessionPlanner:
                 )
 
                 # Calculate success probability
-                success_probability = await self._calculate_succession_success_probability(
-                    candidate_profile, role_profile, gap_analysis, risk_assessment
+                success_probability = (
+                    await self._calculate_succession_success_probability(
+                        candidate_profile, role_profile, gap_analysis, risk_assessment
+                    )
                 )
 
                 succession_candidate = SuccessionCandidate(
@@ -502,7 +528,9 @@ class SuccessionPlanner:
             return succession_candidates
 
         except Exception as e:
-            logger.error(f"Error identifying succession candidates for role {role_id}: {e}")
+            logger.error(
+                f"Error identifying succession candidates for role {role_id}: {e}"
+            )
             raise
 
     async def create_development_programs(
@@ -551,12 +579,19 @@ class SuccessionPlanner:
                     development_programs["technical_leadership"].append(program)
 
             # Create executive preparation program
-            if pipeline_analysis.get("executive", LeadershipPipeline()).risk_level != RiskLevel.LOW:
-                program = await self._create_executive_preparation_program(organization_id)
+            if (
+                pipeline_analysis.get("executive", LeadershipPipeline()).risk_level
+                != RiskLevel.LOW
+            ):
+                program = await self._create_executive_preparation_program(
+                    organization_id
+                )
                 development_programs["executive_prep"].append(program)
 
             # Calculate overall program investment and ROI
-            total_investment = await self._calculate_development_investment(development_programs)
+            total_investment = await self._calculate_development_investment(
+                development_programs
+            )
             expected_roi = await self._calculate_development_roi(
                 development_programs, organization_id
             )
@@ -567,11 +602,15 @@ class SuccessionPlanner:
                 "total_investment": total_investment,
                 "expected_roi": expected_roi,
                 "timeline": "24-36 months",
-                "participants": await self._count_program_participants(development_programs),
+                "participants": await self._count_program_participants(
+                    development_programs
+                ),
             }
 
         except Exception as e:
-            logger.error(f"Error creating development programs for org {organization_id}: {e}")
+            logger.error(
+                f"Error creating development programs for org {organization_id}: {e}"
+            )
             raise
 
     async def simulate_succession_scenarios(
@@ -582,7 +621,9 @@ class SuccessionPlanner:
             scenario_results = []
 
             for scenario_config in scenarios:
-                scenario = await self._create_succession_scenario(organization_id, scenario_config)
+                scenario = await self._create_succession_scenario(
+                    organization_id, scenario_config
+                )
                 scenario_results.append(scenario)
 
             logger.info(
@@ -591,7 +632,9 @@ class SuccessionPlanner:
             return scenario_results
 
         except Exception as e:
-            logger.error(f"Error simulating succession scenarios for org {organization_id}: {e}")
+            logger.error(
+                f"Error simulating succession scenarios for org {organization_id}: {e}"
+            )
             raise
 
     async def generate_succession_dashboard(
@@ -604,25 +647,39 @@ class SuccessionPlanner:
 
             # Get succession scenarios
             scenarios = await self._generate_default_scenarios(organization_id)
-            scenario_results = await self.simulate_succession_scenarios(organization_id, scenarios)
+            scenario_results = await self.simulate_succession_scenarios(
+                organization_id, scenarios
+            )
 
             # Get risk assessment
             risk_assessment = await self._assess_organization_risks(organization_id)
 
             # Get diversity and inclusion metrics
-            diversity_metrics = await self._get_diversity_inclusion_metrics(organization_id)
+            diversity_metrics = await self._get_diversity_inclusion_metrics(
+                organization_id
+            )
 
             # Get development program status
-            development_programs = await self.create_development_programs(organization_id)
+            development_programs = await self.create_development_programs(
+                organization_id
+            )
 
             # Calculate key metrics
             key_metrics = {
-                "overall_bench_strength": self._calculate_overall_bench_strength(pipeline_analysis),
-                "leadership_risk_score": self._calculate_leadership_risk_score(pipeline_analysis),
-                "development_investment": development_programs.get("total_investment", 0),
+                "overall_bench_strength": self._calculate_overall_bench_strength(
+                    pipeline_analysis
+                ),
+                "leadership_risk_score": self._calculate_leadership_risk_score(
+                    pipeline_analysis
+                ),
+                "development_investment": development_programs.get(
+                    "total_investment", 0
+                ),
                 "expected_roi": development_programs.get("expected_roi", 0),
                 "diversity_score": self._calculate_diversity_score(diversity_metrics),
-                "readiness_timeline": self._calculate_readiness_timeline(pipeline_analysis),
+                "readiness_timeline": self._calculate_readiness_timeline(
+                    pipeline_analysis
+                ),
             }
 
             dashboard_data = {
@@ -662,7 +719,9 @@ class SuccessionPlanner:
             return dashboard_data
 
         except Exception as e:
-            logger.error(f"Error generating succession dashboard for org {organization_id}: {e}")
+            logger.error(
+                f"Error generating succession dashboard for org {organization_id}: {e}"
+            )
             raise
 
     # Helper methods
@@ -741,7 +800,9 @@ class SuccessionPlanner:
         # Adjust for risk (lower risk is better)
         risk_adjustment = (100 - candidate.risk_score) * 0.1
 
-        total_score = base_score + leadership_adjustment + mobility_adjustment + risk_adjustment
+        total_score = (
+            base_score + leadership_adjustment + mobility_adjustment + risk_adjustment
+        )
         return min(100, total_score)
 
     async def _analyze_candidate_gaps(
@@ -770,7 +831,10 @@ class SuccessionPlanner:
         return gaps
 
     async def _create_succession_development_plan(
-        self, candidate: CandidateProfile, role: RoleProfile, gap_analysis: dict[str, float]
+        self,
+        candidate: CandidateProfile,
+        role: RoleProfile,
+        gap_analysis: dict[str, float],
     ) -> list[LearningRecommendation]:
         """Create personalized development plan for succession"""
         # This would integrate with the skill gap analysis service

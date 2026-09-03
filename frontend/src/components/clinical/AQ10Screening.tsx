@@ -158,9 +158,12 @@ export function AQ10Screening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/aq10', responses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'aq10',
+        responses: responses
+      });
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       console.error('Screening submission error:', err);
       const errorMessage = err?.response?.data?.detail || err?.response?.data?.message || 'Failed to submit screening. Please try again.';
       setError(errorMessage);
@@ -269,7 +272,7 @@ export function AQ10Screening() {
       </CardHeader>
       <CardContent className="space-y-6">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="error">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -300,8 +303,8 @@ export function AQ10Screening() {
 
           {/* Response options */}
           <RadioGroup
-            value={responses[QUESTIONS[currentQuestion].id as keyof AQ10Response]}
-            onValueChange={(value) =>
+            value={String(responses[QUESTIONS[currentQuestion].id as keyof AQ10Response] || 0)}
+            onChange={(value) =>
               handleResponse(QUESTIONS[currentQuestion].id, parseInt(value))
             }
           >

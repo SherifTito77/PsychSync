@@ -5,14 +5,14 @@ Provides automated caching for frequently accessed data with intelligent invalid
 """
 
 import asyncio
+import hashlib
+import json
+import pickle
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-import hashlib
-import json
-import pickle
 from typing import Any
 
 from app.core.cache import cache_delete, cache_delete_pattern, cache_get, cache_set
@@ -105,11 +105,19 @@ class IntelligentCache:
     """
 
     def __init__(self):
-        self.cache_stats = {"hits": 0, "misses": 0, "sets": 0, "deletes": 0, "invalidations": 0}
+        self.cache_stats = {
+            "hits": 0,
+            "misses": 0,
+            "sets": 0,
+            "deletes": 0,
+            "invalidations": 0,
+        }
         self.cache_keys: dict[str, datetime] = {}
         self.running = True
 
-    def generate_cache_key(self, strategy: CacheStrategy, operation: str, **kwargs) -> str:
+    def generate_cache_key(
+        self, strategy: CacheStrategy, operation: str, **kwargs
+    ) -> str:
         """Generate consistent cache keys"""
         # Create a deterministic key from parameters
         key_data = {
@@ -121,7 +129,9 @@ class IntelligentCache:
         key_hash = hashlib.md5(key_string.encode()).hexdigest()[:16]
         return f"{strategy.value}:{operation}:{key_hash}"
 
-    async def get(self, strategy: CacheStrategy, operation: str, **kwargs) -> Any | None:
+    async def get(
+        self, strategy: CacheStrategy, operation: str, **kwargs
+    ) -> Any | None:
         """Get data from cache with statistics tracking"""
         cache_key = self.generate_cache_key(strategy, operation, **kwargs)
 
@@ -154,10 +164,14 @@ class IntelligentCache:
             return None
 
         except Exception as e:
-            logger.log_error(e, operation="cache_get", cache_key=cache_key, strategy=strategy.value)
+            logger.log_error(
+                e, operation="cache_get", cache_key=cache_key, strategy=strategy.value
+            )
             return None
 
-    async def set(self, strategy: CacheStrategy, operation: str, data: Any, **kwargs) -> bool:
+    async def set(
+        self, strategy: CacheStrategy, operation: str, data: Any, **kwargs
+    ) -> bool:
         """Set data in cache with TTL and compression"""
         cache_key = self.generate_cache_key(strategy, operation, **kwargs)
         config = CACHE_CONFIGS[strategy]
@@ -185,7 +199,9 @@ class IntelligentCache:
             return success
 
         except Exception as e:
-            logger.log_error(e, operation="cache_set", cache_key=cache_key, strategy=strategy.value)
+            logger.log_error(
+                e, operation="cache_set", cache_key=cache_key, strategy=strategy.value
+            )
             return False
 
     async def invalidate(self, strategy: CacheStrategy, pattern: str = None, **kwargs):
@@ -204,7 +220,9 @@ class IntelligentCache:
                 )
             else:
                 # Invalidate specific key
-                cache_key = self.generate_cache_key(strategy, pattern or "invalidate", **kwargs)
+                cache_key = self.generate_cache_key(
+                    strategy, pattern or "invalidate", **kwargs
+                )
                 await cache_delete(cache_key)
                 invalidated_count = 1
 
@@ -221,7 +239,10 @@ class IntelligentCache:
 
         except Exception as e:
             logger.log_error(
-                e, operation="cache_invalidate", strategy=strategy.value, pattern=pattern
+                e,
+                operation="cache_invalidate",
+                strategy=strategy.value,
+                pattern=pattern,
             )
 
     async def warm_cache(self, strategy: CacheStrategy, data_loader: Callable):
@@ -256,7 +277,9 @@ class IntelligentCache:
         tasks = []
         for user in active_users:
             tasks.append(
-                self.set(CacheStrategy.USER_PROFILE, "profile", user, user_id=str(user.id))
+                self.set(
+                    CacheStrategy.USER_PROFILE, "profile", user, user_id=str(user.id)
+                )
             )
 
         if tasks:
@@ -277,7 +300,9 @@ class IntelligentCache:
         tasks = []
         for org in organizations:
             tasks.append(
-                self.set(CacheStrategy.ORGANIZATION_DATA, "profile", org, org_id=str(org.id))
+                self.set(
+                    CacheStrategy.ORGANIZATION_DATA, "profile", org, org_id=str(org.id)
+                )
             )
 
         if tasks:
@@ -296,7 +321,7 @@ class IntelligentCache:
             # Check if data is large enough to benefit from compression
             serialized = pickle.dumps(data)
             return len(serialized) > 1024  # Compress if > 1KB
-        except:
+        except Exception as e:
             return False
 
     def _compress_data(self, data: Any) -> bytes:
@@ -386,11 +411,15 @@ def cached(strategy: CacheStrategy, operation: str = None, ttl_override: int = N
 
             # Remove non-serializable arguments
             cache_kwargs = {
-                k: v for k, v in cache_kwargs.items() if k not in ["db"] and not callable(v)
+                k: v
+                for k, v in cache_kwargs.items()
+                if k not in ["db"] and not callable(v)
             }
 
             # Try to get from cache
-            cached_result = await intelligent_cache.get(strategy, operation_name, **cache_kwargs)
+            cached_result = await intelligent_cache.get(
+                strategy, operation_name, **cache_kwargs
+            )
             if cached_result is not None:
                 return cached_result
 
@@ -402,10 +431,14 @@ def cached(strategy: CacheStrategy, operation: str = None, ttl_override: int = N
                 # Use custom TTL by temporarily modifying config
                 original_ttl = CACHE_CONFIGS[strategy].ttl_seconds
                 CACHE_CONFIGS[strategy].ttl_seconds = ttl_override
-                await intelligent_cache.set(strategy, operation_name, result, **cache_kwargs)
+                await intelligent_cache.set(
+                    strategy, operation_name, result, **cache_kwargs
+                )
                 CACHE_CONFIGS[strategy].ttl_seconds = original_ttl
             else:
-                await intelligent_cache.set(strategy, operation_name, result, **cache_kwargs)
+                await intelligent_cache.set(
+                    strategy, operation_name, result, **cache_kwargs
+                )
 
             return result
 
@@ -485,7 +518,9 @@ class CacheInvalidationManager:
                         self.tag_index[tag].remove(cache_key)
                 del self.cache_tags[cache_key]
 
-        logger.info(f"Invalidated {len(cache_keys_to_invalidate)} cache entries by tags: {tags}")
+        logger.info(
+            f"Invalidated {len(cache_keys_to_invalidate)} cache entries by tags: {tags}"
+        )
         return len(cache_keys_to_invalidate)
 
     async def invalidate_related_caches(
@@ -511,19 +546,33 @@ class CacheInvalidationManager:
         related_caches = self.dependency_graph.get(entity_type, [])
 
         for related_cache in related_caches:
-            if entity_type == "user" and related_cache in ["user_teams", "user_assessments"]:
+            if entity_type == "user" and related_cache in [
+                "user_teams",
+                "user_assessments",
+            ]:
                 invalidation_tasks.append(
-                    self._queue_invalidation(CacheStrategy.TEAM_DATA, f"user_{entity_id}_*")
+                    self._queue_invalidation(
+                        CacheStrategy.TEAM_DATA, f"user_{entity_id}_*"
+                    )
                 )
                 invalidation_tasks.append(
-                    self._queue_invalidation(CacheStrategy.ASSESSMENT_DATA, f"user_{entity_id}_*")
+                    self._queue_invalidation(
+                        CacheStrategy.ASSESSMENT_DATA, f"user_{entity_id}_*"
+                    )
                 )
-            elif entity_type == "team" and related_cache in ["team_members", "team_assessments"]:
+            elif entity_type == "team" and related_cache in [
+                "team_members",
+                "team_assessments",
+            ]:
                 invalidation_tasks.append(
-                    self._queue_invalidation(CacheStrategy.USER_PROFILE, f"team_{entity_id}_*")
+                    self._queue_invalidation(
+                        CacheStrategy.USER_PROFILE, f"team_{entity_id}_*"
+                    )
                 )
                 invalidation_tasks.append(
-                    self._queue_invalidation(CacheStrategy.ASSESSMENT_DATA, f"team_{entity_id}_*")
+                    self._queue_invalidation(
+                        CacheStrategy.ASSESSMENT_DATA, f"team_{entity_id}_*"
+                    )
                 )
 
         # Execute invalidation tasks

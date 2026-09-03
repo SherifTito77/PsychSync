@@ -4,6 +4,7 @@ PWA Performance Monitoring Script
 Tracks PWA-specific metrics and user engagement
 """
 
+
 class PWAMonitor:
     def __init__(self):
         self.metrics = {
@@ -11,7 +12,7 @@ class PWAMonitor:
             "pwa_installations": 0,
             "offline_sessions": 0,
             "cache_hits": 0,
-            "cache_misses": 0
+            "cache_misses": 0,
         }
 
     def track_service_worker_registration(self):
@@ -38,6 +39,7 @@ class PWAMonitor:
         """Calculate cache hit rate"""
         total = self.metrics["cache_hits"] + self.metrics["cache_misses"]
         return (self.metrics["cache_hits"] / total * 100) if total > 0 else 0
+
 
 if __name__ == "__main__":
     monitor = PWAMonitor()

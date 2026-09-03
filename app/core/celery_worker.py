@@ -163,7 +163,13 @@ def debug_task(self):
 # CELERY SIGNALS
 # =================================================================
 
-from celery.signals import task_failure, task_postrun, task_prerun, worker_ready, worker_shutdown
+from celery.signals import (
+    task_failure,
+    task_postrun,
+    task_prerun,
+    worker_ready,
+    worker_shutdown,
+)
 
 
 @task_prerun.connect
@@ -176,7 +182,13 @@ def task_prerun_handler(
 
 @task_postrun.connect
 def task_postrun_handler(
-    sender=None, task_id=None, task=None, args=None, kwargs=None, retval=None, **extra_kwargs
+    sender=None,
+    task_id=None,
+    task=None,
+    args=None,
+    kwargs=None,
+    retval=None,
+    **extra_kwargs,
 ):
     """Log when task completes"""
     logger.info(f"Task completed: {task.name} (ID: {task_id})")

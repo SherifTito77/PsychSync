@@ -3,17 +3,17 @@ Production-ready authentication module
 Fixed authentication endpoints with Redis token blacklisting and comprehensive security
 """
 
-from datetime import datetime, timedelta
 import hashlib
 import json
 import logging
 import os
 import secrets
+from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import HTTPException, status
 import jwt
 import redis.asyncio as redis
+from fastapi import HTTPException, status
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -59,7 +59,9 @@ class RedisTokenBlacklist:
 
             # Set with expiration (default 24 hours)
             expire_seconds = expires_in_hours * 3600
-            await self.redis_client.setex(key, expire_seconds, datetime.utcnow().isoformat())
+            await self.redis_client.setex(
+                key, expire_seconds, datetime.utcnow().isoformat()
+            )
 
             logger.info(f"Token blacklisted: {token_hash[:16]}...")
             return True
@@ -105,7 +107,9 @@ class RedisTokenBlacklist:
 class ProductionTokenValidator:
     """Production JWT token validator with Redis blacklisting"""
 
-    def __init__(self, secret_key: str, algorithm: str = "HS256", redis_url: str = None):
+    def __init__(
+        self, secret_key: str, algorithm: str = "HS256", redis_url: str = None
+    ):
         self.secret_key = secret_key
         self.algorithm = algorithm
         self.redis_blacklist = RedisTokenBlacklist(redis_url)
@@ -377,8 +381,12 @@ class ProductionSessionManager:
             "csrf_token": secrets.token_urlsafe(32),
             "is_active": True,
             "ip_address": request_info.get("ip_address") if request_info else "unknown",
-            "user_agent": request_info.get("user_agent", "")[:255] if request_info else "",
-            "fingerprint": self._generate_fingerprint(request_info) if request_info else {},
+            "user_agent": (
+                request_info.get("user_agent", "")[:255] if request_info else ""
+            ),
+            "fingerprint": (
+                self._generate_fingerprint(request_info) if request_info else {}
+            ),
         }
 
         # Store session in Redis with expiration
@@ -389,7 +397,9 @@ class ProductionSessionManager:
             session_json = json.dumps(session_data)
             await self.redis_client.setex(session_key, expire_seconds, session_json)
 
-            logger.info(f"Session created for user {user_data.get('email')} (ID: {session_id})")
+            logger.info(
+                f"Session created for user {user_data.get('email')} (ID: {session_id})"
+            )
 
             return {
                 "session_id": session_id,
@@ -424,7 +434,9 @@ class ProductionSessionManager:
 
             # Check session timeout
             created_at = datetime.fromisoformat(session_data["created_at"])
-            if datetime.utcnow() - created_at > timedelta(hours=self.session_timeout_hours):
+            if datetime.utcnow() - created_at > timedelta(
+                hours=self.session_timeout_hours
+            ):
                 await self._expire_session(session_id)
                 return None
 
@@ -496,7 +508,9 @@ class ProductionSessionManager:
 
                 # Update in Redis
                 session_json = json.dumps(session_data)
-                await self.redis_client.setex(session_key, 3600, session_json)  # Keep for 1 hour
+                await self.redis_client.setex(
+                    session_key, 3600, session_json
+                )  # Keep for 1 hour
 
         except Exception as e:
             logger.error(f"Failed to expire session {session_id}: {e}")
@@ -538,7 +552,9 @@ async def test_redis_connection(redis_url: str = None) -> bool:
             test_client = redis.from_url(redis_url)
         else:
             # Test with default local Redis
-            test_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+            test_client = redis.Redis(
+                host="localhost", port=6379, db=0, decode_responses=True
+            )
 
         # Ping Redis to test connection
         test_client.ping()
@@ -562,7 +578,9 @@ async def initialize_production_auth(secret_key: str = None, redis_url: str = No
     secret_key = secret_key or os.getenv("SECRET_KEY")
 
     if not secret_key:
-        raise ValueError("SECRET_KEY must be configured for production authentication") from e
+        raise ValueError(
+            "SECRET_KEY must be configured for production authentication"
+        ) from e
 
     # Test Redis connection first
     if not await test_redis_connection(redis_url):

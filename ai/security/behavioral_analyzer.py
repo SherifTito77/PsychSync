@@ -17,18 +17,19 @@ Version: 1.0
 Date: 2025-12-26
 """
 
+import json
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+import statistics
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from collections import defaultdict
-import statistics
-import json
+from typing import Any, Dict, List, Optional, Tuple
 
 # Optional ML dependencies
 try:
     import numpy as np
+
     NUMPY_AVAILABLE = True
 except ImportError:
     NUMPY_AVAILABLE = False
@@ -36,14 +37,14 @@ except ImportError:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 class BehaviorType(Enum):
     """Types of behaviors to analyze"""
+
     REQUEST_RATE = "request_rate"
     REQUEST_PATTERN = "request_pattern"
     RESPONSE_INTERACTION = "response_interaction"
@@ -56,6 +57,7 @@ class BehaviorType(Enum):
 
 class AnomalySeverity(Enum):
     """Severity levels for behavioral anomalies"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -64,6 +66,7 @@ class AnomalySeverity(Enum):
 
 class ThreatCategory(Enum):
     """Categories of threats detected"""
+
     ACCOUNT_TAKEOVER = "account_takeover"
     BOT_AUTOMATION = "bot_automation"
     BRUTE_FORCE = "brute_force"
@@ -79,6 +82,7 @@ class ThreatCategory(Enum):
 @dataclass
 class BehaviorFeature:
     """Single behavior feature"""
+
     name: str
     value: float
     baseline_mean: float
@@ -91,6 +95,7 @@ class BehaviorFeature:
 @dataclass
 class BehaviorProfile:
     """User's behavioral profile"""
+
     user_id: str
     features: Dict[str, BehaviorFeature]
     baseline_established: bool
@@ -103,6 +108,7 @@ class BehaviorProfile:
 @dataclass
 class AnomalyAlert:
     """Alert generated for anomalous behavior"""
+
     alert_id: str
     user_id: str
     threat_category: ThreatCategory
@@ -126,7 +132,7 @@ class AnomalyAlert:
             "description": self.description,
             "recommended_actions": self.recommended_actions,
             "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -160,7 +166,7 @@ class BehavioralAnalyzer:
         self,
         baseline_window_days: int = 30,
         anomaly_threshold: float = 2.5,
-        enable_real_time_detection: bool = True
+        enable_real_time_detection: bool = True,
     ):
         """
         Initialize behavioral analyzer.
@@ -178,7 +184,9 @@ class BehavioralAnalyzer:
         self.user_profiles: Dict[str, BehaviorProfile] = {}
 
         # Historical feature data for each user
-        self.feature_history: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+        self.feature_history: Dict[str, Dict[str, List[float]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
 
         # Session tracking
         self.active_sessions: Dict[str, Dict] = {}
@@ -189,7 +197,7 @@ class BehavioralAnalyzer:
         self,
         user_id: str,
         request_data: Dict[str, Any],
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
     ) -> Optional[AnomalyAlert]:
         """
         Analyze user behavior for anomalies.
@@ -228,7 +236,10 @@ class BehavioralAnalyzer:
             baseline_feature = profile.features[feature_name]
 
             if NUMPY_AVAILABLE:
-                z_score = abs((feature_value - baseline_feature.baseline_mean) / max(baseline_feature.baseline_std, 1e-6))
+                z_score = abs(
+                    (feature_value - baseline_feature.baseline_mean)
+                    / max(baseline_feature.baseline_std, 1e-6)
+                )
             else:
                 z_score = 0.0
 
@@ -259,35 +270,35 @@ class BehavioralAnalyzer:
         features = {}
 
         # Feature 1: Request rate (requests per minute)
-        features['requests_per_minute'] = request_data.get('requests_per_minute', 0.0)
+        features["requests_per_minute"] = request_data.get("requests_per_minute", 0.0)
 
         # Feature 2: Request size (bytes)
-        features['request_size'] = float(request_data.get('request_size', 0))
+        features["request_size"] = float(request_data.get("request_size", 0))
 
         # Feature 3: Response size (bytes)
-        features['response_size'] = float(request_data.get('response_size', 0))
+        features["response_size"] = float(request_data.get("response_size", 0))
 
         # Feature 4: Error rate (0.0 to 1.0)
-        features['error_rate'] = float(request_data.get('error_rate', 0.0))
+        features["error_rate"] = float(request_data.get("error_rate", 0.0))
 
         # Feature 5: Time of day (hour as float 0-24)
         now = datetime.now(timezone.utc)
-        features['time_of_day'] = now.hour + now.minute / 60.0
+        features["time_of_day"] = now.hour + now.minute / 60.0
 
         # Feature 6: Day of week (0=Monday, 6=Sunday)
-        features['day_of_week'] = float(now.weekday())
+        features["day_of_week"] = float(now.weekday())
 
         # Feature 7: Session duration (minutes)
-        features['session_duration'] = float(request_data.get('session_duration', 0.0))
+        features["session_duration"] = float(request_data.get("session_duration", 0.0))
 
         # Feature 8: Failed login attempts
-        features['failed_logins'] = float(request_data.get('failed_logins', 0))
+        features["failed_logins"] = float(request_data.get("failed_logins", 0))
 
         # Feature 9: Unique endpoints accessed
-        features['unique_endpoints'] = float(request_data.get('unique_endpoints', 0))
+        features["unique_endpoints"] = float(request_data.get("unique_endpoints", 0))
 
         # Feature 10: Response time (milliseconds)
-        features['response_time'] = float(request_data.get('response_time', 0.0))
+        features["response_time"] = float(request_data.get("response_time", 0.0))
 
         return features
 
@@ -299,8 +310,9 @@ class BehavioralAnalyzer:
             # Keep only recent history (baseline window)
             max_samples = self.MIN_BASELINE_SAMPLES * 2
             if len(self.feature_history[user_id][feature_name]) > max_samples:
-                self.feature_history[user_id][feature_name] = \
-                    self.feature_history[user_id][feature_name][-max_samples:]
+                self.feature_history[user_id][feature_name] = self.feature_history[
+                    user_id
+                ][feature_name][-max_samples:]
 
     def _get_user_profile(self, user_id: str) -> BehaviorProfile:
         """Get or create user behavior profile"""
@@ -312,7 +324,7 @@ class BehavioralAnalyzer:
                 sample_size=0,
                 last_updated=datetime.now(timezone.utc),
                 risk_score=0.0,
-                threat_indicators=[]
+                threat_indicators=[],
             )
         return self.user_profiles[user_id]
 
@@ -347,15 +359,19 @@ class BehavioralAnalyzer:
                     baseline_std=std,
                     z_score=0.0,
                     is_anomalous=False,
-                    severity=AnomalySeverity.LOW
+                    severity=AnomalySeverity.LOW,
                 )
 
         # Update profile status
-        profile.sample_size = len(list(self.feature_history[user_id].values())[0]) if feature_names else 0
+        profile.sample_size = (
+            len(list(self.feature_history[user_id].values())[0]) if feature_names else 0
+        )
         profile.baseline_established = profile.sample_size >= self.MIN_BASELINE_SAMPLES
 
         if profile.baseline_established:
-            logger.info(f"Baseline established for user {user_id} with {profile.sample_size} samples")
+            logger.info(
+                f"Baseline established for user {user_id} with {profile.sample_size} samples"
+            )
 
     def _is_anomalous(self, z_score: float) -> Tuple[bool, AnomalySeverity]:
         """Determine if z-score indicates anomaly"""
@@ -373,7 +389,7 @@ class BehavioralAnalyzer:
         user_id: str,
         anomalous_features: List[str],
         current_features: Dict[str, float],
-        profile: BehaviorProfile
+        profile: BehaviorProfile,
     ) -> AnomalyAlert:
         """Generate security alert for anomalous behavior"""
         # Determine threat category
@@ -381,7 +397,8 @@ class BehavioralAnalyzer:
 
         # Calculate severity
         severities = [
-            profile.features[f].severity for f in anomalous_features
+            profile.features[f].severity
+            for f in anomalous_features
             if f in profile.features
         ]
         # Sort by severity value (CRITICAL > HIGH > MEDIUM > LOW)
@@ -389,9 +406,13 @@ class BehavioralAnalyzer:
             AnomalySeverity.CRITICAL: 4,
             AnomalySeverity.HIGH: 3,
             AnomalySeverity.MEDIUM: 2,
-            AnomalySeverity.LOW: 1
+            AnomalySeverity.LOW: 1,
         }
-        overall_severity = max(severities, key=lambda s: severity_order.get(s, 0)) if severities else AnomalySeverity.MEDIUM
+        overall_severity = (
+            max(severities, key=lambda s: severity_order.get(s, 0))
+            if severities
+            else AnomalySeverity.MEDIUM
+        )
 
         # Calculate confidence based on number and severity of anomalies
         critical_count = sum(1 for s in severities if s == AnomalySeverity.CRITICAL)
@@ -421,9 +442,9 @@ class BehavioralAnalyzer:
             recommended_actions=recommended_actions,
             timestamp=datetime.now(timezone.utc),
             metadata={
-                'current_features': current_features,
-                'profile_risk_score': profile.risk_score
-            }
+                "current_features": current_features,
+                "profile_risk_score": profile.risk_score,
+            },
         )
 
         # Log alert
@@ -432,31 +453,35 @@ class BehavioralAnalyzer:
         return alert
 
     def _classify_threat(
-        self,
-        anomalous_features: List[str],
-        current_features: Dict[str, float]
+        self, anomalous_features: List[str], current_features: Dict[str, float]
     ) -> ThreatCategory:
         """Classify the type of threat based on anomalous features"""
         # High request rate + failed logins = Brute force
-        if 'requests_per_minute' in anomalous_features and 'failed_logins' in anomalous_features:
-            if current_features.get('failed_logins', 0) > 5:
+        if (
+            "requests_per_minute" in anomalous_features
+            and "failed_logins" in anomalous_features
+        ):
+            if current_features.get("failed_logins", 0) > 5:
                 return ThreatCategory.BRUTE_FORCE
 
         # High request rate + short session duration = Bot
-        if 'requests_per_minute' in anomalous_features:
-            if current_features.get('requests_per_minute', 0) > 60:
+        if "requests_per_minute" in anomalous_features:
+            if current_features.get("requests_per_minute", 0) > 60:
                 return ThreatCategory.BOT_AUTOMATION
 
         # Anomalous time of day + device fingerprint = Account takeover
-        if 'time_of_day' in anomalous_features:
+        if "time_of_day" in anomalous_features:
             return ThreatCategory.ACCOUNT_TAKEOVER
 
         # High error rate + many endpoints = Data exfiltration
-        if 'error_rate' in anomalous_features and 'unique_endpoints' in anomalous_features:
+        if (
+            "error_rate" in anomalous_features
+            and "unique_endpoints" in anomalous_features
+        ):
             return ThreatCategory.DATA_EXFILTRATION
 
         # Very high request rate = DoS
-        if current_features.get('requests_per_minute', 0) > 100:
+        if current_features.get("requests_per_minute", 0) > 100:
             return ThreatCategory.DENIAL_OF_SERVICE
 
         # Default to unknown
@@ -466,7 +491,7 @@ class BehavioralAnalyzer:
         self,
         threat_category: ThreatCategory,
         anomalous_features: List[str],
-        current_features: Dict[str, float]
+        current_features: Dict[str, float],
     ) -> str:
         """Generate human-readable description of the anomaly"""
         descriptions = {
@@ -481,14 +506,14 @@ class BehavioralAnalyzer:
 
         # Add specific details
         details = []
-        if 'requests_per_minute' in anomalous_features:
-            rate = current_features.get('requests_per_minute', 0)
+        if "requests_per_minute" in anomalous_features:
+            rate = current_features.get("requests_per_minute", 0)
             details.append(f"Request rate: {rate:.1f}/min")
-        if 'error_rate' in anomalous_features:
-            error_rate = current_features.get('error_rate', 0) * 100
+        if "error_rate" in anomalous_features:
+            error_rate = current_features.get("error_rate", 0) * 100
             details.append(f"Error rate: {error_rate:.1f}%")
-        if 'time_of_day' in anomalous_features:
-            hour = int(current_features.get('time_of_day', 0))
+        if "time_of_day" in anomalous_features:
+            hour = int(current_features.get("time_of_day", 0))
             details.append(f"Unusual time: {hour}:00")
 
         if details:
@@ -497,55 +522,61 @@ class BehavioralAnalyzer:
         return base_desc
 
     def _generate_recommendations(
-        self,
-        threat_category: ThreatCategory,
-        severity: AnomalySeverity
+        self, threat_category: ThreatCategory, severity: AnomalySeverity
     ) -> List[str]:
         """Generate recommended actions for the alert"""
         recommendations = []
 
         # Base recommendations by severity
         if severity == AnomalySeverity.CRITICAL:
-            recommendations.extend([
-                "IMMEDIATE: Block user access temporarily",
-                "Contact security team immediately",
-                "Review recent activity logs"
-            ])
+            recommendations.extend(
+                [
+                    "IMMEDIATE: Block user access temporarily",
+                    "Contact security team immediately",
+                    "Review recent activity logs",
+                ]
+            )
         elif severity == AnomalySeverity.HIGH:
-            recommendations.extend([
-                "Require additional authentication",
-                "Monitor user closely",
-                "Review session history"
-            ])
+            recommendations.extend(
+                [
+                    "Require additional authentication",
+                    "Monitor user closely",
+                    "Review session history",
+                ]
+            )
         elif severity == AnomalySeverity.MEDIUM:
-            recommendations.extend([
-                "Monitor user behavior",
-                "Consider step-up authentication"
-            ])
+            recommendations.extend(
+                ["Monitor user behavior", "Consider step-up authentication"]
+            )
 
         # Threat-specific recommendations
         if threat_category == ThreatCategory.BRUTE_FORCE:
-            recommendations.extend([
-                "Implement account lockout after N failures",
-                "Add CAPTCHA verification"
-            ])
+            recommendations.extend(
+                [
+                    "Implement account lockout after N failures",
+                    "Add CAPTCHA verification",
+                ]
+            )
         elif threat_category == ThreatCategory.BOT_AUTOMATION:
-            recommendations.extend([
-                "Implement rate limiting",
-                "Add CAPTCHA or challenge-response"
-            ])
+            recommendations.extend(
+                ["Implement rate limiting", "Add CAPTCHA or challenge-response"]
+            )
         elif threat_category == ThreatCategory.ACCOUNT_TAKEOVER:
-            recommendations.extend([
-                "Force password reset",
-                "Revoke all active sessions",
-                "Notify user of suspicious activity"
-            ])
+            recommendations.extend(
+                [
+                    "Force password reset",
+                    "Revoke all active sessions",
+                    "Notify user of suspicious activity",
+                ]
+            )
         elif threat_category == ThreatCategory.DATA_EXFILTRATION:
-            recommendations.extend([
-                "Audit data access logs",
-                "Review data egress patterns",
-                "Consider blocking data export"
-            ])
+            recommendations.extend(
+                [
+                    "Audit data access logs",
+                    "Review data egress patterns",
+                    "Consider blocking data export",
+                ]
+            )
 
         return recommendations
 
@@ -557,7 +588,7 @@ class BehavioralAnalyzer:
             "threat_category": alert.threat_category.value,
             "severity": alert.severity.value,
             "confidence": alert.confidence,
-            "anomalous_features": alert.anomalous_features
+            "anomalous_features": alert.anomalous_features,
         }
 
         if alert.severity in [AnomalySeverity.HIGH, AnomalySeverity.CRITICAL]:
@@ -583,16 +614,15 @@ class BehavioralAnalyzer:
         """Get system-wide statistics"""
         total_users = len(self.user_profiles)
         users_with_baselines = sum(
-            1 for p in self.user_profiles.values()
-            if p.baseline_established
+            1 for p in self.user_profiles.values() if p.baseline_established
         )
 
         return {
-            'total_users_tracked': total_users,
-            'users_with_baselines': users_with_baselines,
-            'baseline_window_days': self.baseline_window_days,
-            'min_baseline_samples': self.MIN_BASELINE_SAMPLES,
-            'active_sessions': len(self.active_sessions)
+            "total_users_tracked": total_users,
+            "users_with_baselines": users_with_baselines,
+            "baseline_window_days": self.baseline_window_days,
+            "min_baseline_samples": self.MIN_BASELINE_SAMPLES,
+            "active_sessions": len(self.active_sessions),
         }
 
 
@@ -601,9 +631,7 @@ behavioral_analyzer = BehavioralAnalyzer()
 
 
 def analyze_behavior(
-    user_id: str,
-    request_data: Dict[str, Any],
-    session_id: Optional[str] = None
+    user_id: str, request_data: Dict[str, Any], session_id: Optional[str] = None
 ) -> Optional[AnomalyAlert]:
     """
     Convenience function to analyze user behavior.
@@ -625,9 +653,7 @@ def analyze_behavior(
             print(f"Severity: {alert.severity}")
     """
     return behavioral_analyzer.analyze_user_behavior(
-        user_id=user_id,
-        request_data=request_data,
-        session_id=session_id
+        user_id=user_id, request_data=request_data, session_id=session_id
     )
 
 
@@ -642,45 +668,25 @@ def main():
     """CLI interface for behavioral analyzer"""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="User Behavioral Analysis Engine"
-    )
+    parser = argparse.ArgumentParser(description="User Behavioral Analysis Engine")
+    parser.add_argument("--user-id", required=True, help="User ID to analyze")
+    parser.add_argument("--request-rate", type=float, help="Requests per minute")
+    parser.add_argument("--error-rate", type=float, help="Error rate (0.0 to 1.0)")
     parser.add_argument(
-        '--user-id',
-        required=True,
-        help='User ID to analyze'
+        "--failed-logins", type=float, help="Number of failed login attempts"
     )
-    parser.add_argument(
-        '--request-rate',
-        type=float,
-        help='Requests per minute'
-    )
-    parser.add_argument(
-        '--error-rate',
-        type=float,
-        help='Error rate (0.0 to 1.0)'
-    )
-    parser.add_argument(
-        '--failed-logins',
-        type=float,
-        help='Number of failed login attempts'
-    )
-    parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Output results as JSON'
-    )
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
 
     args = parser.parse_args()
 
     # Build request data
     request_data = {}
     if args.request_rate:
-        request_data['requests_per_minute'] = args.request_rate
+        request_data["requests_per_minute"] = args.request_rate
     if args.error_rate:
-        request_data['error_rate'] = args.error_rate
+        request_data["error_rate"] = args.error_rate
     if args.failed_logins:
-        request_data['failed_logins'] = args.failed_logins
+        request_data["failed_logins"] = args.failed_logins
 
     # Analyze behavior
     alert = analyze_behavior(user_id=args.user_id, request_data=request_data)
@@ -692,9 +698,9 @@ def main():
         else:
             print(json.dumps({"status": "no_anomaly_detected"}, indent=2))
     else:
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("BEHAVIORAL ANALYSIS RESULTS")
-        print("="*80)
+        print("=" * 80)
         if alert:
             print(f"⚠️  ANOMALY DETECTED")
             print(f"Threat Category: {alert.threat_category.value}")
@@ -706,8 +712,8 @@ def main():
                 print(f"  • {action}")
         else:
             print("✓ No anomalies detected")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

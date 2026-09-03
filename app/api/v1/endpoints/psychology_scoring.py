@@ -4,34 +4,38 @@ Psychological Assessment Scoring API Endpoints
 Replaces basketball scoring with psychological wellness analytics
 """
 
-from typing import Dict, Any, List, Optional
-
-from app.api.v1.deps import get_current_user
-
-from app.middleware.rate_limiter import check_rate_limit
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_async_db, get_current_active_user
-from app.db.models.user import User
+from app.api.v1.deps import get_current_user
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.assessment import Assessment
 from app.db.models.response_score import ResponseScore
-from app.services.scoring_service import ScoringService
+from app.db.models.user import User
 from app.services.assessment_service import AssessmentService
+from app.services.scoring_service import ScoringService
 from app.services.team_dynamics_service import TeamDynamicsService
-from pydantic import BaseModel, Field
 
 router = APIRouter()
 
 
 class PsychologicalScoreResponse(BaseModel):
     """Psychological assessment score response model"""
+
     user_id: str
     assessment_id: str
-    overall_score: float = Field(ge=0, le=100, description="Overall wellness score (0-100)")
-    category_scores: Dict[str, float] = Field(description="Scores by psychological category")
+    overall_score: float = Field(
+        ge=0, le=100, description="Overall wellness score (0-100)"
+    )
+    category_scores: Dict[str, float] = Field(
+        description="Scores by psychological category"
+    )
     insights: List[str] = Field(description="AI-generated insights")
     recommendations: List[str] = Field(description="Personalized recommendations")
     assessment_date: datetime
@@ -40,6 +44,7 @@ class PsychologicalScoreResponse(BaseModel):
 
 class PsychometricProfileResponse(BaseModel):
     """Psychometric profile response model"""
+
     user_id: str
     analysis_period_days: int
     baseline_score: float
@@ -53,6 +58,7 @@ class PsychometricProfileResponse(BaseModel):
 
 class TeamPsychologyResponse(BaseModel):
     """Team psychological analysis response"""
+
     team_id: str
     team_size: int
     average_score: float
@@ -65,13 +71,16 @@ class TeamPsychologyResponse(BaseModel):
     recommendations: List[str]
 
 
-
-@check_rate_limit(identifier="public", limit_name="public")
-@router.get("/assessment/{assessment_id}/score", response_model=PsychologicalScoreResponse, dependencies=[Depends(get_current_user)])
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
+@router.get(
+    "/assessment/{assessment_id}/score",
+    response_model=PsychologicalScoreResponse,
+    dependencies=[Depends(get_current_user)],
+)
 async def get_assessment_psychological_score(
     assessment_id: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get psychological assessment score for a specific assessment.
@@ -81,14 +90,13 @@ async def get_assessment_psychological_score(
     assessment = await AssessmentService.get_by_id(db, assessment_id=assessment_id)
     if not assessment:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found"
         )
     # Check permissions (user can access their own assessments, or admins can access all)
     if assessment.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this assessment"
+            detail="Not authorized to access this assessment",
         )
     try:
         # Calculate psychological score using the scoring service
@@ -101,16 +109,20 @@ async def get_assessment_psychological_score(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error calculating psychological score: {str(e)}"
+            detail=f"Error calculating psychological score: {str(e)}",
         ) from e
 
 
-@router.get("/profile/{user_id}/psychometric", response_model=PsychometricProfileResponse)
+@router.get(
+    "/profile/{user_id}/psychometric", response_model=PsychometricProfileResponse
+)
 async def get_psychometric_profile(
     user_id: str,
-    period_days: int = Query(default=30, ge=7, le=365, description="Analysis period in days"),
+    period_days: int = Query(
+        default=30, ge=7, le=365, description="Analysis period in days"
+    ),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive psychometric profile for a user.
@@ -120,7 +132,7 @@ async def get_psychometric_profile(
     if user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this profile"
+            detail="Not authorized to access this profile",
         ) from e
     try:
         # Generate psychometric profile
@@ -133,7 +145,7 @@ async def get_psychometric_profile(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating psychometric profile: {str(e)}"
+            detail=f"Error generating psychometric profile: {str(e)}",
         ) from e
 
 
@@ -141,7 +153,7 @@ async def get_psychometric_profile(
 async def get_team_psychology_analysis(
     team_id: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive team psychological analysis.
@@ -152,23 +164,23 @@ async def get_team_psychology_analysis(
 
     try:
         # Generate team psychological analysis
-        team_analysis = await TeamDynamicsService.analyze_team_psychology(
-            db, team_id
-        )
+        team_analysis = await TeamDynamicsService.analyze_team_psychology(db, team_id)
 
         return TeamPsychologyResponse(**team_analysis)
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing team psychology: {str(e)}"
+            detail=f"Error analyzing team psychology: {str(e)}",
         ) from e
+
+
 @router.get("/user/{user_id}/wellness-trends")
 async def get_wellness_trends(
     user_id: str,
     days_back: int = Query(default=90, ge=7, le=365, description="Days of trend data"),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get wellness trends for a user over time.
@@ -178,31 +190,34 @@ async def get_wellness_trends(
     if user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access these trends"
+            detail="Not authorized to access these trends",
         ) from e
     try:
         # Get historical wellness data
-        trends_data = await ScoringService.get_wellness_trends(
-            db, user_id, days_back
-        )
+        trends_data = await ScoringService.get_wellness_trends(db, user_id, days_back)
 
         return {
             "user_id": user_id,
             "period_days": days_back,
             "trends": trends_data,
-            "generated_at": datetime.utcnow()
+            "generated_at": datetime.utcnow(),
         }
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving wellness trends: {str(e)}"
+            detail=f"Error retrieving wellness trends: {str(e)}",
         ) from e
-@router.post("/assessment/{assessment_id}/insights/generate", dependencies=[Depends(get_current_user)])
+
+
+@router.post(
+    "/assessment/{assessment_id}/insights/generate",
+    dependencies=[Depends(get_current_user)],
+)
 async def generate_assessment_insights(
     assessment_id: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Generate AI-powered insights for an assessment.
@@ -212,13 +227,12 @@ async def generate_assessment_insights(
     assessment = await AssessmentService.get_by_id(db, assessment_id=assessment_id)
     if not assessment:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found"
         ) from e
     if assessment.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this assessment"
+            detail="Not authorized to access this assessment",
         ) from e
     try:
         # Generate AI-powered insights
@@ -229,14 +243,16 @@ async def generate_assessment_insights(
         return {
             "assessment_id": assessment_id,
             "insights": insights,
-            "generated_at": datetime.utcnow()
+            "generated_at": datetime.utcnow(),
         }
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating insights: {str(e)}"
+            detail=f"Error generating insights: {str(e)}",
         ) from e
+
+
 @router.get("/psychological-frameworks")
 async def get_available_psychological_frameworks():
     """
@@ -247,32 +263,43 @@ async def get_available_psychological_frameworks():
         "mbti": {
             "name": "Myers-Briggs Type Indicator",
             "description": "Personality assessment based on psychological preferences",
-            "dimensions": ["Extraversion-Introversion", "Sensing-Intuition", "Thinking-Feeling", "Judging-Perceiving"]
+            "dimensions": [
+                "Extraversion-Introversion",
+                "Sensing-Intuition",
+                "Thinking-Feeling",
+                "Judging-Perceiving",
+            ],
         },
         "big_five": {
             "name": "Big Five (OCEAN) Personality Traits",
             "description": "Five-factor model of personality traits",
-            "dimensions": ["Openness", "Conscientiousness", "Extraversion", "Agreeableness", "Neuroticism"]
+            "dimensions": [
+                "Openness",
+                "Conscientiousness",
+                "Extraversion",
+                "Agreeableness",
+                "Neuroticism",
+            ],
         },
         "enneagram": {
             "name": "Enneagram Personality Types",
             "description": "Nine personality types based on core motivations",
-            "types": list(range(1, 10))
+            "types": list(range(1, 10)),
         },
         "disc": {
             "name": "DISC Assessment",
             "description": "Behavioral assessment focusing on four personality traits",
-            "dimensions": ["Dominance", "Influence", "Steadiness", "Conscientiousness"]
+            "dimensions": ["Dominance", "Influence", "Steadiness", "Conscientiousness"],
         },
         "predictive_index": {
             "name": "Predictive Index Behavioral Assessment",
             "description": "Assessment of workplace behaviors and drives",
-            "factors": ["Dominance", "Extraversion", "Patience", "Formality"]
-        }
+            "factors": ["Dominance", "Extraversion", "Patience", "Formality"],
+        },
     }
 
     return {
         "available_frameworks": frameworks,
         "total_frameworks": len(frameworks),
-        "last_updated": datetime.utcnow().isoformat()
+        "last_updated": datetime.utcnow().isoformat(),
     }

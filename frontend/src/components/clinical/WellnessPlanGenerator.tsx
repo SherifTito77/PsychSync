@@ -191,6 +191,7 @@ const WellnessPlanGenerator: React.FC = () => {
         return;
       }
 
+      const token = localStorage.getItem('access_token');
       const response = await fetch('/api/v1/clinical/wellness/plan/generate', {
         method: 'POST',
         headers: {
@@ -1182,7 +1183,7 @@ const WellnessPlanGenerator: React.FC = () => {
                   {Object.entries(aiInsights.advancedAnalytics?.currentPerformanceMetrics || {}).map(([key, value]) => (
                     <div key={key} className="flex justify-between items-center">
                       <span className="text-sm text-blue-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                      <span className="font-medium text-blue-900">{value}</span>
+                      <span className="font-medium text-blue-900">{value as React.ReactNode}</span>
                     </div>
                   ))}
                 </div>
@@ -1195,7 +1196,7 @@ const WellnessPlanGenerator: React.FC = () => {
                   {Object.entries(aiInsights.advancedAnalytics?.projectedImprovements || {}).map(([key, value]) => (
                     <div key={key} className="flex justify-between items-center">
                       <span className="text-sm text-green-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                      <span className="font-bold text-green-900">{value}</span>
+                      <span className="font-bold text-green-900">{value as React.ReactNode}</span>
                     </div>
                   ))}
                 </div>
@@ -1209,9 +1210,9 @@ const WellnessPlanGenerator: React.FC = () => {
                     <div key={key} className="flex justify-between items-center">
                       <span className="text-sm text-orange-700 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
                       <span className={`font-medium ${
-                        value.includes('low') ? 'text-green-700' :
-                        value.includes('moderate') ? 'text-yellow-700' : 'text-red-700'
-                      }`}>{value}</span>
+                        (value as string).includes('low') ? 'text-green-700' :
+                        (value as string).includes('moderate') ? 'text-yellow-700' : 'text-red-700'
+                      }`}>{value as React.ReactNode}</span>
                     </div>
                   ))}
                 </div>

@@ -18,17 +18,19 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+import logging
+import os
+import secrets
+import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 # Standard library imports
 from datetime import datetime
-import logging
-import os
-import secrets
-import time
 from typing import Any
+
+import uvicorn
 
 # Third-party imports
 from dotenv import load_dotenv
@@ -42,12 +44,29 @@ from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-import uvicorn
 
 from app.core.cors import configure_cors
 
 # Security imports
 from app.core.ssl_config import ssl_config
+
+# Sentry error monitoring (production)
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            traces_sample_rate=0.1,
+            profiles_sample_rate=0.1,
+            environment=os.getenv("ENVIRONMENT", "development"),
+            integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        )
+    except ImportError:
+        pass
 
 # Initialize application security logger
 app_security_logger = logging.getLogger("app.security.main")
@@ -73,9 +92,6 @@ security_config = SecurityConfig()
 
 # Local application imports
 from app.core.account_lockout import get_lockout_manager, init_lockout_manager
-
-# ENTERPRISE SECURITY MODULES (Phase 3 - Comprehensive Security Transformation)
-from app.core.advanced_rate_limiter import get_rate_limiter, init_rate_limiter
 from app.core.config import settings
 from app.core.constants import AppInfo
 from app.core.csrf import CSRFMiddleware
@@ -88,18 +104,22 @@ from app.core.handlers import (
     validation_exception_handler,
 )
 from app.core.logging_config import setup_logging
-from app.core.secure_logging import configure_secure_logging, security_logger
-from app.core.security_middleware import SecurityMiddleware
 
-# NEW COMPREHENSIVE SECURITY MIDDLEWARE (Phase 2 Security Implementation)
-from app.middleware.comprehensive_security_headers import ComprehensiveSecurityHeadersMiddleware
-from app.middleware.csrf_xss_protection import (
-    ContentSecurityPolicyMiddleware,
-    CSRFProtectionMiddleware,
-    XSSProtectionMiddleware,
+# ENTERPRISE SECURITY MODULES (Phase 3 - Comprehensive Security Transformation)
+# Using unified rate limiter with strategy pattern
+from app.core.rate_limiter_unified import (
+    RateLimitConfig,
+    RateLimitStrategy,
+    StorageBackend,
+    UnifiedRateLimiter,
 )
+from app.core.secure_logging import configure_secure_logging, security_logger
 from app.middleware.input_validation_middleware import SecurityValidationMiddleware
 from app.middleware.logging import StructuredLoggingMiddleware
+from app.middleware.security import SecurityMiddleware
+
+# UNIFIED SECURITY MIDDLEWARE (Consolidates all security middleware)
+from app.middleware.security_unified import SecurityConfig, UnifiedSecurityMiddleware
 
 # PERFORMANCE OPTIMIZATION IMPORTS
 # ================================
@@ -124,7 +144,6 @@ from app.api.v1.api import api_router
 
 # Import enhanced clinical analytics router
 from app.api.v1.endpoints import enhanced_clinical_analytics
-
 from app.middleware.response_compression import (
     RequestTrackingMiddleware,
     ResponseCompressionMiddleware,
@@ -133,7 +152,9 @@ from app.middleware.response_compression import (
 
 if settings.SENTRY_DSN:
     sentry_sdk.init(
-        dsn=settings.SENTRY_DSN, traces_sample_rate=1.0, environment=settings.ENVIRONMENT
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=1.0,
+        environment=settings.ENVIRONMENT,
     )
 
 # --- Initial Setup ---
@@ -144,13 +165,15 @@ logger = logging.getLogger(__name__)
 # --- Rate Limiting Setup ---
 # Basic rate limiting for backward compatibility
 limiter = Limiter(
-    key_func=get_remote_address, default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"]
+    key_func=get_remote_address,
+    default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"],
 )
 
-# Advanced tier-based rate limiting (ENTERPRISE MODULE - initialized in lifespan)
-# Note: The new AdvancedRateLimiter from app.core.advanced_rate_limiter is initialized
-# in the lifespan function with Redis backing. This is kept for compatibility.
-advanced_rate_limiter = None  # Will be initialized in lifespan
+# Unified rate limiting (ENTERPRISE MODULE - initialized in lifespan)
+# Uses the new unified rate limiter with strategy pattern and Redis backing
+unified_rate_limiter: UnifiedRateLimiter | None = (
+    None  # Will be initialized in lifespan
+)
 
 
 class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
@@ -352,7 +375,8 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     },
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded"
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Rate limit exceeded",
                 )
 
             # Increment counter
@@ -477,21 +501,35 @@ async def lifespan(app: FastAPI):
             try:
                 redis_url = settings.REDIS_URL
 
-                # Initialize advanced rate limiter
-                app_security_logger.info("Initializing advanced rate limiter...")
-                await init_rate_limiter(redis_url)
+                # Initialize unified rate limiter with multiple strategies
+                app_security_logger.info("Initializing unified rate limiter...")
+                global unified_rate_limiter
+                unified_rate_limiter = UnifiedRateLimiter(
+                    config=RateLimitConfig(
+                        limit=100,
+                        window=60,
+                        strategy=RateLimitStrategy.SLIDING_WINDOW,
+                    ),
+                    backend=StorageBackend.REDIS,
+                )
                 app_security_logger.info(
-                    "✅ 4-layer rate limiting active (IP + Username + Device + Geo)"
+                    "✅ Unified rate limiting active (Sliding Window strategy)"
                 )
 
                 # Initialize account lockout manager
                 app_security_logger.info("Initializing account lockout manager...")
                 await init_lockout_manager(redis_url)
-                app_security_logger.info("✅ Progressive account lockout active (5/10/15 attempts)")
+                app_security_logger.info(
+                    "✅ Progressive account lockout active (5/10/15 attempts)"
+                )
 
             except Exception as e:
-                app_security_logger.warning(f"⚠️ Redis security modules initialization failed: {e}")
-                app_security_logger.warning("Security modules will operate in degraded mode")
+                app_security_logger.warning(
+                    f"⚠️ Redis security modules initialization failed: {e}"
+                )
+                app_security_logger.warning(
+                    "Security modules will operate in degraded mode"
+                )
 
         # 3. Validate security configuration
         if settings.ENVIRONMENT == "production":
@@ -501,7 +539,9 @@ async def lifespan(app: FastAPI):
 
             # Validate critical security settings
             if not settings.SECRET_KEY or len(settings.SECRET_KEY) < 128:
-                app_security_logger.critical("CRITICAL: Insufficient SECRET_KEY for production")
+                app_security_logger.critical(
+                    "CRITICAL: Insufficient SECRET_KEY for production"
+                )
                 raise RuntimeError("Production security requirements not met")
 
         # 4. Initialize cache and connections with security validation
@@ -513,7 +553,9 @@ async def lifespan(app: FastAPI):
                     "✅ Security cache initialization successful (cache skipped)"
                 )
             except Exception as e:
-                app_security_logger.error(f"❌ Security cache initialization failed: {e}")
+                app_security_logger.error(
+                    f"❌ Security cache initialization failed: {e}"
+                )
 
         # 5. Database security validation
         try:
@@ -521,7 +563,10 @@ async def lifespan(app: FastAPI):
 
             if await check_db_health():
                 security_logger.log_auth_event(
-                    user_id="system", action="database_check", success=True, client_ip="localhost"
+                    user_id="system",
+                    action="database_check",
+                    success=True,
+                    client_ip="localhost",
                 )
                 app_security_logger.info("✅ Database security validation passed")
             else:
@@ -529,12 +574,36 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             app_security_logger.warning(f"⚠️ Database security validation error: {e}")
 
-        # 6. Performance security initialization
+        # 6. Database error monitoring initialization
+        try:
+            from app.monitoring.database_error_monitor import (
+                db_monitor,
+                start_database_error_monitoring,
+            )
+
+            # Start background database error monitoring
+            asyncio.create_task(
+                start_database_error_monitoring(
+                    report_interval_minutes=60,
+                    alert_on_patterns=True,
+                )
+            )
+            app_security_logger.info(
+                "✅ Database error monitoring initialized (reports every 60 min)"
+            )
+        except Exception as e:
+            app_security_logger.warning(
+                f"⚠️ Database monitoring initialization failed: {e}"
+            )
+
+        # 7. Performance security initialization
         try:
             # Initialize performance security monitoring
             app_security_logger.info("✅ Performance security monitoring initialized")
         except Exception as e:
-            app_security_logger.warning(f"⚠️ Performance security initialization failed: {e}")
+            app_security_logger.warning(
+                f"⚠️ Performance security initialization failed: {e}"
+            )
 
         app_security_logger.info(
             "🎯 PsychSync AI security initialization complete - All systems operational"
@@ -553,10 +622,10 @@ async def lifespan(app: FastAPI):
 
         try:
             # Close security module connections
-            rate_limiter = get_rate_limiter()
-            if rate_limiter:
-                await rate_limiter.close()
-                app_security_logger.info("✅ Rate limiter closed")
+            # Note: unified_rate_limiter already declared as global in startup section
+            if unified_rate_limiter:
+                await unified_rate_limiter.close()
+                app_security_logger.info("✅ Unified rate limiter closed")
 
             lockout_manager = get_lockout_manager()
             if lockout_manager:
@@ -575,13 +644,15 @@ from app.core.application_factory import create_application_for_environment
 
 # Create application using factory pattern with dependency injection
 app = create_application_for_environment(
-    swagger_ui_init_oauth={
-        "clientId": "psychsync-client",
-        "appName": "PsychSync API",
-        "usePkceWithAuthorizationCodeGrant": True,
-    }
-    if settings.DEBUG
-    else None,
+    swagger_ui_init_oauth=(
+        {
+            "clientId": "psychsync-client",
+            "appName": "PsychSync API",
+            "usePkceWithAuthorizationCodeGrant": True,
+        }
+        if settings.DEBUG
+        else None
+    ),
 )
 
 # --- ENTERPRISE SECURITY MIDDLEWARE CONFIGURATION ---
@@ -604,11 +675,15 @@ try:
     if use_strict:
         # For production - use strict middleware
         app.add_middleware(StrictHostValidationMiddleware)
-        app_security_logger.info("Strict Host validation middleware enabled (production mode)")
+        app_security_logger.info(
+            "Strict Host validation middleware enabled (production mode)"
+        )
     else:
         # For development/testing - use standard middleware
         app.add_middleware(HostValidationMiddleware)
-        app_security_logger.info("Host validation middleware enabled (development mode)")
+        app_security_logger.info(
+            "Host validation middleware enabled (development mode)"
+        )
 
 except Exception as e:
     app_security_logger.warning(f"Failed to configure Host validation middleware: {e}")
@@ -639,12 +714,73 @@ except Exception as e:
 
 # 5.1. Comprehensive Security Headers (Second layer - after CORS)
 try:
-    csrf_secret_key = os.getenv("CSRF_SECRET_KEY", os.getenv("SECRET_KEY", secrets.token_hex(32)))
-    # Disable CSP here - handled by ContentSecurityPolicyMiddleware below for Swagger UI
-    app.add_middleware(ComprehensiveSecurityHeadersMiddleware, enable_csp=False)
-    app_security_logger.info("✅ Comprehensive security headers middleware enabled (CSP delegated)")
+    csrf_secret_key = os.getenv(
+        "CSRF_SECRET_KEY", os.getenv("SECRET_KEY", secrets.token_hex(32))
+    )
+    # UNIFIED SECURITY MIDDLEWARE (Consolidates all security middleware)
+    # This replaces: ComprehensiveSecurityHeadersMiddleware, XSSProtectionMiddleware,
+    #               ContentSecurityPolicyMiddleware, CSRFProtectionMiddleware, SecurityMiddleware
+    unified_security_config = SecurityConfig(
+        # Feature toggles
+        security_headers_enabled=True,
+        csrf_protection_enabled=True,
+        ip_blocking_enabled=True,
+        attack_detection_enabled=True,
+        request_logging_enabled=False,  # Set to True for debugging
+        # Security headers configuration
+        hsts_max_age=31536000,  # 1 year
+        hsts_include_subdomains=True,
+        hsts_preload=True,
+        csp_level="medium",  # medium supports Swagger UI
+        # CSRF configuration
+        csrf_cookie_name="csrf_token",
+        csrf_header_name="X-CSRF-Token",
+        csrf_token_expiry=3600,  # 1 hour
+        # IP blocking configuration
+        failed_login_threshold=5,
+        ip_block_duration=900,  # 15 minutes
+        max_requests_per_minute=60,
+        # Attack detection
+        block_known_attack_tools=True,
+        log_suspicious_paths=True,
+        # Exclusions (health endpoints, docs, etc.)
+        exclude_paths={
+            "/health",
+            "/metrics",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/static",
+            "/favicon.ico",
+            # Auth endpoints — CSRF-exempt (JWT Bearer auth, no cookie session)
+            "/api/v1/simple-login",
+            "/api/v1/auth/login",
+            "/api/v1/auth/login/mfa/verify",
+            "/api/v1/auth/register",
+            "/api/v1/auth/verify-email",
+            "/api/v1/auth/resend-verification",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/logout",
+            "/api/v1/logout",
+            "/api/v1/auth/token",
+            "/api/v1/auth/mfa/setup",
+            "/api/v1/auth/mfa/verify",
+            "/api/v1/auth/mfa/disable",
+            # Reliability & Validity — unauthenticated stubs (frontend uses fetch without Bearer)
+            "/api/v1/reliability-validity/comprehensive/analyze",
+            "/api/v1/reliability-validity/reliability/analyze",
+            "/api/v1/reliability-validity/factor-analysis",
+            "/api/v1/reliability-validity/validity/analyze",
+            "/api/v1/reliability-validity/items/analyze",
+        },
+    )
+
+    app.add_middleware(UnifiedSecurityMiddleware, config=unified_security_config)
+    app_security_logger.info(
+        "✅ Unified security middleware enabled (consolidates all security features)"
+    )
 except Exception as e:
-    app_security_logger.warning(f"Failed to enable comprehensive security headers: {e}")
+    app_security_logger.warning(f"Failed to enable unified security middleware: {e}")
 
 # 5.2. Input Validation Middleware (Third layer - validates all inputs)
 try:
@@ -660,141 +796,147 @@ except Exception as e:
     app_security_logger.warning(f"Failed to enable input validation middleware: {e}")
 
 # 5.3. XSS Protection Middleware (Fourth layer - sanitizes inputs)
-try:
-    app.add_middleware(
-        XSSProtectionMiddleware, enable_sanitization=True, strip_tags=True, escape_html=True
-    )
-    app_security_logger.info("✅ XSS protection middleware enabled")
-except Exception as e:
-    app_security_logger.warning(f"Failed to enable XSS protection middleware: {e}")
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     app.add_middleware(
+#         XSSProtectionMiddleware, enable_sanitization=True, strip_tags=True, escape_html=True
+#     )
+#     app_security_logger.info("✅ XSS protection middleware enabled")
+# except Exception as e:
+#     app_security_logger.warning(f"Failed to enable XSS protection middleware: {e}")
 
 # 5.4. Content Security Policy Middleware (Fifth layer - CSP headers)
-try:
-    # Define CSP directives for the application (ENHANCED - removed unsafe-inline/unsafe-eval)
-    csp_directives = {
-        "default-src": "'self'",
-        "script-src": "'self' https://cdn.jsdelivr.net",  # For Swagger UI JS
-        "style-src": "'self' https://fonts.googleapis.com https://cdn.jsdelivr.net",  # For Swagger UI CSS
-        "img-src": "'self' data: https: blob: https://fastapi.tiangolo.com",  # For Swagger UI favicon
-        "font-src": "'self' https://fonts.gstatic.com data:",
-        "connect-src": "'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:",
-        "frame-src": "'none'",
-        "object-src": "'none'",
-        "base-uri": "'self'",
-        "form-action": "'self'",
-        "frame-ancestors": "'none'",
-        "upgrade-insecure-requests": "",
-        "require-trusted-types-for": "'script'",  # Additional XSS protection
-    }
-
-    app.add_middleware(
-        ContentSecurityPolicyMiddleware,
-        csp_directives=csp_directives,
-        report_only=False,  # Set to True for testing, False for enforcement
-    )
-    app_security_logger.info(
-        "✅ Content Security Policy middleware enabled (ENHANCED - no unsafe-inline/unsafe-eval)"
-    )
-except Exception as e:
-    app_security_logger.warning(f"Failed to enable CSP middleware: {e}")
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     # Define CSP directives for the application (ENHANCED - removed unsafe-inline/unsafe-eval)
+#     csp_directives = {
+#         "default-src": "'self'",
+#         "script-src": "'self' https://cdn.jsdelivr.net",  # For Swagger UI JS
+#         "style-src": "'self' https://fonts.googleapis.com https://cdn.jsdelivr.net",  # For Swagger UI CSS
+#         "img-src": "'self' data: https: blob: https://fastapi.tiangolo.com",  # For Swagger UI favicon
+#         "font-src": "'self' https://fonts.gstatic.com data:",
+#         "connect-src": "'self' https://api.stripe.com wss://localhost:* ws://localhost:* http://localhost:* https:",
+#         "frame-src": "'none'",
+#         "object-src": "'none'",
+#         "base-uri": "'self'",
+#         "form-action": "'self'",
+#         "frame-ancestors": "'none'",
+#         "upgrade-insecure-requests": "",
+#         "require-trusted-types-for": "'script'",  # Additional XSS protection
+#     }
+#
+#     app.add_middleware(
+#         ContentSecurityPolicyMiddleware,
+#         csp_directives=csp_directives,
+#         report_only=False,  # Set to True for testing, False for enforcement
+#     )
+#     app_security_logger.info(
+#         "✅ Content Security Policy middleware enabled (ENHANCED - no unsafe-inline/unsafe-eval)"
+#     )
+# except Exception as e:
+#     app_security_logger.warning(f"Failed to enable CSP middleware: {e}")
 
 # 5.5. CSRF Protection Middleware (Sixth layer - token-based CSRF)
-try:
-    # Define paths to exclude from CSRF validation (auth endpoints, public APIs)
-    csrf_exclude_paths = [
-        "/health",
-        "/metrics",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-        # Health monitoring endpoints
-        "/api/v1/health-monitoring",
-        "/api/v1/health-monitoring/analyze",
-        "/api/v1/health-monitoring/check",
-        # Old auth endpoints (with /auth prefix)
-        "/api/v1/auth/login",
-        "/api/v1/auth/register",
-        "/api/v1/auth/token",
-        "/api/v1/auth/refresh",
-        "/api/v1/auth/logout",
-        "/api/v1/auth/token-fixed",
-        "/api/v1/auth/me-fixed",
-        # New unified auth endpoints (without /auth prefix)
-        "/api/v1/login",
-        "/api/v1/register",
-        "/api/v1/verify-email",
-        "/api/v1/resend-verification",
-        "/api/v1/login/mfa/verify",  # MFA verification endpoint
-        "/api/v1/mfa/setup",  # MFA setup
-        "/api/v1/mfa/verify",  # MFA verification
-        "/api/v1/mfa/disable",  # MFA disable
-        # Simple auth endpoints (for testing/development)
-        "/api/v1/simple-login",
-        "/api/v1/verify-token",
-        "/api/v1/me",
-    ]
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     # Define paths to exclude from CSRF validation (auth endpoints, public APIs)
+#     csrf_exclude_paths = [
+#         "/health",
+#         "/metrics",
+#         "/docs",
+#         "/redoc",
+#         "/openapi.json",
+#         # Health monitoring endpoints
+#         "/api/v1/health-monitoring",
+#         "/api/v1/health-monitoring/analyze",
+#         "/api/v1/health-monitoring/check",
+#         # Old auth endpoints (with /auth prefix)
+#         "/api/v1/auth/login",
+#         "/api/v1/auth/register",
+#         "/api/v1/auth/token",
+#         "/api/v1/auth/refresh",
+#         "/api/v1/auth/logout",
+#         "/api/v1/auth/token-fixed",
+#         "/api/v1/auth/me-fixed",
+#         # New unified auth endpoints (without /auth prefix)
+#         "/api/v1/login",
+#         "/api/v1/register",
+#         "/api/v1/verify-email",
+#         "/api/v1/resend-verification",
+#         "/api/v1/login/mfa/verify",  # MFA verification endpoint
+#         "/api/v1/mfa/setup",  # MFA setup
+#         "/api/v1/mfa/verify",  # MFA verification
+#         "/api/v1/mfa/disable",  # MFA disable
+#         # Simple auth endpoints (for testing/development)
+#         "/api/v1/simple-login",
+#         "/api/v1/verify-token",
+#         "/api/v1/me",
+#     ]
+#
+#     app.add_middleware(
+#         CSRFProtectionMiddleware,
+#         secret_key=csrf_secret_key,
+#         token_name="csrf_token",
+#         header_name="X-CSRF-Token",
+#         cookie_name="csrf_cookie",
+#         max_age=3600,  # 1 hour
+#         secure=True,  # True in production (HTTPS)
+#         httponly=False,  # Allow JavaScript access
+#         samesite="lax",
+#         exclude_paths=csrf_exclude_paths,
+#     )
+#     app_security_logger.info("✅ CSRF protection middleware enabled (double-submit cookie pattern)")
+# except Exception as e:
+#     app_security_logger.warning(f"Failed to enable CSRF protection middleware: {e}")
 
-    app.add_middleware(
-        CSRFProtectionMiddleware,
-        secret_key=csrf_secret_key,
-        token_name="csrf_token",
-        header_name="X-CSRF-Token",
-        cookie_name="csrf_cookie",
-        max_age=3600,  # 1 hour
-        secure=True,  # True in production (HTTPS)
-        httponly=False,  # Allow JavaScript access
-        samesite="lax",
-        exclude_paths=csrf_exclude_paths,
-    )
-    app_security_logger.info("✅ CSRF protection middleware enabled (double-submit cookie pattern)")
-except Exception as e:
-    app_security_logger.warning(f"Failed to enable CSRF protection middleware: {e}")
-
-app_security_logger.info("✅ Comprehensive security middleware chain configured successfully")
+app_security_logger.info(
+    "✅ Comprehensive security middleware chain configured successfully"
+)
 
 # 6. Existing CSRF Protection Middleware (legacy - keep for compatibility)
-try:
-    # SECURITY: Enable CSRF middleware for additional protection beyond SameSite cookies
-    # httpOnly cookies + SameSite=lax provide baseline CSRF protection
-    # This middleware adds token-based validation for state-changing operations
-    app.add_middleware(
-        CSRFMiddleware,
-        exclude_paths=[
-            # Public endpoints that don't need CSRF
-            "/health",
-            "/health/public",
-            "/metrics",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/static",
-            "/favicon.ico",
-            # Health monitoring endpoints
-            "/api/v1/health-monitoring",
-            "/api/v1/health-monitoring/analyze",
-            "/api/v1/health-monitoring/check",
-            # Auth endpoints (use our cookie-based CSRF instead)
-            "/api/v1/auth/token-fixed",
-            "/api/v1/auth/register",
-            "/api/v1/auth/login",
-            "/api/v1/auth/logout",
-            "/api/v1/auth/me-fixed",
-            # Simple auth endpoints (for testing/development)
-            "/api/v1/simple-login",
-            "/api/v1/verify-token",
-            "/api/v1/me",
-            # Legacy endpoints for backward compatibility
-            "/api/v1/token",
-            "/api/v1/auth/token",
-            "/api/v1/auth/refresh",
-        ],
-        token_expire_seconds=3600,  # 1 hour
-        header_name="X-CSRF-Token",
-    )
-    app_security_logger.info("✅ CSRF middleware enabled - token-based CSRF protection active")
-except Exception as e:
-    app_security_logger.error(f"Failed to enable CSRF middleware: {e}")
-    raise
+# DISABLED: Now handled by UnifiedSecurityMiddleware
+# try:
+#     # SECURITY: Enable CSRF middleware for additional protection beyond SameSite cookies
+#     # httpOnly cookies + SameSite=lax provide baseline CSRF protection
+#     # This middleware adds token-based validation for state-changing operations
+#     app.add_middleware(
+#         CSRFMiddleware,
+#         exclude_paths=[
+#             # Public endpoints that don't need CSRF
+#             "/health",
+#             "/health/public",
+#             "/metrics",
+#             "/docs",
+#             "/redoc",
+#             "/openapi.json",
+#             "/static",
+#             "/favicon.ico",
+#             # Health monitoring endpoints
+#             "/api/v1/health-monitoring",
+#             "/api/v1/health-monitoring/analyze",
+#             "/api/v1/health-monitoring/check",
+#             # Auth endpoints (use our cookie-based CSRF instead)
+#             "/api/v1/auth/token-fixed",
+#             "/api/v1/auth/register",
+#             "/api/v1/auth/login",
+#             "/api/v1/auth/logout",
+#             "/api/v1/auth/me-fixed",
+#             # Simple auth endpoints (for testing/development)
+#             "/api/v1/simple-login",
+#             "/api/v1/verify-token",
+#             "/api/v1/me",
+#             # Legacy endpoints for backward compatibility
+#             "/api/v1/token",
+#             "/api/v1/auth/token",
+#             "/api/v1/auth/refresh",
+#         ],
+#         token_expire_seconds=3600,  # 1 hour
+#         header_name="X-CSRF-Token",
+#     )
+#     app_security_logger.info("✅ CSRF middleware enabled - token-based CSRF protection active")
+# except Exception as e:
+#     app_security_logger.error(f"Failed to enable CSRF middleware: {e}")
+#     raise
 
 # 6. Add structured logging middleware (after security middleware for comprehensive coverage)
 try:
@@ -863,11 +1005,15 @@ async def add_additional_security_headers(request: Request, call_next):
     # Additional security headers
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains; preload"
+    )
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=()"
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), microphone=(), camera=(), payment=()"
+    )
 
     # CSP header is now handled by ContentSecurityPolicyMiddleware above
     # to avoid conflicts and allow Swagger UI to load properly
@@ -879,13 +1025,7 @@ async def add_additional_security_headers(request: Request, call_next):
 
 
 # Add advanced security middleware
-app.add_middleware(
-    SecurityMiddleware,
-    redis_client=redis_client,
-    enable_rate_limiting=True,
-    enable_request_validation=True,
-    enable_ip_whitelist=False,  # Set to True to enable IP whitelist
-)
+app.add_middleware(SecurityMiddleware)
 
 # PERFORMANCE OPTIMIZATION MIDDLEWARE
 # ===================================
@@ -923,6 +1063,7 @@ app.include_router(enhanced_clinical_analytics.router, prefix="/api/v1")
 # --- WebSocket Routes ---
 # Import and include WebSocket routers
 from app.api.v1.endpoints.health_monitoring_ws import ws_router
+
 app.include_router(ws_router)
 
 
@@ -957,17 +1098,59 @@ async def health_check_main() -> dict[str, Any]:
         logger.error(f"Database health check failed: {e}")
         db_status = "error"
 
-    return {
-        "status": "healthy",
+    is_healthy = db_status == "connected"
+
+    result = {
+        "status": "healthy" if is_healthy else "degraded",
         "version": AppInfo.VERSION,
         "timestamp": datetime.utcnow().isoformat(),
-        "services": {"database": db_status, "redis": redis_status, "ai_engine": "ready"},
+        "services": {
+            "database": db_status,
+            "redis": redis_status,
+            "ai_engine": "ready",
+        },
         "performance": {
             "cache_healthy": not cache_service.circuit_breaker_open,
             "memory_monitoring": memory_service.monitoring_enabled,
             "performance_monitoring": performance_monitoring_service.monitoring_status.value,
         },
     }
+
+    if not is_healthy:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(status_code=503, content=result)
+
+    return result
+
+
+@app.get("/ready")
+async def readiness_check() -> dict[str, Any]:
+    """Readiness probe — returns 200 only when DB and Redis are both available."""
+    errors = []
+    try:
+        from app.core.database import check_db_health
+
+        if not await check_db_health():
+            errors.append("database")
+    except Exception:
+        errors.append("database")
+
+    try:
+        if not await redis_client.ping():
+            errors.append("redis")
+    except Exception:
+        errors.append("redis")
+
+    if errors:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=503,
+            content={"ready": False, "unavailable": errors},
+        )
+
+    return {"ready": True}
 
 
 @app.get("/metrics/performance")
@@ -978,7 +1161,9 @@ async def get_performance_metrics() -> dict[str, Any]:
     """
     try:
         # Get performance monitoring stats
-        system_stats = await performance_monitoring_service.get_system_performance_stats()
+        system_stats = (
+            await performance_monitoring_service.get_system_performance_stats()
+        )
 
         # Get cache metrics
         cache_metrics = cache_service.get_metrics()
@@ -997,7 +1182,11 @@ async def get_performance_metrics() -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Performance metrics collection failed: {e}")
-        return {"timestamp": datetime.utcnow().isoformat(), "error": str(e), "status": "error"}
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "status": "error",
+        }
 
 
 # --- Uvicorn Runner ---
@@ -1024,8 +1213,12 @@ if __name__ == "__main__":
             access_log=True,
         )
     else:
-        logger.warning("⚠️  SSL certificates not valid - falling back to HTTP development mode")
+        logger.warning(
+            "⚠️  SSL certificates not valid - falling back to HTTP development mode"
+        )
         logger.warning(f"SSL Issues: {ssl_verification.get('issues', 'Unknown')}")
 
         # Development configuration (HTTP only)
-        uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+        uvicorn.run(
+            "app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
+        )

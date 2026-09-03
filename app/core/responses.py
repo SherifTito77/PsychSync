@@ -23,7 +23,9 @@ class BaseResponse[T](BaseModel):
     errors: list[str] | None = Field(None, description="List of error messages")
     meta: dict[str, Any] | None = Field(None, description="Additional metadata")
     request_id: str | None = Field(None, description="Request tracking ID")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="Response timestamp"
+    )
 
     @field_serializer("timestamp")
     def serialize_timestamp(self, value: datetime) -> str:
@@ -52,10 +54,21 @@ class PaginatedResponse(BaseResponse[list[T]]):
     @classmethod
     def validate_pagination(cls, v):
         """Ensure pagination has required fields"""
-        required_fields = ["page", "page_size", "total", "total_pages", "has_next", "has_prev"]
+        required_fields = [
+            "page",
+            "page_size",
+            "total",
+            "total_pages",
+            "has_next",
+            "has_prev",
+        ]
         for field in required_fields:
             if field not in v:
-                v[field] = 0 if field in ["page", "page_size", "total", "total_pages"] else False
+                v[field] = (
+                    0
+                    if field in ["page", "page_size", "total", "total_pages"]
+                    else False
+                )
         return v
 
 
@@ -105,7 +118,9 @@ class APIResponse:
             message=message, data=data, meta=meta, request_id=request_id
         )
 
-        return JSONResponse(content=response_data.dict(exclude_none=True), status_code=status_code)
+        return JSONResponse(
+            content=response_data.dict(exclude_none=True), status_code=status_code
+        )
 
     @staticmethod
     def created(
@@ -175,7 +190,11 @@ class APIResponse:
         }
 
         response_data = PaginatedResponse(
-            message=message, data=items, pagination=pagination, meta=meta, request_id=request_id
+            message=message,
+            data=items,
+            pagination=pagination,
+            meta=meta,
+            request_id=request_id,
         )
 
         return JSONResponse(content=response_data.dict(exclude_none=True))
@@ -205,7 +224,9 @@ class APIResponse:
             message=message, data=None, errors=errors, meta=meta, request_id=request_id
         )
 
-        return JSONResponse(content=response_data.dict(exclude_none=True), status_code=status_code)
+        return JSONResponse(
+            content=response_data.dict(exclude_none=True), status_code=status_code
+        )
 
     @staticmethod
     def not_found(
@@ -222,7 +243,9 @@ class APIResponse:
             JSONResponse with 404 status code
         """
         return APIResponse.error(
-            message=message, request_id=request_id, status_code=status.HTTP_404_NOT_FOUND
+            message=message,
+            request_id=request_id,
+            status_code=status.HTTP_404_NOT_FOUND,
         )
 
     @staticmethod
@@ -272,11 +295,15 @@ class APIResponse:
             JSONResponse with 401 status code
         """
         return APIResponse.error(
-            message=message, request_id=request_id, status_code=status.HTTP_401_UNAUTHORIZED
+            message=message,
+            request_id=request_id,
+            status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
     @staticmethod
-    def forbidden(message: str = "Access forbidden", request_id: str | None = None) -> JSONResponse:
+    def forbidden(
+        message: str = "Access forbidden", request_id: str | None = None
+    ) -> JSONResponse:
         """
         Create a forbidden response
 
@@ -288,11 +315,15 @@ class APIResponse:
             JSONResponse with 403 status code
         """
         return APIResponse.error(
-            message=message, request_id=request_id, status_code=status.HTTP_403_FORBIDDEN
+            message=message,
+            request_id=request_id,
+            status_code=status.HTTP_403_FORBIDDEN,
         )
 
     @staticmethod
-    def conflict(message: str = "Resource conflict", request_id: str | None = None) -> JSONResponse:
+    def conflict(
+        message: str = "Resource conflict", request_id: str | None = None
+    ) -> JSONResponse:
         """
         Create a conflict response
 
@@ -483,7 +514,10 @@ class CompressedJSONResponse(JSONResponse):
             headers["Content-Encoding"] = "gzip"
 
         super().__init__(
-            content=content, status_code=status_code, headers=headers, media_type=media_type
+            content=content,
+            status_code=status_code,
+            headers=headers,
+            media_type=media_type,
         )
 
 
@@ -498,7 +532,9 @@ def get_request_id(request) -> str | None:
 
 
 # Error response helpers for common scenarios
-def handle_validation_exception(exc: Exception, request_id: str | None = None) -> JSONResponse:
+def handle_validation_exception(
+    exc: Exception, request_id: str | None = None
+) -> JSONResponse:
     """Convert validation exceptions to standardized error responses"""
     if hasattr(exc, "errors"):  # Pydantic validation error
         validation_errors = []
@@ -512,12 +548,18 @@ def handle_validation_exception(exc: Exception, request_id: str | None = None) -
             )
 
         return APIResponse.validation_error(
-            message="Validation failed", validation_errors=validation_errors, request_id=request_id
+            message="Validation failed",
+            validation_errors=validation_errors,
+            request_id=request_id,
         )
-    return APIResponse.validation_error(message=str(exc), errors=[str(exc)], request_id=request_id)
+    return APIResponse.validation_error(
+        message=str(exc), errors=[str(exc)], request_id=request_id
+    )
 
 
-def handle_database_exception(exc: Exception, request_id: str | None = None) -> JSONResponse:
+def handle_database_exception(
+    exc: Exception, request_id: str | None = None
+) -> JSONResponse:
     """Convert database exceptions to standardized error responses"""
     if "unique" in str(exc).lower():
         return APIResponse.conflict(
@@ -525,6 +567,10 @@ def handle_database_exception(exc: Exception, request_id: str | None = None) -> 
         )
     if "foreign key" in str(exc).lower():
         return APIResponse.validation_error(
-            message="Referenced resource does not exist", errors=[str(exc)], request_id=request_id
+            message="Referenced resource does not exist",
+            errors=[str(exc)],
+            request_id=request_id,
         )
-    return APIResponse.server_error(message="Database operation failed", request_id=request_id)
+    return APIResponse.server_error(
+        message="Database operation failed", request_id=request_id
+    )

@@ -7,24 +7,33 @@ Integrates with:
 - Notification system for multi-channel delivery
 """
 
-from typing import Dict, List, Any, Optional
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from dataclasses import dataclass
-import logging
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from app.services.health.stress_monitoring_service import HealthRiskIndicators, StressLevel, BurnoutStage
+from app.db.models.notifications import (
+    Notification,
+    NotificationPriority,
+    NotificationStatus,
+)
 from app.db.models.wellness_burnout import BurnoutIntervention, WellnessResource
-from app.db.models.notifications import Notification, NotificationPriority, NotificationStatus
+from app.services.health.stress_monitoring_service import (
+    BurnoutStage,
+    HealthRiskIndicators,
+    StressLevel,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class InterventionType(Enum):
     """Types of interventions"""
+
     IMMEDIATE_BREAK = "immediate_break"
     MEDICAL_ALERT = "medical_alert"
     MANAGER_NOTIFICATION = "manager_notification"
@@ -40,6 +49,7 @@ class InterventionType(Enum):
 
 class InterventionUrgency(Enum):
     """Intervention urgency levels"""
+
     CRITICAL = "critical"  # Immediate action required (within 1 hour)
     HIGH = "high"  # Action within 24 hours
     MEDIUM = "medium"  # Action within week
@@ -49,6 +59,7 @@ class InterventionUrgency(Enum):
 @dataclass
 class InterventionAction:
     """Specific intervention action"""
+
     intervention_type: InterventionType
     urgency: InterventionUrgency
     title: str
@@ -83,7 +94,7 @@ class HealthInterventionSystem:
         organization_id: str,
         team_id: Optional[str],
         health_risks: HealthRiskIndicators,
-        work_patterns: Dict[str, Any]
+        work_patterns: Dict[str, Any],
     ) -> List[InterventionAction]:
         """
         Create comprehensive intervention plan based on risk assessment
@@ -93,51 +104,69 @@ class HealthInterventionSystem:
 
         # Critical interventions (immediate)
         if health_risks.recommend_medical_evaluation:
-            interventions.append(self._create_medical_alert_intervention(
-                user_id, organization_id, health_risks
-            ))
+            interventions.append(
+                self._create_medical_alert_intervention(
+                    user_id, organization_id, health_risks
+                )
+            )
 
         if health_risks.urgent_intervention_needed:
-            interventions.append(self._create_immediate_break_intervention(
-                user_id, organization_id, health_risks
-            ))
+            interventions.append(
+                self._create_immediate_break_intervention(
+                    user_id, organization_id, health_risks
+                )
+            )
 
         # High-priority interventions
         if health_risks.recommend_workload_reduction:
-            interventions.append(self._create_workload_reduction_intervention(
-                user_id, organization_id, team_id, work_patterns
-            ))
+            interventions.append(
+                self._create_workload_reduction_intervention(
+                    user_id, organization_id, team_id, work_patterns
+                )
+            )
 
         if health_risks.recommend_immediate_break:
-            interventions.append(self._create_break_enforcement_intervention(
-                user_id, organization_id, health_risks
-            ))
+            interventions.append(
+                self._create_break_enforcement_intervention(
+                    user_id, organization_id, health_risks
+                )
+            )
 
         # Medium-priority interventions
         if health_risks.work_life_imbalance > 0.6:
-            interventions.append(self._create_boundary_protection_intervention(
-                user_id, organization_id, health_risks
-            ))
+            interventions.append(
+                self._create_boundary_protection_intervention(
+                    user_id, organization_id, health_risks
+                )
+            )
 
         if health_risks.sleep_disruption_score > 0.6:
-            interventions.append(self._create_sleep_hygiene_intervention(
-                user_id, organization_id, health_risks
-            ))
+            interventions.append(
+                self._create_sleep_hygiene_intervention(
+                    user_id, organization_id, health_risks
+                )
+            )
 
         # Mental health crisis support
         if health_risks.mental_health_risk > 0.7:
-            interventions.append(self._create_crisis_support_intervention(
-                user_id, organization_id, health_risks
-            ))
+            interventions.append(
+                self._create_crisis_support_intervention(
+                    user_id, organization_id, health_risks
+                )
+            )
 
         # Preventive interventions
         if health_risks.stress_level in [StressLevel.ELEVATED, StressLevel.HIGH]:
-            interventions.append(self._create_wellness_reminder_intervention(
-                user_id, organization_id, health_risks
-            ))
+            interventions.append(
+                self._create_wellness_reminder_intervention(
+                    user_id, organization_id, health_risks
+                )
+            )
 
         # Store interventions in database
-        await self._persist_interventions(user_id, organization_id, team_id, interventions, health_risks)
+        await self._persist_interventions(
+            user_id, organization_id, team_id, interventions, health_risks
+        )
 
         # Execute interventions (send notifications)
         await self._execute_interventions(user_id, organization_id, interventions)
@@ -145,10 +174,7 @@ class HealthInterventionSystem:
         return interventions
 
     def _create_medical_alert_intervention(
-        self,
-        user_id: str,
-        organization_id: str,
-        health_risks: HealthRiskIndicators
+        self, user_id: str, organization_id: str, health_risks: HealthRiskIndicators
     ) -> InterventionAction:
         """Create critical medical alert intervention"""
 
@@ -173,7 +199,7 @@ If you're experiencing: chest pain, shortness of breath, dizziness, severe heada
                 "Schedule same-day appointment with primary care physician",
                 "If experiencing chest pain, shortness of breath, or dizziness: Call emergency services (911)",
                 "Inform your manager you need immediate medical leave",
-                "Document all symptoms for medical consultation"
+                "Document all symptoms for medical consultation",
             ],
             notify_user=True,
             notify_manager=True,
@@ -183,34 +209,27 @@ If you're experiencing: chest pain, shortness of breath, dizziness, severe heada
                 "Block calendar for rest of day",
                 "Send auto-reply email about medical leave",
                 "Pause all non-critical notifications",
-                "Alert HR for immediate leave processing"
+                "Alert HR for immediate leave processing",
             ],
             resources=[
                 {
                     "title": "Find Urgent Care Near You",
                     "url": "https://www.urgentcare.com/",
-                    "type": "medical"
+                    "type": "medical",
                 },
                 {
                     "title": "Recognize Heart Attack Symptoms",
                     "url": "https://www.heart.org/en/health-topics/heart-attack/warning-signs-of-a-heart-attack",
-                    "type": "education"
+                    "type": "education",
                 },
-                {
-                    "title": "Crisis Support Hotline",
-                    "phone": "988",
-                    "type": "support"
-                }
+                {"title": "Crisis Support Hotline", "phone": "988", "type": "support"},
             ],
             follow_up_required=True,
-            follow_up_days=1
+            follow_up_days=1,
         )
 
     def _create_immediate_break_intervention(
-        self,
-        user_id: str,
-        organization_id: str,
-        health_risks: HealthRiskIndicators
+        self, user_id: str, organization_id: str, health_risks: HealthRiskIndicators
     ) -> InterventionAction:
         """Create immediate break enforcement"""
 
@@ -231,7 +250,7 @@ Your wellbeing is the top priority. Stop working NOW.""".strip(),
                 "Take a 30-minute break away from your desk",
                 "Practice deep breathing (guided session provided)",
                 "Drink water and have a healthy snack",
-                "Consider taking the rest of the day off"
+                "Consider taking the rest of the day off",
             ],
             notify_user=True,
             notify_manager=True,
@@ -241,22 +260,18 @@ Your wellbeing is the top priority. Stop working NOW.""".strip(),
                 "Block calendar for next 30 minutes",
                 "Enable 'Do Not Disturb' mode",
                 "Send auto-reply: 'Taking mandatory wellness break'",
-                "Launch guided breathing exercise"
+                "Launch guided breathing exercise",
             ],
             resources=[
                 {
                     "title": "5-Minute Guided Breathing",
                     "url": "/wellness/breathing-exercise",
-                    "type": "immediate"
+                    "type": "immediate",
                 },
-                {
-                    "title": "Crisis Support Hotline",
-                    "phone": "988",
-                    "type": "support"
-                }
+                {"title": "Crisis Support Hotline", "phone": "988", "type": "support"},
             ],
             follow_up_required=True,
-            follow_up_days=0
+            follow_up_days=0,
         )
 
     def _create_workload_reduction_intervention(
@@ -264,12 +279,12 @@ Your wellbeing is the top priority. Stop working NOW.""".strip(),
         user_id: str,
         organization_id: str,
         team_id: Optional[str],
-        work_patterns: Dict[str, Any]
+        work_patterns: Dict[str, Any],
     ) -> InterventionAction:
         """Create workload reduction plan"""
 
-        weekly_hours = work_patterns.get('weekly_hours', 0)
-        continuous_days = work_patterns.get('continuous_days', 0)
+        weekly_hours = work_patterns.get("weekly_hours", 0)
+        continuous_days = work_patterns.get("continuous_days", 0)
 
         return InterventionAction(
             intervention_type=InterventionType.WORKLOAD_REDUCTION,
@@ -286,7 +301,7 @@ Your manager has been notified to help redistribute work and ensure you can reco
                 "Identify tasks that can be delegated or postponed",
                 "Set realistic deadlines with manager input",
                 "Schedule mandatory rest days this week",
-                "Create 'protected focus time' in calendar"
+                "Create 'protected focus time' in calendar",
             ],
             notify_user=True,
             notify_manager=True,
@@ -296,30 +311,27 @@ Your manager has been notified to help redistribute work and ensure you can reco
                 "Alert manager about workload intervention",
                 "Suggest delegation opportunities based on task analysis",
                 "Block 2-hour focus blocks in calendar",
-                "Pause new task assignments for 1 week"
+                "Pause new task assignments for 1 week",
             ],
             resources=[
                 {
                     "title": "Workload Management Guide",
                     "url": "/resources/workload-management",
-                    "type": "guide"
+                    "type": "guide",
                 },
                 {
                     "title": "Setting Boundaries at Work",
                     "url": "/resources/work-boundaries",
-                    "type": "guide"
-                }
+                    "type": "guide",
+                },
             ],
             follow_up_required=True,
             follow_up_days=3,
-            estimated_duration_weeks=2
+            estimated_duration_weeks=2,
         )
 
     def _create_break_enforcement_intervention(
-        self,
-        user_id: str,
-        organization_id: str,
-        health_risks: HealthRiskIndicators
+        self, user_id: str, organization_id: str, health_risks: HealthRiskIndicators
     ) -> InterventionAction:
         """Create mandatory break schedule"""
 
@@ -339,7 +351,7 @@ Your calendar has been automatically updated.""".strip(),
                 "Honor all scheduled breaks (non-negotiable)",
                 "Leave desk during breaks",
                 "No work communication after 6 PM",
-                "Plan a restful weekend activity"
+                "Plan a restful weekend activity",
             ],
             notify_user=True,
             notify_manager=True,
@@ -350,30 +362,27 @@ Your calendar has been automatically updated.""".strip(),
                 "Block calendar: 12-12:30 PM daily (lunch)",
                 "Enable 'After Hours' mode at 6 PM",
                 "Pause email/Slack notifications after 6 PM",
-                "Send daily break compliance report"
+                "Send daily break compliance report",
             ],
             resources=[
                 {
                     "title": "Effective Break Activities",
                     "url": "/wellness/break-activities",
-                    "type": "guide"
+                    "type": "guide",
                 },
                 {
                     "title": "Micro-Exercise Routines",
                     "url": "/wellness/desk-exercises",
-                    "type": "activity"
-                }
+                    "type": "activity",
+                },
             ],
             follow_up_required=True,
             follow_up_days=7,
-            estimated_duration_weeks=1
+            estimated_duration_weeks=1,
         )
 
     def _create_boundary_protection_intervention(
-        self,
-        user_id: str,
-        organization_id: str,
-        health_risks: HealthRiskIndicators
+        self, user_id: str, organization_id: str, health_risks: HealthRiskIndicators
     ) -> InterventionAction:
         """Create work-life boundary protection"""
 
@@ -390,7 +399,7 @@ We're activating boundary protection features to help you disconnect.""".strip()
                 "Set 'work hours' in your profile (e.g., 9 AM - 6 PM)",
                 "Enable automatic after-hours email blocking",
                 "Schedule 'personal time' blocks in calendar",
-                "Discuss flexible work arrangements with manager if needed"
+                "Discuss flexible work arrangements with manager if needed",
             ],
             notify_user=True,
             notify_manager=False,
@@ -401,30 +410,27 @@ We're activating boundary protection features to help you disconnect.""".strip()
                 "Auto-decline meetings outside hours",
                 "Send 'unavailable' auto-reply after hours",
                 "Hide work apps from phone after 7 PM",
-                "Weekly boundary compliance report"
+                "Weekly boundary compliance report",
             ],
             resources=[
                 {
                     "title": "Digital Wellbeing Guide",
                     "url": "/wellness/digital-wellbeing",
-                    "type": "guide"
+                    "type": "guide",
                 },
                 {
                     "title": "Work-Life Integration Strategies",
                     "url": "/resources/work-life-balance",
-                    "type": "guide"
-                }
+                    "type": "guide",
+                },
             ],
             follow_up_required=True,
             follow_up_days=14,
-            estimated_duration_weeks=4
+            estimated_duration_weeks=4,
         )
 
     def _create_sleep_hygiene_intervention(
-        self,
-        user_id: str,
-        organization_id: str,
-        health_risks: HealthRiskIndicators
+        self, user_id: str, organization_id: str, health_risks: HealthRiskIndicators
     ) -> InterventionAction:
         """Create sleep improvement intervention"""
 
@@ -441,7 +447,7 @@ Poor sleep significantly increases cardiovascular risk. Let's fix this.""".strip
                 "Set consistent sleep schedule (same bedtime daily)",
                 "No screens 1 hour before bed",
                 "No work communication after 8 PM",
-                "Consider sleep tracking for 2 weeks"
+                "Consider sleep tracking for 2 weeks",
             ],
             notify_user=True,
             notify_manager=False,
@@ -451,35 +457,32 @@ Poor sleep significantly increases cardiovascular risk. Let's fix this.""".strip
                 "Send bedtime reminder at 10 PM",
                 "Block work notifications after 8 PM",
                 "Suggest relaxation content before bed",
-                "Track sleep patterns if wearable connected"
+                "Track sleep patterns if wearable connected",
             ],
             resources=[
                 {
                     "title": "Sleep Hygiene Guide",
                     "url": "/wellness/sleep-hygiene",
-                    "type": "guide"
+                    "type": "guide",
                 },
                 {
                     "title": "Guided Sleep Meditation",
                     "url": "/wellness/sleep-meditation",
-                    "type": "audio"
+                    "type": "audio",
                 },
                 {
                     "title": "Cognitive Behavioral Therapy for Insomnia (CBT-I)",
                     "url": "/resources/cbt-i",
-                    "type": "therapy"
-                }
+                    "type": "therapy",
+                },
             ],
             follow_up_required=True,
             follow_up_days=14,
-            estimated_duration_weeks=4
+            estimated_duration_weeks=4,
         )
 
     def _create_crisis_support_intervention(
-        self,
-        user_id: str,
-        organization_id: str,
-        health_risks: HealthRiskIndicators
+        self, user_id: str, organization_id: str, health_risks: HealthRiskIndicators
     ) -> InterventionAction:
         """Create crisis support intervention"""
 
@@ -501,7 +504,7 @@ You don't have to face this alone.""".strip(),
                 "Reach out to a trusted person",
                 "Contact crisis support if needed",
                 "Schedule appointment with mental health professional",
-                "Take immediate mental health day if needed"
+                "Take immediate mental health day if needed",
             ],
             notify_user=True,
             notify_manager=False,
@@ -510,40 +513,41 @@ You don't have to face this alone.""".strip(),
             automated_actions=[
                 "Display crisis resources prominently",
                 "Pause non-essential notifications",
-                "Send supportive wellness check-in"
+                "Send supportive wellness check-in",
             ],
             resources=[
                 {
                     "title": "988 Suicide & Crisis Lifeline",
                     "phone": "988",
                     "url": "https://988lifeline.org/",
-                    "type": "crisis"
+                    "type": "crisis",
                 },
                 {
                     "title": "Crisis Text Line",
                     "phone": "Text HOME to 741741",
                     "url": "https://www.crisistextline.org/",
-                    "type": "crisis"
+                    "type": "crisis",
                 },
                 {
                     "title": "Find a Therapist",
                     "url": "/resources/therapy",
-                    "type": "resource"
-                }
+                    "type": "resource",
+                },
             ],
             follow_up_required=True,
-            follow_up_days=1
+            follow_up_days=1,
         )
 
     def _create_wellness_reminder_intervention(
-        self,
-        user_id: str,
-        organization_id: str,
-        health_risks: HealthRiskIndicators
+        self, user_id: str, organization_id: str, health_risks: HealthRiskIndicators
     ) -> InterventionAction:
         """Create preventive wellness reminders"""
 
-        protective_text = ', '.join(health_risks.protective_factors[:3]) if health_risks.protective_factors else 'Building...'
+        protective_text = (
+            ", ".join(health_risks.protective_factors[:3])
+            if health_risks.protective_factors
+            else "Building..."
+        )
 
         return InterventionAction(
             intervention_type=InterventionType.WELLNESS_REMINDER,
@@ -560,7 +564,7 @@ Small actions now prevent big problems later.""".strip(),
                 "Take 5-minute mindfulness break today",
                 "Schedule one social activity this week",
                 "Add 30-minute exercise to your schedule",
-                "Review and use vacation days"
+                "Review and use vacation days",
             ],
             notify_user=True,
             notify_manager=False,
@@ -570,22 +574,22 @@ Small actions now prevent big problems later.""".strip(),
                 "Send daily wellness tip",
                 "Suggest quick mindfulness exercises",
                 "Remind about unused vacation days",
-                "Prompt for weekly mood check-in"
+                "Prompt for weekly mood check-in",
             ],
             resources=[
                 {
                     "title": "5-Minute Stress Relief Techniques",
                     "url": "/wellness/quick-stress-relief",
-                    "type": "guide"
+                    "type": "guide",
                 },
                 {
                     "title": "Desk Stretches & Exercises",
                     "url": "/wellness/desk-exercises",
-                    "type": "video"
-                }
+                    "type": "video",
+                },
             ],
             follow_up_required=True,
-            follow_up_days=7
+            follow_up_days=7,
         )
 
     async def _persist_interventions(
@@ -594,7 +598,7 @@ Small actions now prevent big problems later.""".strip(),
         organization_id: str,
         team_id: Optional[str],
         interventions: List[InterventionAction],
-        health_risks: HealthRiskIndicators
+        health_risks: HealthRiskIndicators,
     ) -> None:
         """Persist interventions to database"""
 
@@ -607,33 +611,55 @@ Small actions now prevent big problems later.""".strip(),
                     team_id=team_id,
                     created_date=datetime.utcnow().date(),
                     intervention_type=intervention.intervention_type.value,
-                    intervention_category="reactive" if intervention.urgency in [InterventionUrgency.CRITICAL, InterventionUrgency.HIGH] else "preventive",
+                    intervention_category=(
+                        "reactive"
+                        if intervention.urgency
+                        in [InterventionUrgency.CRITICAL, InterventionUrgency.HIGH]
+                        else "preventive"
+                    ),
                     priority_level=intervention.urgency.value,
                     target_burnout_factors=health_risks.primary_risk_factors,
-                    target_wellness_dimensions=["stress", "work_life_balance", "mental_health"],
+                    target_wellness_dimensions=[
+                        "stress",
+                        "work_life_balance",
+                        "mental_health",
+                    ],
                     severity_level=health_risks.stress_level.value,
                     intervention_description=intervention.message,
                     intervention_goals=intervention.actions_required,
-                    success_metrics=["reduced_stress", "improved_wellness", "sustained_recovery"],
+                    success_metrics=[
+                        "reduced_stress",
+                        "improved_wellness",
+                        "sustained_recovery",
+                    ],
                     intervention_method="automated_system",
                     start_date=datetime.utcnow().date(),
-                    end_date=datetime.utcnow().date() + timedelta(days=intervention.follow_up_days),
+                    end_date=datetime.utcnow().date()
+                    + timedelta(days=intervention.follow_up_days),
                     duration_weeks=intervention.estimated_duration_weeks,
                     status="planned",
-                    external_support=intervention.intervention_type in [InterventionType.MEDICAL_ALERT, InterventionType.CRISIS_SUPPORT],
+                    external_support=intervention.intervention_type
+                    in [
+                        InterventionType.MEDICAL_ALERT,
+                        InterventionType.CRISIS_SUPPORT,
+                    ],
                     follow_up_required=intervention.follow_up_required,
-                    follow_up_schedule=[{"days": intervention.follow_up_days, "type": "check_in"}],
+                    follow_up_schedule=[
+                        {"days": intervention.follow_up_days, "type": "check_in"}
+                    ],
                     baseline_metrics={
                         "stress_level": health_risks.stress_level.value,
                         "cardiovascular_risk": health_risks.cardiovascular_risk_score,
-                        "mental_health_risk": health_risks.mental_health_risk
-                    }
+                        "mental_health_risk": health_risks.mental_health_risk,
+                    },
                 )
 
                 self.db.add(db_intervention)
 
             self.db.commit()
-            logger.info(f"Persisted {len(interventions)} interventions for user {user_id}")
+            logger.info(
+                f"Persisted {len(interventions)} interventions for user {user_id}"
+            )
 
         except Exception as e:
             logger.error(f"Error persisting interventions: {e}")
@@ -643,7 +669,7 @@ Small actions now prevent big problems later.""".strip(),
         self,
         user_id: str,
         organization_id: str,
-        interventions: List[InterventionAction]
+        interventions: List[InterventionAction],
     ) -> None:
         """Execute interventions by creating notifications"""
 
@@ -654,22 +680,21 @@ Small actions now prevent big problems later.""".strip(),
                     await self._create_notification(
                         user_id=user_id,
                         organization_id=organization_id,
-                        intervention=intervention
+                        intervention=intervention,
                     )
 
                 # TODO: Create notifications for manager, HR, emergency contacts
                 # This would require getting their user IDs from relationships
 
-            logger.info(f"Executed {len(interventions)} interventions for user {user_id}")
+            logger.info(
+                f"Executed {len(interventions)} interventions for user {user_id}"
+            )
 
         except Exception as e:
             logger.error(f"Error executing interventions: {e}")
 
     async def _create_notification(
-        self,
-        user_id: str,
-        organization_id: str,
-        intervention: InterventionAction
+        self, user_id: str, organization_id: str, intervention: InterventionAction
     ) -> None:
         """Create notification for intervention"""
 
@@ -678,7 +703,7 @@ Small actions now prevent big problems later.""".strip(),
             InterventionUrgency.CRITICAL: NotificationPriority.URGENT,
             InterventionUrgency.HIGH: NotificationPriority.HIGH,
             InterventionUrgency.MEDIUM: NotificationPriority.NORMAL,
-            InterventionUrgency.LOW: NotificationPriority.LOW
+            InterventionUrgency.LOW: NotificationPriority.LOW,
         }
 
         notification = Notification(
@@ -691,10 +716,10 @@ Small actions now prevent big problems later.""".strip(),
                 "intervention_type": intervention.intervention_type.value,
                 "urgency": intervention.urgency.value,
                 "actions_required": intervention.actions_required,
-                "resources": intervention.resources
+                "resources": intervention.resources,
             },
             priority=priority_map[intervention.urgency],
-            status=NotificationStatus.PENDING
+            status=NotificationStatus.PENDING,
         )
 
         self.db.add(notification)
@@ -702,4 +727,9 @@ Small actions now prevent big problems later.""".strip(),
 
 
 # Export
-__all__ = ['HealthInterventionSystem', 'InterventionAction', 'InterventionType', 'InterventionUrgency']
+__all__ = [
+    "HealthInterventionSystem",
+    "InterventionAction",
+    "InterventionType",
+    "InterventionUrgency",
+]

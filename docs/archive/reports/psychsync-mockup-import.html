@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PsychSync - Complete SaaS Mockup (Import to Figma)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #FAFAFA; }
+
+    /* Main Container - Figma Artboard Size */
+    .figma-artboard {
+      width: 1440px;
+      height: 900px;
+      background: #FAFAFA;
+      position: relative;
+      overflow: hidden;
+      margin: 20px auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 280px;
+      height: 900px;
+      background: #111827;
+      position: absolute;
+      left: 0;
+      top: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      height: 64px;
+      border-bottom: 1px solid #374151;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: #818CF8;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6B7280;
+      padding: 16px 16px 8px;
+      font-weight: 600;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      color: #D1D5DB;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item.active {
+      background: #374151;
+      color: white;
+      border-left-color: #6366F1;
+    }
+
+    .nav-icon {
+      font-size: 20px;
+      min-width: 28px;
+      margin-right: 12px;
+    }
+
+    /* Collapsible Sections */
+    .section-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      color: #D1D5DB;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+
+    .section-header.clinical { border-left-color: #10B981; }
+    .section-header.telehealth { border-left-color: #60A5FA; }
+    .section-header.email { border-left-color: #818CF8; }
+    .section-header.hris { border-left-color: #06B6D4; }
+    .section-header.services { border-left-color: #8B5CF6; }
+    .section-header.analytics { border-left-color: #F97316; }
+
+    .section-icon { font-size: 20px; min-width: 28px; margin-right: 12px; }
+    .section-icon.clinical { color: #FBBF24; }
+    .section-icon.telehealth { color: #60A5FA; }
+    .section-icon.email { color: #818CF8; }
+    .section-icon.hris { color: #06B6D4; }
+    .section-icon.services { color: #A78BFA; }
+    .section-icon.analytics { color: #FB923C; }
+
+    .submenu {
+      background: #1F2937;
+      border-left: 3px solid;
+    }
+
+    .submenu.clinical { border-left-color: #10B981; }
+    .submenu.telehealth { border-left-color: #60A5FA; }
+    .submenu.email { border-left-color: #818CF8; }
+    .submenu.hris { border-left-color: #06B6D4; }
+    .submenu.services { border-left-color: #8B5CF6; }
+    .submenu.analytics { border-left-color: #F97316; }
+
+    .submenu-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 10px 16px 10px 48px;
+      color: #9CA3AF;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .submenu-icon {
+      font-size: 16px;
+      margin-right: 8px;
+      min-width: 20px;
+    }
+
+    .submenu-desc {
+      font-size: 11px;
+      color: #6B7280;
+      margin-top: 2px;
+    }
+
+    /* MAIN CONTENT */
+    .main-content {
+      margin-left: 280px;
+      width: 1160px;
+      height: 900px;
+    }
+
+    .topbar {
+      height: 64px;
+      background: white;
+      border-bottom: 1px solid #E5E7EB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .search-bar {
+      width: 320px;
+      height: 40px;
+      padding: 0 16px;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .user-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .page-content {
+      padding: 24px;
+      height: calc(900px - 64px);
+      overflow-y: auto;
+    }
+
+    .page-title {
+      font-size: 36px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      font-size: 16px;
+      color: #6B7280;
+      margin-bottom: 32px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .stat-title {
+      font-size: 14px;
+      color: #6B7280;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .stat-change {
+      font-size: 14px;
+      color: #10B981;
+      font-weight: 500;
+    }
+
+    /* Charts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 16px;
+    }
+
+    .chart-placeholder {
+      height: 300px;
+      background: linear-gradient(135deg, #F3F4F6, #E5E7EB);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6B7280;
+      font-size: 14px;
+    }
+
+    /* Scrollbar */
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-track { background: #111827; }
+    .sidebar::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+    /* Page indicator */
+    .page-label {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: #6366F1;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1: DASHBOARD -->
+  <div class="figma-artboard">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">🧠 PsychSync</span>
+      </div>
+
+      <div class="section-title">Core</div>
+      <div class="nav-item active">
+        <span class="nav-icon">📊</span>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🎨</span>
+        <span>Icon Gallery</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">👥</span>
+        <span>Teams</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🛡️</span>
+        <span>Toxic Behavior Detection</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🔥</span>
+        <span>Burnout Prevention</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🔒</span>
+        <span>Anonymous Feedback</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🧠</span>
+        <span>Behavioral Analytics</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⚖️</span>
+        <span>Legal Rights</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⚙️</span>
+        <span>Settings</span>
+      </div>
+
+      <div class="section-title">Monitoring</div>
+      <div class="section-header email">
+        <span class="section-icon email">📧</span>
+        <span>Email Monitoring</span>
+      </div>
+      <div class="submenu email">
+        <div class="submenu-item">
+          <span class="submenu-icon">📅</span>
+          <div><div>Scheduled Reports</div><div class="submenu-desc">Automated weekly/monthly email reports</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">⚠️</span>
+          <div><div>Anomaly Detection</div><div class="submenu-desc">ML-powered pattern detection</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">👥</span>
+          <div><div>Team Dashboard</div><div class="submenu-desc">Team analytics and performance</div></div>
+        </div>
+      </div>
+
+      <div class="section-header hris">
+        <span class="section-icon hris">📊</span>
+        <span>HRIS Analytics</span>
+      </div>
+      <div class="submenu hris">
+        <div class="submenu-item">
+          <span class="submenu-icon">📈</span>
+          <div><div>Analytics Dashboard</div><div class="submenu-desc">7 charts, KPIs, custom reports</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🔗</span>
+          <div><div>HRIS Connector</div><div class="submenu-desc">Connect Workday, BambooHR, ADP & more</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">👥</span>
+          <div><div>Workforce Demographics</div><div class="submenu-desc">Employee composition & diversity</div></div>
+        </div>
+      </div>
+
+      <div class="section-title">Clinical</div>
+      <div class="section-header clinical">
+        <span class="section-icon clinical">🏥</span>
+        <span>Clinical Screening</span>
+      </div>
+      <div class="submenu clinical">
+        <div class="submenu-item">
+          <span class="submenu-icon">💙</span>
+          <div><div>Depression (PHQ-9)</div><div class="submenu-desc">α=0.89</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">💛</span>
+          <div><div>Anxiety (GAD-7)</div><div class="submenu-desc">α=0.92</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🚨</span>
+          <div><div>Suicide Risk (C-SSRS)</div><div class="submenu-desc">AUC=0.83</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">😰</span>
+          <div><div>Social Anxiety (LSAS)</div><div class="submenu-desc">α=0.95</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🍎</span>
+          <div><div>Eating Attitudes (EAT-26)</div><div class="submenu-desc">α=0.90</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🔄</span>
+          <div><div>OCD Severity (Y-BOCS)</div><div class="submenu-desc">α=0.90</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">😢</span>
+          <div><div>Depression (BDI-II)</div><div class="submenu-desc">α=0.91</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">📊</span>
+          <div><div>DASS-21</div><div class="submenu-desc">Multi-symptom α=0.84-0.91</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🎯</span>
+          <div><div>PTSD (PCL-5)</div><div class="submenu-desc">α=0.94</div></div>
+        </div>
+      </div>
+
+      <div class="section-header telehealth">
+        <span class="section-icon telehealth">🏥</span>
+        <span>Clinical Services</span>
+      </div>
+      <div class="submenu telehealth">
+        <div class="submenu-item">
+          <span class="submenu-icon">📹</span>
+          <div><div>Telehealth Schedule</div><div class="submenu-desc">Video consultations</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🤖</span>
+          <div><div>AI Chat Support</div><div class="submenu-desc">24/7 mental health support</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">📊</span>
+          <div><div>Clinical Analytics</div><div class="submenu-desc">Population health insights</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🚨</span>
+          <div><div>Alerts Center</div><div class="submenu-desc">Clinical notifications</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">👨‍⚕️</span>
+          <div><div>Clinical Dashboard</div><div class="submenu-desc">Professional tools</div></div>
+        </div>
+      </div>
+
+      <div class="section-title">Services</div>
+      <div class="section-header services">
+        <span class="section-icon services">🔧</span>
+        <span>Services & Connectors</span>
+      </div>
+      <div class="submenu services">
+        <div class="submenu-item">
+          <span class="submenu-icon">🔗</span>
+          <div><div>Corporate Integrations</div><div class="submenu-desc">30+ data sources</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">❤️</span>
+          <div><div>Health Dashboard</div><div class="submenu-desc">Personal monitoring</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🧘</span>
+          <div><div>Mental Health</div><div class="submenu-desc">Wellness resources</div></div>
+        </div>
+      </div>
+
+      <div class="section-header analytics">
+        <span class="section-icon analytics">🤖</span>
+        <span>Analytics & AI</span>
+      </div>
+      <div class="submenu analytics">
+        <div class="submenu-item">
+          <span class="submenu-icon">⚡</span>
+          <div><div>Team Optimizer</div><div class="submenu-desc">Team dynamics</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🔥</span>
+          <div><div>Burnout Prediction</div><div class="submenu-desc">AI-powered analysis</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🤖</span>
+          <div><div>Predictive Analytics</div><div class="submenu-desc">AI predictions</div></div>
+        </div>
+        <div class="submenu-item">
+          <span class="submenu-icon">🔬</span>
+          <div><div>Reliability & Validity</div><div class="submenu-desc">Research metrics</div></div>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid #374151; padding-top: 16px; margin-top: 8px;">
+        <div class="section-title">Public Access</div>
+        <div class="nav-item">
+          <span class="nav-icon">🛡️</span>
+          <span>Anonymous Feedback</span>
+        </div>
+        <div class="nav-item">
+          <span class="nav-icon">🔍</span>
+          <span>Check Status</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="topbar">
+        <input type="text" class="search-bar" placeholder="Search pages, assessments, analytics...">
+        <div class="user-section">
+          <span style="font-size: 20px;">🔔</span>
+          <div class="user-avatar">JD</div>
+        </div>
+      </div>
+
+      <div class="page-content">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Welcome back! Here's what's happening with your team today.</p>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">Total Assessments</div>
+            <div class="stat-value">2,847</div>
+            <div class="stat-change">↑ 12% from last month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Active Team Members</div>
+            <div class="stat-value">384</div>
+            <div class="stat-change">↑ 8% from last month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Wellness Score</div>
+            <div class="stat-value">7.2/10</div>
+            <div class="stat-change">↑ 5% from last month</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-title">Risk Alerts</div>
+            <div class="stat-value">12</div>
+            <div class="stat-change">↓ 23% from last month</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3 class="card-title">Assessment Completion Trends</h3>
+            <div class="chart-placeholder">📊 Line Chart - Assessments over time</div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Team Wellness Overview</h3>
+            <div class="chart-placeholder">🧠 Radar Chart - Wellness dimensions</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-label">Page 1: Dashboard</div>
+  </div>
+
+</body>
+</html>

@@ -24,10 +24,8 @@
 # api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 
-
 # # # Add other routers as needed
 # # You can also include other endpoints or routers her
 # # from app.api.v1 import other_modules
 # # api_router.include_router(other_modules.router, prefix="/other", tags=["other"])e
 # # This file serves as a central place to include all v1 API routes
-

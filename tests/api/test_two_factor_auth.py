@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -41,24 +45,21 @@ def enable_two_factor(client, auth_headers):
     Enable 2FA for the current user
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/enable",
-        json={}
-    )
+    response = client.post("/enable", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -66,12 +67,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -85,24 +87,21 @@ def verify_two_factor_setup(client, auth_headers):
     Verify 2FA setup with TOTP code
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/verify",
-        json={}
-    )
+    response = client.post("/verify", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -110,12 +109,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -129,24 +129,21 @@ def disable_two_factor(client, auth_headers):
     Disable 2FA for the current user
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/disable",
-        json={}
-    )
+    response = client.post("/disable", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -154,12 +151,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -173,10 +171,7 @@ def get_two_factor_status(client, auth_headers):
     Get 2FA status for current user
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/status"
-        
-    )
+    response = client.get("/status")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -184,16 +179,16 @@ def get_two_factor_status(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -201,12 +196,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -221,9 +217,7 @@ def regenerate_recovery_codes(client, auth_headers):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/recovery-codes/regenerate",
-        json={},
-        params={'password': 'test_value'}
+        "/recovery-codes/regenerate", json={}, params={"password": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]

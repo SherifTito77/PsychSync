@@ -24,13 +24,14 @@ After this migration, all queries MUST include tenant_id filter.
 The TenantContextMiddleware automatically sets app.current_tenant.
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import text
 
+from alembic import op
+
 # revision identifiers, used by Alembic
-revision = '20250112_enable_rls'
-down_revision = None  # Set to previous migration ID
+revision = "20250112_enable_rls"
+down_revision = "20250112_add_product_ops"
 branch_labels = None
 depends_on = None
 
@@ -40,11 +41,11 @@ def upgrade():
 
     # Enable RLS on all tenant-scoped tables
     tenant_tables = [
-        'users',
-        'teams',
-        'assessments',
-        'assessment_responses',
-        'organizations',
+        "users",
+        "teams",
+        "assessments",
+        "assessment_responses",
+        "organizations",
     ]
 
     for table in tenant_tables:
@@ -52,7 +53,8 @@ def upgrade():
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
 
         # Create policy: Users can only read/write their own tenant's data
-        op.execute(f"""
+        op.execute(
+            f"""
             CREATE POLICY tenant_isolation_policy ON {table}
             FOR ALL
             TO public
@@ -62,12 +64,14 @@ def upgrade():
             WITH CHECK (
                 tenant_id = CAST(current_setting('app.current_tenant', true) AS UUID)
             )
-        """)
+        """
+        )
 
         print(f"✅ Enabled RLS on {table}")
 
     # Create function to safely get current tenant ID
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION get_current_tenant_id()
         RETURNS UUID AS $$
         BEGIN
@@ -77,17 +81,20 @@ def upgrade():
                 RETURN NULL;
         END;
         $$ LANGUAGE plpgsql SECURITY DEFINER;
-    """)
+    """
+    )
 
     # Create helper function for RLS policy
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION check_tenant_access(table_tenant_id UUID)
         RETURNS BOOLEAN AS $$
         BEGIN
             RETURN table_tenant_id = get_current_tenant_id();
         END;
         $$ LANGUAGE plpgsql IMMUTABLE;
-    """)
+    """
+    )
 
     print("✅ RLS enabled and policies created for all tables")
 
@@ -101,11 +108,11 @@ def downgrade():
 
     # Disable RLS on all tenant-scoped tables
     tenant_tables = [
-        'users',
-        'teams',
-        'assessments',
-        'assessment_responses',
-        'organizations',
+        "users",
+        "teams",
+        "assessments",
+        "assessment_responses",
+        "organizations",
     ]
 
     for table in tenant_tables:

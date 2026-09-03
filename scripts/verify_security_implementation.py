@@ -13,8 +13,8 @@ Version: 1.0
 Date: 2025-12-27
 """
 
-import sys
 import os
+import sys
 from datetime import datetime
 
 # Add project root to path
@@ -24,9 +24,9 @@ sys.path.insert(0, project_root)
 
 def print_header(text: str):
     """Print formatted header"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print(f" {text}")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
 
 def print_success(text: str):
@@ -50,14 +50,15 @@ def verify_imports():
 
     try:
         from app.middleware.spotlighting import (
-            SpotlightingEngine,
-            ToolAllowList,
             ApprovalManager,
-            SpotlightingMiddleware,
             ContentSource,
-            TrustLevel,
+            SpotlightingEngine,
+            SpotlightingMiddleware,
             SpotlightingMode,
+            ToolAllowList,
+            TrustLevel,
         )
+
         print_success("All spotlighting modules imported successfully")
 
         # Check key classes
@@ -82,7 +83,11 @@ def verify_spotlighting_engine():
     print_header("2. Verifying SpotlightingEngine")
 
     try:
-        from app.middleware.spotlighting import SpotlightingEngine, SpotlightingMode, ContentSource
+        from app.middleware.spotlighting import (
+            ContentSource,
+            SpotlightingEngine,
+            SpotlightingMode,
+        )
 
         # Test initialization
         engine = SpotlightingEngine(mode=SpotlightingMode.STRICT)
@@ -91,8 +96,7 @@ def verify_spotlighting_engine():
         # Test content spotlighting
         test_content = "Test content for spotlighting"
         spotlighted = engine.spotlight_content(
-            content=test_content,
-            source=ContentSource.USER
+            content=test_content, source=ContentSource.USER
         )
         assert spotlighted.content == test_content
         assert spotlighted.content_hash is not None
@@ -181,9 +185,7 @@ def verify_approval_manager():
 
         # Test approval request
         approval_id = manager.request_approval(
-            operation="test_operation",
-            context={"test": "data"},
-            user_id="user_123"
+            operation="test_operation", context={"test": "data"}, user_id="user_123"
         )
         assert approval_id is not None
         assert approval_id in manager.pending_approvals
@@ -223,7 +225,7 @@ def verify_middleware_integration():
             print_error("app/main.py not found")
             return False
 
-        with open(main_py_path, 'r') as f:
+        with open(main_py_path, "r") as f:
             main_content = f.read()
 
         # Check for spotlighting imports
@@ -241,7 +243,10 @@ def verify_middleware_integration():
             return False
 
         # Check for middleware registration
-        if "app.add_middleware" in main_content and "SpotlightingMiddleware" in main_content:
+        if (
+            "app.add_middleware" in main_content
+            and "SpotlightingMiddleware" in main_content
+        ):
             print_success("Middleware registration found in main.py")
         else:
             print_error("Middleware registration not found in main.py")
@@ -259,7 +264,9 @@ def verify_tests():
     print_header("6. Verifying Test Suite")
 
     try:
-        test_file = os.path.join(project_root, "tests/unit/test_spotlighting_middleware.py")
+        test_file = os.path.join(
+            project_root, "tests/unit/test_spotlighting_middleware.py"
+        )
 
         if not os.path.exists(test_file):
             print_error("Test file not found")
@@ -269,12 +276,13 @@ def verify_tests():
 
         # Try to import test module
         import tests.unit.test_spotlighting_middleware as test_module
+
         print_success("Test module can be imported")
 
         # Check for test classes
-        assert hasattr(test_module, 'TestSpotlightingEngine')
-        assert hasattr(test_module, 'TestToolAllowList')
-        assert hasattr(test_module, 'TestApprovalManager')
+        assert hasattr(test_module, "TestSpotlightingEngine")
+        assert hasattr(test_module, "TestToolAllowList")
+        assert hasattr(test_module, "TestApprovalManager")
         print_success("All test classes present")
 
         return True
@@ -353,7 +361,7 @@ def generate_summary(results: dict):
         status = "✅ PASS" if result else "❌ FAIL"
         print(f"{status} - {check}")
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
 
     if failed == 0:
         print("\n🎉 ALL VERIFICATIONS PASSED!")

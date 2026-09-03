@@ -35,7 +35,7 @@ def fix_misplaced_decorators(content: str) -> Tuple[str, int]:
     Pattern: @check_rate_limit appearing between raise HTTPException and its arguments
     """
     fixes = 0
-    lines = content.split('\n')
+    lines = content.split("\n")
     result = []
     i = 0
 
@@ -44,11 +44,11 @@ def fix_misplaced_decorators(content: str) -> Tuple[str, int]:
         result.append(line)
 
         # Check if this line starts a raise HTTPException
-        if re.search(r'raise\s+HTTPException\(', line):
+        if re.search(r"raise\s+HTTPException\(", line):
             # Look ahead for misplaced decorator
             j = i + 1
-            while j < len(lines) and not lines[j].strip().startswith(')'):
-                if '@check_rate_limit' in lines[j]:
+            while j < len(lines) and not lines[j].strip().startswith(")"):
+                if "@check_rate_limit" in lines[j]:
                     # Found misplaced decorator - skip it
                     fixes += 1
                     print(f"  → Removed misplaced decorator at line {j + 1}")
@@ -59,14 +59,14 @@ def fix_misplaced_decorators(content: str) -> Tuple[str, int]:
             # Add remaining lines up to closing paren
             while j < len(lines):
                 result.append(lines[j])
-                if ')' in lines[j]:
+                if ")" in lines[j]:
                     break
                 j += 1
             i = j
 
         i += 1
 
-    return '\n'.join(result), fixes
+    return "\n".join(result), fixes
 
 
 def fix_unterminated_strings(content: str) -> Tuple[str, int]:
@@ -77,7 +77,7 @@ def fix_unterminated_strings(content: str) -> Tuple[str, int]:
               rest of string"
     """
     fixes = 0
-    lines = content.split('\n')
+    lines = content.split("\n")
     result = []
     i = 0
 
@@ -87,15 +87,17 @@ def fix_unterminated_strings(content: str) -> Tuple[str, int]:
         # Check for unterminated string followed by decorator
         if re.search(r'detail="[^"]*$', line):
             # Look ahead for decorator
-            if i + 1 < len(lines) and '@check_rate_limit' in lines[i + 1]:
+            if i + 1 < len(lines) and "@check_rate_limit" in lines[i + 1]:
                 # Found the pattern - merge the string parts
                 j = i + 2
                 string_parts = [line.rstrip()]
                 while j < len(lines):
-                    if lines[j].strip().startswith('"') and not lines[j].strip().startswith('@'):
+                    if lines[j].strip().startswith('"') and not lines[
+                        j
+                    ].strip().startswith("@"):
                         # Found the continuation
                         string_parts.append(lines[j].strip())
-                        merged = ''.join(string_parts)
+                        merged = "".join(string_parts)
                         result.append(merged)
                         fixes += 1
                         print(f"  → Fixed unterminated string at line {i + 1}")
@@ -110,7 +112,7 @@ def fix_unterminated_strings(content: str) -> Tuple[str, int]:
 
         i += 1
 
-    return '\n'.join(result), fixes
+    return "\n".join(result), fixes
 
 
 def fix_indentation_errors(content: str, file_path: str) -> Tuple[str, int]:
@@ -121,8 +123,8 @@ def fix_indentation_errors(content: str, file_path: str) -> Tuple[str, int]:
     fixes = 0
 
     # Fix: "        await db.commit()" followed by incorrectly indented lines
-    pattern1 = r'(\s+await db\.commit\(\)\s*\n)(\s+return result\.)'
-    replacement1 = r'\1            \2'
+    pattern1 = r"(\s+await db\.commit\(\)\s*\n)(\s+return result\.)"
+    replacement1 = r"\1            \2"
     new_content, count1 = re.subn(pattern1, replacement1, content)
     fixes += count1
 
@@ -138,7 +140,7 @@ def remove_orphaned_json_blocks(content: str) -> Tuple[str, int]:
     Pattern: return {...} followed by orphaned JSON structures
     """
     fixes = 0
-    lines = content.split('\n')
+    lines = content.split("\n")
     result = []
     in_return = False
     paren_depth = 0
@@ -148,16 +150,16 @@ def remove_orphaned_json_blocks(content: str) -> Tuple[str, int]:
         line = lines[i]
 
         # Detect start of return statement
-        if re.match(r'\s+return\s+\{', line):
+        if re.match(r"\s+return\s+\{", line):
             in_return = True
-            paren_depth = line.count('{') - line.count('}')
+            paren_depth = line.count("{") - line.count("}")
 
         if in_return:
             result.append(line)
-            paren_depth += line.count('{') - line.count('}')
+            paren_depth += line.count("{") - line.count("}")
 
             # Check if return statement is complete
-            if paren_depth == 0 and '}' in line:
+            if paren_depth == 0 and "}" in line:
                 in_return = False
 
                 # Skip orphaned JSON blocks that follow
@@ -166,17 +168,19 @@ def remove_orphaned_json_blocks(content: str) -> Tuple[str, int]:
                 while j < len(lines):
                     next_line = lines[j]
                     # If next line has significantly less indentation, it's not orphaned
-                    if next_line.strip() and not next_line.startswith(' '):
+                    if next_line.strip() and not next_line.startswith(" "):
                         break
                     # If it looks like a new block definition
-                    if re.match(r'\s+\{\s*$', next_line):
+                    if re.match(r"\s+\{\s*$", next_line):
                         skipped.append(j)
                         j += 1
                         continue
                     break
 
                 if skipped:
-                    print(f"  → Removed {len(skipped)} orphaned JSON blocks starting at line {skipped[0] + 1}")
+                    print(
+                        f"  → Removed {len(skipped)} orphaned JSON blocks starting at line {skipped[0] + 1}"
+                    )
                     fixes += 1
                     i = j - 1
 
@@ -185,7 +189,7 @@ def remove_orphaned_json_blocks(content: str) -> Tuple[str, int]:
 
         i += 1
 
-    return '\n'.join(result), fixes
+    return "\n".join(result), fixes
 
 
 def apply_ruff_b904_fixes(file_path: Path) -> int:
@@ -194,7 +198,7 @@ def apply_ruff_b904_fixes(file_path: Path) -> int:
         result = subprocess.run(
             ["ruff", "check", str(file_path), "--select", "B904", "--fix"],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Count how many were fixed by checking if returncode is 0
@@ -202,7 +206,7 @@ def apply_ruff_b904_fixes(file_path: Path) -> int:
             return -1  # All fixed
         else:
             # Count remaining errors
-            return result.stdout.count('B904')
+            return result.stdout.count("B904")
     except Exception as e:
         print(f"  ⚠ Error running ruff: {e}")
         return -2
@@ -212,7 +216,7 @@ def fix_file(file_path: Path, dry_run: bool = False) -> int:
     """Fix all issues in a single file."""
     print(f"\n{'='*60}")
     print(f"Processing: {file_path}")
-    print('='*60)
+    print("=" * 60)
 
     try:
         content = file_path.read_text()
@@ -238,7 +242,7 @@ def fix_file(file_path: Path, dry_run: bool = False) -> int:
 
         # Validate syntax
         try:
-            compile(content, str(file_path), 'exec')
+            compile(content, str(file_path), "exec")
             print("✓ Syntax valid")
         except SyntaxError as e:
             print(f"✗ Syntax error: {e}")
@@ -266,16 +270,24 @@ def fix_file(file_path: Path, dry_run: bool = False) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Comprehensive B904 exception chaining fixer')
-    parser.add_argument('--dry-run', action='store_true', help='Show what would change without modifying files')
-    parser.add_argument('--file', type=str, help='Specific file to fix (default: fix all in app/)')
+    parser = argparse.ArgumentParser(
+        description="Comprehensive B904 exception chaining fixer"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would change without modifying files",
+    )
+    parser.add_argument(
+        "--file", type=str, help="Specific file to fix (default: fix all in app/)"
+    )
     args = parser.parse_args()
 
     if args.file:
         files = [Path(args.file)]
     else:
         # Get all Python files in app/
-        files = list(Path('app').rglob('*.py'))
+        files = list(Path("app").rglob("*.py"))
 
     # Filter files that actually have B904 errors
     files_with_errors = []
@@ -283,9 +295,9 @@ def main():
         result = subprocess.run(
             ["ruff", "check", str(file), "--select", "B904"],
             capture_output=True,
-            text=True
+            text=True,
         )
-        if 'B904' in result.stdout:
+        if "B904" in result.stdout:
             files_with_errors.append(file)
 
     print(f"Found {len(files_with_errors)} files with B904 errors")
@@ -304,7 +316,7 @@ def main():
 
     print(f"\n{'='*60}")
     print("SUMMARY")
-    print('='*60)
+    print("=" * 60)
     print(f"Files processed: {len(files_with_errors)}")
     print(f"Completely fixed: {successfully_fixed}")
     print(f"Total manual fixes applied: {total_fixes}")
@@ -316,7 +328,9 @@ def main():
         if not args.dry_run:
             print("\nNext steps:")
             print("  1. Review the changes with: git diff")
-            print("  2. Commit the fixes: git add -A && git commit -m 'fix: B904 improvements'")
+            print(
+                "  2. Commit the fixes: git add -A && git commit -m 'fix: B904 improvements'"
+            )
             print("  3. Run verification: bash scripts/verify_b904_setup.sh")
 
 

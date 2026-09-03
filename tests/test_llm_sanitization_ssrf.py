@@ -9,7 +9,8 @@ Compliance: OWASP SSRF, NIST SSDF PO.3.1, SOC 2 CC7.2
 """
 
 import pytest
-from app.services.llm_sanitization import LLMSanitizer, ContentType
+
+from app.services.llm_sanitization import ContentType, LLMSanitizer
 
 
 class TestSSRFPrevention:
@@ -127,7 +128,10 @@ class TestSSRFPrevention:
 
         # The URL itself should be removed (check for the REMOVED message or that file:// path is gone)
         assert "file:///etc/passwd" not in result.sanitized
-        assert "[FILE URL REMOVED" in result.sanitized or "[URL REMOVED" in result.sanitized
+        assert (
+            "[FILE URL REMOVED" in result.sanitized
+            or "[URL REMOVED" in result.sanitized
+        )
 
     def test_blocks_file_protocol_variants(self, sanitizer):
         """Verify file:// protocol variants are blocked"""
@@ -140,7 +144,9 @@ class TestSSRFPrevention:
 
         for url in malicious_urls:
             result = sanitizer.sanitize(f"Check: {url}", content_type="text")
-            assert "file://" not in result.sanitized or "[URL REMOVED" in result.sanitized, f"Failed: {url}"
+            assert (
+                "file://" not in result.sanitized or "[URL REMOVED" in result.sanitized
+            ), f"Failed: {url}"
 
     def test_blocks_ftp_protocol(self, sanitizer):
         """Verify ftp:// protocol is blocked"""
@@ -149,7 +155,9 @@ class TestSSRFPrevention:
 
         # The URL itself should be removed
         assert "ftp://ftp.internal.com" not in result.sanitized
-        assert "[FTP URL REMOVED" in result.sanitized or "[URL REMOVED" in result.sanitized
+        assert (
+            "[FTP URL REMOVED" in result.sanitized or "[URL REMOVED" in result.sanitized
+        )
 
     def test_blocks_gopher_protocol(self, sanitizer):
         """Verify gopher:// protocol is blocked"""
@@ -203,7 +211,10 @@ class TestSSRFPrevention:
         result = sanitizer.sanitize(f"API: {url}", content_type="text")
 
         # Should allow if pattern matches
-        assert "psychsync.com" in result.sanitized or "[URL REMOVED" not in result.sanitized
+        assert (
+            "psychsync.com" in result.sanitized
+            or "[URL REMOVED" not in result.sanitized
+        )
 
     # ========================================================================
     # URL Obfuscation Tests
@@ -234,12 +245,12 @@ class TestSSRFPrevention:
 
     def test_blocks_ssrf_in_json(self, sanitizer):
         """Verify SSRF in JSON content is blocked"""
-        malicious_json = '''
+        malicious_json = """
         {
             "callback_url": "http://169.254.169.254/latest/meta-data/iam/",
             "api_endpoint": "http://127.0.0.1:8000/admin"
         }
-        '''
+        """
         result = sanitizer.sanitize(malicious_json, content_type="json")
 
         assert "169.254.169.254" not in result.sanitized
@@ -299,7 +310,9 @@ class TestSSRFPrevention:
         result = sanitizer.sanitize(malicious, content_type="text")
 
         # Should track both URL removals
-        url_modifications = [m for m in result.modifications if "URL" in m or "Removed" in m]
+        url_modifications = [
+            m for m in result.modifications if "URL" in m or "Removed" in m
+        ]
         assert len(url_modifications) >= 2
 
     # ========================================================================

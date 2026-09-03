@@ -1047,8 +1047,8 @@ export class UXUsabilityDefectDetector {
     element: string,
     recommendation: string,
     heuristic: string,
-    confidence: number,
-    wcagGuideline?: string
+    wcagGuideline: string,
+    confidence: number
   ): UXDefect {
     return {
       id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1073,8 +1073,7 @@ export class UXUsabilityDefectDetector {
           // Skip empty text nodes and whitespace-only nodes
           return node.textContent?.trim().length ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
         }
-      } as NodeFilter,
-      false
+      } as NodeFilter
     );
 
     let node;

@@ -3,10 +3,10 @@ Performance-Optimized Security Functions
 JWT caching and optimized authentication for high-load scenarios
 """
 
-from functools import lru_cache
 import hashlib
 import logging
 import time
+from functools import lru_cache
 from typing import Any
 
 from app.core.config import settings
@@ -62,7 +62,9 @@ def _get_token_hash(token: str) -> str:
 
 
 @lru_cache(maxsize=JWT_CACHE_SIZE)
-def cached_verify_jwt_token(token_hash: str, original_token: str) -> dict[str, Any] | None:
+def cached_verify_jwt_token(
+    token_hash: str, original_token: str
+) -> dict[str, Any] | None:
     """
     Cached JWT token verification for performance optimization
 
@@ -77,8 +79,8 @@ def cached_verify_jwt_token(token_hash: str, original_token: str) -> dict[str, A
     _cache_misses += 1
 
     try:
-        from jose import JWTError
         import jwt
+        from jose import JWTError
 
         # This is where the actual JWT verification happens
         payload = jwt.decode(original_token, settings.jwt_secret, algorithms=["HS256"])
@@ -127,8 +129,8 @@ def get_jwt_payload_optimized(token: str) -> dict[str, Any] | None:
 
     # Fallback to direct verification if cache fails
     try:
-        from jose import JWTError
         import jwt
+        from jose import JWTError
 
         payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
         return payload

@@ -8,15 +8,15 @@ Comprehensive test runner script for PsychSync
 - Integration with CI/CD pipelines
 """
 
-import os
-import sys
-import subprocess
 import argparse
-import time
 import json
-from pathlib import Path
-from typing import List, Dict, Any, Optional
 import multiprocessing
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class TestRunner:
@@ -41,7 +41,7 @@ class TestRunner:
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minutes timeout
+                timeout=300,  # 5 minutes timeout
             )
 
             duration = time.time() - start_time
@@ -50,15 +50,29 @@ class TestRunner:
             print(f"\n✅ {'SUCCESS' if success else 'FAILED'} - {duration:.2f}s")
             if not success:
                 print(f"❌ Return code: {result.returncode}")
-                print("STDOUT:", result.stdout[:500] + "..." if len(result.stdout) > 500 else result.stdout)
-                print("STDERR:", result.stderr[:500] + "..." if len(result.stderr) > 500 else result.stderr)
+                print(
+                    "STDOUT:",
+                    (
+                        result.stdout[:500] + "..."
+                        if len(result.stdout) > 500
+                        else result.stdout
+                    ),
+                )
+                print(
+                    "STDERR:",
+                    (
+                        result.stderr[:500] + "..."
+                        if len(result.stderr) > 500
+                        else result.stderr
+                    ),
+                )
 
             return {
                 "success": success,
                 "duration": duration,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
-                "returncode": result.returncode
+                "returncode": result.returncode,
             }
 
         except subprocess.TimeoutExpired:
@@ -68,7 +82,7 @@ class TestRunner:
                 "duration": 300,
                 "stdout": "",
                 "stderr": "Test run timed out after 300 seconds",
-                "returncode": -1
+                "returncode": -1,
             }
 
         except Exception as e:
@@ -78,74 +92,91 @@ class TestRunner:
                 "duration": 0,
                 "stdout": "",
                 "stderr": str(e),
-                "returncode": -2
+                "returncode": -2,
             }
 
     def run_unit_tests(self) -> Dict[str, Any]:
         """Run unit tests only"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "unit",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "unit",
             "--tb=short",
             "-v",
             "--cov=app",
             "--cov-report=term-missing:skip-covered",
             "--cov-report=html:htmlcov_unit",
-            "tests/"
+            "tests/",
         ]
         return self.run_command(cmd, "Unit Tests")
 
     def run_integration_tests(self) -> Dict[str, Any]:
         """Run integration tests"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "integration",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "integration",
             "--tb=short",
             "-v",
             "--cov=app",
             "--cov-append",
             "--cov-report=html:htmlcov_integration",
-            "tests/"
+            "tests/",
         ]
         return self.run_command(cmd, "Integration Tests")
 
     def run_auth_tests(self) -> Dict[str, Any]:
         """Run authentication tests"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "auth",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "auth",
             "--tb=short",
             "-v",
-            "tests/test_auth_comprehensive.py"
+            "tests/test_auth_comprehensive.py",
         ]
         return self.run_command(cmd, "Authentication Tests")
 
     def run_api_tests(self) -> Dict[str, Any]:
         """Run API endpoint tests"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "api",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "api",
             "--tb=short",
             "-v",
-            "tests/test_api_endpoints_comprehensive.py"
+            "tests/test_api_endpoints_comprehensive.py",
         ]
         return self.run_command(cmd, "API Endpoint Tests")
 
     def run_service_tests(self) -> Dict[str, Any]:
         """Run service layer tests"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "service",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "service",
             "--tb=short",
             "-v",
-            "tests/test_services_comprehensive.py"
+            "tests/test_services_comprehensive.py",
         ]
         return self.run_command(cmd, "Service Layer Tests")
 
     def run_all_tests(self) -> Dict[str, Any]:
         """Run all tests with full coverage"""
         cmd = [
-            sys.executable, "-m", "pytest",
+            sys.executable,
+            "-m",
+            "pytest",
             "--tb=short",
             "-v",
             "--cov=app",
@@ -153,52 +184,56 @@ class TestRunner:
             "--cov-report=xml:coverage.xml",
             "--cov-report=term-missing",
             "--junit-xml=test-results.xml",
-            "tests/"
+            "tests/",
         ]
         return self.run_command(cmd, "All Tests")
 
     def run_performance_tests(self) -> Dict[str, Any]:
         """Run performance tests"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "performance",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "performance",
             "--tb=short",
             "-v",
             "--durations=0",
-            "tests/"
+            "tests/",
         ]
         return self.run_command(cmd, "Performance Tests")
 
     def run_security_tests(self) -> Dict[str, Any]:
         """Run security tests"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "security",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "security",
             "--tb=short",
             "-v",
-            "tests/"
+            "tests/",
         ]
         return self.run_command(cmd, "Security Tests")
 
     def run_slow_tests(self) -> Dict[str, Any]:
         """Run slow tests (for CI/nightly runs)"""
         cmd = [
-            sys.executable, "-m", "pytest",
-            "-m", "slow",
+            sys.executable,
+            "-m",
+            "pytest",
+            "-m",
+            "slow",
             "--tb=short",
             "-v",
-            "tests/"
+            "tests/",
         ]
         return self.run_command(cmd, "Slow Tests")
 
     def run_specific_test_file(self, test_file: str) -> Dict[str, Any]:
         """Run a specific test file"""
-        cmd = [
-            sys.executable, "-m", "pytest",
-            "--tb=short",
-            "-v",
-            test_file
-        ]
+        cmd = [sys.executable, "-m", "pytest", "--tb=short", "-v", test_file]
         return self.run_command(cmd, f"Specific Test File: {test_file}")
 
     def run_parallel_tests(self, workers: Optional[int] = None) -> Dict[str, Any]:
@@ -207,12 +242,14 @@ class TestRunner:
             workers = multiprocessing.cpu_count()
 
         cmd = [
-            sys.executable, "-m", "pytest",
+            sys.executable,
+            "-m",
+            "pytest",
             "--tb=short",
             "-v",
             f"-n={workers}",
             "--dist=loadscope",
-            "tests/"
+            "tests/",
         ]
         return self.run_command(cmd, f"Parallel Tests ({workers} workers)")
 
@@ -224,12 +261,12 @@ class TestRunner:
         total_failed = 0
 
         report = [
-            "\n" + "="*80,
+            "\n" + "=" * 80,
             "PSYCHSYNC TEST SUITE REPORT",
-            "="*80,
+            "=" * 80,
             f"Total Duration: {total_duration:.2f} seconds",
             f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-            ""
+            "",
         ]
 
         for test_name, result in self.results.items():
@@ -243,25 +280,35 @@ class TestRunner:
             total_tests += 1
             report.append(f"{test_name:30} {status:10} {result['duration']:.2f}s")
 
-        report.extend([
-            "",
-            "-"*80,
-            f"SUMMARY: {total_passed}/{total_tests} test suites passed",
-            f"Success Rate: {(total_passed/total_tests*100):.1f}%" if total_tests > 0 else "N/A",
-            f"Total Failed: {total_failed}",
-            "="*80
-        ])
+        report.extend(
+            [
+                "",
+                "-" * 80,
+                f"SUMMARY: {total_passed}/{total_tests} test suites passed",
+                (
+                    f"Success Rate: {(total_passed/total_tests*100):.1f}%"
+                    if total_tests > 0
+                    else "N/A"
+                ),
+                f"Total Failed: {total_failed}",
+                "=" * 80,
+            ]
+        )
 
         return "\n".join(report)
 
     def save_results(self, filename: str = "test_results.json"):
         """Save test results to JSON file"""
-        with open(filename, 'w') as f:
-            json.dump({
-                "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
-                "total_duration": time.time() - self.start_time,
-                "results": self.results
-            }, f, indent=2)
+        with open(filename, "w") as f:
+            json.dump(
+                {
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "total_duration": time.time() - self.start_time,
+                    "results": self.results,
+                },
+                f,
+                indent=2,
+            )
         print(f"📊 Test results saved to {filename}")
 
     def run_ci_pipeline(self) -> bool:
@@ -334,30 +381,35 @@ def main():
     parser.add_argument(
         "command",
         choices=[
-            "unit", "integration", "auth", "api", "service",
-            "all", "performance", "security", "slow", "ci", "dev", "parallel"
+            "unit",
+            "integration",
+            "auth",
+            "api",
+            "service",
+            "all",
+            "performance",
+            "security",
+            "slow",
+            "ci",
+            "dev",
+            "parallel",
         ],
-        help="Test command to run"
+        help="Test command to run",
     )
+    parser.add_argument("--file", "-f", help="Run specific test file")
     parser.add_argument(
-        "--file", "-f",
-        help="Run specific test file"
-    )
-    parser.add_argument(
-        "--workers", "-w",
+        "--workers",
+        "-w",
         type=int,
-        help="Number of parallel workers (for parallel command)"
+        help="Number of parallel workers (for parallel command)",
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default="test_results.json",
-        help="Output file for test results"
+        help="Output file for test results",
     )
-    parser.add_argument(
-        "--no-cov",
-        action="store_true",
-        help="Skip coverage reporting"
-    )
+    parser.add_argument("--no-cov", action="store_true", help="Skip coverage reporting")
 
     args = parser.parse_args()
 

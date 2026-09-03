@@ -1,0 +1,131 @@
+name: Code Complexity Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  complexity-check:
+    runs-on: ubuntu-latest
+    name: Check Code Complexity
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install complexity tools
+        run: |
+          pip install radon McCabe
+
+      - name: Check Python complexity with Radon
+        run: |
+          echo "Checking Python code complexity..."
+
+          # Check average complexity
+          radon cc app/ -a --total-average
+
+          # Fail if any function has complexity > 15
+          radon cc app/ -nb --min C
+
+          # List functions with complexity > 10
+          echo "Functions with complexity > 10:"
+          radon cc app/ -nb --min B
+
+          # Generate HTML report
+          radon cc app/ -o > complexity_report.html
+
+          # Upload report as artifact
+          mkdir -p reports
+          mv complexity_report.html reports/
+
+      - name: Check Python maintainability index
+        run: |
+          echo "Checking maintainability index..."
+          radon mi app/ -nb
+
+          # Fail if maintainability index < 20 (any file)
+          # radon mi app/ -nb --min B
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install TypeScript complexity tools
+        run: |
+          cd frontend
+          npm install -g complexity-report
+
+      - name: Check TypeScript complexity
+        run: |
+          echo "Checking TypeScript code complexity..."
+
+          # Check frontend complexity
+          cr frontend/src/**/*.ts --report json > frontend_complexity.json
+
+          # Display summary
+          echo "TypeScript Complexity Summary:"
+          cat frontend_complexity.json | jq '.complexity.report[].aggregate.cyclomatic'
+
+      - name: Enforce complexity limits
+        run: |
+          echo "Enforcing complexity limits..."
+
+          # Check for functions exceeding limits
+          HIGH_COMPLEXITY=$(radon cc app/ -nb --min C | grep -c "^[A-Z]" || true)
+
+          if [ "$HIGH_COMPLEXITY" -gt "10" ]; then
+            echo "::error::Found $HIGH_COMPLEXITY functions with complexity > 15"
+            echo "::error::Please refactor complex functions before merging"
+            exit 1
+          fi
+
+          echo "✅ Complexity checks passed!"
+
+      - name: Upload complexity reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: complexity-reports
+          path: |
+            reports/*.html
+            frontend_complexity.json
+
+      - name: Comment PR with complexity report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('reports/complexity_report.html', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📊 Code Complexity Report
+
+              ### High Complexity Functions
+              The following functions exceed the recommended complexity threshold (15):
+
+              \`\`\`
+              ${process.env.HIGH_COMPLEXITY_FUNCTIONS || 'None'}
+              \`\`\`
+
+              ### Detailed Report
+              See the attached artifact for full HTML report.
+
+              ---
+              💡 **Tip**: Keep functions simple and focused. If complexity is high, consider:
+              - Extracting helper functions
+              - Using strategy pattern for multiple algorithms
+              - Separating validation from business logic
+              `
+            });

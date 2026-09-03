@@ -1,30 +1,50 @@
 import React, { useId } from 'react';
 interface AlertProps {
   children: React.ReactNode;
-  variant?: 'info' | 'success' | 'warning' | 'error';
+  variant?: 'info' | 'success' | 'warning' | 'error' | 'neutral';
   className?: string;
   dismissible?: boolean;
   onDismiss?: () => void;
+  autoDismiss?: boolean;
+  autoDismissTimeout?: number;
+  icon?: React.ReactNode;
+  title?: string;
+  actions?: React.ReactNode;
 }
 export const Alert: React.FC<AlertProps> = ({
   children,
   variant = 'info',
   className = '',
   dismissible = false,
-  onDismiss
+  onDismiss,
+  autoDismiss = false,
+  autoDismissTimeout = 5000,
+  icon,
+  title,
+  actions
 }) => {
   const alertId = useId();
 
+  React.useEffect(() => {
+    if (autoDismiss && onDismiss) {
+      const timer = setTimeout(() => {
+        onDismiss();
+      }, autoDismissTimeout);
+      return () => clearTimeout(timer);
+    }
+  }, [autoDismiss, autoDismissTimeout, onDismiss]);
+
   const baseClasses = 'p-4 rounded-lg border flex items-start transition-all duration-300 ease-in-out';
-  const variantClasses = {
+  const variantClasses: Record<string, string> = {
     info: 'bg-blue-50 border-blue-200 text-blue-800',
     success: 'bg-green-50 border-green-200 text-green-800',
     warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-    error: 'bg-red-50 border-red-200 text-red-800'
+    error: 'bg-red-50 border-red-200 text-red-800',
+    neutral: 'bg-gray-50 border-gray-200 text-gray-800'
   };
 
   // Accessible SVG icons instead of emoji
-  const icons = {
+  const icons: Record<string, React.ReactNode> = {
     info: (
       <svg className="w-5 h-5 flex-shrink-0 mr-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -44,10 +64,16 @@ export const Alert: React.FC<AlertProps> = ({
       <svg className="w-5 h-5 flex-shrink-0 mr-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
       </svg>
+    ),
+    neutral: (
+      <svg className="w-5 h-5 flex-shrink-0 mr-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+      </svg>
     )
   };
 
   const ariaLive = variant === 'error' ? 'assertive' : 'polite';
+  const displayIcon = icon || icons[variant];
 
   return (
     <div
@@ -56,9 +82,11 @@ export const Alert: React.FC<AlertProps> = ({
       aria-live={ariaLive}
       className={`${baseClasses} ${variantClasses[variant]} ${className}`}
     >
-      {icons[variant]}
+      {displayIcon}
       <div className="flex-1 min-w-0">
+        {title && <h4 className="font-medium mb-1">{title}</h4>}
         {children}
+        {actions && <div className="mt-3">{actions}</div>}
       </div>
       {dismissible && onDismiss && (
         <button

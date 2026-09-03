@@ -10,8 +10,8 @@ Usage:
     employees = connector.get_employees()
 """
 
-from datetime import date, timedelta
 import logging
+from datetime import date, timedelta
 
 from .base_connector import CSVConnector, HRISConnector
 from .frappe_connector import ERPNextConnector, FrappeHRConnector
@@ -141,7 +141,9 @@ class HRISIntegrationManager:
         missing = [key for key in required if key not in config or not config[key]]
 
         if missing:
-            logger.error(f"Missing required config fields for {hris_type}: {', '.join(missing)}")
+            logger.error(
+                f"Missing required config fields for {hris_type}: {', '.join(missing)}"
+            )
             return False
 
         return True
@@ -187,7 +189,9 @@ class HRISIntegrationManager:
 
             # Get performance reviews
             logger.info("Syncing performance reviews...")
-            reviews = connector.get_performance_reviews(start_date=start_date, end_date=end_date)
+            reviews = connector.get_performance_reviews(
+                start_date=start_date, end_date=end_date
+            )
             results["data"]["reviews"] = len(reviews)
             logger.info(f"✓ Synced {len(reviews)} performance reviews")
 
@@ -202,7 +206,10 @@ class HRISIntegrationManager:
         return results
 
     def export_all_data(
-        self, connector: HRISConnector, output_dir: str = "./exports", days_back: int = 30
+        self,
+        connector: HRISConnector,
+        output_dir: str = "./exports",
+        days_back: int = 30,
     ) -> dict[str, str]:
         """
         Export all HRIS data to CSV files.
@@ -246,7 +253,9 @@ class HRISIntegrationManager:
                 exports["leaves"] = path
 
             # Export reviews
-            reviews = connector.get_performance_reviews(start_date=start_date, end_date=end_date)
+            reviews = connector.get_performance_reviews(
+                start_date=start_date, end_date=end_date
+            )
             if reviews:
                 path = connector.export_to_csv(
                     reviews, f"reviews_{start_date}_to_{end_date}.csv", output_dir
@@ -271,7 +280,7 @@ class HRISIntegrationManager:
                     "connected": is_connected,
                     "type": connector.__class__.__name__,
                 }
-            except:
+            except Exception as e:
                 status["connectors"][hris_type] = {
                     "connected": False,
                     "type": connector.__class__.__name__,

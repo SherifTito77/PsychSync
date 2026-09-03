@@ -13,7 +13,7 @@ def fix_multiline_raises(content: str) -> str:
     Fix multi-line raise statements in except blocks by adding 'from e'
     before the closing parenthesis.
     """
-    lines = content.split('\n')
+    lines = content.split("\n")
     result = []
     i = 0
 
@@ -22,7 +22,7 @@ def fix_multiline_raises(content: str) -> str:
         result.append(line)
 
         # Check if this line starts an except block
-        except_match = re.match(r'^(\s*)except\s+\w+\s+as\s+(\w+):', line)
+        except_match = re.match(r"^(\s*)except\s+\w+\s+as\s+(\w+):", line)
         if except_match:
             indent = except_match.group(1)
             exception_var = except_match.group(2)
@@ -33,53 +33,61 @@ def fix_multiline_raises(content: str) -> str:
                 next_line = lines[j]
 
                 # Check if we've left the except block
-                if next_line.strip() and not next_line.startswith(indent + '    '):
+                if next_line.strip() and not next_line.startswith(indent + "    "):
                     break
 
                 # Check if this line starts a raise statement
-                raise_start = re.match(r'^(\s*)raise\s+\w+Exception\(', next_line)
-                if raise_start and ' from ' not in next_line:
+                raise_start = re.match(r"^(\s*)raise\s+\w+Exception\(", next_line)
+                if raise_start and " from " not in next_line:
                     # This is a raise statement - find where it ends
                     # Check if it's multi-line
-                    if ')' not in next_line or next_line.strip().endswith(','):
+                    if ")" not in next_line or next_line.strip().endswith(","):
                         # Multi-line raise statement
                         # Find the closing paren
                         k = j
-                        paren_count = next_line.count('(') - next_line.count(')')
+                        paren_count = next_line.count("(") - next_line.count(")")
                         while k < len(lines):
-                            paren_count += lines[k].count('(') - lines[k].count(')')
-                            if ')' in lines[k] and paren_count == 0:
+                            paren_count += lines[k].count("(") - lines[k].count(")")
+                            if ")" in lines[k] and paren_count == 0:
                                 # Found the closing line
-                                closing_line = result[k]  # Use result to get our modified version
+                                closing_line = result[
+                                    k
+                                ]  # Use result to get our modified version
                                 # Add 'from exception_var' before the closing paren
-                                modified = re.sub(r'\)(\s*)$', f' from {exception_var})\\1', closing_line)
+                                modified = re.sub(
+                                    r"\)(\s*)$",
+                                    f" from {exception_var})\\1",
+                                    closing_line,
+                                )
                                 result[k] = modified
                                 break
                             k += 1
                     else:
                         # Single-line raise statement
-                        if ' from ' not in next_line and ' from' not in next_line:
+                        if " from " not in next_line and " from" not in next_line:
                             # Add 'from exception_var' before closing paren
-                            modified = re.sub(r'\)(\s*)$', f' from {exception_var})\\1', next_line)
+                            modified = re.sub(
+                                r"\)(\s*)$", f" from {exception_var})\\1", next_line
+                            )
                             result[-1] = modified  # Replace the line we just added
 
                 j += 1
 
         i += 1
 
-    return '\n'.join(result)
+    return "\n".join(result)
 
 
 def main():
+    import ast
     import subprocess
     import sys
-    import ast
 
     # Get list of files that still have B904 errors
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -91,7 +99,7 @@ def main():
     # Group by file
     files_with_errors = {}
     for error in errors:
-        filename = error['filename']
+        filename = error["filename"]
         if filename not in files_with_errors:
             files_with_errors[filename] = []
         files_with_errors[filename].append(error)
@@ -120,9 +128,7 @@ def main():
     # Verify
     print("\nVerifying...")
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904'],
-        capture_output=True,
-        text=True
+        ["ruff", "check", "app/", "--select", "B904"], capture_output=True, text=True
     )
 
     if result.returncode == 0:
@@ -133,6 +139,7 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import json
+
     exit(main())

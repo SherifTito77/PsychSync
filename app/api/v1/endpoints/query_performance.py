@@ -4,31 +4,30 @@ Query Performance Monitoring Endpoints
 Provides real-time query performance monitoring and optimization suggestions
 """
 
-from typing import Dict, Any, Optional, List
-
-from app.middleware.rate_limiter import check_rate_limit
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from typing import Any, Dict, List, Optional
 
-from app.api.v1.deps import get_db, get_current_active_user, get_current_user
-from app.db.models.user import User
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.deps import get_current_active_user, get_current_user, get_db
+from app.core.cache_strategy import CacheStrategy, intelligent_cache
+from app.core.query_monitor import AlertThreshold, performance_dashboard, query_monitor
+from app.core.query_optimizer import auto_optimizer, query_optimizer
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.core.responses import APIResponse, get_request_id
-from app.core.structured_logging import get_logger, EventType
-from app.core.query_monitor import query_monitor, performance_dashboard, AlertThreshold
-from app.core.query_optimizer import query_optimizer, auto_optimizer
-from app.core.cache_strategy import intelligent_cache, CacheStrategy
+from app.core.structured_logging import EventType, get_logger
+from app.db.models.user import User
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/query-performance/stats", summary="Real-time Query Performance Stats")
 async def get_query_performance_stats(
-    request: Request,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, current_user: User = Depends(get_current_active_user)
 ):
     """
     Get real-time query performance statistics
@@ -41,26 +40,26 @@ async def get_query_performance_stats(
             EventType.PERFORMANCE_METRIC,
             "Query performance stats retrieved",
             operation_name="get_query_stats",
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
         return APIResponse.success(
             data=stats,
             message="Query performance statistics retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_query_stats", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to retrieve query performance statistics",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
 
 @router.get("/query-performance/dashboard", summary="Query Performance Dashboard")
 async def get_performance_dashboard(
-    request: Request,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, current_user: User = Depends(get_current_active_user)
 ):
     """
     Get comprehensive dashboard data for query performance monitoring
@@ -73,27 +72,30 @@ async def get_performance_dashboard(
             "Performance dashboard data retrieved",
             operation_name="get_performance_dashboard",
             user_id=str(current_user.id),
-            data_points=len(dashboard_data)
+            data_points=len(dashboard_data),
         )
 
         return APIResponse.success(
             data=dashboard_data,
             message="Performance dashboard data retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
-        logger.log_error(e, operation="get_performance_dashboard", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="get_performance_dashboard", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
             message="Failed to retrieve dashboard data",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
 
 @router.get("/query-performance/slow-queries", summary="Recent Slow Queries")
 async def get_slow_queries(
     request: Request,
     limit: int = Query(50, description="Number of slow queries to return"),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get recent slow queries with detailed information
@@ -106,31 +108,32 @@ async def get_slow_queries(
             f"Retrieved {len(slow_queries)} slow queries",
             operation_name="get_slow_queries",
             user_id=str(current_user.id),
-            limit=limit
+            limit=limit,
         )
 
         return APIResponse.success(
             data={
                 "slow_queries": slow_queries,
                 "count": len(slow_queries),
-                "threshold_ms": query_monitor.alert_thresholds.max_execution_time
+                "threshold_ms": query_monitor.alert_thresholds.max_execution_time,
             },
             message="Slow queries retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_slow_queries", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to retrieve slow queries",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
 
 @router.get("/query-performance/errors", summary="Recent Query Errors")
 async def get_query_errors(
     request: Request,
     limit: int = Query(50, description="Number of errors to return"),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get recent query errors with detailed information
@@ -143,30 +146,28 @@ async def get_query_errors(
             f"Retrieved {len(errors)} query errors",
             operation_name="get_query_errors",
             user_id=str(current_user.id),
-            limit=limit
+            limit=limit,
         )
 
         return APIResponse.success(
-            data={
-                "errors": errors,
-                "count": len(errors)
-            },
+            data={"errors": errors, "count": len(errors)},
             message="Query errors retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_query_errors", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to retrieve query errors",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
 
 @router.get("/query-performance/alerts", summary="Performance Alerts")
 async def get_performance_alerts(
     request: Request,
     limit: int = Query(50, description="Number of alerts to return"),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get recent performance alerts
@@ -179,29 +180,31 @@ async def get_performance_alerts(
             f"Retrieved {len(alerts)} performance alerts",
             operation_name="get_performance_alerts",
             user_id=str(current_user.id),
-            limit=limit
+            limit=limit,
         )
 
         return APIResponse.success(
-            data={
-                "alerts": alerts,
-                "count": len(alerts)
-            },
+            data={"alerts": alerts, "count": len(alerts)},
             message="Performance alerts retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
-        logger.log_error(e, operation="get_performance_alerts", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="get_performance_alerts", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
             message="Failed to retrieve performance alerts",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
-@router.get("/query-performance/optimization-opportunities", summary="Optimization Opportunities")
+
+@router.get(
+    "/query-performance/optimization-opportunities",
+    summary="Optimization Opportunities",
+)
 async def get_optimization_opportunities(
-    request: Request,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, current_user: User = Depends(get_current_active_user)
 ):
     """
     Get query optimization opportunities and suggestions
@@ -213,30 +216,30 @@ async def get_optimization_opportunities(
             EventType.DATABASE_OPERATION,
             f"Retrieved {len(opportunities)} optimization opportunities",
             operation_name="get_optimization_opportunities",
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
         return APIResponse.success(
-            data={
-                "opportunities": opportunities,
-                "count": len(opportunities)
-            },
+            data={"opportunities": opportunities, "count": len(opportunities)},
             message="Optimization opportunities retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
-        logger.log_error(e, operation="get_optimization_opportunities", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="get_optimization_opportunities", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
             message="Failed to retrieve optimization opportunities",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
 
 @router.get("/query-performance/report", summary="Performance Report")
 async def get_performance_report(
     request: Request,
     hours: int = Query(24, description="Hours of data to include in report"),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive performance report for the specified time period
@@ -249,28 +252,40 @@ async def get_performance_report(
             f"Generated performance report for {hours} hours",
             operation_name="get_performance_report",
             user_id=str(current_user.id),
-            hours=hours
+            hours=hours,
         )
 
         return APIResponse.success(
             data=report,
             message=f"Performance report generated successfully ({hours} hours)",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
-        logger.log_error(e, operation="get_performance_report", user_id=str(current_user.id), hours=hours)
+        logger.log_error(
+            e,
+            operation="get_performance_report",
+            user_id=str(current_user.id),
+            hours=hours,
+        )
         return APIResponse.server_error(
             message="Failed to generate performance report",
-            request_id=get_request_id(request, dependencies=[Depends(get_current_user)])
+            request_id=get_request_id(
+                request, dependencies=[Depends(get_current_user)]
+            ),
         )
 
-@router.post("/query-performance/analyze-query", summary="Analyze Query", dependencies=[Depends(get_current_user)])
+
+@router.post(
+    "/query-performance/analyze-query",
+    summary="Analyze Query",
+    dependencies=[Depends(get_current_user)],
+)
 async def analyze_query(
     request: Request,
     query_data: Dict[str, Any],
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Analyze a specific query for performance optimization suggestions
@@ -282,8 +297,7 @@ async def analyze_query(
 
         if not query.strip():
             return APIResponse.error(
-                message="Query cannot be empty",
-                request_id=get_request_id(request)
+                message="Query cannot be empty", request_id=get_request_id(request)
             )
 
         # Basic security check
@@ -291,13 +305,17 @@ async def analyze_query(
         if any(keyword.upper() in query.upper() for keyword in dangerous_keywords):
             return APIResponse.error(
                 message="Query contains potentially dangerous operations",
-                request_id=get_request_id(request)
+                request_id=get_request_id(request),
             )
 
         # Analyze query
         if execute_query:
-            metrics, execution_plan = await query_optimizer.analyze_query_execution(db, query, params)
-            optimization_suggestions = query_optimizer.generate_optimization_report(metrics)
+            metrics, execution_plan = await query_optimizer.analyze_query_execution(
+                db, query, params
+            )
+            optimization_suggestions = query_optimizer.generate_optimization_report(
+                metrics
+            )
 
             result = {
                 "query": query,
@@ -305,7 +323,9 @@ async def analyze_query(
                     "query_hash": metrics.query_hash,
                     "execution_time_ms": metrics.execution_time_ms,
                     "complexity": metrics.complexity.value,
-                    "optimization_suggestions": [opt.value for opt in metrics.optimization_suggestions]
+                    "optimization_suggestions": [
+                        opt.value for opt in metrics.optimization_suggestions
+                    ],
                 },
                 "execution_plan": execution_plan,
                 "optimization_suggestions": [
@@ -314,21 +334,25 @@ async def analyze_query(
                         "description": suggestion.description,
                         "estimated_improvement": suggestion.estimated_improvement,
                         "priority": suggestion.implementation_priority,
-                        "snippet": suggestion.query_snippet
+                        "snippet": suggestion.query_snippet,
                     }
                     for suggestion in optimization_suggestions
-                ]
+                ],
             }
         else:
             metrics = query_optimizer.analyze_query(query)
-            optimization_suggestions = query_optimizer.generate_optimization_report(metrics)
+            optimization_suggestions = query_optimizer.generate_optimization_report(
+                metrics
+            )
 
             result = {
                 "query": query,
                 "metrics": {
                     "query_hash": metrics.query_hash,
                     "complexity": metrics.complexity.value,
-                    "optimization_suggestions": [opt.value for opt in metrics.optimization_suggestions]
+                    "optimization_suggestions": [
+                        opt.value for opt in metrics.optimization_suggestions
+                    ],
                 },
                 "optimization_suggestions": [
                     {
@@ -336,10 +360,10 @@ async def analyze_query(
                         "description": suggestion.description,
                         "estimated_improvement": suggestion.estimated_improvement,
                         "priority": suggestion.implementation_priority,
-                        "snippet": suggestion.query_snippet
+                        "snippet": suggestion.query_snippet,
                     }
                     for suggestion in optimization_suggestions
-                ]
+                ],
             }
 
         logger.info(
@@ -348,26 +372,30 @@ async def analyze_query(
             operation_name="analyze_query",
             user_id=str(current_user.id),
             complexity=metrics.complexity.value,
-            suggestions_count=len(optimization_suggestions)
+            suggestions_count=len(optimization_suggestions),
         )
 
         return APIResponse.success(
             data=result,
             message="Query analyzed successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
-        logger.log_error(e, operation="analyze_query", user_id=str(current_user.id), query=query.get("query", ""))
-        return APIResponse.server_error(
-            message="Failed to analyze query",
-            request_id=get_request_id(request)
+        logger.log_error(
+            e,
+            operation="analyze_query",
+            user_id=str(current_user.id),
+            query=query.get("query", ""),
         )
+        return APIResponse.server_error(
+            message="Failed to analyze query", request_id=get_request_id(request)
+        )
+
 
 @router.post("/query-performance/reset-stats", summary="Reset Statistics")
 async def reset_performance_stats(
-    request: Request,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, current_user: User = Depends(get_current_active_user)
 ):
     """
     Reset all query performance statistics
@@ -379,25 +407,24 @@ async def reset_performance_stats(
             EventType.SYSTEM_EVENT,
             "Query performance statistics reset",
             operation_name="reset_stats",
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
         return APIResponse.success(
             message="Query performance statistics reset successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="reset_stats", user_id=str(current_user.id))
         return APIResponse.server_error(
-            message="Failed to reset statistics",
-            request_id=get_request_id(request)
+            message="Failed to reset statistics", request_id=get_request_id(request)
         )
+
 
 @router.get("/query-performance/cache-stats", summary="Cache Performance Stats")
 async def get_cache_performance_stats(
-    request: Request,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, current_user: User = Depends(get_current_active_user)
 ):
     """
     Get cache performance statistics
@@ -409,31 +436,35 @@ async def get_cache_performance_stats(
             EventType.PERFORMANCE_METRIC,
             "Cache performance stats retrieved",
             operation_name="get_cache_stats",
-            user_id=str(current_user.id)
+            user_id=str(current_user.id),
         )
 
         return APIResponse.success(
             data=cache_stats,
             message="Cache performance statistics retrieved successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_cache_stats", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to retrieve cache statistics",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
 
 # TODO(human): Implement automatic query optimization application
 # This should allow safe automatic application of certain optimizations
 # with rollback capabilities
 
-@router.post("/query-performance/auto-optimize", summary="Apply Automatic Optimizations")
+
+@router.post(
+    "/query-performance/auto-optimize", summary="Apply Automatic Optimizations"
+)
 async def apply_automatic_optimizations(
     request: Request,
     optimization_data: Dict[str, Any],
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Apply safe automatic optimizations to the system
@@ -442,13 +473,19 @@ async def apply_automatic_optimizations(
         optimization_types = optimization_data.get("optimization_types", [])
 
         # Validate optimization types
-        safe_optimizations = ["CACHE_RESULT", "PAGINATE_EFFICIENTLY", "USE_EAGER_LOADING"]
-        invalid_optimizations = [opt for opt in optimization_types if opt not in safe_optimizations]
+        safe_optimizations = [
+            "CACHE_RESULT",
+            "PAGINATE_EFFICIENTLY",
+            "USE_EAGER_LOADING",
+        ]
+        invalid_optimizations = [
+            opt for opt in optimization_types if opt not in safe_optimizations
+        ]
 
         if invalid_optimizations:
             return APIResponse.error(
                 message=f"Invalid optimization types: {', '.join(invalid_optimizations)}. Only safe optimizations are allowed.",
-                request_id=get_request_id(request)
+                request_id=get_request_id(request),
             )
 
         # Get current optimization report
@@ -459,30 +496,32 @@ async def apply_automatic_optimizations(
             f"Automatic optimizations applied",
             operation_name="apply_auto_optimizations",
             user_id=str(current_user.id),
-            optimization_types=optimization_types
+            optimization_types=optimization_types,
         )
 
         return APIResponse.success(
             data={
                 "applied_optimizations": optimization_types,
                 "current_optimization_report": current_report,
-                "message": "Safe automatic optimizations applied successfully"
+                "message": "Safe automatic optimizations applied successfully",
             },
             message="Automatic optimizations applied successfully",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
-        logger.log_error(e, operation="apply_auto_optimizations", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="apply_auto_optimizations", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
             message="Failed to apply automatic optimizations",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
 
 @router.get("/query-performance/health", summary="Query Performance Health")
 async def get_query_performance_health(
-    request: Request,
-    current_user: User = Depends(get_current_active_user)
+    request: Request, current_user: User = Depends(get_current_active_user)
 ):
     """
     Get overall query performance health status
@@ -512,7 +551,9 @@ async def get_query_performance_health(
         # Check average execution time
         if stats.avg_execution_time > 500:
             health_score -= 15
-            issues.append(f"High average execution time: {stats.avg_execution_time:.1f}ms")
+            issues.append(
+                f"High average execution time: {stats.avg_execution_time:.1f}ms"
+            )
 
         # Check cache hit rate
         if stats.cache_hit_rate < 70:
@@ -534,18 +575,39 @@ async def get_query_performance_health(
             "health_status": health_status,
             "issues": issues,
             "recent_alerts_count": len(alerts),
-            "stats": stats
+            "stats": stats,
         }
 
         return APIResponse.success(
             data=health_data,
             message=f"Query performance health: {health_status}",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
 
     except Exception as e:
         logger.log_error(e, operation="get_query_health", user_id=str(current_user.id))
         return APIResponse.server_error(
             message="Failed to get query performance health",
-            request_id=get_request_id(request)
+            request_id=get_request_id(request),
         )
+
+
+# Frontend-compatible alias routes (underscore convention)
+@router.get("/query_performance/queries/summary", include_in_schema=False)
+async def get_queries_summary_alias(
+    request: Request, current_user: User = Depends(get_current_active_user)
+):
+    """Alias for frontend compatibility."""
+    return await get_query_performance_stats(request=request, current_user=current_user)
+
+
+@router.get("/query_performance/queries", include_in_schema=False)
+async def get_queries_alias(
+    request: Request,
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Alias for frontend compatibility."""
+    return await get_slow_queries(
+        request=request, limit=limit, current_user=current_user
+    )

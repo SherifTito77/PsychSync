@@ -1,25 +1,31 @@
 # app/api/v1/endpoints/templates.py
 from typing import List, Optional
 
-from app.api.v1.deps import get_current_user, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.middleware.rate_limiter import check_rate_limit
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-
-from app.api.deps import get_db, get_current_active_user, get_current_admin_user
-from app.db.models.user import User
+from app.api.deps import (
+    get_async_db,
+    get_current_active_user,
+    get_current_admin_user,
+    get_db,
+)
+from app.api.v1.deps import Depends, get_current_user
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.template import Template
+from app.db.models.user import User
+from app.schemas.assessment import Assessment as AssessmentSchema
+from app.schemas.template import Template as TemplateSchema
 from app.schemas.template import (
     TemplateCreate,
+    TemplateList,
     TemplateUpdate,
-    Template as TemplateSchema,
     TemplateWithData,
-    TemplateList
 )
-from app.schemas.assessment import Assessment as AssessmentSchema
+
 # Temporarily disabled due to async conversion issues
 # from app.services.template_service import TemplateService
+
 
 # Placeholder TemplateService class
 class TemplateService:
@@ -43,22 +49,21 @@ class TemplateService:
     async def delete_template(*args, **kwargs):
         return False
 
+
 router = APIRouter(prefix="/templates", tags=["templates"])
 
 
 @router.post("", response_model=TemplateSchema, status_code=status.HTTP_201_CREATED)
 def create_template(
     template_in: TemplateCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create a new assessment template.
     """
     template = TemplateService.create(
-        db,
-        template_in=template_in,
-        creator_id=current_user.id
+        db, template_in=template_in, creator_id=current_user.id
     )
     return template
 
@@ -68,32 +73,23 @@ def list_templates(
     category: Optional[str] = Query(None),
     is_official: Optional[bool] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    db: Session = Depends(get_db)
+    limit: int = Query(100, ge=1, le=100),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List all public templates.
     """
     templates = TemplateService.get_all(
-        db,
-        category=category,
-        is_official=is_official,
-        skip=skip,
-        limit=limit
+        db, category=category, is_official=is_official, skip=skip, limit=limit
     )
 
-    return {
-        "templates": templates,
-        "total": len(templates)
-    }
+    return {"templates": templates, "total": len(templates)}
 
 
-
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/search", response_model=List[TemplateSchema])
 def search_templates(
-    q: str = Query(..., min_length=2),
-    db: Session = Depends(get_db)
+    q: str = Query(..., min_length=2), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Search templates by name or description.
@@ -103,10 +99,7 @@ def search_templates(
 
 
 @router.get("/{template_id}", response_model=TemplateWithData)
-def get_template(
-    template_id: int,
-    db: Session = Depends(get_db)
-):
+def get_template(template_id: int, db: AsyncSession = Depends(get_async_db)):
     """
     Get template details with full data.
     """
@@ -114,25 +107,27 @@ def get_template(
 
     if not template:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Template not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
 
     if not template.is_public:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This template is not public"
+            status_code=status.HTTP_403_FORBIDDEN, detail="This template is not public"
         )
 
     return template
 
 
-@router.post("/{template_id}/use", response_model=AssessmentSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{template_id}/use",
+    response_model=AssessmentSchema,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_assessment_from_template(
     template_id: int,
     team_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create a new assessment from a template.
@@ -141,33 +136,32 @@ def create_assessment_from_template(
 
     if not template:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Template not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
 
     if not template.is_public:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This template is not public"
+            status_code=status.HTTP_403_FORBIDDEN, detail="This template is not public"
         )
 
     assessment = TemplateService.create_assessment_from_template(
-        db,
-        template=template,
-        creator_id=current_user.id,
-        team_id=team_id
+        db, template=template, creator_id=current_user.id, team_id=team_id
     )
 
     return assessment
 
 
-@router.post("/from-assessment/{assessment_id}", response_model=TemplateSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/from-assessment/{assessment_id}",
+    response_model=TemplateSchema,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_template_from_assessment(
     assessment_id: int,
     name: str = Query(..., min_length=3),
     description: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create a template from an existing assessment.
@@ -178,15 +172,14 @@ def create_template_from_assessment(
 
     if not assessment:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assessment not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found"
         )
 
     # Check permission
     if assessment.created_by_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only create templates from your own assessments"
+            detail="You can only create templates from your own assessments",
         )
 
     template = TemplateService.create_template_from_assessment(
@@ -194,18 +187,22 @@ def create_template_from_assessment(
         assessment=assessment,
         template_name=name,
         template_description=description,
-        creator_id=current_user.id
+        creator_id=current_user.id,
     )
 
     return template
 
 
-@router.put("/{template_id}", response_model=TemplateSchema, dependencies=[Depends(get_current_user)])
+@router.put(
+    "/{template_id}",
+    response_model=TemplateSchema,
+    dependencies=[Depends(get_current_user)],
+)
 def update_template(
     template_id: int,
     template_in: TemplateUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Update template.
@@ -214,28 +211,34 @@ def update_template(
 
     if not template:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Template not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
 
     # Check permission
     if template.created_by_id != current_user.id:
         from app.services.user_service import user_service
+
         if not user_service.is_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have permission to update this template"
+                detail="You don't have permission to update this template",
             )
 
-    updated_template = TemplateService.update(db, template=template, template_in=template_in)
+    updated_template = TemplateService.update(
+        db, template=template, template_in=template_in
+    )
     return updated_template
 
 
-@router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_current_user)])
+@router.delete(
+    "/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_user)],
+)
 def delete_template(
     template_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Delete template.
@@ -244,17 +247,17 @@ def delete_template(
 
     if not template:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Template not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
 
     # Check permission
     if template.created_by_id != current_user.id:
         from app.services.user_service import user_service
+
         if not user_service.is_admin(current_user):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have permission to delete this template"
+                detail="You don't have permission to delete this template",
             )
 
     TemplateService.delete(db, template=template)

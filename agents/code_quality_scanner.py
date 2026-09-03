@@ -5,29 +5,30 @@ Scans code daily for bugs, code smells, unused imports, and dependency risks
 Creates PRs automatically for fixes
 """
 
-import os
-import sys
-import subprocess
+import ast
 import json
 import logging
+import os
+import re
+import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
-import re
-import ast
+from typing import Any, Dict, List
+
+from git import Repo
 
 # GitHub API
 from github import Github
-from git import Repo
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler('agents/quality_scanner.log'),
-        logging.StreamHandler()
-    ]
+        logging.FileHandler("agents/quality_scanner.log"),
+        logging.StreamHandler(),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -37,41 +38,24 @@ class CodeQualityScanner:
 
     def __init__(self):
         self.repo_path = Path(os.getcwd()).parent
-        self.github_token = os.getenv('GITHUB_TOKEN')
-        self.repo_name = os.getenv('GITHUB_REPOSITORY', 'psychsync/psychsync')
+        self.github_token = os.getenv("GITHUB_TOKEN")
+        self.repo_name = os.getenv("GITHUB_REPOSITORY", "psychsync/psychsync")
         self.branch_name = f"fix/quality-scan-{datetime.now().strftime('%Y%m%d')}"
 
         # Tools configuration
         self.tools = {
-            'pylint': {
-                'enabled': True,
-                'config': '.pylintrc',
-                'severity': 'ERROR'
-            },
-            'flake8': {
-                'enabled': True,
-                'config': '.flake8',
-                'max_line_length': 100
-            },
-            'isort': {
-                'enabled': True,
-                'config': '.isort.cfg'
-            },
-            'bandit': {
-                'enabled': True,
-                'config': '.bandit'
-            },
-            'safety': {
-                'enabled': True,
-                'check_dependencies': True
-            }
+            "pylint": {"enabled": True, "config": ".pylintrc", "severity": "ERROR"},
+            "flake8": {"enabled": True, "config": ".flake8", "max_line_length": 100},
+            "isort": {"enabled": True, "config": ".isort.cfg"},
+            "bandit": {"enabled": True, "config": ".bandit"},
+            "safety": {"enabled": True, "check_dependencies": True},
         }
 
         # Patterns for unused imports
         self.unused_import_patterns = [
-            r'^from\s+(\S+)\s+import\s+\*',
-            r'^import\s+(\S+)$',
-            r'^from\s+(\S+)\s+import\s+([^,\n]+)',
+            r"^from\s+(\S+)\s+import\s+\*",
+            r"^import\s+(\S+)$",
+            r"^from\s+(\S+)\s+import\s+([^,\n]+)",
         ]
 
     def scan_codebase(self) -> Dict[str, Any]:
@@ -79,33 +63,35 @@ class CodeQualityScanner:
         logger.info("🔍 Starting code quality scan...")
 
         findings = {
-            'bugs': [],
-            'code_smells': [],
-            'unused_imports': [],
-            'dependency_risks': [],
-            'security_issues': []
+            "bugs": [],
+            "code_smells": [],
+            "unused_imports": [],
+            "dependency_risks": [],
+            "security_issues": [],
         }
 
         # 1. Scan for bugs and code smells using pylint
-        if self.tools['pylint']['enabled']:
-            findings['bugs'].extend(self._run_pylint())
+        if self.tools["pylint"]["enabled"]:
+            findings["bugs"].extend(self._run_pylint())
 
         # 2. Scan for style issues using flake8
-        if self.tools['flake8']['enabled']:
-            findings['code_smells'].extend(self._run_flake8())
+        if self.tools["flake8"]["enabled"]:
+            findings["code_smells"].extend(self._run_flake8())
 
         # 3. Scan for unused imports
-        findings['unused_imports'].extend(self._find_unused_imports())
+        findings["unused_imports"].extend(self._find_unused_imports())
 
         # 4. Scan for security issues using bandit
-        if self.tools['bandit']['enabled']:
-            findings['security_issues'].extend(self._run_bandit())
+        if self.tools["bandit"]["enabled"]:
+            findings["security_issues"].extend(self._run_bandit())
 
         # 5. Check for dependency vulnerabilities
-        if self.tools['safety']['enabled']:
-            findings['dependency_risks'].extend(self._run_safety())
+        if self.tools["safety"]["enabled"]:
+            findings["dependency_risks"].extend(self._run_safety())
 
-        logger.info(f"✅ Scan complete. Found {sum(len(v) for v in findings.values())} issues total")
+        logger.info(
+            f"✅ Scan complete. Found {sum(len(v) for v in findings.values())} issues total"
+        )
         return findings
 
     def _run_pylint(self) -> List[Dict]:
@@ -114,19 +100,22 @@ class CodeQualityScanner:
 
         try:
             result = subprocess.run(
-                ['pylint', 'app/', '--output-format=json',
-                 f'--rcfile={self.tools["pylint"]["config"]}'],
+                [
+                    "pylint",
+                    "app/",
+                    "--output-format=json",
+                    f'--rcfile={self.tools["pylint"]["config"]}',
+                ],
                 capture_output=True,
                 text=True,
-                cwd=self.repo_path
+                cwd=self.repo_path,
             )
 
             if result.returncode != 0:
                 findings = json.loads(result.stdout)
                 # Filter for only errors and fatal issues
                 critical_findings = [
-                    f for f in findings
-                    if f.get('type') in ['error', 'fatal']
+                    f for f in findings if f.get("type") in ["error", "fatal"]
                 ]
                 logger.info(f"Pylint found {len(critical_findings)} critical issues")
                 return critical_findings
@@ -142,11 +131,15 @@ class CodeQualityScanner:
 
         try:
             result = subprocess.run(
-                ['flake8', 'app/', '--format=json',
-                 f'--max-line-length={self.tools["flake8"]["max_line_length"]}'],
+                [
+                    "flake8",
+                    "app/",
+                    "--format=json",
+                    f'--max-line-length={self.tools["flake8"]["max_line_length"]}',
+                ],
                 capture_output=True,
                 text=True,
-                cwd=self.repo_path
+                cwd=self.repo_path,
             )
 
             if result.returncode != 0:
@@ -164,11 +157,11 @@ class CodeQualityScanner:
         logger.info("Scanning for unused imports...")
 
         unused_imports = []
-        python_files = list(self.repo_path.rglob('*.py'))
+        python_files = list(self.repo_path.rglob("*.py"))
 
         for file_path in python_files:
             try:
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     content = f.read()
 
                 tree = ast.parse(content, filename=str(file_path))
@@ -178,10 +171,10 @@ class CodeQualityScanner:
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Import):
                         for alias in node.names:
-                            imports.add(alias.name.split('.')[0])
+                            imports.add(alias.name.split(".")[0])
                     elif isinstance(node, ast.ImportFrom):
                         if node.module:
-                            imports.add(node.module.split('.')[0])
+                            imports.add(node.module.split(".")[0])
 
                 # Get all names used in the code
                 used_names = set()
@@ -195,13 +188,15 @@ class CodeQualityScanner:
 
                 # Find unused imports
                 for imp in imports:
-                    if imp not in used_names and not imp.startswith('_'):
-                        unused_imports.append({
-                            'file': str(file_path.relative_to(self.repo_path)),
-                            'import': imp,
-                            'type': 'unused_import',
-                            'message': f"Unused import: {imp}"
-                        })
+                    if imp not in used_names and not imp.startswith("_"):
+                        unused_imports.append(
+                            {
+                                "file": str(file_path.relative_to(self.repo_path)),
+                                "import": imp,
+                                "type": "unused_import",
+                                "message": f"Unused import: {imp}",
+                            }
+                        )
 
             except Exception as e:
                 logger.warning(f"Could not analyze {file_path}: {e}")
@@ -215,17 +210,25 @@ class CodeQualityScanner:
 
         try:
             result = subprocess.run(
-                ['bandit', '-r', 'app/', '-f', 'json',
-                 f'-c {self.tools["bandit"]["config"]}'],
+                [
+                    "bandit",
+                    "-r",
+                    "app/",
+                    "-f",
+                    "json",
+                    f'-c {self.tools["bandit"]["config"]}',
+                ],
                 capture_output=True,
                 text=True,
-                cwd=self.repo_path
+                cwd=self.repo_path,
             )
 
             if result.returncode != 0:
                 findings = json.loads(result.stdout)
-                logger.info(f"Bandit found {len(findings.get('results', []))} security issues")
-                return findings.get('results', [])
+                logger.info(
+                    f"Bandit found {len(findings.get('results', []))} security issues"
+                )
+                return findings.get("results", [])
             return []
 
         except Exception as e:
@@ -238,15 +241,17 @@ class CodeQualityScanner:
 
         try:
             result = subprocess.run(
-                ['safety', 'check', '--json'],
+                ["safety", "check", "--json"],
                 capture_output=True,
                 text=True,
-                cwd=self.repo_path
+                cwd=self.repo_path,
             )
 
             if result.returncode != 0:
                 vulnerabilities = json.loads(result.stdout)
-                logger.info(f"Safety found {len(vulnerabilities)} vulnerable dependencies")
+                logger.info(
+                    f"Safety found {len(vulnerabilities)} vulnerable dependencies"
+                )
                 return vulnerabilities
             return []
 
@@ -293,10 +298,7 @@ class CodeQualityScanner:
             pr_body = self._generate_pr_description(findings)
 
             pr = repo.create_pull_request(
-                title=pr_title,
-                body=pr_body,
-                head=self.branch_name,
-                base="main"
+                title=pr_title, body=pr_body, head=self.branch_name, base="main"
             )
 
             logger.info(f"✅ PR created: {pr.html_url}")
@@ -313,18 +315,18 @@ class CodeQualityScanner:
         try:
             # Update main branch
             subprocess.run(
-                ['git', 'fetch', 'origin', 'main'],
+                ["git", "fetch", "origin", "main"],
                 cwd=self.repo_path,
                 check=True,
-                capture_output=True
+                capture_output=True,
             )
 
             # Create and checkout new branch
             subprocess.run(
-                ['git', 'checkout', '-b', self.branch_name, 'origin/main'],
+                ["git", "checkout", "-b", self.branch_name, "origin/main"],
                 cwd=self.repo_path,
                 check=True,
-                capture_output=True
+                capture_output=True,
             )
 
             logger.info(f"Branch {self.branch_name} created")
@@ -340,12 +342,12 @@ class CodeQualityScanner:
         fixes_applied = False
 
         # Fix 1: Remove unused imports
-        for finding in findings.get('unused_imports', []):
+        for finding in findings.get("unused_imports", []):
             if self._fix_unused_import(finding):
                 fixes_applied = True
 
         # Fix 2: Auto-fix style issues with autopep8
-        if findings.get('code_smells'):
+        if findings.get("code_smells"):
             if self._run_autopep8():
                 fixes_applied = True
 
@@ -358,20 +360,20 @@ class CodeQualityScanner:
     def _fix_unused_import(self, finding: Dict) -> bool:
         """Remove an unused import from a file"""
         try:
-            file_path = self.repo_path / finding['file']
-            with open(file_path, 'r') as f:
+            file_path = self.repo_path / finding["file"]
+            with open(file_path, "r") as f:
                 lines = f.readlines()
 
             # Find and remove the import line
-            import_name = finding['import']
+            import_name = finding["import"]
             new_lines = []
             for line in lines:
-                if import_name in line and ('import' in line):
+                if import_name in line and ("import" in line):
                     # Skip this line (remove the import)
                     continue
                 new_lines.append(line)
 
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 f.writelines(new_lines)
 
             logger.info(f"Removed unused import {import_name} from {finding['file']}")
@@ -385,9 +387,9 @@ class CodeQualityScanner:
         """Run autopep8 to fix style issues"""
         try:
             result = subprocess.run(
-                ['autopep8', '--in-place', '--aggressive', '-r', 'app/'],
+                ["autopep8", "--in-place", "--aggressive", "-r", "app/"],
                 cwd=self.repo_path,
-                capture_output=True
+                capture_output=True,
             )
             logger.info("Autopep8 fixes applied")
             return True
@@ -399,9 +401,9 @@ class CodeQualityScanner:
         """Run isort to fix import ordering"""
         try:
             result = subprocess.run(
-                ['isort', 'app/', '--settings-path', '.isort.cfg'],
+                ["isort", "app/", "--settings-path", ".isort.cfg"],
                 cwd=self.repo_path,
-                capture_output=True
+                capture_output=True,
             )
             logger.info("Isort fixes applied")
             return True
@@ -411,7 +413,7 @@ class CodeQualityScanner:
 
     def _commit_changes(self):
         """Commit the fixes"""
-        commit_message = f'''🤖 Automated code quality fixes
+        commit_message = f"""🤖 Automated code quality fixes
 
 - Remove unused imports
 - Fix style issues (autopep8, isort)
@@ -419,20 +421,17 @@ class CodeQualityScanner:
 
 Generated by: Code Quality Scanner Agent
 Date: {datetime.now().isoformat()}
-'''
+"""
 
         subprocess.run(
-            ['git', 'add', '.'],
-            cwd=self.repo_path,
-            check=True,
-            capture_output=True
+            ["git", "add", "."], cwd=self.repo_path, check=True, capture_output=True
         )
 
         subprocess.run(
-            ['git', 'commit', '-m', commit_message],
+            ["git", "commit", "-m", commit_message],
             cwd=self.repo_path,
             check=True,
-            capture_output=True
+            capture_output=True,
         )
 
         logger.info("Changes committed")
@@ -440,10 +439,10 @@ Date: {datetime.now().isoformat()}
     def _push_branch(self):
         """Push the branch to remote"""
         subprocess.run(
-            ['git', 'push', '-u', 'origin', self.branch_name],
+            ["git", "push", "-u", "origin", self.branch_name],
             cwd=self.repo_path,
             check=True,
-            capture_output=True
+            capture_output=True,
         )
 
         logger.info(f"Branch {self.branch_name} pushed to remote")
@@ -453,28 +452,34 @@ Date: {datetime.now().isoformat()}
         description = "## 🤖 Automated Code Quality Fixes\n\n"
         description += "This PR contains automated fixes for code quality issues found by the Code Quality Scanner agent.\n\n"
 
-        if findings.get('bugs'):
+        if findings.get("bugs"):
             description += f"### 🐛 Bugs Fixed: {len(findings['bugs'])}\n"
 
-        if findings.get('code_smells'):
+        if findings.get("code_smells"):
             description += f"### 👃 Code Smells Fixed: {len(findings['code_smells'])}\n"
 
-        if findings.get('unused_imports'):
-            description += f"### 🧹 Unused Imports Removed: {len(findings['unused_imports'])}\n"
+        if findings.get("unused_imports"):
+            description += (
+                f"### 🧹 Unused Imports Removed: {len(findings['unused_imports'])}\n"
+            )
             description += "\n**Unused imports:**\n"
-            for item in findings['unused_imports'][:10]:
+            for item in findings["unused_imports"][:10]:
                 description += f"- `{item['file']}`: `{item['import']}`\n"
-            if len(findings['unused_imports']) > 10:
-                description += f"- ... and {len(findings['unused_imports']) - 10} more\n"
+            if len(findings["unused_imports"]) > 10:
+                description += (
+                    f"- ... and {len(findings['unused_imports']) - 10} more\n"
+                )
 
-        if findings.get('security_issues'):
-            description += f"\n### 🔒 Security Issues Found: {len(findings['security_issues'])}\n"
+        if findings.get("security_issues"):
+            description += (
+                f"\n### 🔒 Security Issues Found: {len(findings['security_issues'])}\n"
+            )
             description += "\n⚠️ **These require manual review!**\n"
 
-        if findings.get('dependency_risks'):
+        if findings.get("dependency_risks"):
             description += f"\n### 📦 Dependency Risks Found: {len(findings['dependency_risks'])}\n"
             description += "\n⚠️ **Update these dependencies:**\n"
-            for item in findings['dependency_risks'][:5]:
+            for item in findings["dependency_risks"][:5]:
                 description += f"- {item}\n"
 
         description += "\n---\n\n"
@@ -513,5 +518,5 @@ def main():
     agent.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -10,12 +10,12 @@ Features:
 """
 
 import asyncio
+import logging
+import time
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-import logging
-import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -237,9 +237,11 @@ class CircuitBreaker:
             "total_failures": self._failure_count_total,
             "success_rate": self.success_rate,
             "average_response_time": self.average_response_time,
-            "last_failure_time": datetime.fromtimestamp(self._last_failure_time).isoformat()
-            if self._last_failure_time
-            else None,
+            "last_failure_time": (
+                datetime.fromtimestamp(self._last_failure_time).isoformat()
+                if self._last_failure_time
+                else None
+            ),
             "time_until_retry": self._get_time_until_retry(),
             "recovery_timeout": self.recovery_timeout,
         }
@@ -406,7 +408,9 @@ class CircuitBreakerMonitor:
         metrics = circuit_breaker_registry.get_all_metrics()
 
         total_circuits = len(metrics)
-        open_circuits = sum(1 for m in metrics.values() if m["state"] == CircuitState.OPEN.value)
+        open_circuits = sum(
+            1 for m in metrics.values() if m["state"] == CircuitState.OPEN.value
+        )
         half_open_circuits = sum(
             1 for m in metrics.values() if m["state"] == CircuitState.HALF_OPEN.value
         )
@@ -424,11 +428,11 @@ class CircuitBreakerMonitor:
             "half_open_circuits": half_open_circuits,
             "open_circuits": open_circuits,
             "health_score": health_score,
-            "status": "healthy"
-            if health_score >= 75
-            else "degraded"
-            if health_score >= 50
-            else "unhealthy",
+            "status": (
+                "healthy"
+                if health_score >= 75
+                else "degraded" if health_score >= 50 else "unhealthy"
+            ),
             "timestamp": datetime.utcnow().isoformat(),
             "circuit_breakers": metrics,
         }
@@ -455,12 +459,22 @@ class CircuitBreakerMonitor:
                 issues.append(f"High failure count: {metric['failure_count']}")
 
             # Check for slow response times
-            if metric["average_response_time"] and metric["average_response_time"] > 5.0:
-                issues.append(f"Slow response time: {metric['average_response_time']:.2f}s")
+            if (
+                metric["average_response_time"]
+                and metric["average_response_time"] > 5.0
+            ):
+                issues.append(
+                    f"Slow response time: {metric['average_response_time']:.2f}s"
+                )
 
             if issues:
                 attention_needed.append(
-                    {"name": name, "state": metric["state"], "issues": issues, "metrics": metric}
+                    {
+                        "name": name,
+                        "state": metric["state"],
+                        "issues": issues,
+                        "metrics": metric,
+                    }
                 )
 
         return attention_needed

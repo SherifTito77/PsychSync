@@ -1,863 +1,734 @@
 """
-Push Notification Service for PsychSync SaaS
+Push Notification Service
 
-This service handles sending push notifications to users across different platforms
-(iOS, Android, Web) to increase user engagement and retention.
+Manages Firebase Cloud Messaging (FCM) push notifications for mobile apps.
+Supports both iOS (APNS via FCM) and Android platforms.
+
+Features:
+- Multi-device token management
+- Scheduled notifications
+- Notification templates
+- User preferences
+- Delivery tracking
+- Error handling and retry logic
 """
 
-from datetime import datetime
+import asyncio
 import json
 import logging
-import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
+from uuid import UUID, uuid4
 
-# Third-party imports
-try:
-    from apns2.client import APNsClient
-    from apns2.credentials import TokenCredentials
-    from apns2.payload import Payload, PayloadAlert
-    from pyfcm import FCMNotification
-except ImportError:
-    logging.warning("Push notification libraries not installed. Install with: pip install pyfcm apns2")
+import httpx
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Django imports (if using Django)
-try:
-    from django.conf import settings
-    from django.contrib.auth import get_user_model
-    from django.core.exceptions import ImproperlyConfigured
-    from django.utils import timezone
-except ImportError:
-    # Fallback for non-Django environments
-    settings = None
-    timezone = None
-    get_user_model = None
+from app.core.config import settings
+from app.db.models.notifications import (
+    NotificationPreferences as NotificationPreference,
+    PushNotificationToken,
+)
+from app.db.models.user import User
 
-# App imports
-from .notification_templates import NotificationTemplates
-from .user_preferences import UserPreferencesService
-
-# Set up logging
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Notification Types and Templates
+# =============================================================================
+
+
+class NotificationType(str):
+    """Enumeration of notification types"""
+
+    # Assessment reminders
+    ASSESSMENT_REMINDER = "assessment_reminder"
+    ASSESSMENT_DUE = "assessment_due"
+    ASSESSMENT_OVERDUE = "assessment_overdue"
+
+    # Appointment notifications
+    APPOINTMENT_SCHEDULED = "appointment_scheduled"
+    APPOINTMENT_REMINDER = "appointment_reminder"
+    APPOINTMENT_CANCELED = "appointment_canceled"
+    APPOINTMENT_RESCHEDULED = "appointment_rescheduled"
+
+    # Clinical alerts (for clinicians)
+    CLINICAL_ALERT = "clinical_alert"
+    CRISIS_ALERT = "crisis_alert"
+    HIGH_RISK_ALERT = "high_risk_alert"
+
+    # Messages and communication
+    NEW_MESSAGE = "new_message"
+    CLINICIAN_MESSAGE = "clinician_message"
+    SYSTEM_ANNOUNCEMENT = "system_announcement"
+
+    # Wellness and tracking
+    DAILY_CHECK_IN = "daily_check_in"
+    WELLNESS_REMINDER = "wellness_reminder"
+    PROGRESS_UPDATE = "progress_update"
+
+    # Account and settings
+    ACCOUNT_UPDATE = "account_update"
+    PRIVACY_UPDATE = "privacy_update"
+    SECURITY_ALERT = "security_alert"
+
+
+class NotificationPriority(str):
+    """FCM notification priority levels"""
+
+    NORMAL = "normal"  # Priority 5 - Delivery may be delayed for power saving
+    HIGH = "high"  # Priority 10 - Delivered immediately
+
+
+# Notification templates
+NOTIFICATION_TEMPLATES = {
+    NotificationType.ASSESSMENT_REMINDER: {
+        "title": "Assessment Reminder",
+        "body": "You have a pending assessment to complete.",
+        "icon": "assessment",
+        "color": "#6366F1",
+        "priority": NotificationPriority.NORMAL,
+    },
+    NotificationType.ASSESSMENT_DUE: {
+        "title": "Assessment Due Soon",
+        "body": "Your {assessment_name} is due in {hours_until_due} hours.",
+        "icon": "clock",
+        "color": "#F59E0B",
+        "priority": NotificationPriority.NORMAL,
+    },
+    NotificationType.ASSESSMENT_OVERDUE: {
+        "title": "Overdue Assessment",
+        "body": "Your {assessment_name} is {days_overdue} days overdue. Please complete it soon.",
+        "icon": "alert",
+        "color": "#EF4444",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.APPOINTMENT_SCHEDULED: {
+        "title": "Appointment Scheduled",
+        "body": "Your appointment with {clinician_name} is scheduled for {appointment_time}.",
+        "icon": "calendar",
+        "color": "#10B981",
+        "priority": NotificationPriority.NORMAL,
+    },
+    NotificationType.APPOINTMENT_REMINDER: {
+        "title": "Appointment Reminder",
+        "body": "Reminder: Appointment with {clinician_name} in {minutes_until} minutes.",
+        "icon": "bell",
+        "color": "#6366F1",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.APPOINTMENT_CANCELED: {
+        "title": "Appointment Canceled",
+        "body": "Your appointment scheduled for {appointment_time} has been canceled.",
+        "icon": "x-circle",
+        "color": "#EF4444",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.APPOINTMENT_RESCHEDULED: {
+        "title": "Appointment Rescheduled",
+        "body": "Your appointment has been rescheduled to {new_appointment_time}.",
+        "icon": "refresh",
+        "color": "#F59E0B",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.CLINICAL_ALERT: {
+        "title": "Clinical Alert",
+        "body": "{alert_type} requires attention for {patient_name}.",
+        "icon": "alert-triangle",
+        "color": "#F59E0B",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.CRISIS_ALERT: {
+        "title": "🚨 CRISIS ALERT",
+        "body": "{patient_name} has triggered crisis indicators. Immediate action required.",
+        "icon": "alert-octagon",
+        "color": "#EF4444",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.HIGH_RISK_ALERT: {
+        "title": "High Risk Alert",
+        "body": "{patient_name} has been flagged as high risk based on recent assessment.",
+        "icon": "flag",
+        "color": "#F59E0B",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.NEW_MESSAGE: {
+        "title": "New Message",
+        "body": "{sender_name} sent you a message.",
+        "icon": "message",
+        "color": "#6366F1",
+        "priority": NotificationPriority.NORMAL,
+    },
+    NotificationType.CLINICIAN_MESSAGE: {
+        "title": "Message from {clinician_name}",
+        "body": "{message_preview}",
+        "icon": "user-md",
+        "color": "#10B981",
+        "priority": NotificationPriority.HIGH,
+    },
+    NotificationType.DAILY_CHECK_IN: {
+        "title": "Daily Check-In",
+        "body": "How are you feeling today? Take a moment to check in.",
+        "icon": "heart",
+        "color": "#EC4899",
+        "priority": NotificationPriority.NORMAL,
+    },
+    NotificationType.WELLNESS_REMINDER: {
+        "title": "Wellness Reminder",
+        "body": "Time for your wellness check-in. Your mental health matters.",
+        "icon": "sparkles",
+        "color": "#8B5CF6",
+        "priority": NotificationPriority.NORMAL,
+    },
+    NotificationType.PROGRESS_UPDATE: {
+        "title": "Progress Update",
+        "body": "You've made progress! View your wellness journey.",
+        "icon": "trending-up",
+        "color": "#10B981",
+        "priority": NotificationPriority.NORMAL,
+    },
+    NotificationType.SECURITY_ALERT: {
+        "title": "Security Alert",
+        "body": "{alert_message}",
+        "icon": "shield",
+        "color": "#EF4444",
+        "priority": NotificationPriority.HIGH,
+    },
+}
+
+
+# =============================================================================
+# Main Service Class
+# =============================================================================
 
 
 class PushNotificationService:
     """
-    Service for sending push notifications to users across different platforms.
+    Service for managing Firebase Cloud Messaging (FCM) push notifications.
+    Handles token registration, notification sending, and delivery tracking.
     """
 
     def __init__(self):
-        """Initialize the push notification service with required credentials."""
-        self.fcm_service = None
-        self.apns_client = None
+        self.fcm_server_key = getattr(settings, "FCM_SERVER_KEY", "")
+        self.fcm_api_url = "https://fcm.googleapis.com/fcm/send"
+        self.timeout = 20.0  # Increased from 10s to 20s for better reliability
 
-        # Initialize FCM (Firebase Cloud Messaging) for Android and Web
-        self._initialize_fcm()
+    # -------------------------------------------------------------------------
+    # Token Management
+    # -------------------------------------------------------------------------
 
-        # Initialize APNs (Apple Push Notification Service) for iOS
-        self._initialize_apns()
+    async def register_device_token(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        token: str,
+        device_info: Dict[str, Any],
+    ) -> PushNotificationToken:
+        """
+        Register or update a device's FCM token.
 
-        # Initialize templates and preferences
-        self.templates = NotificationTemplates()
-        self.preferences_service = UserPreferencesService()
+        Args:
+            db: Database session
+            user_id: User UUID
+            token: FCM device token
+            device_info: Device information (platform, model, os_version, app_version)
 
-    def _initialize_fcm(self):
-        """Initialize Firebase Cloud Messaging service."""
+        Returns:
+            PushNotificationToken: Created or updated token record
+        """
         try:
-            # Get FCM server key from settings or environment
-            fcm_server_key = getattr(settings, "FCM_SERVER_KEY", None) if settings else os.environ.get("FCM_SERVER_KEY")
-
-            if not fcm_server_key:
-                logger.warning("FCM server key not configured. Android/Web push notifications will not work.")
-                return
-
-            self.fcm_service = FCMNotification(api_key=fcm_server_key)
-            logger.info("FCM service initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize FCM service: {e!s}")
-
-    def _initialize_apns(self):
-        """Initialize Apple Push Notification Service client."""
-        try:
-            # Get APNs credentials from settings or environment
-            apns_key_id = getattr(settings, "APNS_KEY_ID", None) if settings else os.environ.get("APNS_KEY_ID")
-            apns_team_id = getattr(settings, "APNS_TEAM_ID", None) if settings else os.environ.get("APNS_TEAM_ID")
-            apns_key_path = getattr(settings, "APNS_KEY_PATH", None) if settings else os.environ.get("APNS_KEY_PATH")
-            apns_use_sandbox = getattr(settings, "APNS_USE_SANDBOX", True) if settings else os.environ.get("APNS_USE_SANDBOX", "true").lower() == "true"
-
-            if not all([apns_key_id, apns_team_id, apns_key_path]):
-                logger.warning("APNs credentials not fully configured. iOS push notifications will not work.")
-                return
-
-            # Create token credentials
-            token_credentials = TokenCredentials(
-                auth_key_path=apns_key_path,
-                key_id=apns_key_id,
-                team_id=apns_team_id
+            # Check if token already exists for this user
+            query = select(PushNotificationToken).where(
+                and_(
+                    PushNotificationToken.user_id == user_id,
+                    PushNotificationToken.token == token,
+                )
             )
+            result = await db.execute(query)
+            existing_token = result.scalar_one_or_none()
 
-            # Initialize APNs client
-            self.apns_client = APNsClient(
-                credentials=token_credentials,
-                use_sandbox=apns_use_sandbox
-            )
+            if existing_token:
+                # Update existing token
+                existing_token.device_info = device_info
+                existing_token.last_used_at = datetime.utcnow()
+                existing_token.is_active = True
+                await db.commit()
+                await db.refresh(existing_token)
 
-            logger.info("APNs client initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize APNs client: {e!s}")
-
-    def send_notification(
-        self,
-        user_id: str | int,
-        title: str,
-        body: str,
-        data: dict | None = None,
-        image_url: str | None = None,
-        deep_link: str | None = None,
-        notification_type: str = "general",
-        platform: str | None = None
-    ) -> dict:
-        """
-        Send a push notification to a user.
-        
-        Args:
-            user_id: The ID of the user to send the notification to
-            title: The notification title
-            body: The notification body text
-            data: Additional data to send with the notification
-            image_url: URL to an image to display with the notification
-            deep_link: Deep link to open when notification is tapped
-            notification_type: Type of notification (e.g., "appointment", "medication", "general")
-            platform: Target platform ("ios", "android", "web", or None for all)
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        # Get user model if using Django
-        User = get_user_model() if get_user_model else None
-
-        # Get user and their device tokens
-        if User:
-            try:
-                user = User.objects.get(id=user_id)
-                device_tokens = self._get_user_device_tokens(user, platform)
-            except User.DoesNotExist:
-                logger.error(f"User with ID {user_id} does not exist")
-                return {"success": False, "error": "User not found"}
-        else:
-            # Fallback for non-Django environments
-            device_tokens = self._get_user_device_tokens_by_id(user_id, platform)
-
-        if not device_tokens:
-            logger.warning(f"No device tokens found for user {user_id}")
-            return {"success": False, "error": "No device tokens found"}
-
-        # Check user preferences
-        if not self.preferences_service.is_notification_enabled(user_id, notification_type):
-            logger.info(f"User {user_id} has disabled {notification_type} notifications")
-            return {"success": False, "error": "Notification type disabled by user"}
-
-        # Prepare notification data
-        notification_data = data or {}
-        if deep_link:
-            notification_data["deep_link"] = deep_link
-
-        # Group tokens by platform
-        ios_tokens = device_tokens.get("ios", [])
-        android_tokens = device_tokens.get("android", [])
-        web_tokens = device_tokens.get("web", [])
-
-        results = {
-            "success": True,
-            "user_id": user_id,
-            "notification_type": notification_type,
-            "results": {}
-        }
-
-        # Send to iOS devices
-        if ios_tokens and (platform is None or platform == "ios"):
-            ios_result = self._send_to_ios(
-                tokens=ios_tokens,
-                title=title,
-                body=body,
-                data=notification_data,
-                image_url=image_url
-            )
-            results["results"]["ios"] = ios_result
-            if not ios_result.get("success", False):
-                results["success"] = False
-
-        # Send to Android devices
-        if android_tokens and (platform is None or platform == "android"):
-            android_result = self._send_to_android(
-                tokens=android_tokens,
-                title=title,
-                body=body,
-                data=notification_data,
-                image_url=image_url
-            )
-            results["results"]["android"] = android_result
-            if not android_result.get("success", False):
-                results["success"] = False
-
-        # Send to Web devices
-        if web_tokens and (platform is None or platform == "web"):
-            web_result = self._send_to_web(
-                tokens=web_tokens,
-                title=title,
-                body=body,
-                data=notification_data,
-                image_url=image_url
-            )
-            results["results"]["web"] = web_result
-            if not web_result.get("success", False):
-                results["success"] = False
-
-        # Log the notification for analytics
-        self._log_notification(user_id, notification_type, title, body, results)
-
-        return results
-
-    def send_template_notification(
-        self,
-        user_id: str | int,
-        template_name: str,
-        template_data: dict,
-        platform: str | None = None
-    ) -> dict:
-        """
-        Send a notification using a predefined template.
-        
-        Args:
-            user_id: The ID of the user to send the notification to
-            template_name: Name of the template to use
-            template_data: Data to populate the template
-            platform: Target platform ("ios", "android", "web", or None for all)
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        # Get the template
-        template = self.templates.get_template(template_name)
-        if not template:
-            logger.error(f"Template '{template_name}' not found")
-            return {"success": False, "error": f"Template '{template_name}' not found"}
-
-        # Render the template with the provided data
-        rendered = self.templates.render_template(template_name, template_data)
-
-        # Send the notification
-        return self.send_notification(
-            user_id=user_id,
-            title=rendered["title"],
-            body=rendered["body"],
-            data=rendered.get("data", {}),
-            image_url=rendered.get("image_url"),
-            deep_link=rendered.get("deep_link"),
-            notification_type=template.get("type", "general"),
-            platform=platform
-        )
-
-    def send_bulk_notification(
-        self,
-        user_ids: list[str | int],
-        title: str,
-        body: str,
-        data: dict | None = None,
-        image_url: str | None = None,
-        deep_link: str | None = None,
-        notification_type: str = "general",
-        platform: str | None = None
-    ) -> dict:
-        """
-        Send a push notification to multiple users.
-        
-        Args:
-            user_ids: List of user IDs to send the notification to
-            title: The notification title
-            body: The notification body text
-            data: Additional data to send with the notification
-            image_url: URL to an image to display with the notification
-            deep_link: Deep link to open when notification is tapped
-            notification_type: Type of notification (e.g., "appointment", "medication", "general")
-            platform: Target platform ("ios", "android", "web", or None for all)
-            
-        Returns:
-            Dict with results of the bulk notification sending attempt
-        """
-        results = {
-            "success": True,
-            "total_users": len(user_ids),
-            "successful_sends": 0,
-            "failed_sends": 0,
-            "results": {}
-        }
-
-        for user_id in user_ids:
-            result = self.send_notification(
-                user_id=user_id,
-                title=title,
-                body=body,
-                data=data,
-                image_url=image_url,
-                deep_link=deep_link,
-                notification_type=notification_type,
-                platform=platform
-            )
-
-            results["results"][str(user_id)] = result
-
-            if result.get("success", False):
-                results["successful_sends"] += 1
+                logger.info(f"Updated FCM token for user {user_id}: {token[:20]}...")
+                return existing_token
             else:
-                results["failed_sends"] += 1
-                results["success"] = False
+                # Create new token record
+                new_token = PushNotificationToken(
+                    id=uuid4(),
+                    user_id=user_id,
+                    token=token,
+                    platform=device_info.get("platform", "unknown"),
+                    device_info=device_info,
+                    is_active=True,
+                    created_at=datetime.utcnow(),
+                    last_used_at=datetime.utcnow(),
+                )
 
-        return results
+                db.add(new_token)
+                await db.commit()
+                await db.refresh(new_token)
 
-    def _get_user_device_tokens(self, user, platform: str | None = None) -> dict:
+                logger.info(
+                    f"Registered new FCM token for user {user_id}: {token[:20]}..."
+                )
+                return new_token
+
+        except Exception as e:
+            logger.error(f"Failed to register device token: {str(e)}")
+            await db.rollback()
+            raise
+
+    async def unregister_device_token(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        token: str,
+    ) -> bool:
         """
-        Get device tokens for a user, optionally filtered by platform.
-        
+        Unregister a device token (deactivate it).
+
         Args:
-            user: User object
-            platform: Filter by platform ("ios", "android", "web", or None for all)
-            
+            db: Database session
+            user_id: User UUID
+            token: FCM device token
+
         Returns:
-            Dict of device tokens grouped by platform
+            bool: True if successfully unregistered
         """
-        # This would typically query a database for the user's device tokens
-        # Implementation depends on your data model
-
-        # Example implementation (adjust based on your actual model)
         try:
-            # Assuming a DeviceToken model with fields: token, platform, is_active
-            from .models import DeviceToken
+            query = select(PushNotificationToken).where(
+                and_(
+                    PushNotificationToken.user_id == user_id,
+                    PushNotificationToken.token == token,
+                )
+            )
+            result = await db.execute(query)
+            token_record = result.scalar_one_or_none()
 
-            tokens = DeviceToken.objects.filter(user=user, is_active=True)
+            if token_record:
+                token_record.is_active = False
+                token_record.deactivated_at = datetime.utcnow()
+                await db.commit()
+
+                logger.info(f"Unregistered FCM token for user {user_id}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to unregister device token: {str(e)}")
+            await db.rollback()
+            return False
+
+    async def get_active_tokens(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        platform: Optional[str] = None,
+    ) -> List[PushNotificationToken]:
+        """
+        Get all active FCM tokens for a user.
+
+        Args:
+            db: Database session
+            user_id: User UUID
+            platform: Optional platform filter (ios, android)
+
+        Returns:
+            List of active PushNotificationToken records
+        """
+        try:
+            query = select(PushNotificationToken).where(
+                and_(
+                    PushNotificationToken.user_id == user_id,
+                    PushNotificationToken.is_active == True,
+                )
+            )
 
             if platform:
-                tokens = tokens.filter(platform=platform.lower())
+                query = query.where(PushNotificationToken.platform == platform)
 
-            # Group tokens by platform
-            result = {"ios": [], "android": [], "web": []}
-            for token in tokens:
-                if token.platform.lower() in result:
-                    result[token.platform.lower()].append(token.token)
+            result = await db.execute(query)
+            return result.scalars().all()
 
-            return result
-        except ImportError:
-            # Fallback for when the model doesn't exist
-            logger.warning("DeviceToken model not found. Using fallback implementation.")
-            return {"ios": [], "android": [], "web": []}
+        except Exception as e:
+            logger.error(f"Failed to get active tokens: {str(e)}")
+            return []
 
-    def _get_user_device_tokens_by_id(self, user_id: str | int, platform: str | None = None) -> dict:
-        """
-        Fallback method to get device tokens by user ID when Django models aren't available.
-        
-        Args:
-            user_id: User ID
-            platform: Filter by platform ("ios", "android", "web", or None for all)
-            
-        Returns:
-            Dict of device tokens grouped by platform
-        """
-        # This would typically query a database for the user's device tokens
-        # Implementation depends on your data model
+    # -------------------------------------------------------------------------
+    # Notification Sending
+    # -------------------------------------------------------------------------
 
-        # Example implementation (adjust based on your actual model)
-        # This is a placeholder - replace with your actual implementation
-        return {"ios": [], "android": [], "web": []}
-
-    def _send_to_ios(
+    async def send_notification(
         self,
-        tokens: list[str],
-        title: str,
-        body: str,
-        data: dict,
-        image_url: str | None = None
-    ) -> dict:
+        db: AsyncSession,
+        user_id: UUID,
+        notification_type: str,
+        data: Optional[Dict[str, Any]] = None,
+        tokens: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
-        Send push notification to iOS devices.
-        
+        Send a push notification to a user.
+
         Args:
-            tokens: List of iOS device tokens
-            title: Notification title
-            body: Notification body
-            data: Additional data
-            image_url: URL to an image
-            
+            db: Database session
+            user_id: User UUID
+            notification_type: Type of notification (from NotificationType)
+            data: Additional data for notification (variables, deep link, etc.)
+            tokens: Specific tokens to send to (optional, gets all active if not provided)
+
         Returns:
-            Dict with results of the notification sending attempt
+            Dict with success status, delivery report, and error details
         """
-        if not self.apns_client:
-            logger.error("APNs client not initialized")
-            return {"success": False, "error": "APNs client not initialized"}
+        try:
+            # Get notification template
+            template = NOTIFICATION_TEMPLATES.get(notification_type)
+            if not template:
+                logger.error(f"Unknown notification type: {notification_type}")
+                return {"success": False, "error": "Unknown notification type"}
 
-        if not tokens:
-            return {"success": False, "error": "No tokens provided"}
+            # Check user preferences
+            if not await self._check_user_preferences(db, user_id, notification_type):
+                logger.info(
+                    f"User {user_id} has disabled {notification_type} notifications"
+                )
+                return {
+                    "success": True,
+                    "skipped": True,
+                    "reason": "User preferences",
+                    "tokens_sent": 0,
+                }
 
-        # Create payload
-        alert = PayloadAlert(title=title, body=body)
+            # Get tokens to send to
+            if not tokens:
+                tokens_records = await self.get_active_tokens(db, user_id)
+                tokens = [t.token for t in tokens_records]
 
-        # Add image if provided
-        if image_url:
-            # iOS 10+ supports rich notifications with images
-            alert.title = title
-            alert.body = body
+            if not tokens:
+                logger.info(f"No active tokens found for user {user_id}")
+                return {
+                    "success": True,
+                    "skipped": True,
+                    "reason": "No active tokens",
+                    "tokens_sent": 0,
+                }
 
-        payload = Payload(
-            alert=alert,
-            sound="default",
-            badge=1,
-            custom=data
-        )
+            # Build notification payload
+            payload = await self._build_notification_payload(
+                notification_type=notification_type,
+                template=template,
+                data=data or {},
+                tokens=tokens,
+            )
 
-        results = {
-            "success": True,
-            "total_tokens": len(tokens),
-            "successful_sends": 0,
-            "failed_sends": 0,
-            "failed_tokens": []
+            # Send to FCM
+            results = await self._send_to_fcm(payload)
+
+            # Update token usage
+            await self._update_token_usage(db, tokens)
+
+            # Log delivery
+            await self._log_notification_delivery(
+                db=db,
+                user_id=user_id,
+                notification_type=notification_type,
+                tokens_sent=len(tokens),
+                results=results,
+            )
+
+            return {
+                "success": True,
+                "tokens_sent": len(tokens),
+                "successful": len([r for r in results if r.get("success")]),
+                "failed": len([r for r in results if not r.get("success")]),
+                "results": results,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to send notification: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "tokens_sent": 0,
+            }
+
+    async def send_bulk_notification(
+        self,
+        db: AsyncSession,
+        user_ids: List[UUID],
+        notification_type: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Send a notification to multiple users (batch send).
+
+        Args:
+            db: Database session
+            user_ids: List of user UUIDs
+            notification_type: Type of notification
+            data: Additional notification data
+
+        Returns:
+            Dict with bulk send results
+        """
+        try:
+            # Get all active tokens for all users
+            all_tokens = []
+            for user_id in user_ids:
+                user_tokens = await self.get_active_tokens(db, user_id)
+                all_tokens.extend([t.token for t in user_tokens])
+
+            if not all_tokens:
+                return {
+                    "success": True,
+                    "skipped": True,
+                    "reason": "No active tokens",
+                    "users_reached": 0,
+                }
+
+            # Build notification payload
+            template = NOTIFICATION_TEMPLATES.get(notification_type, {})
+            payload = await self._build_notification_payload(
+                notification_type=notification_type,
+                template=template,
+                data=data or {},
+                tokens=all_tokens,
+            )
+
+            # Send to FCM
+            results = await self._send_to_fcm(payload)
+
+            return {
+                "success": True,
+                "users_reached": len(user_ids),
+                "tokens_sent": len(all_tokens),
+                "successful": len([r for r in results if r.get("success")]),
+                "failed": len([r for r in results if not r.get("success")]),
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to send bulk notification: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "users_reached": 0,
+            }
+
+    # -------------------------------------------------------------------------
+    # Helper Methods
+    # -------------------------------------------------------------------------
+
+    async def _check_user_preferences(
+        self,
+        db: AsyncSession,
+        user_id: UUID,
+        notification_type: str,
+    ) -> bool:
+        """Check if user has enabled this notification type"""
+
+        try:
+            query = select(NotificationPreference).where(
+                NotificationPreference.user_id == user_id
+            )
+            result = await db.execute(query)
+            preferences = result.scalar_one_or_none()
+
+            if not preferences:
+                # Default preferences - allow most notifications
+                return True
+
+            # Check based on notification type
+            if "assessment" in notification_type:
+                return preferences.assessment_reminders != False
+
+            if "appointment" in notification_type:
+                return preferences.appointment_reminders != False
+
+            if "alert" in notification_type and "crisis" not in notification_type:
+                return preferences.general_notifications != False
+
+            if "crisis" in notification_type:
+                # Always send crisis alerts regardless of preferences
+                return True
+
+            if "message" in notification_type:
+                return preferences.message_notifications != False
+
+            # Default to True
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to check user preferences: {str(e)}")
+            return True  # Default to sending if check fails
+
+    async def _build_notification_payload(
+        self,
+        notification_type: str,
+        template: Dict[str, Any],
+        data: Dict[str, Any],
+        tokens: List[str],
+    ) -> Dict[str, Any]:
+        """Build FCM notification payload"""
+
+        # Personalize title and body with data
+        title = template.get("title", "")
+        body = template.get("body", "")
+
+        for key, value in data.items():
+            title = title.replace(f"{{{key}}}", str(value))
+            body = body.replace(f"{{{key}}}", str(value))
+
+        # Build base payload
+        payload = {
+            "registration_ids": tokens,
+            "notification": {
+                "title": title,
+                "body": body,
+                "sound": "default",
+                "badge": 1,
+                "icon": template.get("icon", "ic_notification"),
+                "color": template.get("color", "#6366F1"),
+                "click_action": data.get("click_action", "FCM_PLUGIN_ACTIVITY"),
+            },
+            "data": {
+                "type": notification_type,
+                "user_id": str(data.get("user_id", "")),
+                "title": title,
+                "body": body,
+                **{k: v for k, v in data.items() if k != "user_id"},
+            },
+            "priority": template.get("priority", NotificationPriority.NORMAL),
         }
 
-        # Send to each token
-        for token in tokens:
+        # Android-specific settings
+        payload["android"] = {
+            "notification": {
+                "notification_count": 1,
+                "channel_id": notification_type,
+            }
+        }
+
+        # iOS-specific settings
+        payload["apns"] = {
+            "payload": {
+                "aps": {
+                    "alert": {
+                        "title": title,
+                        "body": body,
+                    },
+                    "sound": "default",
+                    "badge": 1,
+                },
+            }
+        }
+
+        return payload
+
+    async def _send_to_fcm(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Send notification to FCM servers using resilient HTTP client.
+
+        Features:
+        - Automatic retry with exponential backoff
+        - Circuit breaker to prevent cascading failures
+        - 20-second timeout
+        - Connection pooling for better performance
+        """
+
+        try:
+            from app.core.resilient_client import HTTPClientError, resilient_http_client
+
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"key={self.fcm_server_key}",
+            }
+
             try:
-                self.apns_client.send_notification(
-                    token_hex=token,
-                    notification=payload,
-                    topic=getattr(settings, "APNS_BUNDLE_ID", "com.psychsync.app") if settings else os.environ.get("APNS_BUNDLE_ID", "com.psychsync.app")
+                # Use resilient HTTP client with automatic retry
+                response = await resilient_http_client.post(
+                    self.fcm_api_url,
+                    json=payload,
+                    headers=headers,
                 )
-                results["successful_sends"] += 1
-            except Exception as e:
-                logger.error(f"Failed to send iOS notification to token {token}: {e!s}")
-                results["failed_sends"] += 1
-                results["failed_tokens"].append(token)
-                results["success"] = False
 
-        return results
+                if response.status_code == 200:
+                    result = response.json()
 
-    def _send_to_android(
-        self,
-        tokens: list[str],
-        title: str,
-        body: str,
-        data: dict,
-        image_url: str | None = None
-    ) -> dict:
-        """
-        Send push notification to Android devices.
-        
-        Args:
-            tokens: List of Android device tokens
-            title: Notification title
-            body: Notification body
-            data: Additional data
-            image_url: URL to an image
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        if not self.fcm_service:
-            logger.error("FCM service not initialized")
-            return {"success": False, "error": "FCM service not initialized"}
+                    # FCM returns results for each token
+                    if "results" in result:
+                        return result["results"]
 
-        if not tokens:
-            return {"success": False, "error": "No tokens provided"}
+                    return [{"success": True, "message_id": result.get("message_id")}]
 
-        # Prepare notification message
-        message_title = title
-        message_body = body
+                else:
+                    logger.error(
+                        f"FCM API error: {response.status_code} - {response.text}"
+                    )
+                    return [{"success": False, "error": "FCM API error"}]
 
-        # Prepare data payload
-        data_payload = data.copy()
-        if image_url:
-            data_payload["image_url"] = image_url
+            except HTTPClientError as e:
+                logger.error(f"FCM HTTP client error after retries: {str(e)}")
+                return [{"success": False, "error": f"Request failed: {str(e)}"}]
 
-        # Send notification
-        try:
-            result = self.fcm_service.notify_multiple_devices(
-                registration_ids=tokens,
-                message_title=message_title,
-                message_body=message_body,
-                data_message=data_payload,
-                sound="Default",
-                click_action=data.get("deep_link", "")
-            )
-
-            # Process results
-            results = {
-                "success": True,
-                "total_tokens": len(tokens),
-                "successful_sends": 0,
-                "failed_sends": 0,
-                "failed_tokens": []
-            }
-
-            # FCM returns results in a specific format
-            if isinstance(result, dict):
-                if "results" in result:
-                    for i, item in enumerate(result["results"]):
-                        if "error" in item:
-                            results["failed_sends"] += 1
-                            results["failed_tokens"].append(tokens[i])
-                            results["success"] = False
-                        else:
-                            results["successful_sends"] += 1
-                elif "failure" in result and result["failure"] > 0:
-                    results["success"] = False
-                    results["failed_sends"] = result["failure"]
-                    results["successful_sends"] = result["success"]
-
-            return results
         except Exception as e:
-            logger.error(f"Failed to send Android notification: {e!s}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Failed to send to FCM: {str(e)}")
+            return [{"success": False, "error": str(e)}]
 
-    def _send_to_web(
-        self,
-        tokens: list[str],
-        title: str,
-        body: str,
-        data: dict,
-        image_url: str | None = None
-    ) -> dict:
-        """
-        Send push notification to web browsers.
-        
-        Args:
-            tokens: List of web push subscription tokens
-            title: Notification title
-            body: Notification body
-            data: Additional data
-            image_url: URL to an image
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        if not self.fcm_service:
-            logger.error("FCM service not initialized")
-            return {"success": False, "error": "FCM service not initialized"}
+    async def _update_token_usage(self, db: AsyncSession, tokens: List[str]):
+        """Update last_used_at for sent tokens"""
 
-        if not tokens:
-            return {"success": False, "error": "No tokens provided"}
-
-        # Prepare notification message
-        message_title = title
-        message_body = body
-
-        # Prepare data payload
-        data_payload = data.copy()
-        if image_url:
-            data_payload["image_url"] = image_url
-
-        # Send notification
         try:
-            result = self.fcm_service.notify_multiple_devices(
-                registration_ids=tokens,
-                message_title=message_title,
-                message_body=message_body,
-                data_message=data_payload,
-                sound="Default",
-                click_action=data.get("deep_link", "")
-            )
+            for token in tokens:
+                query = select(PushNotificationToken).where(
+                    PushNotificationToken.token == token
+                )
+                result = await db.execute(query)
+                token_record = result.scalar_one_or_none()
 
-            # Process results
-            results = {
-                "success": True,
-                "total_tokens": len(tokens),
-                "successful_sends": 0,
-                "failed_sends": 0,
-                "failed_tokens": []
-            }
+                if token_record:
+                    token_record.last_used_at = datetime.utcnow()
 
-            # FCM returns results in a specific format
-            if isinstance(result, dict):
-                if "results" in result:
-                    for i, item in enumerate(result["results"]):
-                        if "error" in item:
-                            results["failed_sends"] += 1
-                            results["failed_tokens"].append(tokens[i])
-                            results["success"] = False
-                        else:
-                            results["successful_sends"] += 1
-                elif "failure" in result and result["failure"] > 0:
-                    results["success"] = False
-                    results["failed_sends"] = result["failure"]
-                    results["successful_sends"] = result["success"]
+            await db.commit()
 
-            return results
         except Exception as e:
-            logger.error(f"Failed to send Web notification: {e!s}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Failed to update token usage: {str(e)}")
+            await db.rollback()
 
-    def _log_notification(
+    async def _log_notification_delivery(
         self,
-        user_id: str | int,
+        db: AsyncSession,
+        user_id: UUID,
         notification_type: str,
-        title: str,
-        body: str,
-        results: dict
+        tokens_sent: int,
+        results: List[Dict[str, Any]],
     ):
-        """
-        Log notification for analytics and debugging purposes.
-        
-        Args:
-            user_id: ID of the user the notification was sent to
-            notification_type: Type of notification
-            title: Notification title
-            body: Notification body
-            results: Results of the notification sending attempt
-        """
+        """Log notification delivery for analytics"""
+
         try:
-            # This would typically save to a database or analytics service
-            # Implementation depends on your data model
+            successful = len([r for r in results if r.get("success")])
 
-            # Example implementation (adjust based on your actual model)
-            try:
-                from .models import NotificationLog
+            logger.info(
+                f"Notification delivery report: "
+                f"user={user_id}, type={notification_type}, "
+                f"sent={tokens_sent}, successful={successful}, "
+                f"failed={tokens_sent - successful}"
+            )
 
-                NotificationLog.objects.create(
-                    user_id=user_id,
-                    notification_type=notification_type,
-                    title=title,
-                    body=body,
-                    sent_at=timezone.now() if timezone else datetime.now(),
-                    success=results.get("success", False),
-                    details=json.dumps(results)
-                )
-            except ImportError:
-                # Fallback for when the model doesn't exist
-                logger.info(f"Notification sent to user {user_id}: {title} - Success: {results.get('success', False)}")
+            # TODO: Store in notification_logs table if needed
+
         except Exception as e:
-            logger.error(f"Failed to log notification: {e!s}")
+            logger.error(f"Failed to log delivery: {str(e)}")
 
-    def schedule_notification(
-        self,
-        user_id: str | int,
-        title: str,
-        body: str,
-        scheduled_time: datetime,
-        data: dict | None = None,
-        image_url: str | None = None,
-        deep_link: str | None = None,
-        notification_type: str = "general",
-        platform: str | None = None
-    ) -> dict:
-        """
-        Schedule a push notification to be sent at a later time.
-        
-        Args:
-            user_id: The ID of the user to send the notification to
-            title: The notification title
-            body: The notification body text
-            scheduled_time: When to send the notification
-            data: Additional data to send with the notification
-            image_url: URL to an image to display with the notification
-            deep_link: Deep link to open when notification is tapped
-            notification_type: Type of notification (e.g., "appointment", "medication", "general")
-            platform: Target platform ("ios", "android", "web", or None for all)
-            
-        Returns:
-            Dict with results of the scheduling attempt
-        """
-        try:
-            # This would typically save to a database and use a task queue like Celery
-            # Implementation depends on your task queue system
 
-            # Example implementation (adjust based on your actual model)
-            try:
-                from .models import ScheduledNotification
+# =============================================================================
+# Service Instance
+# =============================================================================
 
-                scheduled_notification = ScheduledNotification.objects.create(
-                    user_id=user_id,
-                    title=title,
-                    body=body,
-                    scheduled_time=scheduled_time,
-                    data=json.dumps(data or {}),
-                    image_url=image_url,
-                    deep_link=deep_link,
-                    notification_type=notification_type,
-                    platform=platform,
-                    is_sent=False
-                )
-
-                return {
-                    "success": True,
-                    "scheduled_notification_id": scheduled_notification.id,
-                    "scheduled_time": scheduled_time.isoformat()
-                }
-            except ImportError:
-                # Fallback for when the model doesn't exist
-                logger.info(f"Scheduled notification for user {user_id} at {scheduled_time}")
-                return {
-                    "success": True,
-                    "scheduled_time": scheduled_time.isoformat()
-                }
-        except Exception as e:
-            logger.error(f"Failed to schedule notification: {e!s}")
-            return {"success": False, "error": str(e)}
-
-    def cancel_scheduled_notification(self, scheduled_notification_id: str | int) -> dict:
-        """
-        Cancel a scheduled push notification.
-        
-        Args:
-            scheduled_notification_id: ID of the scheduled notification to cancel
-            
-        Returns:
-            Dict with results of the cancellation attempt
-        """
-        try:
-            # This would typically update a database record
-            # Implementation depends on your data model
-
-            # Example implementation (adjust based on your actual model)
-            try:
-                from .models import ScheduledNotification
-
-                notification = ScheduledNotification.objects.get(id=scheduled_notification_id)
-                notification.is_cancelled = True
-                notification.save()
-
-                return {"success": True, "cancelled_notification_id": scheduled_notification_id}
-            except ImportError:
-                # Fallback for when the model doesn't exist
-                logger.info(f"Cancelled scheduled notification {scheduled_notification_id}")
-                return {"success": True, "cancelled_notification_id": scheduled_notification_id}
-        except Exception as e:
-            logger.error(f"Failed to cancel scheduled notification: {e!s}")
-            return {"success": False, "error": str(e)}
-
-    def send_daily_mindfulness_reminder(self, user_id: str | int) -> dict:
-        """
-        Send a daily mindfulness reminder notification.
-        
-        Args:
-            user_id: The ID of the user to send the reminder to
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="daily_mindfulness_reminder",
-            template_data={}
-        )
-
-    def send_appointment_reminder(self, user_id: str | int, appointment_details: dict) -> dict:
-        """
-        Send an appointment reminder notification.
-        
-        Args:
-            user_id: The ID of the user to send the reminder to
-            appointment_details: Details of the appointment
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="appointment_reminder",
-            template_data=appointment_details
-        )
-
-    def send_medication_reminder(self, user_id: str | int, medication_details: dict) -> dict:
-        """
-        Send a medication reminder notification.
-        
-        Args:
-            user_id: The ID of the user to send the reminder to
-            medication_details: Details of the medication
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="medication_reminder",
-            template_data=medication_details
-        )
-
-    def send_journal_prompt(self, user_id: str | int, prompt_text: str) -> dict:
-        """
-        Send a journal prompt notification.
-        
-        Args:
-            user_id: The ID of the user to send the prompt to
-            prompt_text: The journal prompt text
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="journal_prompt",
-            template_data={"prompt_text": prompt_text}
-        )
-
-    def send_mood_check_reminder(self, user_id: str | int) -> dict:
-        """
-        Send a mood check reminder notification.
-        
-        Args:
-            user_id: The ID of the user to send the reminder to
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="mood_check_reminder",
-            template_data={}
-        )
-
-    def send_achievement_unlocked(self, user_id: str | int, achievement_details: dict) -> dict:
-        """
-        Send an achievement unlocked notification.
-        
-        Args:
-            user_id: The ID of the user to send the notification to
-            achievement_details: Details of the achievement
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="achievement_unlocked",
-            template_data=achievement_details
-        )
-
-    def send_session_feedback_request(self, user_id: str | int, session_details: dict) -> dict:
-        """
-        Send a session feedback request notification.
-        
-        Args:
-            user_id: The ID of the user to send the request to
-            session_details: Details of the session
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="session_feedback_request",
-            template_data=session_details
-        )
-
-    def send_reengagement_notification(self, user_id: str | int, days_inactive: int) -> dict:
-        """
-        Send a re-engagement notification to an inactive user.
-        
-        Args:
-            user_id: The ID of the user to send the notification to
-            days_inactive: Number of days the user has been inactive
-            
-        Returns:
-            Dict with results of the notification sending attempt
-        """
-        return self.send_template_notification(
-            user_id=user_id,
-            template_name="reengagement",
-            template_data={"days_inactive": days_inactive}
-        )
+push_notification_service = PushNotificationService()

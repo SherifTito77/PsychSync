@@ -16,19 +16,20 @@ Version: 2.0
 Date: 2025-12-26
 """
 
-import re
+import hashlib
 import json
 import logging
-import hashlib
-from typing import Dict, List, Any, Optional, Tuple, Set
+import re
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from collections import Counter, defaultdict
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Optional ML dependencies
 try:
     import numpy as np
+
     NUMPY_AVAILABLE = True
 except ImportError:
     NUMPY_AVAILABLE = False
@@ -36,14 +37,14 @@ except ImportError:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 class JailbreakType(Enum):
     """Types of jailbreak attacks"""
+
     DIRECT_INJECTION = "direct_injection"
     ROLE_PLAYING = "role_playing"
     TOKEN_MANIPULATION = "token_manipulation"
@@ -59,6 +60,7 @@ class JailbreakType(Enum):
 
 class AttackSeverity(Enum):
     """Severity levels for detected attacks"""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -69,6 +71,7 @@ class AttackSeverity(Enum):
 @dataclass
 class JailbreakDetection:
     """Result of jailbreak detection"""
+
     detected: bool
     jailbreak_type: JailbreakType
     severity: AttackSeverity
@@ -92,13 +95,14 @@ class JailbreakDetection:
             "mitigation_suggested": self.mitigation_suggested,
             "response_recommendation": self.response_recommendation,
             "metadata": self.metadata,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
 @dataclass
 class PromptAnalysis:
     """Analysis of a prompt"""
+
     prompt_hash: str
     prompt_length: int
     unique_words: int
@@ -191,14 +195,35 @@ class JailbreakDetector:
 
     # Suspicious keywords
     SUSPICIOUS_KEYWORDS = [
-        "exploit", "vulnerability", "bypass", "hack", "hack",
-        "malware", "ransomware", "phishing", "injection",
-        "xss", "csrf", r"sql\s+injection", "ddos",
-        "illicit", "illegal", "unlawful", "criminal",
-        "pornographic", "explicit", "nsfw",
-        r"hate\s+speech", "racist", "discriminatory",
-        "self-harm", "suicide", "violence",
-        "terrorism", "extremist", "radical",
+        "exploit",
+        "vulnerability",
+        "bypass",
+        "hack",
+        "hack",
+        "malware",
+        "ransomware",
+        "phishing",
+        "injection",
+        "xss",
+        "csrf",
+        r"sql\s+injection",
+        "ddos",
+        "illicit",
+        "illegal",
+        "unlawful",
+        "criminal",
+        "pornographic",
+        "explicit",
+        "nsfw",
+        r"hate\s+speech",
+        "racist",
+        "discriminatory",
+        "self-harm",
+        "suicide",
+        "violence",
+        "terrorism",
+        "extremist",
+        "radical",
     ]
 
     def __init__(
@@ -208,7 +233,7 @@ class JailbreakDetector:
         enable_behavioral_analysis: bool = True,
         confidence_threshold: float = 0.3,  # Lower threshold for better security
         max_prompt_length: int = 10000,
-        request_history_window: int = 100
+        request_history_window: int = 100,
     ):
         """
         Initialize jailbreak detector.
@@ -239,10 +264,18 @@ class JailbreakDetector:
     def _compile_patterns(self):
         """Compile regex patterns for efficient matching"""
         self.compiled_patterns = {
-            'direct_injection': [re.compile(p, re.IGNORECASE) for p in self.DIRECT_INJECTION_PATTERNS],
-            'role_playing': [re.compile(p, re.IGNORECASE) for p in self.ROLE_PLAYING_PATTERNS],
-            'token_manipulation': [re.compile(p, re.IGNORECASE) for p in self.TOKEN_MANIPULATION_PATTERNS],
-            'encoded_payload': [re.compile(p, re.IGNORECASE) for p in self.ENCODED_PAYLOAD_PATTERNS],
+            "direct_injection": [
+                re.compile(p, re.IGNORECASE) for p in self.DIRECT_INJECTION_PATTERNS
+            ],
+            "role_playing": [
+                re.compile(p, re.IGNORECASE) for p in self.ROLE_PLAYING_PATTERNS
+            ],
+            "token_manipulation": [
+                re.compile(p, re.IGNORECASE) for p in self.TOKEN_MANIPULATION_PATTERNS
+            ],
+            "encoded_payload": [
+                re.compile(p, re.IGNORECASE) for p in self.ENCODED_PAYLOAD_PATTERNS
+            ],
         }
 
     def detect_jailbreak(
@@ -250,7 +283,7 @@ class JailbreakDetector:
         prompt: str,
         user_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> JailbreakDetection:
         """
         Detect if prompt contains jailbreak attempt.
@@ -268,7 +301,7 @@ class JailbreakDetector:
 
         # Truncate if too long
         if len(prompt) > self.max_prompt_length:
-            prompt = prompt[:self.max_prompt_length]
+            prompt = prompt[: self.max_prompt_length]
             logger.warning(f"Prompt truncated to {self.max_prompt_length} characters")
 
         # Initialize detection result
@@ -281,7 +314,7 @@ class JailbreakDetector:
             intent_detected="",
             mitigation_suggested=False,
             response_recommendation="Allow request",
-            metadata={"analysis_time_ms": 0}
+            metadata={"analysis_time_ms": 0},
         )
 
         try:
@@ -308,18 +341,21 @@ class JailbreakDetector:
             )
 
             # Populate detection result
-            detection.detected = combined_result['detected']
-            detection.jailbreak_type = combined_result['jailbreak_type']
-            detection.severity = combined_result['severity']
-            detection.confidence = combined_result['confidence']
-            detection.patterns_matched = combined_result['patterns_matched']
-            detection.intent_detected = combined_result['intent']
-            detection.mitigation_suggested = combined_result['mitigation_suggested']
-            detection.response_recommendation = combined_result['recommendation']
+            detection.detected = combined_result["detected"]
+            detection.jailbreak_type = combined_result["jailbreak_type"]
+            detection.severity = combined_result["severity"]
+            detection.confidence = combined_result["confidence"]
+            detection.patterns_matched = combined_result["patterns_matched"]
+            detection.intent_detected = combined_result["intent"]
+            detection.mitigation_suggested = combined_result["mitigation_suggested"]
+            detection.response_recommendation = combined_result["recommendation"]
             detection.metadata = {
                 **linguistic_results,
                 **behavioral_results,
-                'analysis_time_ms': (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                "analysis_time_ms": (
+                    datetime.now(timezone.utc) - start_time
+                ).total_seconds()
+                * 1000,
             }
 
             # Log detection
@@ -361,7 +397,9 @@ class JailbreakDetector:
                 suffix_matches.append(suffix)
 
         # Calculate confidence based on number of matches
-        total_matches = len(matched_patterns) + len(keyword_matches) + len(suffix_matches)
+        total_matches = (
+            len(matched_patterns) + len(keyword_matches) + len(suffix_matches)
+        )
 
         # Higher confidence for pattern matches (especially critical ones)
         # Single pattern match = 0.4, multiple patterns scale up
@@ -373,13 +411,13 @@ class JailbreakDetector:
 
         # Determine jailbreak type
         jailbreak_type = JailbreakType.UNKNOWN
-        if 'direct_injection' in pattern_categories:
+        if "direct_injection" in pattern_categories:
             jailbreak_type = JailbreakType.DIRECT_INJECTION
-        elif 'role_playing' in pattern_categories:
+        elif "role_playing" in pattern_categories:
             jailbreak_type = JailbreakType.ROLE_PLAYING
-        elif 'token_manipulation' in pattern_categories:
+        elif "token_manipulation" in pattern_categories:
             jailbreak_type = JailbreakType.TOKEN_MANIPULATION
-        elif 'encoded_payload' in pattern_categories:
+        elif "encoded_payload" in pattern_categories:
             jailbreak_type = JailbreakType.ENCODED_PAYLOADS
         elif len(pattern_categories) > 1:
             jailbreak_type = JailbreakType.COMBINATION_ATTACK
@@ -394,13 +432,13 @@ class JailbreakDetector:
             severity = AttackSeverity.MEDIUM
 
         return {
-            'confidence': confidence,
-            'jailbreak_type': jailbreak_type,
-            'severity': severity,
-            'matched_patterns': matched_patterns,
-            'keyword_matches': keyword_matches,
-            'suffix_matches': suffix_matches,
-            'pattern_categories': pattern_categories
+            "confidence": confidence,
+            "jailbreak_type": jailbreak_type,
+            "severity": severity,
+            "matched_patterns": matched_patterns,
+            "keyword_matches": keyword_matches,
+            "suffix_matches": suffix_matches,
+            "pattern_categories": pattern_categories,
         }
 
     def _linguistic_analysis(self, prompt: str) -> Dict[str, Any]:
@@ -418,49 +456,52 @@ class JailbreakDetector:
 
         # Feature 1: Special character ratio
         special_chars = sum(1 for c in prompt if not c.isalnum() and not c.isspace())
-        features['special_char_ratio'] = special_chars / max(total_chars, 1)
+        features["special_char_ratio"] = special_chars / max(total_chars, 1)
 
         # Feature 2: Uppercase ratio
         uppercase_chars = sum(1 for c in prompt if c.isupper())
-        features['uppercase_ratio'] = uppercase_chars / max(total_chars, 1)
+        features["uppercase_ratio"] = uppercase_chars / max(total_chars, 1)
 
         # Feature 3: Repetition score (repeated characters/words)
         char_counts = Counter(prompt)
         max_char_count = max(char_counts.values()) if char_counts else 0
-        features['repetition_score'] = max_char_count / max(len(prompt), 1)
+        features["repetition_score"] = max_char_count / max(len(prompt), 1)
 
         # Feature 4: Entropy (measure of randomness)
         if NUMPY_AVAILABLE:
             char_probs = [count / len(prompt) for count in char_counts.values()]
-            features['entropy_score'] = -sum(p * np.log2(p) for p in char_probs if p > 0)
+            features["entropy_score"] = -sum(
+                p * np.log2(p) for p in char_probs if p > 0
+            )
         else:
-            features['entropy_score'] = 0.0
+            features["entropy_score"] = 0.0
 
         # Feature 5: Suspicious indicators
-        features['suspicious_indicators'] = {
-            'has_repeated_chars': max_char_count > 10,
-            'has_special_chars_only': special_chars > len(words) * 2,
-            'has_unusual_capitalization': features['uppercase_ratio'] > 0.5 and features['uppercase_ratio'] < 0.9,
-            'has_long_words': any(len(w) > 20 for w in words),
-            'has_many_lines': prompt.count('\n') > 10,
-            'has_code_blocks': '```' in prompt or '`' * 3 in prompt,
+        features["suspicious_indicators"] = {
+            "has_repeated_chars": max_char_count > 10,
+            "has_special_chars_only": special_chars > len(words) * 2,
+            "has_unusual_capitalization": features["uppercase_ratio"] > 0.5
+            and features["uppercase_ratio"] < 0.9,
+            "has_long_words": any(len(w) > 20 for w in words),
+            "has_many_lines": prompt.count("\n") > 10,
+            "has_code_blocks": "```" in prompt or "`" * 3 in prompt,
         }
 
         # Calculate linguistic risk score
         risk_score = 0.0
 
-        if features['special_char_ratio'] > 0.3:
+        if features["special_char_ratio"] > 0.3:
             risk_score += 0.2
-        if features['uppercase_ratio'] > 0.7:
+        if features["uppercase_ratio"] > 0.7:
             risk_score += 0.15
-        if features['repetition_score'] > 0.5:
+        if features["repetition_score"] > 0.5:
             risk_score += 0.25
-        if features['suspicious_indicators']['has_code_blocks']:
+        if features["suspicious_indicators"]["has_code_blocks"]:
             risk_score += 0.1
-        if features['suspicious_indicators']['has_many_lines']:
+        if features["suspicious_indicators"]["has_many_lines"]:
             risk_score += 0.1
 
-        features['linguistic_risk_score'] = min(risk_score, 1.0)
+        features["linguistic_risk_score"] = min(risk_score, 1.0)
 
         return features
 
@@ -469,7 +510,7 @@ class JailbreakDetector:
         prompt: str,
         user_id: str,
         session_id: Optional[str],
-        context: Optional[Dict[str, Any]]
+        context: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """
         Strategy 3: Behavioral analysis
@@ -481,59 +522,62 @@ class JailbreakDetector:
 
         # Add current request to history
         current_request = {
-            'timestamp': datetime.now(timezone.utc),
-            'prompt_length': len(prompt),
-            'prompt_hash': hashlib.sha256(prompt.encode()).hexdigest()[:16],
-            'session_id': session_id
+            "timestamp": datetime.now(timezone.utc),
+            "prompt_length": len(prompt),
+            "prompt_hash": hashlib.sha256(prompt.encode()).hexdigest()[:16],
+            "session_id": session_id,
         }
         user_history.append(current_request)
 
         # Keep only recent history
         if len(user_history) > self.request_history_window:
-            self.request_history[user_id] = user_history[-self.request_history_window:]
+            self.request_history[user_id] = user_history[-self.request_history_window :]
 
         # Analyze patterns
         features = {}
 
         # Feature 1: Request frequency
         recent_requests = [
-            r for r in user_history
-            if r['timestamp'] > datetime.now(timezone.utc) - timedelta(minutes=1)
+            r
+            for r in user_history
+            if r["timestamp"] > datetime.now(timezone.utc) - timedelta(minutes=1)
         ]
-        features['requests_per_minute'] = len(recent_requests)
+        features["requests_per_minute"] = len(recent_requests)
 
         # Feature 2: Length variance
-        prompt_lengths = [r['prompt_length'] for r in user_history]
+        prompt_lengths = [r["prompt_length"] for r in user_history]
         if len(prompt_lengths) > 1:
             avg_length = sum(prompt_lengths) / len(prompt_lengths)
-            features['length_variance'] = abs(len(prompt) - avg_length) / max(avg_length, 1)
+            features["length_variance"] = abs(len(prompt) - avg_length) / max(
+                avg_length, 1
+            )
         else:
-            features['length_variance'] = 0.0
+            features["length_variance"] = 0.0
 
         # Feature 3: Repetition (similar prompts)
-        prompt_hashes = [r['prompt_hash'] for r in user_history]
-        current_hash = current_request['prompt_hash']
+        prompt_hashes = [r["prompt_hash"] for r in user_history]
+        current_hash = current_request["prompt_hash"]
         repeat_count = prompt_hashes.count(current_hash)
-        features['repeat_count'] = repeat_count
+        features["repeat_count"] = repeat_count
 
         # Feature 4: Session hopping
-        sessions = [r['session_id'] for r in user_history if r['session_id']]
+        sessions = [r["session_id"] for r in user_history if r["session_id"]]
         unique_sessions = len(set(sessions)) if sessions else 1
-        features['session_hopping'] = unique_sessions > 5
+        features["session_hopping"] = unique_sessions > 5
 
         # Calculate behavioral risk score
         risk_score = 0.0
 
-        if features['requests_per_minute'] > 10:
+        if features["requests_per_minute"] > 10:
             risk_score += 0.3  # Possible automation
-        if features['length_variance'] > 2.0:
+        if features["length_variance"] > 2.0:
             risk_score += 0.2  # Unusual length
-        if features['repeat_count'] > 3:
+        if features["repeat_count"] > 3:
             risk_score += 0.25  # Repeated attempts
-        if features['session_hopping']:
+        if features["session_hopping"]:
             risk_score += 0.15  # Session manipulation
 
-        features['behavioral_risk_score'] = min(risk_score, 1.0)
+        features["behavioral_risk_score"] = min(risk_score, 1.0)
 
         return features
 
@@ -541,7 +585,7 @@ class JailbreakDetector:
         self,
         pattern_results: Dict[str, Any],
         linguistic_results: Dict[str, Any],
-        behavioral_results: Dict[str, Any]
+        behavioral_results: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
         Strategy 4: Ensemble detection
@@ -555,15 +599,15 @@ class JailbreakDetector:
         behavioral_weight = 0.1
 
         # Extract scores
-        pattern_confidence = pattern_results.get('confidence', 0.0)
-        linguistic_risk = linguistic_results.get('linguistic_risk_score', 0.0)
-        behavioral_risk = behavioral_results.get('behavioral_risk_score', 0.0)
+        pattern_confidence = pattern_results.get("confidence", 0.0)
+        linguistic_risk = linguistic_results.get("linguistic_risk_score", 0.0)
+        behavioral_risk = behavioral_results.get("behavioral_risk_score", 0.0)
 
         # Calculate weighted confidence
         combined_confidence = (
-            pattern_confidence * pattern_weight +
-            linguistic_risk * linguistic_weight +
-            behavioral_risk * behavioral_weight
+            pattern_confidence * pattern_weight
+            + linguistic_risk * linguistic_weight
+            + behavioral_risk * behavioral_weight
         )
 
         # Determine if jailbreak detected
@@ -571,14 +615,16 @@ class JailbreakDetector:
 
         # Determine jailbreak type
         if detected:
-            jailbreak_type = pattern_results.get('jailbreak_type', JailbreakType.UNKNOWN)
-            severity = pattern_results.get('severity', AttackSeverity.MEDIUM)
+            jailbreak_type = pattern_results.get(
+                "jailbreak_type", JailbreakType.UNKNOWN
+            )
+            severity = pattern_results.get("severity", AttackSeverity.MEDIUM)
         else:
             jailbreak_type = JailbreakType.UNKNOWN
             severity = AttackSeverity.LOW
 
         # Gather all matched patterns
-        patterns_matched = pattern_results.get('matched_patterns', [])
+        patterns_matched = pattern_results.get("matched_patterns", [])
 
         # Determine intent
         intent = self._determine_intent(pattern_results, linguistic_results)
@@ -597,38 +643,36 @@ class JailbreakDetector:
             recommendation = "Allow but monitor closely"
 
         return {
-            'detected': detected,
-            'jailbreak_type': jailbreak_type,
-            'severity': severity,
-            'confidence': combined_confidence,
-            'patterns_matched': patterns_matched,
-            'intent': intent,
-            'mitigation_suggested': mitigation_suggested,
-            'recommendation': recommendation
+            "detected": detected,
+            "jailbreak_type": jailbreak_type,
+            "severity": severity,
+            "confidence": combined_confidence,
+            "patterns_matched": patterns_matched,
+            "intent": intent,
+            "mitigation_suggested": mitigation_suggested,
+            "recommendation": recommendation,
         }
 
     def _determine_intent(
-        self,
-        pattern_results: Dict[str, Any],
-        linguistic_results: Dict[str, Any]
+        self, pattern_results: Dict[str, Any], linguistic_results: Dict[str, Any]
     ) -> str:
         """Determine the likely intent of the jailbreak attempt"""
         intents = []
 
-        if pattern_results.get('keyword_matches'):
-            keywords = pattern_results['keyword_matches']
-            if any(kw in keywords for kw in ['exploit', 'vulnerability', 'hack']):
+        if pattern_results.get("keyword_matches"):
+            keywords = pattern_results["keyword_matches"]
+            if any(kw in keywords for kw in ["exploit", "vulnerability", "hack"]):
                 intents.append("exploit_vulnerability")
-            elif any(kw in keywords for kw in ['pornographic', 'explicit', 'nsfw']):
+            elif any(kw in keywords for kw in ["pornographic", "explicit", "nsfw"]):
                 intents.append("generate_inappropriate_content")
-            elif any(kw in keywords for kw in ['hate', 'racist']):
+            elif any(kw in keywords for kw in ["hate", "racist"]):
                 intents.append("generate_hate_speech")
 
-        if pattern_results.get('pattern_categories'):
-            categories = pattern_results['pattern_categories']
-            if 'direct_injection' in categories:
+        if pattern_results.get("pattern_categories"):
+            categories = pattern_results["pattern_categories"]
+            if "direct_injection" in categories:
                 intents.append("bypass_safety_filters")
-            elif 'role_playing' in categories:
+            elif "role_playing" in categories:
                 intents.append("impersonate_unrestricted_persona")
 
         return ", ".join(intents) if intents else "unknown_intent"
@@ -637,7 +681,7 @@ class JailbreakDetector:
         self,
         detection: JailbreakDetection,
         user_id: Optional[str],
-        session_id: Optional[str]
+        session_id: Optional[str],
     ):
         """Log jailbreak detection for monitoring and alerting"""
         log_data = {
@@ -648,7 +692,7 @@ class JailbreakDetector:
             "intent": detection.intent_detected,
             "user_id": user_id,
             "session_id": session_id,
-            "recommendation": detection.response_recommendation
+            "recommendation": detection.response_recommendation,
         }
 
         if detection.severity in [AttackSeverity.HIGH, AttackSeverity.CRITICAL]:
@@ -657,9 +701,7 @@ class JailbreakDetector:
             logger.warning(f"Jailbreak detected: {log_data}")
 
     def sanitize_prompt(
-        self,
-        prompt: str,
-        detection: JailbreakDetection
+        self, prompt: str, detection: JailbreakDetection
     ) -> Tuple[str, bool]:
         """
         Sanitize prompt based on detection results.
@@ -694,14 +736,14 @@ class JailbreakDetector:
         total_requests = sum(len(history) for history in self.request_history.values())
 
         return {
-            'total_requests_analyzed': total_requests,
-            'unique_users': len(self.request_history),
-            'request_history_window': self.request_history_window,
-            'detection_strategies_enabled': {
-                'pattern_matching': self.enable_pattern_matching,
-                'linguistic_analysis': self.enable_linguistic_analysis,
-                'behavioral_analysis': self.enable_behavioral_analysis
-            }
+            "total_requests_analyzed": total_requests,
+            "unique_users": len(self.request_history),
+            "request_history_window": self.request_history_window,
+            "detection_strategies_enabled": {
+                "pattern_matching": self.enable_pattern_matching,
+                "linguistic_analysis": self.enable_linguistic_analysis,
+                "behavioral_analysis": self.enable_behavioral_analysis,
+            },
         }
 
     def clear_request_history(self, user_id: Optional[str] = None):
@@ -723,7 +765,7 @@ def detect_jailbreak(
     prompt: str,
     user_id: Optional[str] = None,
     session_id: Optional[str] = None,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
 ) -> JailbreakDetection:
     """
     Convenience function to detect jailbreak attempts.
@@ -743,17 +785,11 @@ def detect_jailbreak(
             print(f"Recommendation: {detection.response_recommendation}")
     """
     return jailbreak_detector.detect_jailbreak(
-        prompt=prompt,
-        user_id=user_id,
-        session_id=session_id,
-        context=context
+        prompt=prompt, user_id=user_id, session_id=session_id, context=context
     )
 
 
-def sanitize_prompt_if_needed(
-    prompt: str,
-    detection: JailbreakDetection
-) -> str:
+def sanitize_prompt_if_needed(prompt: str, detection: JailbreakDetection) -> str:
     """
     Convenience function to sanitize prompt if jailbreak detected.
 
@@ -772,44 +808,26 @@ def main():
     """CLI interface for jailbreak detector"""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="LLM Jailbreak Detection System"
-    )
-    parser.add_argument(
-        '--prompt',
-        required=True,
-        help='Prompt to analyze'
-    )
-    parser.add_argument(
-        '--user-id',
-        help='User ID for behavioral tracking'
-    )
-    parser.add_argument(
-        '--session-id',
-        help='Session ID'
-    )
-    parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Output results as JSON'
-    )
+    parser = argparse.ArgumentParser(description="LLM Jailbreak Detection System")
+    parser.add_argument("--prompt", required=True, help="Prompt to analyze")
+    parser.add_argument("--user-id", help="User ID for behavioral tracking")
+    parser.add_argument("--session-id", help="Session ID")
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
 
     args = parser.parse_args()
 
     # Detect jailbreak
     detection = detect_jailbreak(
-        prompt=args.prompt,
-        user_id=args.user_id,
-        session_id=args.session_id
+        prompt=args.prompt, user_id=args.user_id, session_id=args.session_id
     )
 
     # Output results
     if args.json:
         print(json.dumps(detection.to_dict(), indent=2))
     else:
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("JAILBREAK DETECTION RESULTS")
-        print("="*80)
+        print("=" * 80)
         print(f"Jailbreak Detected: {'YES ⚠️' if detection.detected else 'NO ✓'}")
         print(f"Type: {detection.jailbreak_type.value}")
         print(f"Severity: {detection.severity.value.upper()}")
@@ -820,8 +838,8 @@ def main():
             print(f"\nMatched Patterns ({len(detection.patterns_matched)}):")
             for pattern in detection.patterns_matched[:5]:
                 print(f"  - {pattern}")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

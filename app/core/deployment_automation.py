@@ -16,19 +16,19 @@ Features:
 """
 
 import asyncio
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from enum import Enum
 import hashlib
 import logging
 import os
-from pathlib import Path
 import subprocess
 import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
 from typing import Any
 
-from docker.errors import DockerException
 import httpx
+from docker.errors import DockerException
 
 import docker
 
@@ -104,9 +104,13 @@ class DeploymentConfig:
     def __post_init__(self):
         if self.health_checks is None:
             self.health_checks = [
-                HealthCheck(name="Basic Health", endpoint="/api/v1/health", method="GET"),
                 HealthCheck(
-                    name="Database Health", endpoint="/api/v1/health/database", method="GET"
+                    name="Basic Health", endpoint="/api/v1/health", method="GET"
+                ),
+                HealthCheck(
+                    name="Database Health",
+                    endpoint="/api/v1/health/database",
+                    method="GET",
                 ),
             ]
 
@@ -140,7 +144,9 @@ class DatabaseDeploymentManager:
     def __init__(self):
         self.migration_timeout = 300.0
 
-    async def prepare_database_deployment(self, config: DeploymentConfig) -> dict[str, Any]:
+    async def prepare_database_deployment(
+        self, config: DeploymentConfig
+    ) -> dict[str, Any]:
         """Prepare database for deployment"""
         logger.info("Preparing database for deployment")
 
@@ -215,7 +221,11 @@ class DatabaseDeploymentManager:
 
             if result.returncode == 0:
                 logger.info(f"Database backup created: {backup_file}")
-                return {"success": True, "backup_id": backup_id, "backup_path": str(backup_file)}
+                return {
+                    "success": True,
+                    "backup_id": backup_id,
+                    "backup_path": str(backup_file),
+                }
             logger.error(f"Backup failed: {result.stderr.decode()}")
             return {"success": False, "error": result.stderr.decode()}
 
@@ -228,7 +238,9 @@ class DatabaseDeploymentManager:
         try:
             # Check if there are pending migrations
             cmd = ["alembic", "current"]
-            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=30.0)
+            result = subprocess.run(
+                cmd, check=False, capture_output=True, text=True, timeout=30.0
+            )
 
             if result.returncode == 0:
                 current_revision = result.stdout.strip()
@@ -248,13 +260,19 @@ class DatabaseDeploymentManager:
             logger.error(f"Migration check error: {e}")
             return False
 
-    async def _execute_database_migration(self, config: DeploymentConfig) -> dict[str, Any]:
+    async def _execute_database_migration(
+        self, config: DeploymentConfig
+    ) -> dict[str, Any]:
         """Execute database migration"""
         try:
             # Run alembic upgrade
             cmd = ["alembic", "upgrade", "head"]
             result = subprocess.run(
-                cmd, check=False, capture_output=True, text=True, timeout=self.migration_timeout
+                cmd,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=self.migration_timeout,
             )
 
             if result.returncode == 0:
@@ -295,7 +313,10 @@ class HealthCheckManager:
             results[health_check.name] = status
 
             # Measure response time for basic health check
-            if health_check.name == "Basic Health" and status == HealthCheckStatus.HEALTHY:
+            if (
+                health_check.name == "Basic Health"
+                and status == HealthCheckStatus.HEALTHY
+            ):
                 start_time = time.time()
                 await self._measure_response_time(target_url)
                 total_response_time = time.time() - start_time
@@ -360,7 +381,7 @@ class HealthCheckManager:
             start_time = time.time()
             response = await self.http_client.get(f"{base_url}/api/v1/health")
             return time.time() - start_time
-        except:
+        except (OSError, IOError, ValueError) as e:
             return 0.0
 
 
@@ -428,7 +449,9 @@ class DockerDeploymentManager:
 
     async def deploy_canary(self, config: DeploymentConfig) -> dict[str, Any]:
         """Execute canary deployment"""
-        logger.info(f"Starting canary deployment for {config.name} - {config.canary_percentage}%")
+        logger.info(
+            f"Starting canary deployment for {config.name} - {config.canary_percentage}%"
+        )
 
         results = {
             "strategy": "canary",
@@ -441,10 +464,14 @@ class DockerDeploymentManager:
         try:
             # Deploy canary instances
             canary_containers = await self._deploy_canary_instances(config)
-            results["canary_container_id"] = canary_containers[0] if canary_containers else None
+            results["canary_container_id"] = (
+                canary_containers[0] if canary_containers else None
+            )
 
             # Monitor canary performance
-            canary_healthy = await self._monitor_canary_performance(config, canary_containers)
+            canary_healthy = await self._monitor_canary_performance(
+                config, canary_containers
+            )
 
             if canary_healthy:
                 # Gradually increase canary traffic
@@ -502,7 +529,7 @@ class DockerDeploymentManager:
             existing = self.client.containers.get(container_name)
             existing.stop()
             existing.remove()
-        except:
+        except Exception as e:
             pass
 
         # Create and start new container
@@ -522,7 +549,9 @@ class DockerDeploymentManager:
         logger.info(f"Deployed {color} environment: {container.id[:12]}")
         return container.id
 
-    async def _wait_for_container_ready(self, container_id: str, timeout: float = 120.0):
+    async def _wait_for_container_ready(
+        self, container_id: str, timeout: float = 120.0
+    ):
         """Wait for container to be ready"""
         start_time = time.time()
 
@@ -533,7 +562,9 @@ class DockerDeploymentManager:
 
                 if container.status == "running":
                     # Check if health check passed
-                    if hasattr(container, "attrs") and "Health" in container.attrs.get("State", {}):
+                    if hasattr(container, "attrs") and "Health" in container.attrs.get(
+                        "State", {}
+                    ):
                         health_status = container.attrs["State"]["Health"]["Status"]
                         if health_status == "healthy":
                             return
@@ -556,7 +587,9 @@ class DockerDeploymentManager:
 
         raise RuntimeError(f"Container not ready after {timeout} seconds")
 
-    async def _verify_container_health(self, config: DeploymentConfig, color: str) -> bool:
+    async def _verify_container_health(
+        self, config: DeploymentConfig, color: str
+    ) -> bool:
         """Verify container health with application health checks"""
         try:
             # Get container port
@@ -574,11 +607,14 @@ class DockerDeploymentManager:
 
             # Execute health checks
             async with HealthCheckManager() as health_manager:
-                health_results, _ = await health_manager.execute_health_checks(config, target_url)
+                health_results, _ = await health_manager.execute_health_checks(
+                    config, target_url
+                )
 
                 # All health checks must pass
                 all_healthy = all(
-                    status == HealthCheckStatus.HEALTHY for status in health_results.values()
+                    status == HealthCheckStatus.HEALTHY
+                    for status in health_results.values()
                 )
 
                 return all_healthy
@@ -603,7 +639,9 @@ class DockerDeploymentManager:
 
         logger.info(f"Traffic switched to {new_color} environment")
 
-    async def _stop_environment(self, config: DeploymentConfig, color: str) -> str | None:
+    async def _stop_environment(
+        self, config: DeploymentConfig, color: str
+    ) -> str | None:
         """Stop the old environment"""
         container_name = f"{config.name}-{color}"
 
@@ -635,7 +673,7 @@ class DockerDeploymentManager:
             container.stop()
             container.remove()
             logger.info(f"Cleaned up failed {color} deployment")
-        except:
+        except Exception as e:
             pass
 
 
@@ -663,12 +701,16 @@ class ProductionDeploymentManager:
         try:
             logger.info(f"Starting deployment: {deployment_id}")
             metrics.status = DeploymentStatus.PREPARING
-            metrics.logs.append(f"Starting deployment with strategy: {config.strategy.value}")
+            metrics.logs.append(
+                f"Starting deployment with strategy: {config.strategy.value}"
+            )
 
             # Prepare database
             db_results = await self.db_manager.prepare_database_deployment(config)
             if db_results["errors"]:
-                raise RuntimeError(f"Database preparation failed: {db_results['errors']}")
+                raise RuntimeError(
+                    f"Database preparation failed: {db_results['errors']}"
+                )
 
             metrics.status = DeploymentStatus.DEPLOYING
 
@@ -678,13 +720,17 @@ class ProductionDeploymentManager:
             elif config.strategy == DeploymentStrategy.CANARY:
                 deployment_results = await self.docker_manager.deploy_canary(config)
             else:
-                raise NotImplementedError(f"Deployment strategy {config.strategy} not implemented")
+                raise NotImplementedError(
+                    f"Deployment strategy {config.strategy} not implemented"
+                )
 
             metrics.status = DeploymentStatus.VERIFYING
             metrics.logs.append("Deployment completed, starting verification")
 
             # Verify deployment
-            verification_passed = await self._verify_deployment(config, deployment_results)
+            verification_passed = await self._verify_deployment(
+                config, deployment_results
+            )
 
             if verification_passed:
                 metrics.status = DeploymentStatus.CLEANUP
@@ -709,7 +755,9 @@ class ProductionDeploymentManager:
 
         return metrics
 
-    async def _verify_deployment(self, config: DeploymentConfig, results: dict[str, Any]) -> bool:
+    async def _verify_deployment(
+        self, config: DeploymentConfig, results: dict[str, Any]
+    ) -> bool:
         """Verify deployment success"""
         try:
             # Get the active environment URL
@@ -721,9 +769,11 @@ class ProductionDeploymentManager:
 
             # Perform health checks
             async with HealthCheckManager() as health_manager:
-                health_results, response_time = await health_manager.execute_health_checks(
-                    config,
-                    f"http://localhost:{config.port}",  # This should be the load balancer URL
+                health_results, response_time = (
+                    await health_manager.execute_health_checks(
+                        config,
+                        f"http://localhost:{config.port}",  # This should be the load balancer URL
+                    )
                 )
 
                 # Update metrics
@@ -734,14 +784,17 @@ class ProductionDeploymentManager:
 
                 # All health checks must pass
                 return all(
-                    status == HealthCheckStatus.HEALTHY for status in health_results.values()
+                    status == HealthCheckStatus.HEALTHY
+                    for status in health_results.values()
                 )
 
         except Exception as e:
             logger.error(f"Deployment verification failed: {e}")
             return False
 
-    async def _cleanup_deployment(self, config: DeploymentConfig, results: dict[str, Any]):
+    async def _cleanup_deployment(
+        self, config: DeploymentConfig, results: dict[str, Any]
+    ):
         """Cleanup deployment resources"""
         logger.info("Cleaning up deployment resources")
 
@@ -820,9 +873,11 @@ async def execute_production_deployment(
             "success": metrics.status == DeploymentStatus.COMPLETED,
             "deployment_id": metrics.deployment_id,
             "status": metrics.status.value,
-            "duration": (metrics.end_time - metrics.start_time).total_seconds()
-            if metrics.end_time
-            else None,
+            "duration": (
+                (metrics.end_time - metrics.start_time).total_seconds()
+                if metrics.end_time
+                else None
+            ),
             "metrics": asdict(metrics),
         }
     except Exception as e:

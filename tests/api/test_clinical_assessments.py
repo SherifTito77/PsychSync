@@ -1,1137 +1,472 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+"""
+Test Suite for Clinical Assessment Endpoints
+
+Tests for:
+- LSAS (Social Anxiety) assessment
+- EAT-26 (Eating Disorders) assessment
+- Y-BOCS (OCD) assessment
+- Crisis detection and alerting
+- Assessment history retrieval
+"""
+
+import json
+from datetime import datetime
+
 import pytest
-@pytest.fixture
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.user import User
+from app.db.session import get_async_db
+from app.main import app
+from app.services.clinical.scoring_algorithms import (
+    EAT26Scorer,
+    LSASScorer,
+    YBOCSScorer,
+)
+
+# =====================================================================
+# Fixtures
+# =====================================================================
+
 
 @pytest.fixture
-def client():
-    return TestClient(app)
+async def test_user(db: AsyncSession):
+    """Create test user"""
+    from passlib.context import CryptContext
 
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
+    from app.db.models.user import User
 
-@pytest.fixture
-def test_user(db_session: Session):
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
     user = User(
         email="test@example.com",
+        password_hash=pwd_context.hash("testpass123"),
         full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
+        is_active=True,
+        role="user",
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
     return user
 
+
 @pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
+async def clinician_user(db: AsyncSession):
+    """Create clinician user for testing"""
+    from passlib.context import CryptContext
+
+    from app.db.models.user import User
+
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+    clinician = User(
+        email="clinician@example.com",
+        password_hash=pwd_context.hash("testpass123"),
+        full_name="Dr. Test Clinician",
+        is_active=True,
+        role="clinician",
+    )
+
+    db.add(clinician)
+    await db.commit()
+    await db.refresh(clinician)
+
+    return clinician
+
+
+@pytest.fixture
+def auth_headers(test_user: User):
+    """Get authentication headers for test user"""
+    from app.services.security import create_access_token
+
+    token = create_access_token(data={"sub": str(test_user.id)})
     return {"Authorization": f"Bearer {token}"}
-
-
-def handle_clinical_consent(client, auth_headers):
-    """
-    Test POST /consent
-    Handle clinical assessment consent
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/consent",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def conduct_mental_health_screening(client, auth_headers):
-    """
-    Test POST /screening/mental-health
-    Conduct mental health screening using validated clinical tools
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/screening/mental-health",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
+    """Test client for FastAPI app"""
     return TestClient(app)
 
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def conduct_wellness_assessment(client, auth_headers):
-    """
-    Test POST /wellness/assessment
-    Conduct comprehensive wellness assessment
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/wellness/assessment",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def handle_crisis_alert(client, auth_headers):
-    """
-    Test POST /crisis/alert
-    Handle crisis alerts and provide immediate resources
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/crisis/alert",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def analyze_mental_health_trends(client, auth_headers):
-    """
-    Test POST /trends/mental-health
-    Analyze mental health trends over time
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/trends/mental-health",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def create_personalized_wellness_plan(client, auth_headers):
-    """
-    Test POST /wellness/plan
-    Create personalized wellness improvement plan
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/wellness/plan",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_clinical_resources(client, auth_headers):
-    """
-    Test GET /resources/clinical
-    Get clinical mental health resources and support information
-    """
-    # TODO: Implement test logic
-    response = client.get("/resources/clinical",
-        params={'resource_type': 'test_value', 'condition': 'test_value', 'user_location': 'test_value'}
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_available_screening_tools(client, auth_headers):
-    """
-    Test GET /screening/tools
-    Get information about available mental health screening tools
-    """
-    # TODO: Implement test logic
-    response = client.get(
-        "/screening/tools"
-        
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_screening_questions(client, auth_headers):
-    """
-    Test GET /screening/questions/{assessment_type}
-    Get questions for a specific mental health screening assessment
-    """
-    # TODO: Implement test logic
-    response = client.get("/screening/questions/{assessment_type}",
-        params={'assessment_type': 'test_value'}
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def submit_screening_responses(client, auth_headers):
-    """
-    Test POST /screening/submit
-    Submit responses for mental health screening
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/screening/submit",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_wellness_questions(client, auth_headers):
-    """
-    Test GET /wellness/questions
-    Get questions for comprehensive wellness assessment
-    """
-    # TODO: Implement test logic
-    response = client.get(
-        "/wellness/questions"
-        
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def submit_wellness_assessment(client, auth_headers):
-    """
-    Test POST /wellness/submit
-    Submit responses for wellness assessment
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/wellness/submit",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_trend_analysis_data(client, auth_headers):
-    """
-    Test GET /trends/data
-    Get comprehensive trend analysis data for a user
-    """
-    # TODO: Implement test logic
-    response = client.get("/trends/data",
-        params={'time_range': 'test_value', 'domains': 'test_value'}
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_domain_comparison(client, auth_headers):
-    """
-    Test GET /trends/comparison
-    Get domain-specific comparison and analysis
-    """
-    # TODO: Implement test logic
-    response = client.get("/trends/comparison",
-        params={'time_range': 'test_value'}
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_trends_summary(client, auth_headers):
-    """
-    Test GET /trends/summary
-    Get a summary of user's wellness trends
-    """
-    # TODO: Implement test logic
-    response = client.get(
-        "/trends/summary"
-        
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_existing_wellness_plan(client, auth_headers):
-    """
-    Test GET /wellness/plan/existing
-    Get user's existing wellness plan
-    """
-    # TODO: Implement test logic
-    response = client.get(
-        "/wellness/plan/existing"
-        
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def generate_wellness_plan(client, auth_headers):
-    """
-    Test POST /wellness/plan/generate
-    Generate a new personalized wellness plan
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/wellness/plan/generate",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def update_wellness_plan(client, auth_headers):
-    """
-    Test PUT /wellness/plan/{plan_id}/update
-    Update existing wellness plan progress
-    """
-    # TODO: Implement test logic
-    response = client.put(
-        "/wellness/plan/{plan_id}/update",
-        json={},
-        params={'plan_id': 'test_value'}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_wellness_plan_templates(client, auth_headers):
-    """
-    Test GET /wellness/plan/templates
-    Get wellness plan templates and examples
-    """
-    # TODO: Implement test logic
-    response = client.get(
-        "/wellness/plan/templates"
-        
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_goal_suggestions(client, auth_headers):
-    """
-    Test GET /wellness/plan/goal-suggestions
-    Get AI-powered goal suggestions for specific wellness domains
-    """
-    # TODO: Implement test logic
-    response = client.get("/wellness/plan/goal-suggestions",
-        params={'domain': 'test_value', 'current_level': 'test_value', 'time_commitment': 'test_value'}
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def crisis_assessment(client, auth_headers):
-    """
-    Test POST /crisis/assessment
-    Crisis severity assessment and immediate support recommendations
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/crisis/assessment",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def create_safety_plan(client, auth_headers):
-    """
-    Test POST /crisis/create-safety-plan
-    Create personalized safety plan for crisis situations
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/crisis/create-safety-plan",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_safety_plan(client, auth_headers):
-    """
-    Test GET /crisis/safety-plan
-    Get user's existing safety plan
-    """
-    # TODO: Implement test logic
-    response = client.get(
-        "/crisis/safety-plan"
-        
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def get_crisis_resources(client, auth_headers):
-    """
-    Test GET /crisis/resources
-    Get crisis support resources and helplines
-    """
-    # TODO: Implement test logic
-    response = client.get(
-        "/crisis/resources"
-        
-    )
-
-    assert response.status_code in [200, 201]
-    # TODO: Validate response data structure
-    data = response.json()
-    assert isinstance(data, dict)
-
-
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-@pytest.fixture
-async def db_session():
-    async for session in get_async_db():
-        yield session
-
-@pytest.fixture
-def test_user(db_session: Session):
-    user = User(
-        email="test@example.com",
-        full_name="Test User",
-        hashed_password="hashed",
-        is_active=True
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
-
-@pytest.fixture
-def auth_headers(test_user):
-    token = create_access_token({"user_id": str(test_user.id)})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def crisis_check_in(client, auth_headers):
-    """
-    Test POST /crisis/check-in
-    Anonymous crisis check-in and status update
-    """
-    # TODO: Implement test logic
-    response = client.post(
-        "/crisis/check-in",
-        json={}
-    )
-
-    assert response.status_code in [200, 201, 202]
+
+# =====================================================================
+# LSAS Tests
+# =====================================================================
+
+
+class TestLSASAssessment:
+    """Test LSAS (Social Anxiety) assessment endpoints"""
+
+    def test_lsas_submit_valid_response(
+        self, client: TestClient, auth_headers: dict, db: AsyncSession
+    ):
+        """Test submitting valid LSAS assessment"""
+
+        # Prepare valid LSAS responses (24 items, fear + avoidance each)
+        responses = {}
+        for i in range(1, 25):
+            responses[f"item_{i}"] = {"fear": 2, "avoidance": 1}
+
+        response = client.post(
+            "/api/v1/clinical/LSAS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Validate response structure
+        assert data["assessment_type"] == "LSAS"
+        assert "total_score" in data
+        assert "severity_level" in data
+        assert "risk_level" in data
+        assert "interpretation" in data
+        assert "recommendations" in data
+        assert isinstance(data["recommendations"], list)
+        assert "crisis_alert" in data
+        assert isinstance(data["crisis_alert"], bool)
+
+        # Validate score range (should be 24-72 for our test data)
+        assert 0 <= data["total_score"] <= 144
+        assert data["subscale_scores"]["fear"] >= 0
+        assert data["subscale_scores"]["avoidance"] >= 0
+
+    def test_lsas_missing_items(self, client: TestClient, auth_headers: dict):
+        """Test LSAS submission with missing items"""
+
+        # Only submit 10 items instead of 24
+        responses = {}
+        for i in range(1, 11):
+            responses[f"item_{i}"] = {"fear": 1, "avoidance": 1}
+
+        response = client.post(
+            "/api/v1/clinical/LSAS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+
+        # Should return validation error
+        assert response.status_code == 400
+
+    def test_lsas_invalid_rating_values(self, client: TestClient, auth_headers: dict):
+        """Test LSAS with invalid rating values (outside 0-3 range)"""
+
+        responses = {}
+        for i in range(1, 25):
+            responses[f"item_{i}"] = {
+                "fear": 5,  # Invalid: should be 0-3
+                "avoidance": 2,
+            }
+
+        response = client.post(
+            "/api/v1/clinical/LSAS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+
+        # Should return validation error
+        assert response.status_code == 400
+
+    def test_lsas_high_score_triggers_alert(
+        self, client: TestClient, auth_headers: dict, db: AsyncSession
+    ):
+        """Test that high LSAS scores trigger crisis alert"""
+
+        # Submit very high scores (all 3s)
+        responses = {}
+        for i in range(1, 25):
+            responses[f"item_{i}"] = {"fear": 3, "avoidance": 3}
+
+        response = client.post(
+            "/api/v1/clinical/LSAS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # High scores should trigger crisis alert
+        assert data["total_score"] == 144  # Maximum possible
+        assert data["crisis_alert"] == True
+        assert data["risk_level"] in ["high", "critical"]
+
+    def test_lsas_get_history(
+        self, client: TestClient, auth_headers: dict, db: AsyncSession
+    ):
+        """Test retrieving LSAS assessment history"""
+
+        response = client.get(
+            "/api/v1/clinical/LSAS/history?limit=10", headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have 'assessments' key with list
+        assert "assessments" in data
+        assert isinstance(data["assessments"], list)
+
+        # Each assessment should have required fields
+        for assessment in data["assessments"]:
+            assert "id" in assessment
+            assert "total_score" in assessment
+            assert "severity_level" in assessment
+            assert "completed_at" in assessment
+
+
+# =====================================================================
+# EAT-26 Tests
+# =====================================================================
+
+
+class TestEAT26Assessment:
+    """Test EAT-26 (Eating Disorders) assessment endpoints"""
+
+    def test_eat26_submit_valid_response(self, client: TestClient, auth_headers: dict):
+        """Test submitting valid EAT-26 assessment"""
+
+        # Prepare valid EAT-26 responses (26 items, 0-5 scale)
+        responses = {str(i): 2 for i in range(1, 27)}
+
+        behavioral = {
+            "weight_loss_6months": "no",
+            "binge_eating": "never",
+            "vomiting": "never",
+            "laxatives": "never",
+            "exercise": "moderate",
+        }
+
+        response = client.post(
+            "/api/v1/clinical/EAT26/submit",
+            json={"responses": responses, "behavioral": behavioral},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["assessment_type"] == "EAT26"
+        assert 0 <= data["total_score"] <= 78
+
+    def test_eat26_frequent_vomiting_triggers_critical_alert(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test that frequent vomiting triggers CRITICAL crisis alert"""
+
+        responses = {str(i): 4 for i in range(1, 27)}
+
+        behavioral = {
+            "weight_loss_6months": "yes",
+            "binge_eating": "weekly",
+            "vomiting": "daily",  # CRITICAL risk factor
+            "laxatives": "weekly",
+            "exercise": "excessive",
+        }
+
+        response = client.post(
+            "/api/v1/clinical/EAT26/submit",
+            json={"responses": responses, "behavioral": behavioral},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should trigger CRITICAL alert
+        assert data["crisis_alert"] == True
+        assert data["risk_level"] == "critical"
+        assert (
+            "FREQUENT_PURGING" in data["risk_flags"]
+            or "DAILY_VOMITING" in data["risk_flags"]
+        )
+
+
+# =====================================================================
+# Y-BOCS Tests
+# =====================================================================
+
+
+class TestYBOCSAssessment:
+    """Test Y-BOCS (OCD) assessment endpoints"""
+
+    def test_ybocs_submit_valid_response(self, client: TestClient, auth_headers: dict):
+        """Test submitting valid Y-BOCS assessment"""
+
+        # Prepare valid Y-BOCS responses (10 items, 0-4 scale)
+        responses = {str(i): 2 for i in range(1, 11)}
+
+        response = client.post(
+            "/api/v1/clinical/YBOCS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["assessment_type"] == "YBOCS"
+        assert 0 <= data["total_score"] <= 40
+
+        # Should have obsession and compulsion subscores
+        assert "obsessions" in data["subscale_scores"]
+        assert "compulsions" in data["subscale_scores"]
+
+    def test_ybocs_extreme_score(self, client: TestClient, auth_headers: dict):
+        """Test Y-BOCS with maximum scores (Extreme OCD)"""
+
+        responses = {str(i): 4 for i in range(1, 11)}
+
+        response = client.post(
+            "/api/v1/clinical/YBOCS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["total_score"] == 40  # Maximum
+        assert data["severity_level"] == "extreme"
+        assert data["crisis_alert"] == True
+
+
+# =====================================================================
+# Analytics Tests
+# =====================================================================
+
+
+class TestAnalyticsEndpoints:
+    """Test advanced analytics endpoints"""
+
+    def test_get_user_trends_insufficient_data(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test trend analysis with insufficient data points"""
+
+        response = client.get(
+            "/api/v1/clinical/analytics/user/trends?assessment_type=LSAS",
+            headers=auth_headers,
+        )
+
+        # Should return message about insufficient data
+        assert response.status_code == 200
+        data = response.json()
+        assert "trend" in data
+        assert (
+            data["trend"] is None or "insufficient" in data.get("message", "").lower()
+        )
+
+    def test_get_population_metrics_unauthorized(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test that regular users can't access population metrics"""
+
+        response = client.get(
+            "/api/v1/clinical/analytics/population-metrics?assessment_type=LSAS",
+            headers=auth_headers,
+        )
+
+        # Should be forbidden (only clinicians/admins)
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_get_population_metrics_clinician(
+        self, client: TestClient, db: AsyncSession, clinician_user: User
+    ):
+        """Test population metrics endpoint with clinician access"""
+        from app.services.security import create_access_token
+
+        token = create_access_token(data={"sub": str(clinician_user.id)})
+        headers = {"Authorization": f"Bearer {token}"}
+
+        response = client.get(
+            "/api/v1/clinical/analytics/population-metrics?assessment_type=LSAS&period_days=30",
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "metrics" in data
+        assert isinstance(data["metrics"], list)
+
+        # Each metric should have required fields
+        for metric in data["metrics"]:
+            assert "total_assessments" in metric
+            assert "unique_users" in metric
+            assert "mean_score" in metric
+
+
+# =====================================================================
+# Integration Tests
+# =====================================================================
+
+
+class TestAssessmentIntegration:
+    """Integration tests for complete assessment workflows"""
+
+    def test_complete_lsas_workflow(
+        self, client: TestClient, auth_headers: dict, test_user: User, db: AsyncSession
+    ):
+        """Test complete LSAS workflow: submit → retrieve → analyze trend"""
+
+        # 1. Submit LSAS assessment
+        responses = {}
+        for i in range(1, 25):
+            responses[f"item_{i}"] = {"fear": 1, "avoidance": 1}
+
+        submit_response = client.post(
+            "/api/v1/clinical/LSAS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+        assert submit_response.status_code == 200
+
+        # 2. Retrieve history
+        history_response = client.get(
+            "/api/v1/clinical/LSAS/history", headers=auth_headers
+        )
+        assert history_response.status_code == 200
+        assert len(history_response.json()["assessments"]) > 0
+
+        # 3. Check trends (should still be insufficient with 1 assessment)
+        trend_response = client.get(
+            "/api/v1/clinical/analytics/user/trends?assessment_type=LSAS",
+            headers=auth_headers,
+        )
+        assert trend_response.status_code == 200
+
+
+# =====================================================================
+# Performance Tests
+# =====================================================================
+
+
+class TestAssessmentPerformance:
+    """Performance tests for assessment endpoints"""
+
+    def test_lsas_submission_performance(self, client: TestClient, auth_headers: dict):
+        """Test LSAS submission completes in acceptable time"""
+        import time
+
+        responses = {}
+        for i in range(1, 25):
+            responses[f"item_{i}"] = {"fear": 2, "avoidance": 2}
+
+        start_time = time.time()
+        response = client.post(
+            "/api/v1/clinical/LSAS/submit",
+            json={"responses": responses},
+            headers=auth_headers,
+        )
+        duration = time.time() - start_time
+
+        assert response.status_code == 200
+        # Should complete in under 2 seconds
+        assert duration < 2.0

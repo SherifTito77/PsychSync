@@ -4,8 +4,8 @@ Dedicated endpoints for personality frameworks (MBTI, Enneagram, Big Five, etc.)
 Separate from behavioral pattern analysis and clinical mental health
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,13 +13,13 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_current_user, get_db
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.assessment import Assessment, AssessmentResponse
 from app.db.models.user import User
-from app.middleware.rate_limiter import check_rate_limit
 
 # AI Processing imports
 try:
-    from ai.processors import get_processor
+    from app.ai.processors import get_processor
 
     AI_PROCESSORS_AVAILABLE = True
 except ImportError:
@@ -76,7 +76,7 @@ PERSONALITY_FRAMEWORKS = {
 }
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/frameworks")
 async def get_personality_frameworks():
     """
@@ -100,7 +100,9 @@ async def get_personality_frameworks():
 @router.get("/user-assessments/{user_id}", dependencies=[Depends(get_current_user)])
 async def get_user_personality_assessments(
     user_id: str,
-    include_completed: bool = Query(True, description="Include only completed assessments"),
+    include_completed: bool = Query(
+        True, description="Include only completed assessments"
+    ),
     framework_filter: str | None = Query(None, description="Filter by framework"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -120,7 +122,8 @@ async def get_user_personality_assessments(
             # Check if user is in same organization/team
             if not hasattr(current_user, "organization_id"):
                 raise HTTPException(
-                    status_code=403, detail="Not authorized to view this user's assessments"
+                    status_code=403,
+                    detail="Not authorized to view this user's assessments",
                 )
 
         # Build query
@@ -153,15 +156,17 @@ async def get_user_personality_assessments(
             assessment_data = {
                 "assessment_id": str(assessment.id),
                 "framework_code": assessment.framework_code,
-                "framework_info": PERSONALITY_FRAMEWORKS.get(assessment.framework_code.lower()),
+                "framework_info": PERSONALITY_FRAMEWORKS.get(
+                    assessment.framework_code.lower()
+                ),
                 "title": assessment.title,
                 "description": assessment.description,
                 "status": response.status.value,
                 "created_at": assessment.created_at.isoformat(),
                 "started_at": response.started_at.isoformat(),
-                "completed_at": response.completed_at.isoformat()
-                if response.completed_at
-                else None,
+                "completed_at": (
+                    response.completed_at.isoformat() if response.completed_at else None
+                ),
                 "duration_minutes": PERSONALITY_FRAMEWORKS.get(
                     assessment.framework_code.lower(), {}
                 ).get("duration_minutes", 0),
@@ -171,8 +176,10 @@ async def get_user_personality_assessments(
 
             # Add processed results if completed
             if response.status.value == "completed" and response.responses:
-                assessment_data["processed_results"] = await _process_personality_assessment(
-                    assessment.framework_code, response.responses
+                assessment_data["processed_results"] = (
+                    await _process_personality_assessment(
+                        assessment.framework_code, response.responses
+                    )
                 )
 
             user_assessments.append(assessment_data)
@@ -185,22 +192,32 @@ async def get_user_personality_assessments(
                 [a for a in user_assessments if a["status"] == "completed"]
             ),
             "frameworks_completed": list(
-                set(a["framework_code"] for a in user_assessments if a["status"] == "completed")
+                set(
+                    a["framework_code"]
+                    for a in user_assessments
+                    if a["status"] == "completed"
+                )
             ),
             "assessments": user_assessments,
             "assessment_trends": await _analyze_assessment_trends(user_assessments),
-            "personality_summary": await _generate_personality_summary(user_assessments),
+            "personality_summary": await _generate_personality_summary(
+                user_assessments
+            ),
         }
 
     except Exception as e:
         logger.error(f"Error getting user personality assessments: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get personality assessments") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to get personality assessments"
+        ) from e
 
 
 @router.post("/take-assessment", dependencies=[Depends(get_current_user)])
 async def create_personality_assessment(
     framework_code: str = Query(..., description="Personality framework code"),
-    team_id: str | None = Query(None, description="Team ID if assessment is team-based"),
+    team_id: str | None = Query(
+        None, description="Team ID if assessment is team-based"
+    ),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -265,7 +282,9 @@ async def create_personality_assessment(
 
     except Exception as e:
         logger.error(f"Error creating personality assessment: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create personality assessment") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to create personality assessment"
+        ) from e
 
 
 @router.post("/submit-response/{assessment_id}")
@@ -296,7 +315,9 @@ async def submit_personality_assessment(
             raise HTTPException(status_code=404, detail="Assessment not found")
 
         if assessment.category != "personality":
-            raise HTTPException(status_code=400, detail="This is not a personality assessment")
+            raise HTTPException(
+                status_code=400, detail="This is not a personality assessment"
+            )
 
         # Get existing response
         response_result = await db.execute(
@@ -336,22 +357,31 @@ async def submit_personality_assessment(
             "framework": assessment.framework_code,
             "status": "completed",
             "completed_at": response.completed_at.isoformat(),
-            "duration_minutes": (response.completed_at - response.started_at).total_seconds() / 60,
+            "duration_minutes": (
+                response.completed_at - response.started_at
+            ).total_seconds()
+            / 60,
             "processed_results": processed_results,
             "data_quality": _assess_data_quality(responses),
             "confidence_score": processed_results.get("confidence", 0.0),
-            "recommendations": await _generate_personality_recommendations(processed_results),
+            "recommendations": await _generate_personality_recommendations(
+                processed_results
+            ),
         }
 
     except Exception as e:
         logger.error(f"Error submitting personality assessment: {e}")
-        raise HTTPException(status_code=500, detail="Failed to submit personality assessment") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to submit personality assessment"
+        ) from e
 
 
 @router.get("/compare-results/{user_id}")
 async def compare_personality_results(
     user_id: str,
-    frameworks: list[str] = Query(["mbti", "big_five"], description="Frameworks to compare"),
+    frameworks: list[str] = Query(
+        ["mbti", "big_five"], description="Frameworks to compare"
+    ),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -390,7 +420,9 @@ async def compare_personality_results(
                 framework_results[assessment.framework_code] = processed
 
         # Cross-framework analysis
-        comparison_analysis = await _analyze_cross_framework_comparison(framework_results)
+        comparison_analysis = await _analyze_cross_framework_comparison(
+            framework_results
+        )
 
         return {
             "user_id": user_id,
@@ -403,13 +435,17 @@ async def compare_personality_results(
 
     except Exception as e:
         logger.error(f"Error comparing personality results: {e}")
-        raise HTTPException(status_code=500, detail="Failed to compare personality results") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to compare personality results"
+        ) from e
 
 
 @router.get("/team-personality-profile/{team_id}")
 async def get_team_personality_profile(
     team_id: str,
-    include_individuals: bool = Query(False, description="Include individual member profiles"),
+    include_individuals: bool = Query(
+        False, description="Include individual member profiles"
+    ),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -448,13 +484,17 @@ async def get_team_personality_profile(
             }
 
         # Aggregate personality data
-        team_profile = await _aggregate_team_personality_profile(assessments, include_individuals)
+        team_profile = await _aggregate_team_personality_profile(
+            assessments, include_individuals
+        )
 
         return team_profile
 
     except Exception as e:
         logger.error(f"Error getting team personality profile: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get team personality profile") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to get team personality profile"
+        ) from e
 
 
 # Helper functions
@@ -466,7 +506,9 @@ def _assess_data_quality(responses: dict[str, Any]) -> dict[str, Any]:
         return {"score": 0.0, "issues": ["No responses provided"]}
 
     total_questions = len(responses)
-    answered_questions = len([r for r in responses.values() if r is not None and r != ""])
+    answered_questions = len(
+        [r for r in responses.values() if r is not None and r != ""]
+    )
 
     score = answered_questions / total_questions if total_questions > 0 else 0.0
 
@@ -492,24 +534,24 @@ async def _process_personality_assessment(
     try:
         # Import appropriate processor
         if framework_code.lower() == "mbti":
-            from ai.processors.mbti_processor import MBTIProcessor
+            from app.ai.processors.mbti_processor import MBTIProcessor
 
             processor = MBTIProcessor()
         elif framework_code.lower() == "big_five":
-            from ai.processors.big_five import BigFiveProcessor
+            from app.ai.processors.big_five import BigFiveProcessor
 
             processor = BigFiveProcessor()
         elif framework_code.lower() == "enneagram":
-            from ai.processors.enneagram import EnneagramProcessor
+            from app.ai.processors.enneagram import EnneagramProcessor
 
             processor = EnneagramProcessor()
         elif framework_code.lower() == "predictive_index":
-            from ai.processors.predictive_index import PredictiveIndexProcessor
+            from app.ai.processors.predictive_index import PredictiveIndexProcessor
 
             processor = PredictiveIndexProcessor()
         else:
             # Default processor
-            from ai.processors.processors_base import PersonalityFrameworkProcessor
+            from app.ai.processors.processors_base import PersonalityFrameworkProcessor
 
             processor = PersonalityFrameworkProcessor()
 
@@ -563,7 +605,9 @@ async def _generate_personality_recommendations(results: dict[str, Any]) -> list
 
     except Exception as e:
         logger.error(f"Error generating personality recommendations: {e}")
-        return ["Complete more personality assessments for personalized recommendations"]
+        return [
+            "Complete more personality assessments for personalized recommendations"
+        ]
 
 
 def _generate_mbti_recommendations(mbti_type: str) -> list[str]:
@@ -707,10 +751,14 @@ def _generate_enneagram_recommendations(enneagram_type: str) -> list[str]:
         ],
     }
 
-    return type_recommendations.get(enneagram_type, ["Continue your Enneagram growth journey"])
+    return type_recommendations.get(
+        enneagram_type, ["Continue your Enneagram growth journey"]
+    )
 
 
-async def _analyze_assessment_trends(assessments: list[dict[str, Any]]) -> dict[str, Any]:
+async def _analyze_assessment_trends(
+    assessments: list[dict[str, Any]]
+) -> dict[str, Any]:
     """Analyze trends in personality assessment results over time"""
     if len(assessments) < 2:
         return {"message": "Insufficient data for trend analysis"}
@@ -738,7 +786,9 @@ async def _analyze_assessment_trends(assessments: list[dict[str, Any]]) -> dict[
                 ]
                 consistent_types = len(set(types)) <= 2
                 trends[framework] = {
-                    "type_consistency": "consistent" if consistent_types else "evolving",
+                    "type_consistency": (
+                        "consistent" if consistent_types else "evolving"
+                    ),
                     "most_recent_type": types[-1] if types else None,
                     "type_stability": consistent_types,
                 }
@@ -746,10 +796,14 @@ async def _analyze_assessment_trends(assessments: list[dict[str, Any]]) -> dict[
             elif framework == "big_five":
                 # Analyze trait changes over time
                 first_assessment = (
-                    framework_assessments[0].get("processed_results", {}).get("dimensions", {})
+                    framework_assessments[0]
+                    .get("processed_results", {})
+                    .get("dimensions", {})
                 )
                 last_assessment = (
-                    framework_assessments[-1].get("processed_results", {}).get("dimensions", {})
+                    framework_assessments[-1]
+                    .get("processed_results", {})
+                    .get("dimensions", {})
                 )
 
                 trait_changes = {}
@@ -766,11 +820,15 @@ async def _analyze_assessment_trends(assessments: list[dict[str, Any]]) -> dict[
 
                 trends[framework] = {
                     "trait_changes": trait_changes,
-                    "most_significant_change": max(
-                        trait_changes.items(), key=lambda x: abs(x[1]), default=(None, 0)
-                    )[0]
-                    if trait_changes
-                    else None,
+                    "most_significant_change": (
+                        max(
+                            trait_changes.items(),
+                            key=lambda x: abs(x[1]),
+                            default=(None, 0),
+                        )[0]
+                        if trait_changes
+                        else None
+                    ),
                     "development_areas": [
                         trait for trait, change in trait_changes.items() if change > 0.1
                     ],
@@ -779,7 +837,9 @@ async def _analyze_assessment_trends(assessments: list[dict[str, Any]]) -> dict[
     return trends
 
 
-async def _generate_personality_summary(assessments: list[dict[str, Any]]) -> dict[str, Any]:
+async def _generate_personality_summary(
+    assessments: list[dict[str, Any]]
+) -> dict[str, Any]:
     """Generate comprehensive personality summary across all assessments"""
     if not assessments:
         return {"message": "No personality assessments available"}
@@ -791,7 +851,8 @@ async def _generate_personality_summary(assessments: list[dict[str, Any]]) -> di
             framework = assessment["framework_code"]
             if (
                 framework not in latest_assessments
-                or assessment["completed_at"] > latest_assessments[framework]["completed_at"]
+                or assessment["completed_at"]
+                > latest_assessments[framework]["completed_at"]
             ):
                 latest_assessments[framework] = assessment
 
@@ -808,7 +869,9 @@ async def _generate_personality_summary(assessments: list[dict[str, Any]]) -> di
     all_frameworks = list(latest_assessments.keys())
     if len(all_frameworks) >= 2:
         summary["comprehensive_profile"] = "Multi-framework assessment completed"
-        summary["insight"] = "Well-rounded personality understanding across multiple frameworks"
+        summary["insight"] = (
+            "Well-rounded personality understanding across multiple frameworks"
+        )
     else:
         summary["comprehensive_profile"] = "Single-framework assessment"
         summary["suggestion"] = (
@@ -818,7 +881,9 @@ async def _generate_personality_summary(assessments: list[dict[str, Any]]) -> di
     return summary
 
 
-async def _analyze_cross_framework_comparison(framework_results: dict[str, Any]) -> dict[str, Any]:
+async def _analyze_cross_framework_comparison(
+    framework_results: dict[str, Any]
+) -> dict[str, Any]:
     """Analyze consistency and correlations across different personality frameworks"""
     frameworks = list(framework_results.keys())
 
@@ -851,7 +916,9 @@ async def _analyze_cross_framework_comparison(framework_results: dict[str, Any])
     # Overall consistency score (simplified)
     consistency_scores = []
     if "mbti_big_five_correlation" in analysis:
-        consistency_scores.append(analysis["mbti_big_five_correlation"].get("consistency", 0.5))
+        consistency_scores.append(
+            analysis["mbti_big_five_correlation"].get("consistency", 0.5)
+        )
 
     analysis["overall_consistency"] = (
         sum(consistency_scores) / len(consistency_scores) if consistency_scores else 0.5
@@ -933,8 +1000,12 @@ async def _aggregate_team_personality_profile(
     # Calculate team profile
     team_profile = {
         "team_size": len(user_assessments),
-        "frameworks_used": list(set(a["assessment"].framework_code for a in assessments)),
-        "diversity_metrics": await _calculate_personality_diversity(user_assessessments),
+        "frameworks_used": list(
+            set(a["assessment"].framework_code for a in assessments)
+        ),
+        "diversity_metrics": await _calculate_personality_diversity(
+            user_assessessments
+        ),
         "team_dynamics": await _analyze_team_dynamics(user_assessessments),
     }
 
@@ -952,7 +1023,9 @@ async def _aggregate_team_personality_profile(
     return team_profile
 
 
-async def _calculate_personality_diversity(user_assessments: dict[str, list]) -> dict[str, Any]:
+async def _calculate_personality_diversity(
+    user_assessments: dict[str, list]
+) -> dict[str, Any]:
     """Calculate personality diversity metrics for a team"""
     # This is a simplified implementation
     team_size = len(user_assessments)
@@ -971,12 +1044,14 @@ async def _calculate_personality_diversity(user_assessments: dict[str, list]) ->
     return {
         "personality_diversity_score": diversity_score,
         "unique_mbti_types": len(set(mbti_types)),
-        "most_common_type": max(set(mbti_types), key=mbti_types.count) if mbti_types else None,
-        "diversity_classification": "high"
-        if diversity_score > 0.7
-        else "medium"
-        if diversity_score > 0.4
-        else "low",
+        "most_common_type": (
+            max(set(mbti_types), key=mbti_types.count) if mbti_types else None
+        ),
+        "diversity_classification": (
+            "high"
+            if diversity_score > 0.7
+            else "medium" if diversity_score > 0.4 else "low"
+        ),
     }
 
 
@@ -1015,7 +1090,9 @@ async def process_personality_assessment(
     data = request.get("data")
 
     if not framework or not data:
-        raise HTTPException(status_code=400, detail="Missing 'framework' or 'data' in request body")
+        raise HTTPException(
+            status_code=400, detail="Missing 'framework' or 'data' in request body"
+        )
 
     try:
         # Get the appropriate processor
@@ -1041,7 +1118,343 @@ async def process_personality_assessment(
         }
 
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Unsupported framework: {framework}") from None
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported framework: {framework}"
+        ) from None
     except Exception as e:
         logger.error(f"Error processing {framework} assessment: {e!s}")
         raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
+
+
+# =============================================================================
+# Multi-Framework Synthesis
+# =============================================================================
+
+# Weights assigned to each framework when computing unified traits.
+# Big Five is the reference model; others are mapped onto it.
+_FRAMEWORK_WEIGHT = {
+    "big_five": 1.0,
+    "mbti": 0.8,
+    "disct": 0.7,
+    "enneagram": 0.6,
+    "predictive_index": 0.65,
+    "clifton_strengths": 0.5,
+    "social_styles": 0.5,
+}
+
+# Trait aliases that appear in processed_results across frameworks
+_TRAIT_ALIASES: dict[str, list[str]] = {
+    "openness": ["openness", "open", "creative", "imagination"],
+    "conscientiousness": [
+        "conscientiousness",
+        "conscientious",
+        "organized",
+        "structured",
+    ],
+    "extraversion": [
+        "extraversion",
+        "extraversion_score",
+        "extraversion_pct",
+        "e_i_score",
+    ],
+    "agreeableness": ["agreeableness", "agreeable", "warmth"],
+    "neuroticism": ["neuroticism", "neurotic", "emotional_stability"],
+    "analytical_thinking": ["analytical", "thinking", "t_f_score"],
+    "strategic_orientation": ["strategic", "perceiving", "j_p_score"],
+    "independence": ["dominance", "independence", "autonomy"],
+    "adaptability": ["steadiness", "flexibility", "adaptability"],
+    "leadership_potential": ["leadership", "influence", "drive"],
+}
+
+
+def _extract_trait(results: dict, aliases: list[str]) -> float | None:
+    """Pull the first matching numeric value from a results dict."""
+    for key, val in results.items():
+        key_lower = key.lower().replace("-", "_").replace(" ", "_")
+        for alias in aliases:
+            if alias in key_lower:
+                if isinstance(val, (int, float)):
+                    # Normalise to 0-1
+                    if val > 1:
+                        return min(1.0, val / 100.0)
+                    return float(val)
+                break
+    return None
+
+
+def _synthesise_traits(
+    assessments: list[dict],
+) -> tuple[dict[str, float], dict[str, list[tuple[str, float]]]]:
+    """
+    Compute weighted-average unified traits from multiple assessment results.
+    Returns (unified_traits, per_trait_votes) where per_trait_votes maps
+    trait → [(framework_label, value), ...].
+    """
+    per_trait: dict[str, list[tuple[str, float]]] = {t: [] for t in _TRAIT_ALIASES}
+
+    for assessment in assessments:
+        fw = assessment.get("framework_code", "")
+        weight = _FRAMEWORK_WEIGHT.get(fw, 0.4)
+        results = assessment.get("processed_results", {})
+        if not results:
+            continue
+        # Flatten nested results
+        if isinstance(results, dict) and "results" in results:
+            results = results["results"]
+        if not isinstance(results, dict):
+            continue
+        for trait, aliases in _TRAIT_ALIASES.items():
+            val = _extract_trait(results, aliases)
+            if val is not None:
+                per_trait[trait].append((fw, val))
+
+    unified: dict[str, float] = {}
+    for trait, votes in per_trait.items():
+        if votes:
+            weights = [_FRAMEWORK_WEIGHT.get(fw, 0.4) for fw, _ in votes]
+            total_w = sum(weights)
+            unified[trait] = sum(v * w for (_, v), w in zip(votes, weights)) / total_w
+        else:
+            # Omit trait if no data
+            pass
+
+    return unified, per_trait
+
+
+def _detect_contradictions(
+    per_trait: dict[str, list[tuple[str, float]]],
+) -> list[dict]:
+    contradictions = []
+    for trait, votes in per_trait.items():
+        if len(votes) < 2:
+            continue
+        vals = [v for _, v in votes]
+        spread = max(vals) - min(vals)
+        if spread > 0.25:
+            avg = sum(vals) / len(vals)
+            contradictions.append(
+                {
+                    "trait": trait.replace("_", " ").title(),
+                    "frameworks": [fw for fw, _ in votes],
+                    "description": (
+                        f"Frameworks disagree on {trait.replace('_', ' ')} "
+                        f"(range: {min(vals):.2f}–{max(vals):.2f}). "
+                        "Weighted average used."
+                    ),
+                    "resolved_value": round(avg, 2),
+                }
+            )
+    return contradictions
+
+
+def _generate_insights(unified: dict[str, float], confidence: float) -> list[dict]:
+    insights = []
+    if unified.get("analytical_thinking", 0) > 0.75:
+        insights.append(
+            {
+                "title": "Strong Analytical Foundation",
+                "description": "High analytical thinking scores across frameworks indicate strong aptitude for complex problem-solving.",
+                "impact": "positive",
+                "confidence": round(min(0.95, confidence + 0.05), 2),
+            }
+        )
+    if unified.get("extraversion", 0.5) < 0.4:
+        insights.append(
+            {
+                "title": "Introverted Energy Profile",
+                "description": "Lower extraversion scores suggest preference for deep focus work over high-stimulus environments.",
+                "impact": "neutral",
+                "confidence": round(confidence, 2),
+            }
+        )
+    if unified.get("conscientiousness", 0) > 0.75:
+        insights.append(
+            {
+                "title": "High Conscientiousness",
+                "description": "Strong conscientiousness predicts high reliability and attention to detail.",
+                "impact": "positive",
+                "confidence": round(min(0.93, confidence + 0.03), 2),
+            }
+        )
+    if unified.get("independence", 0) > 0.7 and unified.get("agreeableness", 1) < 0.5:
+        insights.append(
+            {
+                "title": "Potential Collaboration Gap",
+                "description": "High independence combined with moderate agreeableness may indicate a preference for autonomous work.",
+                "impact": "concern",
+                "confidence": round(max(0.5, confidence - 0.1), 2),
+            }
+        )
+    if not insights:
+        insights.append(
+            {
+                "title": "Balanced Profile",
+                "description": "No strong outliers detected. Profile reflects a balanced set of traits.",
+                "impact": "neutral",
+                "confidence": round(confidence, 2),
+            }
+        )
+    return insights
+
+
+def _role_recommendations(unified: dict[str, float]) -> list[dict]:
+    recs = []
+    analytical = unified.get("analytical_thinking", 0.5)
+    strategic = unified.get("strategic_orientation", 0.5)
+    conscientiousness = unified.get("conscientiousness", 0.5)
+
+    if analytical > 0.8 and strategic > 0.7:
+        recs.append(
+            {
+                "role": "Technical Architect",
+                "fit_score": int(
+                    min(99, (analytical + strategic + conscientiousness) / 3 * 100)
+                ),
+                "description": "High analytical and strategic scores align with architectural responsibilities.",
+            }
+        )
+    if analytical > 0.75:
+        recs.append(
+            {
+                "role": "Data Scientist",
+                "fit_score": int(min(99, (analytical + conscientiousness) / 2 * 100)),
+                "description": "Strong analytical foundation supports advanced data analysis.",
+            }
+        )
+    if strategic > 0.75 and unified.get("leadership_potential", 0) > 0.6:
+        recs.append(
+            {
+                "role": "Product Strategy Lead",
+                "fit_score": int(
+                    min(
+                        99,
+                        (strategic + unified.get("leadership_potential", 0.5))
+                        / 2
+                        * 100,
+                    )
+                ),
+                "description": "Strategic orientation combined with leadership potential fits product strategy.",
+            }
+        )
+    if not recs:
+        recs.append(
+            {
+                "role": "Cross-functional Contributor",
+                "fit_score": 70,
+                "description": "Balanced profile suits collaborative cross-functional roles.",
+            }
+        )
+    return recs
+
+
+@router.get("/synthesis/{user_id}", dependencies=[Depends(get_current_user)])
+async def get_personality_synthesis(
+    user_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Synthesise personality data across all completed frameworks for a user.
+    Returns unified trait scores, contradictions, insights, and role recommendations.
+    """
+    try:
+        if user_id != str(current_user.id) and not getattr(
+            current_user, "is_admin", False
+        ):
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+        # Fetch completed assessments with processed results
+        query = (
+            select(Assessment, AssessmentResponse)
+            .join(AssessmentResponse, Assessment.id == AssessmentResponse.assessment_id)
+            .where(
+                and_(
+                    Assessment.category == "personality",
+                    AssessmentResponse.respondent_id == user_id,
+                    AssessmentResponse.status == "completed",
+                )
+            )
+        )
+        result = await db.execute(query)
+        rows = result.all()
+
+        assessments = []
+        for assessment, response in rows:
+            processed = None
+            if response.responses:
+                try:
+                    processed = await _process_personality_assessment(
+                        assessment.framework_code, response.responses
+                    )
+                except Exception:
+                    pass
+            assessments.append(
+                {
+                    "framework_code": assessment.framework_code,
+                    "processed_results": processed,
+                }
+            )
+
+        unified, per_trait = _synthesise_traits(assessments)
+        contradictions = _detect_contradictions(per_trait)
+        confidence = round(min(0.95, 0.5 + len(assessments) * 0.08), 2)
+        insights = _generate_insights(unified, confidence)
+        recommendations = _role_recommendations(unified)
+
+        # If no real data yet, return a clear "no data" response rather than fabricating
+        if not unified:
+            return {
+                "user_id": user_id,
+                "frameworks_analysed": 0,
+                "unified_traits": {},
+                "confidence": 0.0,
+                "contradictions": [],
+                "insights": [
+                    {
+                        "title": "No completed assessments",
+                        "description": "Complete at least one personality assessment to generate a synthesis.",
+                        "impact": "neutral",
+                        "confidence": 1.0,
+                    }
+                ],
+                "recommendations": [],
+                "team_compatibility": {
+                    "overall_score": 0,
+                    "strengths": [],
+                    "potential_conflicts": [],
+                },
+            }
+
+        strengths = [
+            trait.replace("_", " ").title()
+            for trait, val in unified.items()
+            if val > 0.7
+        ]
+        potential_conflicts = [
+            trait.replace("_", " ").title()
+            for trait, val in unified.items()
+            if val < 0.4
+        ]
+
+        return {
+            "user_id": user_id,
+            "frameworks_analysed": len(assessments),
+            "unified_traits": {k: round(v, 2) for k, v in unified.items()},
+            "confidence": confidence,
+            "contradictions": contradictions,
+            "insights": insights,
+            "recommendations": recommendations,
+            "team_compatibility": {
+                "overall_score": int(
+                    min(100, sum(unified.values()) / max(len(unified), 1) * 100)
+                ),
+                "strengths": strengths[:3],
+                "potential_conflicts": potential_conflicts[:2],
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Synthesis error for user {user_id}: {exc!s}")
+        raise HTTPException(status_code=500, detail="Synthesis failed") from exc

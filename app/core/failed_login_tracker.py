@@ -16,10 +16,10 @@ Version: 1.0
 Date: December 23, 2024
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 from app.core.cache import cache_delete, cache_get, cache_set
@@ -124,9 +124,9 @@ class FailedLoginTracker:
                     extra={
                         "username": username,
                         "ip_address": ip_address,
-                        "lockout_reason": lockout_info.reason.value
-                        if lockout_info.reason
-                        else None,
+                        "lockout_reason": (
+                            lockout_info.reason.value if lockout_info.reason else None
+                        ),
                     },
                 )
                 return False, lockout_info
@@ -169,7 +169,9 @@ class FailedLoginTracker:
             # Fail open - allow login on error
             return True, None
 
-    async def _record_failed_attempt(self, username: str, ip_address: str, user_agent: str):
+    async def _record_failed_attempt(
+        self, username: str, ip_address: str, user_agent: str
+    ):
         """Record a failed login attempt in cache"""
         try:
             # Record per-user attempt
@@ -187,19 +189,26 @@ class FailedLoginTracker:
             # Clean old attempts outside tracking window
             cutoff_time = datetime.utcnow() - self.tracking_window
             user_attempts = [
-                a for a in user_attempts if datetime.fromisoformat(a["timestamp"]) >= cutoff_time
+                a
+                for a in user_attempts
+                if datetime.fromisoformat(a["timestamp"]) >= cutoff_time
             ]
 
             # Store with expiration
             await cache_set(
-                user_key, user_attempts, expire_seconds=int(self.tracking_window.total_seconds())
+                user_key,
+                user_attempts,
+                expire_seconds=int(self.tracking_window.total_seconds()),
             )
 
             # Also track per-IP (for detecting credential stuffing)
             ip_key = f"{self.IP_ATTEMPTS_PREFIX}{ip_address}"
             ip_attempts = await cache_get(ip_key) or []
 
-            ip_attempt = {"timestamp": datetime.utcnow().isoformat(), "username": username}
+            ip_attempt = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "username": username,
+            }
 
             ip_attempts.append(ip_attempt)
 
@@ -254,7 +263,9 @@ class FailedLoginTracker:
                 attempts_count=attempts_count,
                 metadata={
                     "locking_ip": ip_address,
-                    "lockout_duration_minutes": int(self.lockout_duration.total_seconds() / 60),
+                    "lockout_duration_minutes": int(
+                        self.lockout_duration.total_seconds() / 60
+                    ),
                 },
             )
 
@@ -299,7 +310,11 @@ class FailedLoginTracker:
 
             if not lockout_data:
                 return LockoutInfo(
-                    is_locked=False, reason=None, locked_at=None, expires_at=None, attempts_count=0
+                    is_locked=False,
+                    reason=None,
+                    locked_at=None,
+                    expires_at=None,
+                    attempts_count=0,
                 )
 
             # Check if lockout has expired
@@ -319,15 +334,21 @@ class FailedLoginTracker:
             # Account is locked
             return LockoutInfo(
                 is_locked=True,
-                reason=LockoutReason(lockout_data["reason"])
-                if lockout_data.get("reason")
-                else None,
-                locked_at=datetime.fromisoformat(lockout_data["locked_at"])
-                if lockout_data.get("locked_at")
-                else None,
-                expires_at=datetime.fromisoformat(lockout_data["expires_at"])
-                if lockout_data.get("expires_at")
-                else None,
+                reason=(
+                    LockoutReason(lockout_data["reason"])
+                    if lockout_data.get("reason")
+                    else None
+                ),
+                locked_at=(
+                    datetime.fromisoformat(lockout_data["locked_at"])
+                    if lockout_data.get("locked_at")
+                    else None
+                ),
+                expires_at=(
+                    datetime.fromisoformat(lockout_data["expires_at"])
+                    if lockout_data.get("expires_at")
+                    else None
+                ),
                 attempts_count=lockout_data.get("attempts_count", 0),
                 metadata=lockout_data.get("metadata", {}),
             )
@@ -335,7 +356,11 @@ class FailedLoginTracker:
         except Exception as e:
             logger.error(f"Error getting lockout status: {e}")
             return LockoutInfo(
-                is_locked=False, reason=None, locked_at=None, expires_at=None, attempts_count=0
+                is_locked=False,
+                reason=None,
+                locked_at=None,
+                expires_at=None,
+                attempts_count=0,
             )
 
     async def unlock_account(self, username: str) -> bool:
@@ -388,7 +413,9 @@ class FailedLoginTracker:
             attempts = await self.get_ip_failed_attempts(ip_address)
 
             # Count unique usernames attempted (credential stuffing detection)
-            unique_usernames = set(a.get("username") for a in attempts if a.get("username"))
+            unique_usernames = set(
+                a.get("username") for a in attempts if a.get("username")
+            )
 
             if len(unique_usernames) >= threshold:
                 logger.warning(
@@ -426,16 +453,24 @@ class FailedLoginTracker:
                     "username": username,
                     "failed_attempts": len(user_attempts),
                     "is_locked": user_lockout.is_locked,
-                    "lockout_reason": user_lockout.reason.value if user_lockout.reason else None,
-                    "attempts": user_attempts[-10:] if user_attempts else [],  # Last 10 attempts
+                    "lockout_reason": (
+                        user_lockout.reason.value if user_lockout.reason else None
+                    ),
+                    "attempts": (
+                        user_attempts[-10:] if user_attempts else []
+                    ),  # Last 10 attempts
                 }
             # Global stats would require scanning all keys - expensive
             # Return placeholder for now
             return {
                 "message": "Per-user statistics available. Specify username parameter.",
                 "max_attempts": self.max_attempts,
-                "lockout_duration_minutes": int(self.lockout_duration.total_seconds() / 60),
-                "tracking_window_minutes": int(self.tracking_window.total_seconds() / 60),
+                "lockout_duration_minutes": int(
+                    self.lockout_duration.total_seconds() / 60
+                ),
+                "tracking_window_minutes": int(
+                    self.tracking_window.total_seconds() / 60
+                ),
             }
 
         except Exception as e:

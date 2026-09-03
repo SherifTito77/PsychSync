@@ -9,8 +9,8 @@ ERPNext: Full ERP with comprehensive HR modules
 API Documentation: https://frappeframework.com/docs/user/en/api
 """
 
-from datetime import date, datetime
 import logging
+from datetime import date, datetime
 
 from .base_connector import (
     AttendanceRecord,
@@ -54,7 +54,9 @@ class FrappeHRConnector(HRISConnector):
     def test_connection(self) -> bool:
         """Test connection to Frappe."""
         try:
-            response = self._make_request("GET", "/api/resource/Employee?limit_page_length=1")
+            response = self._make_request(
+                "GET", "/api/resource/Employee?limit_page_length=1"
+            )
             return response is not None
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
@@ -107,9 +109,11 @@ class FrappeHRConnector(HRISConnector):
                 phone=item.get("cell_number"),
                 department=item.get("department"),
                 position=item.get("designation"),
-                hire_date=datetime.strptime(item["date_of_joining"], "%Y-%m-%d").date()
-                if item.get("date_of_joining")
-                else None,
+                hire_date=(
+                    datetime.strptime(item["date_of_joining"], "%Y-%m-%d").date()
+                    if item.get("date_of_joining")
+                    else None
+                ),
                 employment_status=item.get("status", "Active").lower(),
                 manager_id=item.get("reports_to"),
                 location=item.get("location"),
@@ -121,7 +125,9 @@ class FrappeHRConnector(HRISConnector):
     def get_employee_by_id(self, employee_id: str) -> Employee | None:
         """Get single employee by ID."""
         try:
-            response = self._make_request("GET", f"/api/resource/Employee/{employee_id}")
+            response = self._make_request(
+                "GET", f"/api/resource/Employee/{employee_id}"
+            )
 
             if not response or "data" not in response:
                 return None
@@ -140,9 +146,11 @@ class FrappeHRConnector(HRISConnector):
                 phone=item.get("cell_number"),
                 department=item.get("department"),
                 position=item.get("designation"),
-                hire_date=datetime.strptime(item["date_of_joining"], "%Y-%m-%d").date()
-                if item.get("date_of_joining")
-                else None,
+                hire_date=(
+                    datetime.strptime(item["date_of_joining"], "%Y-%m-%d").date()
+                    if item.get("date_of_joining")
+                    else None
+                ),
                 employment_status=item.get("status", "Active").lower(),
                 manager_id=item.get("reports_to"),
                 location=item.get("location"),
@@ -157,7 +165,13 @@ class FrappeHRConnector(HRISConnector):
         """Get attendance records from Frappe HR."""
         import json
 
-        filters = [["attendance_date", "between", [start_date.isoformat(), end_date.isoformat()]]]
+        filters = [
+            [
+                "attendance_date",
+                "between",
+                [start_date.isoformat(), end_date.isoformat()],
+            ]
+        ]
 
         if employee_id:
             filters.append(["employee", "=", employee_id])
@@ -181,7 +195,9 @@ class FrappeHRConnector(HRISConnector):
                 date=datetime.strptime(item["attendance_date"], "%Y-%m-%d").date(),
                 clock_in=None,  # Frappe doesn't track exact times by default
                 clock_out=None,
-                hours_worked=float(item["working_hours"]) if item.get("working_hours") else None,
+                hours_worked=(
+                    float(item["working_hours"]) if item.get("working_hours") else None
+                ),
                 status=item.get("status", "Present").lower(),
             )
             records.append(record)
@@ -224,7 +240,9 @@ class FrappeHRConnector(HRISConnector):
             "limit_page_length": 10000,
         }
 
-        response = self._make_request("GET", "/api/resource/Leave Application", params=params)
+        response = self._make_request(
+            "GET", "/api/resource/Leave Application", params=params
+        )
 
         if not response or "data" not in response:
             return []
@@ -292,9 +310,11 @@ class FrappeHRConnector(HRISConnector):
                 review_id=item.get("name", ""),
                 employee_id=item.get("employee", ""),
                 reviewer_id="",  # Not available in basic appraisal doctype
-                review_date=datetime.strptime(item["end_date"], "%Y-%m-%d").date()
-                if item.get("end_date")
-                else date.today(),
+                review_date=(
+                    datetime.strptime(item["end_date"], "%Y-%m-%d").date()
+                    if item.get("end_date")
+                    else date.today()
+                ),
                 rating=float(item["total_score"]) if item.get("total_score") else None,
                 comments=item.get("remarks"),
             )
@@ -336,7 +356,9 @@ if __name__ == "__main__":
         print(f"Active employees: {len(employees)}")
 
         if employees:
-            print(f"\nFirst employee: {employees[0].first_name} {employees[0].last_name}")
+            print(
+                f"\nFirst employee: {employees[0].first_name} {employees[0].last_name}"
+            )
             print(f"Department: {employees[0].department}")
 
         from datetime import timedelta

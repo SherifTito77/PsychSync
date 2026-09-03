@@ -13,7 +13,7 @@
 </head>
 <body>
     <h1>🔍 Team Health Dashboard Debug</h1>
-    
+
     <div class="section">
         <h2>1. Check Local Storage</h2>
         <button onclick="checkLocalStorage()">Check User Data</button>
@@ -50,7 +50,7 @@
         function checkLocalStorage() {
             const user = localStorage.getItem('user');
             const token = localStorage.getItem('access_token');
-            
+
             if (user) {
                 try {
                     const userData = JSON.parse(user);

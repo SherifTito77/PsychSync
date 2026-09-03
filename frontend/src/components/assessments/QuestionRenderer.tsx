@@ -1,11 +1,15 @@
 // frontend/src/components/assessments/QuestionRenderer.tsx
 import React from 'react';
 import { Question } from '../../services/assessmentService';
+
+// Define union type for all possible question values
+type QuestionValue = string | number | boolean | null | undefined;
+
 interface QuestionRendererProps {
   question: Question;
   questionNumber: string;
-  value: any;
-  onChange: (value: any) => void;
+  value: QuestionValue;
+  onChange: (value: QuestionValue) => void;
 }
 const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   question,
@@ -87,7 +91,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   const renderTextInput = () => {
     return (
       <textarea
-        value={value || ''}
+        value={String(value || '')}
         onChange={(e) => onChange(e.target.value)}
         rows={4}
         className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"

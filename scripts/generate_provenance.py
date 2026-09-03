@@ -9,14 +9,15 @@ Usage: scripts/generate_provenance.py [--build-id <id>] [--environment <env>]
 """
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
-import hashlib
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 
 class ProvenanceGenerator:
     """Generate SLSA Level 3 provenance for build artifacts"""
@@ -33,57 +34,81 @@ class ProvenanceGenerator:
 
         try:
             # Get current branch
-            branch = subprocess.check_output(
-                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                cwd=self.project_root,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            metadata['branch'] = branch
+            branch = (
+                subprocess.check_output(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    cwd=self.project_root,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
+            metadata["branch"] = branch
 
             # Get commit hash
-            commit_hash = subprocess.check_output(
-                ['git', 'rev-parse', 'HEAD'],
-                cwd=self.project_root,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            metadata['commit_hash'] = commit_hash
+            commit_hash = (
+                subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=self.project_root,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
+            metadata["commit_hash"] = commit_hash
 
             # Get remote URL
-            remote_url = subprocess.check_output(
-                ['git', 'config', '--get', 'remote.origin.url'],
-                cwd=self.project_root,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            metadata['remote_url'] = remote_url
+            remote_url = (
+                subprocess.check_output(
+                    ["git", "config", "--get", "remote.origin.url"],
+                    cwd=self.project_root,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
+            metadata["remote_url"] = remote_url
 
             # Get commit message
-            commit_message = subprocess.check_output(
-                ['git', 'log', '-1', '--pretty=%B'],
-                cwd=self.project_root,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            metadata['commit_message'] = commit_message
+            commit_message = (
+                subprocess.check_output(
+                    ["git", "log", "-1", "--pretty=%B"],
+                    cwd=self.project_root,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
+            metadata["commit_message"] = commit_message
 
             # Get author
-            author = subprocess.check_output(
-                ['git', 'log', '-1', '--pretty=%an <%ae>'],
-                cwd=self.project_root,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            metadata['author'] = author
+            author = (
+                subprocess.check_output(
+                    ["git", "log", "-1", "--pretty=%an <%ae>"],
+                    cwd=self.project_root,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
+            metadata["author"] = author
 
             # Get commit timestamp
-            commit_timestamp = subprocess.check_output(
-                ['git', 'log', '-1', '--pretty=%ct'],
-                cwd=self.project_root,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            metadata['commit_timestamp'] = commit_timestamp
+            commit_timestamp = (
+                subprocess.check_output(
+                    ["git", "log", "-1", "--pretty=%ct"],
+                    cwd=self.project_root,
+                    stderr=subprocess.DEVNULL,
+                )
+                .decode()
+                .strip()
+            )
+            metadata["commit_timestamp"] = commit_timestamp
 
         except subprocess.CalledProcessError:
-            metadata['branch'] = 'unknown'
-            metadata['commit_hash'] = 'unknown'
-            metadata['remote_url'] = 'unknown'
+            metadata["branch"] = "unknown"
+            metadata["commit_hash"] = "unknown"
+            metadata["remote_url"] = "unknown"
 
         return metadata
 
@@ -96,30 +121,32 @@ class ProvenanceGenerator:
             "builder": {
                 "id": f"psychsync-builder-{self.environment}",
                 "version": "1.0.0",
-                "builder_type": "GitHub Actions" if os.getenv('GITHUB_ACTIONS') else "Local"
+                "builder_type": (
+                    "GitHub Actions" if os.getenv("GITHUB_ACTIONS") else "Local"
+                ),
             },
             "hostname": os.uname().nodename,
             "os": {
                 "name": os.uname().sysname,
                 "version": os.uname().release,
-                "arch": os.uname().machine
-            }
+                "arch": os.uname().machine,
+            },
         }
 
         # Add CI-specific metadata
-        if os.getenv('GITHUB_ACTIONS'):
-            metadata['ci'] = {
+        if os.getenv("GITHUB_ACTIONS"):
+            metadata["ci"] = {
                 "platform": "GitHub Actions",
-                "run_id": os.getenv('GITHUB_RUN_ID'),
-                "run_number": os.getenv('GITHUB_RUN_NUMBER'),
-                "run_attempt": os.getenv('GITHUB_RUN_ATTEMPT'),
-                "repository": os.getenv('GITHUB_REPOSITORY'),
-                "ref": os.getenv('GITHUB_REF'),
-                "sha": os.getenv('GITHUB_SHA'),
-                "actor": os.getenv('GITHUB_ACTOR'),
-                "workflow": os.getenv('GITHUB_WORKFLOW'),
-                "head_ref": os.getenv('GITHUB_HEAD_REF'),
-                "base_ref": os.getenv('GITHUB_BASE_REF')
+                "run_id": os.getenv("GITHUB_RUN_ID"),
+                "run_number": os.getenv("GITHUB_RUN_NUMBER"),
+                "run_attempt": os.getenv("GITHUB_RUN_ATTEMPT"),
+                "repository": os.getenv("GITHUB_REPOSITORY"),
+                "ref": os.getenv("GITHUB_REF"),
+                "sha": os.getenv("GITHUB_SHA"),
+                "actor": os.getenv("GITHUB_ACTOR"),
+                "workflow": os.getenv("GITHUB_WORKFLOW"),
+                "head_ref": os.getenv("GITHUB_HEAD_REF"),
+                "base_ref": os.getenv("GITHUB_BASE_REF"),
             }
 
         return metadata
@@ -129,38 +156,42 @@ class ProvenanceGenerator:
         materials = []
 
         # Git repository as material
-        materials.append({
-            "uri": f"{git_metadata.get('remote_url', 'unknown')}@{git_metadata.get('commit_hash', 'unknown')}",
-            "digest": {
-                "sha1": git_metadata.get('commit_hash', 'unknown')
-            },
-            "type": "git"
-        })
+        materials.append(
+            {
+                "uri": f"{git_metadata.get('remote_url', 'unknown')}@{git_metadata.get('commit_hash', 'unknown')}",
+                "digest": {"sha1": git_metadata.get("commit_hash", "unknown")},
+                "type": "git",
+            }
+        )
 
         # Requirements.txt as material
         requirements_file = self.project_root / "requirements.txt"
         if requirements_file.exists():
-            with open(requirements_file, 'rb') as f:
+            with open(requirements_file, "rb") as f:
                 requirements_hash = hashlib.sha256(f.read()).hexdigest()
 
-            materials.append({
-                "uri": "file://requirements.txt",
-                "digest": {"sha256": requirements_hash},
-                "type": "file"
-            })
+            materials.append(
+                {
+                    "uri": "file://requirements.txt",
+                    "digest": {"sha256": requirements_hash},
+                    "type": "file",
+                }
+            )
 
         # Package files as materials
-        for package_file in ['package.json', 'package-lock.json']:
+        for package_file in ["package.json", "package-lock.json"]:
             file_path = self.project_root / "frontend" / package_file
             if file_path.exists():
-                with open(file_path, 'rb') as f:
+                with open(file_path, "rb") as f:
                     file_hash = hashlib.sha256(f.read()).hexdigest()
 
-                materials.append({
-                    "uri": f"file://frontend/{package_file}",
-                    "digest": {"sha256": file_hash},
-                    "type": "file"
-                })
+                materials.append(
+                    {
+                        "uri": f"file://frontend/{package_file}",
+                        "digest": {"sha256": file_hash},
+                        "type": "file",
+                    }
+                )
 
         return materials
 
@@ -171,35 +202,35 @@ class ProvenanceGenerator:
         # Python dependencies
         requirements_file = self.project_root / "requirements.txt"
         if requirements_file.exists():
-            with open(requirements_file, 'r') as f:
+            with open(requirements_file, "r") as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith('#'):
+                    if line and not line.startswith("#"):
                         # Parse package name
-                        if '>=' in line or '==' in line:
-                            name = line.split('>=')[0].split('==')[0].strip()
+                        if ">=" in line or "==" in line:
+                            name = line.split(">=")[0].split("==")[0].strip()
                         else:
                             name = line
 
-                        dependencies.append({
-                            "name": name,
-                            "type": "python",
-                            "purl": f"pkg:pypi/{name}"
-                        })
+                        dependencies.append(
+                            {"name": name, "type": "python", "purl": f"pkg:pypi/{name}"}
+                        )
 
         # Node.js dependencies
         package_file = self.project_root / "frontend" / "package.json"
         if package_file.exists():
-            with open(package_file, 'r') as f:
+            with open(package_file, "r") as f:
                 package_data = json.load(f)
 
-            for name, version in package_data.get('dependencies', {}).items():
-                dependencies.append({
-                    "name": name,
-                    "version": version,
-                    "type": "node",
-                    "purl": f"pkg:npm/{name}@{version}"
-                })
+            for name, version in package_data.get("dependencies", {}).items():
+                dependencies.append(
+                    {
+                        "name": name,
+                        "version": version,
+                        "type": "node",
+                        "purl": f"pkg:npm/{name}@{version}",
+                    }
+                )
 
         return dependencies
 
@@ -210,13 +241,13 @@ class ProvenanceGenerator:
         git_metadata: Dict[str, str],
         build_metadata: Dict[str, Any],
         materials: List[Dict[str, Any]],
-        dependencies: List[Dict[str, str]]
+        dependencies: List[Dict[str, str]],
     ) -> Dict[str, Any]:
         """Generate provenance for a single artifact"""
 
         # Calculate artifact hash
         sha256_hash = hashlib.sha256()
-        with open(artifact_path, 'rb') as f:
+        with open(artifact_path, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
         digest = sha256_hash.hexdigest()
@@ -228,51 +259,47 @@ class ProvenanceGenerator:
             "subject": [
                 {
                     "name": os.path.basename(artifact_path),
-                    "digest": {
-                        "sha256": digest
-                    },
+                    "digest": {"sha256": digest},
                     "size": os.path.getsize(artifact_path),
-                    "type": artifact_type
+                    "type": artifact_type,
                 }
             ],
             "predicate": {
                 "builder": {
                     "id": build_metadata["builder"]["id"],
                     "version": build_metadata["builder"]["version"],
-                    "builder_type": build_metadata["builder"]["builder_type"]
+                    "builder_type": build_metadata["builder"]["builder_type"],
                 },
                 "buildType": "https://slsa.dev/secure-builds/v1",
                 "invocation": {
                     "configSource": {
                         "uri": f"{git_metadata.get('remote_url', 'unknown')}@{git_metadata.get('commit_hash', 'unknown')}",
-                        "digest": {
-                            "sha1": git_metadata.get('commit_hash', 'unknown')
-                        },
-                        "entryPoint": "scripts/sign_build_artifacts.sh"
+                        "digest": {"sha1": git_metadata.get("commit_hash", "unknown")},
+                        "entryPoint": "scripts/sign_build_artifacts.sh",
                     },
                     "parameters": {
                         "environment": self.environment,
                         "build_id": self.build_id,
-                        "artifact_type": artifact_type
+                        "artifact_type": artifact_type,
                     },
                     "environment": {
                         "hostname": build_metadata.get("hostname", "unknown"),
-                        "os": build_metadata.get("os", {})
-                    }
+                        "os": build_metadata.get("os", {}),
+                    },
                 },
                 "buildConfig": {
                     "artifact_type": artifact_type,
                     "dependencies": dependencies,
-                    "materials_count": len(materials)
+                    "materials_count": len(materials),
                 },
                 "materials": materials,
                 "metadata": {
                     "build_timestamp": build_metadata["timestamp"],
                     "git_branch": git_metadata.get("branch", "unknown"),
                     "git_author": git_metadata.get("author", "unknown"),
-                    "ci_metadata": build_metadata.get("ci", {})
-                }
-            }
+                    "ci_metadata": build_metadata.get("ci", {}),
+                },
+            },
         }
 
         return provenance
@@ -317,12 +344,12 @@ class ProvenanceGenerator:
         # Process manifest file if exists
         manifest_file = artifacts_path / f"manifest-{self.build_id}.json"
         if manifest_file.exists():
-            with open(manifest_file, 'r') as f:
+            with open(manifest_file, "r") as f:
                 manifest = json.load(f)
 
             # Generate provenance for Docker images
-            for image in manifest.get('docker_images', []):
-                image_name = image['name']
+            for image in manifest.get("docker_images", []):
+                image_name = image["name"]
                 print(f"Generating provenance for: {image_name}")
 
                 # Docker image provenance (reference-based)
@@ -332,9 +359,7 @@ class ProvenanceGenerator:
                     "subject": [
                         {
                             "name": image_name,
-                            "digest": {
-                                "sha256": image.get('image_id', 'unknown')
-                            }
+                            "digest": {"sha256": image.get("image_id", "unknown")},
                         }
                     ],
                     "predicate": {
@@ -343,28 +368,32 @@ class ProvenanceGenerator:
                         "invocation": {
                             "configSource": {
                                 "uri": f"{git_metadata.get('remote_url', 'unknown')}@{git_metadata.get('commit_hash', 'unknown')}",
-                                "digest": {"sha1": git_metadata.get('commit_hash', 'unknown')}
+                                "digest": {
+                                    "sha1": git_metadata.get("commit_hash", "unknown")
+                                },
                             },
                             "parameters": {
                                 "environment": self.environment,
-                                "image_name": image_name
-                            }
+                                "image_name": image_name,
+                            },
                         },
-                        "materials": materials
-                    }
+                        "materials": materials,
+                    },
                 }
 
-                provenance_file = output_path / f"{image_name.replace(':', '-')}.provenance.json"
-                with open(provenance_file, 'w') as f:
+                provenance_file = (
+                    output_path / f"{image_name.replace(':', '-')}.provenance.json"
+                )
+                with open(provenance_file, "w") as f:
                     json.dump(provenance, f, indent=2)
 
                 print(f"  ✓ {provenance_file.name}")
                 provenance_count += 1
 
             # Generate provenance for artifacts
-            for artifact in manifest.get('artifacts', []):
-                artifact_path = artifact['path']
-                artifact_type = artifact.get('type', 'unknown')
+            for artifact in manifest.get("artifacts", []):
+                artifact_path = artifact["path"]
+                artifact_type = artifact.get("type", "unknown")
 
                 if not os.path.exists(artifact_path):
                     print(f"⚠ Artifact not found: {artifact_path}")
@@ -378,11 +407,11 @@ class ProvenanceGenerator:
                     git_metadata,
                     build_metadata,
                     materials,
-                    dependencies
+                    dependencies,
                 )
 
                 provenance_file = output_path / f"{artifact['name']}.provenance.json"
-                with open(provenance_file, 'w') as f:
+                with open(provenance_file, "w") as f:
                     json.dump(provenance, f, indent=2)
 
                 print(f"  ✓ {provenance_file.name}")
@@ -395,16 +424,16 @@ class ProvenanceGenerator:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "generator": {
                 "name": "PsychSync SLSA Provenance Generator",
-                "version": "1.0.0"
+                "version": "1.0.0",
             },
             "git_metadata": git_metadata,
             "build_metadata": build_metadata,
             "provenance_files": provenance_count,
-            "artifacts": []
+            "artifacts": [],
         }
 
         manifest_file = output_path / f"provenance-manifest-{self.build_id}.json"
-        with open(manifest_file, 'w') as f:
+        with open(manifest_file, "w") as f:
             json.dump(manifest, f, indent=2)
 
         print()
@@ -424,29 +453,27 @@ def main():
         description="Generate SLSA Level 3 provenance for build artifacts"
     )
     parser.add_argument(
-        '--build-id',
+        "--build-id",
         default=f"build-{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
-        help="Build ID (default: auto-generated)"
+        help="Build ID (default: auto-generated)",
     )
     parser.add_argument(
-        '--environment',
-        default=os.getenv('ENVIRONMENT', 'development'),
-        help="Build environment (default: ENVIRONMENT env var or 'development')"
+        "--environment",
+        default=os.getenv("ENVIRONMENT", "development"),
+        help="Build environment (default: ENVIRONMENT env var or 'development')",
     )
     parser.add_argument(
-        '--artifacts-dir',
-        default='build/artifacts',
-        help="Directory containing build artifacts"
+        "--artifacts-dir",
+        default="build/artifacts",
+        help="Directory containing build artifacts",
     )
     parser.add_argument(
-        '--output-dir',
-        default='build/provenance',
-        help="Output directory for provenance files"
+        "--output-dir",
+        default="build/provenance",
+        help="Output directory for provenance files",
     )
     parser.add_argument(
-        '--project-root',
-        default=os.getcwd(),
-        help="Project root directory"
+        "--project-root", default=os.getcwd(), help="Project root directory"
     )
 
     args = parser.parse_args()
@@ -455,15 +482,14 @@ def main():
     generator = ProvenanceGenerator(
         build_id=args.build_id,
         environment=args.environment,
-        project_root=args.project_root
+        project_root=args.project_root,
     )
 
     # Generate provenance
     generator.generate_all_provenance(
-        artifacts_dir=args.artifacts_dir,
-        output_dir=args.output_dir
+        artifacts_dir=args.artifacts_dir, output_dir=args.output_dir
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

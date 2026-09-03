@@ -4,7 +4,8 @@
  * AI-powered team composition and analysis
  */
 import React, { useState, useEffect } from 'react';
-import { Users, Target, TrendingUp, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { Users, Target, TrendingUp, AlertCircle, CheckCircle, Loader, Building2 } from 'lucide-react';
+import { useHRISData } from '@/hooks/useHRISData';
 // =================================================================
 // TYPES
 // =================================================================
@@ -43,6 +44,11 @@ const TeamOptimizer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [candidates, setCandidates] = useState<TeamMember[]>([]);
   const [optimizedTeam, setOptimizedTeam] = useState<OptimizedTeam | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('All');
+
+  // HRIS Data
+  const { departments, getEmployeesByDepartment } = useHRISData();
+
   // Form state
   const [teamName, setTeamName] = useState('');
   const [targetSize, setTargetSize] = useState(5);
@@ -51,6 +57,11 @@ const TeamOptimizer: React.FC = () => {
   useEffect(() => {
     fetchCandidates();
   }, []);
+
+  // Filter candidates based on selected department
+  const filteredCandidates = selectedDepartment === 'All'
+    ? candidates
+    : candidates.filter(candidate => candidate.department === selectedDepartment);
   // =================================================================
   // API CALLS
   // =================================================================
@@ -131,6 +142,36 @@ const TeamOptimizer: React.FC = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
+
+        {/* HRIS Department Filter */}
+        {departments.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="flex items-center">
+                <Building2 className="w-4 h-4 mr-2 text-indigo-600" />
+                Filter by Department
+              </div>
+            </label>
+            <select
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+            >
+              <option value="All">All Departments</option>
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+            {selectedDepartment !== 'All' && (
+              <p className="text-sm text-gray-600 mt-1">
+                Showing {filteredCandidates.length} {filteredCandidates.length === 1 ? 'candidate' : 'candidates'} from {selectedDepartment}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Required Roles */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -145,7 +186,7 @@ const TeamOptimizer: React.FC = () => {
                   onChange={(e) => {
                     const newRoles = { ...requiredRoles };
                     delete newRoles[role];
-                    newRoles[e.target.value] = count;
+                    newRoles[e.target.value] = count as number;
                     setRequiredRoles(newRoles);
                   }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
@@ -195,7 +236,7 @@ const TeamOptimizer: React.FC = () => {
                   onChange={(e) => {
                     const newSkills = { ...requiredSkills };
                     delete newSkills[skill];
-                    newSkills[e.target.value] = level;
+                    newSkills[e.target.value] = level as number;
                     setRequiredSkills(newSkills);
                   }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
@@ -233,13 +274,29 @@ const TeamOptimizer: React.FC = () => {
           </div>
         </div>
         {/* Candidate Pool Info */}
-        <div className="bg-blue-50 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <Users className="w-5 h-5 text-blue-600 mr-2" />
-            <span className="text-sm text-blue-900">
-              {candidates.length} candidates available for optimization
-            </span>
+        <div className={`rounded-lg p-4 mb-6 ${selectedDepartment !== 'All' ? 'bg-indigo-50' : 'bg-blue-50'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Users className="w-5 h-5 text-blue-600 mr-2" />
+              <span className="text-sm text-blue-900">
+                {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? 's' : ''} available
+                {selectedDepartment !== 'All' && ` in ${selectedDepartment}`}
+              </span>
+            </div>
+            {selectedDepartment !== 'All' && (
+              <button
+                onClick={() => setSelectedDepartment('All')}
+                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              >
+                Clear Filter
+              </button>
+            )}
           </div>
+          {selectedDepartment !== 'All' && candidates.length !== filteredCandidates.length && (
+            <div className="mt-2 text-xs text-gray-600">
+              (filtered from {candidates.length} total candidates)
+            </div>
+          )}
         </div>
         {/* Optimize Button */}
         <button

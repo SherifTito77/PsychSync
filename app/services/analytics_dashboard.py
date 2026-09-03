@@ -10,11 +10,11 @@ Provides real-time and historical analytics across multiple dimensions:
 """
 
 import asyncio
+import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 import numpy as np
@@ -180,7 +180,9 @@ class AnalyticsDashboard:
         Get comprehensive dashboard overview with key metrics.
         """
         try:
-            cache_key = f"dashboard:overview:{time_period.value}:{organization_id}:{team_id}"
+            cache_key = (
+                f"dashboard:overview:{time_period.value}:{organization_id}:{team_id}"
+            )
 
             # Try cache first
             if self.redis_client:
@@ -202,11 +204,21 @@ class AnalyticsDashboard:
             overview = {
                 "period": time_period.value,
                 "generated_at": datetime.utcnow().isoformat(),
-                "user_metrics": results[0] if not isinstance(results[0], Exception) else {},
-                "assessment_metrics": results[1] if not isinstance(results[1], Exception) else {},
-                "team_metrics": results[2] if not isinstance(results[2], Exception) else {},
-                "system_metrics": results[3] if not isinstance(results[3], Exception) else {},
-                "business_metrics": results[4] if not isinstance(results[4], Exception) else {},
+                "user_metrics": (
+                    results[0] if not isinstance(results[0], Exception) else {}
+                ),
+                "assessment_metrics": (
+                    results[1] if not isinstance(results[1], Exception) else {}
+                ),
+                "team_metrics": (
+                    results[2] if not isinstance(results[2], Exception) else {}
+                ),
+                "system_metrics": (
+                    results[3] if not isinstance(results[3], Exception) else {}
+                ),
+                "business_metrics": (
+                    results[4] if not isinstance(results[4], Exception) else {}
+                ),
                 "summary": await self._generate_summary(results),
             }
 
@@ -234,9 +246,7 @@ class AnalyticsDashboard:
         Get time series data for a specific metric.
         """
         try:
-            cache_key = (
-                f"timeseries:{metric}:{time_period.value}:{granularity}:{organization_id}:{team_id}"
-            )
+            cache_key = f"timeseries:{metric}:{time_period.value}:{granularity}:{organization_id}:{team_id}"
 
             if self.redis_client:
                 cached_data = await self.redis_client.get(cache_key)
@@ -254,7 +264,9 @@ class AnalyticsDashboard:
                     if time_period in [TimePeriod.LAST_90_DAYS, TimePeriod.THIS_YEAR]
                     else self.config.cache_ttl
                 )
-                await self.redis_client.setex(cache_key, ttl, json.dumps(time_series, default=str))
+                await self.redis_client.setex(
+                    cache_key, ttl, json.dumps(time_series, default=str)
+                )
 
             return time_series
 
@@ -263,23 +275,31 @@ class AnalyticsDashboard:
             return self._get_empty_time_series(metric, time_period)
 
     async def get_analytics_insights(
-        self, time_period: TimePeriod = TimePeriod.LAST_30_DAYS, organization_id: str | None = None
+        self,
+        time_period: TimePeriod = TimePeriod.LAST_30_DAYS,
+        organization_id: str | None = None,
     ) -> dict[str, Any]:
         """
         Generate AI-powered insights from analytics data.
         """
         try:
             insights = {
-                "user_insights": await self._generate_user_insights(time_period, organization_id),
+                "user_insights": await self._generate_user_insights(
+                    time_period, organization_id
+                ),
                 "assessment_insights": await self._generate_assessment_insights(
                     time_period, organization_id
                 ),
-                "team_insights": await self._generate_team_insights(time_period, organization_id),
+                "team_insights": await self._generate_team_insights(
+                    time_period, organization_id
+                ),
                 "recommendations": await self._generate_recommendations(
                     time_period, organization_id
                 ),
                 "anomalies": await self._detect_anomalies(time_period, organization_id),
-                "predictions": await self._generate_predictions(time_period, organization_id),
+                "predictions": await self._generate_predictions(
+                    time_period, organization_id
+                ),
             }
 
             return insights
@@ -309,7 +329,9 @@ class AnalyticsDashboard:
                 "user_growth_rate": 0.12,  # 12% growth
                 "daily_active_users": [
                     {
-                        "date": (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d"),
+                        "date": (datetime.utcnow() - timedelta(days=i)).strftime(
+                            "%Y-%m-%d"
+                        ),
                         "users": 800 + np.random.randint(-50, 100),
                     }
                     for i in range(30, 0, -1)
@@ -434,11 +456,17 @@ class AnalyticsDashboard:
 
             # Generate mock time series data
             if granularity == "day":
-                dates = pd.date_range(start=date_range["start"], end=date_range["end"], freq="D")
+                dates = pd.date_range(
+                    start=date_range["start"], end=date_range["end"], freq="D"
+                )
             elif granularity == "week":
-                dates = pd.date_range(start=date_range["start"], end=date_range["end"], freq="W")
+                dates = pd.date_range(
+                    start=date_range["start"], end=date_range["end"], freq="W"
+                )
             else:  # month
-                dates = pd.date_range(start=date_range["start"], end=date_range["end"], freq="M")
+                dates = pd.date_range(
+                    start=date_range["start"], end=date_range["end"], freq="M"
+                )
 
             # Generate mock values with trend and noise
             base_values = {
@@ -462,7 +490,9 @@ class AnalyticsDashboard:
                 value = base_value * trend_factor * seasonal_factor * noise_factor
                 value = max(0, value)  # Ensure non-negative
 
-                data_points.append({"date": date.strftime("%Y-%m-%d"), "value": round(value, 2)})
+                data_points.append(
+                    {"date": date.strftime("%Y-%m-%d"), "value": round(value, 2)}
+                )
 
             return {
                 "metric": metric,
@@ -576,7 +606,11 @@ class AnalyticsDashboard:
     ) -> dict[str, Any]:
         """Generate predictions for future metrics."""
         return {
-            "next_month_predictions": {"active_users": 950, "revenue_mrr": 52000, "new_teams": 12},
+            "next_month_predictions": {
+                "active_users": 950,
+                "revenue_mrr": 52000,
+                "new_teams": 12,
+            },
             "confidence_level": 0.85,
             "model_version": "v2.1",
         }
@@ -601,7 +635,9 @@ class AnalyticsDashboard:
         elif time_period == TimePeriod.THIS_MONTH:
             start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         elif time_period == TimePeriod.LAST_MONTH:
-            first_day_this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            first_day_this_month = now.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
             start = first_day_this_month - timedelta(days=1)
             start = start.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             end = first_day_this_month - timedelta(microseconds=1)
@@ -611,7 +647,9 @@ class AnalyticsDashboard:
 
         return {"start": start, "end": now}
 
-    def _calculate_time_series_summary(self, data_points: list[dict]) -> dict[str, float]:
+    def _calculate_time_series_summary(
+        self, data_points: list[dict]
+    ) -> dict[str, float]:
         """Calculate summary statistics for time series data."""
         if not data_points:
             return {}
@@ -686,9 +724,16 @@ class AnalyticsDashboard:
             "summary": {},
         }
 
-    def _get_empty_time_series(self, metric: str, time_period: TimePeriod) -> dict[str, Any]:
+    def _get_empty_time_series(
+        self, metric: str, time_period: TimePeriod
+    ) -> dict[str, Any]:
         """Get empty time series structure."""
-        return {"metric": metric, "period": time_period.value, "data_points": [], "summary": {}}
+        return {
+            "metric": metric,
+            "period": time_period.value,
+            "data_points": [],
+            "summary": {},
+        }
 
     def _get_empty_insights(self) -> dict[str, Any]:
         """Get empty insights structure."""
@@ -716,7 +761,9 @@ class AnalyticsCacheManager:
             keys = await self.redis.keys(pattern)
             if keys:
                 await self.redis.delete(*keys)
-                logger.info(f"Invalidated {len(keys)} cache entries for pattern: {pattern}")
+                logger.info(
+                    f"Invalidated {len(keys)} cache entries for pattern: {pattern}"
+                )
         except Exception as e:
             logger.error(f"Error invalidating cache pattern {pattern}: {e}")
 

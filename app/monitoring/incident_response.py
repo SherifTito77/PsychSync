@@ -14,11 +14,11 @@ Version: 1.0
 Date: 2025-12-26
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 from app.monitoring.audit_logger import AuditSeverity, audit_logger
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 class ResponseAction(str, Enum):
     """Automated response actions"""
+
     # Account actions
     LOCK_ACCOUNT = "lock_account"
     FORCE_PASSWORD_RESET = "force_password_reset"
@@ -53,6 +54,7 @@ class ResponseAction(str, Enum):
 
 class ActionResult(str, Enum):
     """Result of response action execution"""
+
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -63,6 +65,7 @@ class ActionResult(str, Enum):
 @dataclass
 class ResponseActionExecuted:
     """Record of executed response action"""
+
     action: ResponseAction
     result: ActionResult
     timestamp: datetime
@@ -78,6 +81,7 @@ class IncidentResponse:
 
     Defines how to respond to specific threat types.
     """
+
     threat_type: str
     min_confidence: float = 0.8
     min_severity: ThreatLevel = ThreatLevel.HIGH
@@ -133,7 +137,7 @@ class IncidentResponder:
                 ResponseAction.TERMINATE_SESSIONS,
             ],
             requires_approval=True,  # Account actions need approval
-            cooldown_minutes=30
+            cooldown_minutes=30,
         )
 
         # IP-based brute force (more aggressive)
@@ -146,7 +150,7 @@ class IncidentResponder:
                 ResponseAction.ALERT_ADMIN,
             ],
             requires_approval=False,  # IP blocking doesn't require approval
-            cooldown_minutes=60
+            cooldown_minutes=60,
         )
 
         # Unauthorized access attempt
@@ -160,7 +164,7 @@ class IncidentResponder:
                 ResponseAction.ALERT_USER,
             ],
             requires_approval=True,
-            cooldown_minutes=60
+            cooldown_minutes=60,
         )
 
         # Data exfiltration
@@ -174,7 +178,7 @@ class IncidentResponder:
                 ResponseAction.INCREASE_MONITORING,
             ],
             requires_approval=True,
-            cooldown_minutes=30
+            cooldown_minutes=30,
         )
 
         # Automation/Bot detection
@@ -187,14 +191,14 @@ class IncidentResponder:
                 ResponseAction.INCREASE_MONITORING,
             ],
             requires_approval=False,
-            cooldown_minutes=15
+            cooldown_minutes=15,
         )
 
     async def respond_to_threat(
         self,
         threat: ThreatIndicator,
         affected_entities: list[str],
-        auto_approve: bool = False
+        auto_approve: bool = False,
     ) -> list[ResponseActionExecuted]:
         """
         Execute automated response to threat indicator.
@@ -211,41 +215,53 @@ class IncidentResponder:
         # Check if we have a response config for this threat type
         config = self.response_configs.get(threat.indicator_type)
         if not config:
-            logger.warning(f"No response configuration for threat type: {threat.indicator_type}")
+            logger.warning(
+                f"No response configuration for threat type: {threat.indicator_type}"
+            )
             return results
 
         # Check if threat meets response criteria
         if threat.confidence < config.min_confidence:
-            logger.info(f"Threat confidence {threat.confidence} below threshold {config.min_confidence}")
+            logger.info(
+                f"Threat confidence {threat.confidence} below threshold {config.min_confidence}"
+            )
             return results
 
         severity_levels = {
             ThreatLevel.LOW: 1,
             ThreatLevel.MEDIUM: 2,
             ThreatLevel.HIGH: 3,
-            ThreatLevel.CRITICAL: 4
+            ThreatLevel.CRITICAL: 4,
         }
         if severity_levels[threat.severity] < severity_levels[config.min_severity]:
-            logger.info(f"Threat severity {threat.severity} below threshold {config.min_severity}")
+            logger.info(
+                f"Threat severity {threat.severity} below threshold {config.min_severity}"
+            )
             return results
 
         # Execute response actions
         for action in config.actions:
             # Check cooldown
-            action_key = f"{action}:{affected_entities[0] if affected_entities else 'global'}"
+            action_key = (
+                f"{action}:{affected_entities[0] if affected_entities else 'global'}"
+            )
             last_executed = self.action_history.get(action_key)
 
             if last_executed:
-                cooldown_expiry = last_executed + timedelta(minutes=config.cooldown_minutes)
+                cooldown_expiry = last_executed + timedelta(
+                    minutes=config.cooldown_minutes
+                )
                 if datetime.utcnow() < cooldown_expiry:
                     logger.info(f"Action {action} in cooldown until {cooldown_expiry}")
-                    results.append(ResponseActionExecuted(
-                        action=action,
-                        result=ActionResult.SKIPPED,
-                        timestamp=datetime.utcnow(),
-                        target="cooldown",
-                        details={"cooldown_until": cooldown_expiry.isoformat()}
-                    ))
+                    results.append(
+                        ResponseActionExecuted(
+                            action=action,
+                            result=ActionResult.SKIPPED,
+                            timestamp=datetime.utcnow(),
+                            target="cooldown",
+                            details={"cooldown_until": cooldown_expiry.isoformat()},
+                        )
+                    )
                     continue
 
             # Check approval requirement
@@ -253,13 +269,15 @@ class IncidentResponder:
                 logger.info(f"Action {action} requires approval")
                 await self._request_approval(action, threat, affected_entities)
 
-                results.append(ResponseActionExecuted(
-                    action=action,
-                    result=ActionResult.REQUIRES_APPROVAL,
-                    timestamp=datetime.utcnow(),
-                    target="pending_approval",
-                    details={"threat": threat.description}
-                ))
+                results.append(
+                    ResponseActionExecuted(
+                        action=action,
+                        result=ActionResult.REQUIRES_APPROVAL,
+                        timestamp=datetime.utcnow(),
+                        target="pending_approval",
+                        details={"threat": threat.description},
+                    )
+                )
                 continue
 
             # Execute action
@@ -273,13 +291,15 @@ class IncidentResponder:
 
             except Exception as e:
                 logger.error(f"Error executing action {action}: {e}")
-                results.append(ResponseActionExecuted(
-                    action=action,
-                    result=ActionResult.FAILED,
-                    timestamp=datetime.utcnow(),
-                    target="unknown",
-                    error=str(e)
-                ))
+                results.append(
+                    ResponseActionExecuted(
+                        action=action,
+                        result=ActionResult.FAILED,
+                        timestamp=datetime.utcnow(),
+                        target="unknown",
+                        error=str(e),
+                    )
+                )
 
         return results
 
@@ -287,7 +307,7 @@ class IncidentResponder:
         self,
         action: ResponseAction,
         threat: ThreatIndicator,
-        affected_entities: list[str]
+        affected_entities: list[str],
     ) -> ResponseActionExecuted:
         """Execute a single response action"""
 
@@ -299,7 +319,7 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target="unknown",
-                error="No handler registered"
+                error="No handler registered",
             )
 
         # Call handler
@@ -308,9 +328,7 @@ class IncidentResponder:
     # ==================== Action Handlers ====================
 
     async def _lock_account(
-        self,
-        threat: ThreatIndicator,
-        affected_entities: list[str]
+        self, threat: ThreatIndicator, affected_entities: list[str]
     ) -> ResponseActionExecuted:
         """Lock affected user account"""
 
@@ -327,7 +345,7 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target="unknown",
-                error="No user ID found in affected entities"
+                error="No user ID found in affected entities",
             )
 
         # Lock account
@@ -344,8 +362,8 @@ class IncidentResponder:
                 details={
                     "reason": threat.description,
                     "threat_type": threat.indicator_type,
-                    "confidence": threat.confidence
-                }
+                    "confidence": threat.confidence,
+                },
             )
 
             logger.info(f"Locked account {user_id} due to {threat.indicator_type}")
@@ -355,7 +373,11 @@ class IncidentResponder:
                 result=ActionResult.SUCCESS,
                 timestamp=datetime.utcnow(),
                 target=f"user_{user_id}",
-                details={"locked_until": (datetime.utcnow() + timedelta(hours=24)).isoformat()}
+                details={
+                    "locked_until": (
+                        datetime.utcnow() + timedelta(hours=24)
+                    ).isoformat()
+                },
             )
 
         except Exception as e:
@@ -364,13 +386,11 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target=f"user_{user_id}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _terminate_sessions(
-        self,
-        threat: ThreatIndicator,
-        affected_entities: list[str]
+        self, threat: ThreatIndicator, affected_entities: list[str]
     ) -> ResponseActionExecuted:
         """Terminate all sessions for affected user"""
 
@@ -386,7 +406,7 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target="unknown",
-                error="No user ID found in affected entities"
+                error="No user ID found in affected entities",
             )
 
         try:
@@ -399,8 +419,8 @@ class IncidentResponder:
                 user_id=user_id,
                 details={
                     "reason": threat.description,
-                    "threat_type": threat.indicator_type
-                }
+                    "threat_type": threat.indicator_type,
+                },
             )
 
             logger.info(f"Terminated sessions for user {user_id}")
@@ -410,7 +430,7 @@ class IncidentResponder:
                 result=ActionResult.SUCCESS,
                 timestamp=datetime.utcnow(),
                 target=f"user_{user_id}",
-                details={"sessions_terminated": "all"}
+                details={"sessions_terminated": "all"},
             )
 
         except Exception as e:
@@ -419,13 +439,11 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target=f"user_{user_id}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _block_ip(
-        self,
-        threat: ThreatIndicator,
-        affected_entities: list[str]
+        self, threat: ThreatIndicator, affected_entities: list[str]
     ) -> ResponseActionExecuted:
         """Block malicious IP address"""
 
@@ -442,7 +460,7 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target="unknown",
-                error="No IP address found in affected entities"
+                error="No IP address found in affected entities",
             )
 
         try:
@@ -457,8 +475,10 @@ class IncidentResponder:
                     "ip_address": ip_address,
                     "reason": threat.description,
                     "threat_type": threat.indicator_type,
-                    "blocked_until": (datetime.utcnow() + timedelta(hours=24)).isoformat()
-                }
+                    "blocked_until": (
+                        datetime.utcnow() + timedelta(hours=24)
+                    ).isoformat(),
+                },
             )
 
             logger.info(f"Blocked IP {ip_address} due to {threat.indicator_type}")
@@ -468,7 +488,11 @@ class IncidentResponder:
                 result=ActionResult.SUCCESS,
                 timestamp=datetime.utcnow(),
                 target=ip_address,
-                details={"blocked_until": (datetime.utcnow() + timedelta(hours=24)).isoformat()}
+                details={
+                    "blocked_until": (
+                        datetime.utcnow() + timedelta(hours=24)
+                    ).isoformat()
+                },
             )
 
         except Exception as e:
@@ -477,13 +501,11 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target=ip_address,
-                error=str(e)
+                error=str(e),
             )
 
     async def _rate_limit_ip(
-        self,
-        threat: ThreatIndicator,
-        affected_entities: list[str]
+        self, threat: ThreatIndicator, affected_entities: list[str]
     ) -> ResponseActionExecuted:
         """Apply rate limiting to IP address"""
 
@@ -499,7 +521,7 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target="unknown",
-                error="No IP address found in affected entities"
+                error="No IP address found in affected entities",
             )
 
         try:
@@ -512,8 +534,8 @@ class IncidentResponder:
                 details={
                     "ip_address": ip_address,
                     "reason": threat.description,
-                    "threat_type": threat.indicator_type
-                }
+                    "threat_type": threat.indicator_type,
+                },
             )
 
             return ResponseActionExecuted(
@@ -521,7 +543,7 @@ class IncidentResponder:
                 result=ActionResult.SUCCESS,
                 timestamp=datetime.utcnow(),
                 target=ip_address,
-                details={"rate_limit": "10_requests_per_minute"}
+                details={"rate_limit": "10_requests_per_minute"},
             )
 
         except Exception as e:
@@ -530,13 +552,11 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target=ip_address,
-                error=str(e)
+                error=str(e),
             )
 
     async def _alert_admin(
-        self,
-        threat: ThreatIndicator,
-        affected_entities: list[str]
+        self, threat: ThreatIndicator, affected_entities: list[str]
     ) -> ResponseActionExecuted:
         """Send alert to administrators"""
 
@@ -553,8 +573,8 @@ class IncidentResponder:
                     "severity": threat.severity.value,
                     "confidence": threat.confidence,
                     "affected_entities": affected_entities,
-                    "mitigation_suggestions": threat.mitigation_suggestions
-                }
+                    "mitigation_suggestions": threat.mitigation_suggestions,
+                },
             )
 
             logger.warning(f"Admin alert: {threat.description}")
@@ -564,7 +584,7 @@ class IncidentResponder:
                 result=ActionResult.SUCCESS,
                 timestamp=datetime.utcnow(),
                 target="administrators",
-                details={"alert_channel": "audit_log"}  # TODO: Add email, Slack, etc.
+                details={"alert_channel": "audit_log"},  # TODO: Add email, Slack, etc.
             )
 
         except Exception as e:
@@ -573,13 +593,11 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target="administrators",
-                error=str(e)
+                error=str(e),
             )
 
     async def _alert_user(
-        self,
-        threat: ThreatIndicator,
-        affected_entities: list[str]
+        self, threat: ThreatIndicator, affected_entities: list[str]
     ) -> ResponseActionExecuted:
         """Send alert to affected user"""
 
@@ -595,7 +613,7 @@ class IncidentResponder:
                 result=ActionResult.SKIPPED,
                 timestamp=datetime.utcnow(),
                 target="unknown",
-                details={"reason": "No user ID found"}
+                details={"reason": "No user ID found"},
             )
 
         try:
@@ -609,8 +627,8 @@ class IncidentResponder:
                 details={
                     "alert_type": "security_incident",
                     "threat_type": threat.indicator_type,
-                    "description": "Suspicious activity detected on your account"
-                }
+                    "description": "Suspicious activity detected on your account",
+                },
             )
 
             return ResponseActionExecuted(
@@ -618,7 +636,7 @@ class IncidentResponder:
                 result=ActionResult.SUCCESS,
                 timestamp=datetime.utcnow(),
                 target=f"user_{user_id}",
-                details={"alert_channel": "email"}  # TODO: Add in-app notification
+                details={"alert_channel": "email"},  # TODO: Add in-app notification
             )
 
         except Exception as e:
@@ -627,13 +645,11 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target=f"user_{user_id}",
-                error=str(e)
+                error=str(e),
             )
 
     async def _increase_monitoring(
-        self,
-        threat: ThreatIndicator,
-        affected_entities: list[str]
+        self, threat: ThreatIndicator, affected_entities: list[str]
     ) -> ResponseActionExecuted:
         """Increase monitoring level for affected entities"""
 
@@ -644,8 +660,8 @@ class IncidentResponder:
                 details={
                     "threat_type": threat.indicator_type,
                     "affected_entities": affected_entities,
-                    "monitoring_level": "enhanced"
-                }
+                    "monitoring_level": "enhanced",
+                },
             )
 
             return ResponseActionExecuted(
@@ -653,7 +669,7 @@ class IncidentResponder:
                 result=ActionResult.SUCCESS,
                 timestamp=datetime.utcnow(),
                 target=",".join(affected_entities),
-                details={"monitoring_level": "enhanced"}
+                details={"monitoring_level": "enhanced"},
             )
 
         except Exception as e:
@@ -662,14 +678,14 @@ class IncidentResponder:
                 result=ActionResult.FAILED,
                 timestamp=datetime.utcnow(),
                 target=",".join(affected_entities),
-                error=str(e)
+                error=str(e),
             )
 
     async def _request_approval(
         self,
         action: ResponseAction,
         threat: ThreatIndicator,
-        affected_entities: list[str]
+        affected_entities: list[str],
     ):
         """Request admin approval for action"""
 
@@ -681,8 +697,8 @@ class IncidentResponder:
                 "threat_type": threat.indicator_type,
                 "affected_entities": affected_entities,
                 "confidence": threat.confidence,
-                "severity": threat.severity.value
-            }
+                "severity": threat.severity.value,
+            },
         )
 
         # TODO: Implement approval workflow

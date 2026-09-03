@@ -176,7 +176,9 @@ class PersonalityMapper:
     def __init__(self):
         self.cache = {}
 
-    def map_traits(self, raw_traits: dict[str, Any], framework: str = "raw") -> dict[str, float]:
+    def map_traits(
+        self, raw_traits: dict[str, Any], framework: str = "raw"
+    ) -> dict[str, float]:
         """
         Normalize and map traits to standardized Big Five format
 
@@ -266,9 +268,13 @@ class PersonalityMapper:
             if letter in self.MBTI_TO_BIG_FIVE:
                 for dimension, contribution in self.MBTI_TO_BIG_FIVE[letter].items():
                     if contribution > 0:
-                        result[dimension] = min(result[dimension] + contribution * 0.3, 1.0)
+                        result[dimension] = min(
+                            result[dimension] + contribution * 0.3, 1.0
+                        )
                     else:
-                        result[dimension] = max(result[dimension] + contribution * 0.3, 0.0)
+                        result[dimension] = max(
+                            result[dimension] + contribution * 0.3, 0.0
+                        )
 
         # Consider confidence scores if provided
         confidence = traits.get("confidence", 0.8)
@@ -309,7 +315,9 @@ class PersonalityMapper:
             }
             type_num = type_mapping.get(str(primary_type).lower(), 5)
 
-        base_traits = self.ENNEAGRAM_TO_BIG_FIVE.get(type_num, self.ENNEAGRAM_TO_BIG_FIVE[5])
+        base_traits = self.ENNEAGRAM_TO_BIG_FIVE.get(
+            type_num, self.ENNEAGRAM_TO_BIG_FIVE[5]
+        )
 
         # Consider wings (adjacent types)
         wings = traits.get("wings", [])
@@ -351,7 +359,9 @@ class PersonalityMapper:
         for letter in disc_profile:
             if letter in self.DISC_TO_BIG_FIVE:
                 for dimension, contribution in self.DISC_TO_BIG_FIVE[letter].items():
-                    result[dimension] = min(result[dimension] + contribution * 0.25, 1.0)
+                    result[dimension] = min(
+                        result[dimension] + contribution * 0.25, 1.0
+                    )
 
         # Consider intensity scores if provided
         for letter in ["D", "I", "S", "C"]:
@@ -380,7 +390,8 @@ class PersonalityMapper:
 
         return {
             "extraversion": (b_norm + a_norm * 0.3) / 1.3,
-            "conscientiousness": (d_norm + (1 - a_norm) * 0.3 + (1 - b_norm) * 0.2) / 1.5,
+            "conscientiousness": (d_norm + (1 - a_norm) * 0.3 + (1 - b_norm) * 0.2)
+            / 1.5,
             "openness": ((1 - c_norm) + d_norm * 0.2) / 1.2,
             "agreeableness": ((1 - a_norm) + c_norm * 0.3 + d_norm * 0.2) / 1.5,
             "neuroticism": (a_norm * 0.3 + b_norm * 0.2) / 0.5,
@@ -428,7 +439,10 @@ class PersonalityMapper:
                 "analytical": {"openness": 0.7, "conscientiousness": 0.7},
                 "context": {"openness": 0.8, "conscientiousness": 0.5},
                 "futuristic": {"openness": 0.9, "conscientiousness": 0.6},
-                "ideation": {"openness": 0.9, "extraversion": 0.6},  # Also in influencing
+                "ideation": {
+                    "openness": 0.9,
+                    "extraversion": 0.6,
+                },  # Also in influencing
                 "input": {"openness": 0.8, "conscientiousness": 0.6},
                 "intellection": {"openness": 0.9, "neuroticism": 0.2},
                 "learner": {"openness": 0.8, "conscientiousness": 0.7},
@@ -438,7 +452,14 @@ class PersonalityMapper:
 
         # Start with neutral scores
         result = dict.fromkeys(
-            ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"], 0.5
+            [
+                "openness",
+                "conscientiousness",
+                "extraversion",
+                "agreeableness",
+                "neuroticism",
+            ],
+            0.5,
         )
 
         # Apply strength contributions

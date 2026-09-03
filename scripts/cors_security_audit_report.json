@@ -1,0 +1,167 @@
+{
+  "timestamp": "2024-01-01T00:00:00Z",
+  "project_root": "/Users/sheriftito/Downloads/psychsync/scripts",
+  "summary": {
+    "total_files_audited": 326,
+    "files_with_issues": 1,
+    "issues_by_severity": {
+      "critical": 2,
+      "high": 10,
+      "medium": 4,
+      "low": 0
+    },
+    "issues_by_type": {
+      "wildcard_origins": 8,
+      "credentials_with_wildcard": 2,
+      "allow_all_origins": 2,
+      "wildcard_methods": 2,
+      "wildcard_headers": 2
+    }
+  },
+  "issues": [
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 8,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "1. Wildcard origins (allow_origins=[\"*\"])"
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 152,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "description=\"CORS configured with wildcard origins (allow_origins=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 166,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "description=\"CORS allows credentials with wildcard origins (allow_credentials=True + allow_origins=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 280,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "print(\"  1. Never use wildcard origins (allow_origins=['*']) in production\")"
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 166,
+      "issue_type": "credentials_with_wildcard",
+      "severity": "critical",
+      "description": "CORS allows credentials with wildcard origins (allow_credentials=True + allow_origins=['*'])",
+      "recommendation": "Never use wildcard origins when credentials are enabled",
+      "code_snippet": "description=\"CORS allows credentials with wildcard origins (allow_credentials=True + allow_origins=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 180,
+      "issue_type": "allow_all_origins",
+      "severity": "high",
+      "description": "CORS configured with allow_all_origins=True or allow_any_origin=True",
+      "recommendation": "Use specific origin list instead of allowing all origins",
+      "code_snippet": "description=\"CORS configured with allow_all_origins=True or allow_any_origin=True\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 194,
+      "issue_type": "wildcard_methods",
+      "severity": "medium",
+      "description": "CORS configured with wildcard methods (allow_methods=['*'])",
+      "recommendation": "Specify exact methods needed (e.g., ['GET', 'POST'])",
+      "code_snippet": "description=\"CORS configured with wildcard methods (allow_methods=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 208,
+      "issue_type": "wildcard_headers",
+      "severity": "medium",
+      "description": "CORS configured with wildcard headers (allow_headers=['*'])",
+      "recommendation": "Specify exact headers needed",
+      "code_snippet": "description=\"CORS configured with wildcard headers (allow_headers=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 8,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "1. Wildcard origins (allow_origins=[\"*\"])"
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 152,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "description=\"CORS configured with wildcard origins (allow_origins=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 166,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "description=\"CORS allows credentials with wildcard origins (allow_credentials=True + allow_origins=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 280,
+      "issue_type": "wildcard_origins",
+      "severity": "high",
+      "description": "CORS configured with wildcard origins (allow_origins=['*'])",
+      "recommendation": "Use specific origin list instead of wildcard",
+      "code_snippet": "print(\"  1. Never use wildcard origins (allow_origins=['*']) in production\")"
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 166,
+      "issue_type": "credentials_with_wildcard",
+      "severity": "critical",
+      "description": "CORS allows credentials with wildcard origins (allow_credentials=True + allow_origins=['*'])",
+      "recommendation": "Never use wildcard origins when credentials are enabled",
+      "code_snippet": "description=\"CORS allows credentials with wildcard origins (allow_credentials=True + allow_origins=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 180,
+      "issue_type": "allow_all_origins",
+      "severity": "high",
+      "description": "CORS configured with allow_all_origins=True or allow_any_origin=True",
+      "recommendation": "Use specific origin list instead of allowing all origins",
+      "code_snippet": "description=\"CORS configured with allow_all_origins=True or allow_any_origin=True\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 194,
+      "issue_type": "wildcard_methods",
+      "severity": "medium",
+      "description": "CORS configured with wildcard methods (allow_methods=['*'])",
+      "recommendation": "Specify exact methods needed (e.g., ['GET', 'POST'])",
+      "code_snippet": "description=\"CORS configured with wildcard methods (allow_methods=['*'])\","
+    },
+    {
+      "file_path": "security/cors_security_audit.py",
+      "line_number": 208,
+      "issue_type": "wildcard_headers",
+      "severity": "medium",
+      "description": "CORS configured with wildcard headers (allow_headers=['*'])",
+      "recommendation": "Specify exact headers needed",
+      "code_snippet": "description=\"CORS configured with wildcard headers (allow_headers=['*'])\","
+    }
+  ]
+}

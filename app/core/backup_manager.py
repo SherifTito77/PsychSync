@@ -4,14 +4,14 @@ Implements automated backups with S3 integration and point-in-time recovery
 """
 
 import asyncio
-from datetime import datetime, timedelta
 import gzip
 import hashlib
 import json
 import logging
 import os
-from pathlib import Path
 import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from app.core.config import settings
@@ -41,7 +41,9 @@ class DatabaseBackupManager:
         self.s3_region = settings.BACKUP_S3_REGION
         self.retention_days = settings.BACKUP_RETENTION_DAYS
 
-    async def create_full_backup(self, description: str | None = None) -> dict[str, Any]:
+    async def create_full_backup(
+        self, description: str | None = None
+    ) -> dict[str, Any]:
         """
         Create a full database backup
 
@@ -151,7 +153,9 @@ class DatabaseBackupManager:
             Dict with backup metadata
         """
         backup_timestamp = datetime.utcnow()
-        backup_id = f"incremental_{base_backup_id}_{backup_timestamp.strftime('%Y%m%d_%H%M%S')}"
+        backup_id = (
+            f"incremental_{base_backup_id}_{backup_timestamp.strftime('%Y%m%d_%H%M%S')}"
+        )
 
         try:
             logger.info(f"Starting incremental backup: {backup_id}")
@@ -180,7 +184,9 @@ class DatabaseBackupManager:
             logger.error(f"Incremental backup failed: {e!s}")
             raise
 
-    async def restore_from_backup(self, backup_id: str, target_db: str | None = None) -> bool:
+    async def restore_from_backup(
+        self, backup_id: str, target_db: str | None = None
+    ) -> bool:
         """
         Restore database from backup
 
@@ -286,13 +292,18 @@ class DatabaseBackupManager:
             test_command = ["pg_restore", "--list", str(backup_file)]
 
             process = await asyncio.create_subprocess_exec(
-                *test_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                *test_command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
 
             stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
-                return {"valid": False, "error": f"Backup file corrupted: {stderr.decode()}"}
+                return {
+                    "valid": False,
+                    "error": f"Backup file corrupted: {stderr.decode()}",
+                }
 
             return {
                 "valid": True,
@@ -306,7 +317,9 @@ class DatabaseBackupManager:
             logger.error(f"Backup verification failed: {e!s}")
             return {"valid": False, "error": str(e)}
 
-    async def list_backups(self, backup_type: str | None = None) -> list[dict[str, Any]]:
+    async def list_backups(
+        self, backup_type: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         List all available backups
 
@@ -352,7 +365,9 @@ class DatabaseBackupManager:
                 if backup_timestamp < cutoff_date:
                     # Delete backup files
                     backup_file = Path(backup["compressed_file"])
-                    metadata_file = self.backup_dir / f"{backup['backup_id']}_metadata.json"
+                    metadata_file = (
+                        self.backup_dir / f"{backup['backup_id']}_metadata.json"
+                    )
 
                     if backup_file.exists():
                         cleaned_size += backup_file.stat().st_size
@@ -368,7 +383,9 @@ class DatabaseBackupManager:
                     cleaned_count += 1
                     logger.info(f"Deleted old backup: {backup['backup_id']}")
 
-            logger.info(f"Backup cleanup completed: {cleaned_count} backups, {cleaned_size} bytes")
+            logger.info(
+                f"Backup cleanup completed: {cleaned_count} backups, {cleaned_size} bytes"
+            )
             return {
                 "cleaned_count": cleaned_count,
                 "cleaned_size": cleaned_size,

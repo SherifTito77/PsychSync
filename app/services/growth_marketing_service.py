@@ -3,12 +3,12 @@ Customer Acquisition and Growth Marketing Service
 Enterprise-grade user acquisition, retention, and growth automation
 """
 
+import logging
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
-import uuid
 
 from app.services.email_service import EmailService
 
@@ -234,7 +234,10 @@ class GrowthMarketingService:
                 name="New Users",
                 description="Users who joined in the last 7 days",
                 criteria={
-                    "created_at": {"operator": ">=", "value": datetime.utcnow() - timedelta(days=7)}
+                    "created_at": {
+                        "operator": ">=",
+                        "value": datetime.utcnow() - timedelta(days=7),
+                    }
                 },
             ),
             "trial_users": UserSegment(
@@ -281,7 +284,10 @@ class GrowthMarketingService:
                 name="Dormant Users",
                 description="Users inactive for 30+ days",
                 criteria={
-                    "last_login": {"operator": "<", "value": datetime.utcnow() - timedelta(days=30)}
+                    "last_login": {
+                        "operator": "<",
+                        "value": datetime.utcnow() - timedelta(days=30),
+                    }
                 },
             ),
             "loyal_users": UserSegment(
@@ -374,22 +380,30 @@ class GrowthMarketingService:
                 return False
 
             if trigger_type not in campaign.trigger_events:
-                logger.info(f"Trigger {trigger_type} not configured for campaign {campaign_id}")
+                logger.info(
+                    f"Trigger {trigger_type} not configured for campaign {campaign_id}"
+                )
                 return False
 
             # Get user data (this would query your database)
             user_data = await self._get_user_data(user_id)
 
             # Check if user matches target segments
-            if not await self._user_matches_segments(user_data, campaign.target_segments):
+            if not await self._user_matches_segments(
+                user_data, campaign.target_segments
+            ):
                 logger.info(
                     f"User {user_id} does not match target segments for campaign {campaign_id}"
                 )
                 return False
 
             # Check campaign conditions
-            if not await self._check_campaign_conditions(user_data, campaign.conditions):
-                logger.info(f"User {user_id} does not meet conditions for campaign {campaign_id}")
+            if not await self._check_campaign_conditions(
+                user_data, campaign.conditions
+            ):
+                logger.info(
+                    f"User {user_id} does not meet conditions for campaign {campaign_id}"
+                )
                 return False
 
             # Execute campaign timing rules
@@ -399,7 +413,9 @@ class GrowthMarketingService:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to trigger campaign {campaign_id} for user {user_id}: {e!s}")
+            logger.error(
+                f"Failed to trigger campaign {campaign_id} for user {user_id}: {e!s}"
+            )
             return False
 
     async def _get_user_data(self, user_id: str) -> dict[str, Any]:
@@ -537,7 +553,10 @@ class GrowthMarketingService:
             return False
 
     async def _execute_campaign_timing(
-        self, user_id: str, campaign: Campaign, context_data: dict[str, Any] | None = None
+        self,
+        user_id: str,
+        campaign: Campaign,
+        context_data: dict[str, Any] | None = None,
     ):
         """Execute campaign timing rules and send emails"""
         try:
@@ -601,7 +620,9 @@ class GrowthMarketingService:
             await self._log_campaign_email(user_id, campaign.id, template_key)
 
         except Exception as e:
-            logger.error(f"Failed to send campaign email {template_key} to {user_id}: {e!s}")
+            logger.error(
+                f"Failed to send campaign email {template_key} to {user_id}: {e!s}"
+            )
 
     async def _schedule_delayed_email(
         self,
@@ -628,7 +649,9 @@ class GrowthMarketingService:
         except Exception as e:
             logger.error(f"Failed to schedule delayed email: {e!s}")
 
-    async def _log_campaign_email(self, user_id: str, campaign_id: str, template_key: str):
+    async def _log_campaign_email(
+        self, user_id: str, campaign_id: str, template_key: str
+    ):
         """Log campaign email for analytics"""
         try:
             # This would save to your analytics database
@@ -698,7 +721,9 @@ class GrowthMarketingService:
             logger.error(f"Failed to track referral conversion: {e!s}")
             raise
 
-    async def _send_referral_notification(self, referring_user_id: str, new_user_id: str):
+    async def _send_referral_notification(
+        self, referring_user_id: str, new_user_id: str
+    ):
         """Send notification about successful referral"""
         try:
             # Get user data for personalization
@@ -743,9 +768,11 @@ class GrowthMarketingService:
                     "current_value": metric.current_value,
                     "target_value": metric.target_value,
                     "trend": metric.trend,
-                    "achievement_rate": (metric.current_value / metric.target_value) * 100
-                    if metric.target_value > 0
-                    else 0,
+                    "achievement_rate": (
+                        (metric.current_value / metric.target_value) * 100
+                        if metric.target_value > 0
+                        else 0
+                    ),
                 }
 
             # Campaign performance

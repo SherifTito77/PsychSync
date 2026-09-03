@@ -1,22 +1,25 @@
 # app/api/v1/endpoints/responses.py
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+import asyncio  # Needed for run_in_executor
+from uuid import UUID, uuid4
 
-from app.api.deps import get_current_active_user, get_db
-from app.api.v1.deps import Depends, get_current_user
-from app.db.models.user import User
-from app.middleware.rate_limiter import check_rate_limit
-from app.schemas.response import Response as ResponseSchema
-from app.schemas.response import ResponseCreate, ResponseSave, ResponseSubmit, ResponseWithScore
-from app.schemas.response import ResponseScore as ResponseScoreSchema
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession  # ✅ ASYNC - Non-blocking
+
 import app.services.assessment_service as AssessmentService
+from app.api.deps import get_async_db, get_current_active_user  # ✅ Async DB dependency
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
+from app.db.models.user import User
+from app.schemas.response import Response as ResponseSchema
+from app.schemas.response import ResponseCreate, ResponseSave
+from app.schemas.response import ResponseScore as ResponseScoreSchema
+from app.schemas.response import ResponseSubmit, ResponseWithScore
 from app.services.response_service import ResponseService
 
 router = APIRouter(prefix="/responses", tags=["responses"])
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post(
     "/start",
     response_model=ResponseSchema,
@@ -26,19 +29,15 @@ router = APIRouter(prefix="/responses", tags=["responses"])
             "description": "Response session created",
             "content": {
                 "application/json": {
-                    "example": {
-                        "id": 123,
-                        "assessment_id": 5,
-                        "status": "in_progress"
-                    }
+                    "example": {"id": 123, "assessment_id": 5, "status": "in_progress"}
                 }
-            }
+            },
         }
-    }
+    },
 )
-def start_response(
+async def start_response(  # ✅ ASYNC - Non-blocking endpoint
     response_in: ResponseCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),  # ✅ AsyncSession
     current_user: User = Depends(get_current_active_user),
 ):
     """
@@ -46,67 +45,97 @@ def start_response(
     Returns existing in-progress session if one exists.
     """
     # Verify assessment exists and is published
-    assessment = AssessmentService.get_by_id(db, assessment_id=response_in.assessment_id)
-    if not assessment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+    # ✅ Direct async call
+    assessment = await AssessmentService.get_by_id(
+        db, assessment_id=response_in.assessment_id
+    )
+
+    # Defensive null check before accessing assessment properties
+    if assessment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found"
+        )
 
     if assessment.status.value != "active":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Assessment is not published"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assessment is not published",
         )
 
-    # Create or get existing session
-    response = ResponseService.create_response_session(
-        db,
-        assessment_id=response_in.assessment_id,
-        respondent_id=current_user.id if not assessment.allow_anonymous else None,
-        assignment_id=response_in.assignment_id,
-    )
+    # Create response session using the service's create method
+    # ✅ Direct async call - ResponseService.create() is already async
+    response = await ResponseService.create(db=db, response_in=response_in)
 
     return response
 
 
 @router.get("/my-responses", response_model=list[ResponseSchema])
-def get_my_responses(
+async def get_my_responses(  # ✅ ASYNC
     status_filter: str | None = Query(None, description="Filter by status"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),  # ✅ AsyncSession
     current_user: User = Depends(get_current_active_user),
 ):
     """
     Get all responses by current user.
     """
-    responses = ResponseService.get_user_responses(
-        db, user_id=current_user.id, status=status_filter
-    )
+    # ✅ Direct async call - ResponseService.get_by_user() is already async
+    responses = await ResponseService.get_by_user(db, user_id=current_user.id)
+
+    # Filter by status if provided
+    if status_filter:
+        responses = [r for r in responses if r.status == status_filter]
+
     return responses
 
 
 @router.get("/{response_id}", response_model=ResponseWithScore)
-def get_response(
-    response_id: int,
-    db: Session = Depends(get_db),
+async def get_response(  # ✅ ASYNC
+    response_id: str,  # Changed from int to str to handle UUID
+    db: AsyncSession = Depends(get_async_db),  # ✅ AsyncSession
     current_user: User = Depends(get_current_active_user),
 ):
     """
     Get response details with score.
     """
-    response = ResponseService.get_response(db, response_id=response_id)
+    # Convert string ID to UUID
+    try:
+        response_uuid = UUID(response_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
 
-    if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+    # ✅ Direct async call - ResponseService.get_by_id() is already async
+    response = await ResponseService.get_by_id(db, response_id=response_uuid)
+
+    # Defensive null check before accessing response properties
+    if response is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
-    if response.respondent_id != current_user.id:
+    if response.respondent_id and response.respondent_id != current_user.id:
         # Check if user is assessment creator or team admin
-        assessment = AssessmentService.get_by_id(db, assessment_id=response.assessment_id)
+        assessment = await AssessmentService.get_by_id(
+            db, assessment_id=response.assessment_id
+        )
+
+        # Defensive null check before accessing assessment properties
+        if assessment is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Associated assessment not found",
+            )
+
         if assessment.created_by_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to view this response",
             )
 
-    # Get score
-    score = ResponseService.get_response_score(db, response_id=response_id)
+    # Get score - ✅ Direct async call
+    score = await ResponseService.get_response_score(db, response_id=response_uuid)
 
     response_dict = ResponseSchema.from_orm(response).dict()
     response_dict["score"] = score
@@ -114,37 +143,48 @@ def get_response(
     return response_dict
 
 
-@router.put(
-    "/{response_id}/save", response_model=ResponseSchema, dependencies=[Depends(get_current_user)]
-)
-def save_progress(
-    response_id: int,
+@router.put("/{response_id}/save", response_model=ResponseSchema)
+async def save_progress(  # ✅ ASYNC - Non-blocking endpoint
+    response_id: str,
     save_data: ResponseSave,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),  # ✅ AsyncSession
     current_user: User = Depends(get_current_active_user),
 ):
     """
     Save progress on a response.
     """
-    response = ResponseService.get_response(db, response_id=response_id)
+    # Convert string ID to UUID
+    try:
+        response_uuid = UUID(response_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
+
+    # ✅ Direct async call
+    response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You can only save your own responses"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only save your own responses",
         )
 
     # Check if already completed
     if response.is_complete:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot modify completed response"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify completed response",
         )
 
-    # Save progress
-    updated_response = ResponseService.save_progress(
+    # Save progress - ✅ Direct async call
+    updated_response = await ResponseService.save_progress(
         db,
         response=response,
         responses_data=save_data.responses,
@@ -155,24 +195,36 @@ def save_progress(
 
 
 @router.post("/{response_id}/submit", response_model=ResponseWithScore)
-def submit_response(
-    response_id: int,
+async def submit_response(  # ✅ ASYNC - Non-blocking endpoint
+    response_id: str,
     submit_data: ResponseSubmit,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),  # ✅ AsyncSession
     current_user: User = Depends(get_current_active_user),
 ):
     """
     Submit completed response.
     """
-    response = ResponseService.get_response(db, response_id=response_id)
+    # Convert string ID to UUID
+    try:
+        response_uuid = UUID(response_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
+
+    # ✅ Direct async call
+    response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You can only submit your own responses"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only submit your own responses",
         )
 
     # Check if already completed
@@ -182,26 +234,27 @@ def submit_response(
         )
 
     # Merge and validate responses
-    all_responses = response.responses.copy()
+    all_responses = response.responses.copy() if response.responses else {}
     all_responses.update(submit_data.responses)
 
-    is_valid, error_msg = ResponseService.validate_response_data(
+    # ✅ Direct async call
+    is_valid, error_msg = await ResponseService.validate_response_data(
         db, assessment_id=response.assessment_id, responses_data=all_responses
     )
 
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
-    # Submit response
-    submitted_response = ResponseService.submit_response(
+    # Submit response - ✅ Direct async call
+    submitted_response = await ResponseService.submit_response(
         db,
         response=response,
         responses_data=submit_data.responses,
         time_taken=submit_data.time_taken,
     )
 
-    # Get score
-    score = ResponseService.get_response_score(db, response_id=response_id)
+    # Get score - ✅ Direct async call
+    score = await ResponseService.get_response_score(db, response_id=response_uuid)
 
     response_dict = ResponseSchema.from_orm(submitted_response).dict()
     response_dict["score"] = score
@@ -212,53 +265,88 @@ def submit_response(
 @router.delete(
     "/{response_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_user)],
 )
-def delete_response(
-    response_id: int,
-    db: Session = Depends(get_db),
+async def delete_response(  # ✅ ASYNC - Non-blocking endpoint
+    response_id: str,
+    db: AsyncSession = Depends(get_async_db),  # ✅ AsyncSession
     current_user: User = Depends(get_current_active_user),
 ):
     """
     Delete a response (only if not completed).
     """
-    response = ResponseService.get_response(db, response_id=response_id)
+    # Convert string ID to UUID
+    try:
+        response_uuid = UUID(response_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
+
+    # ✅ Direct async call
+    response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
-    if response.respondent_id != current_user.id:
+    if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own responses"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own responses",
         )
 
     # Cannot delete completed responses
     if response.is_complete:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete completed response"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete completed response",
         )
 
-    ResponseService.delete_response(db, response=response)
+    # ✅ Direct async call - use delete_response which takes response object
+    await ResponseService.delete_response(db, response=response)
 
 
 @router.get("/{response_id}/score", response_model=ResponseScoreSchema)
-def get_response_score(
-    response_id: int,
-    db: Session = Depends(get_db),
+async def get_response_score(  # ✅ ASYNC - Non-blocking endpoint
+    response_id: str,
+    db: AsyncSession = Depends(get_async_db),  # ✅ AsyncSession
     current_user: User = Depends(get_current_active_user),
 ):
     """
     Get score for a completed response.
     """
-    response = ResponseService.get_response(db, response_id=response_id)
+    # Convert string ID to UUID
+    try:
+        response_uuid = UUID(response_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
+
+    # ✅ Direct async call
+    response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
-    if response.respondent_id != current_user.id:
-        assessment = AssessmentService.get_by_id(db, assessment_id=response.assessment_id)
+    if response.respondent_id and response.respondent_id != current_user.id:
+        # ✅ Direct async call
+        assessment = await AssessmentService.get_by_id(
+            db, assessment_id=response.assessment_id
+        )
+
+        # Defensive null check before accessing assessment properties
+        if assessment is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Associated assessment not found",
+            )
+
         if assessment.created_by_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -270,13 +358,12 @@ def get_response_score(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Response not yet completed"
         )
 
-    score = ResponseService.get_response_score(db, response_id=response_id)
+    # ✅ Direct async call
+    score = await ResponseService.get_response_score(db, response_id=response_uuid)
 
     if not score:
-        # Calculate score if it doesn't exist
-        score = ResponseService.calculate_score(db, response=response)
-
-    if not score:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Score not available")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Score not available"
+        )
 
     return score

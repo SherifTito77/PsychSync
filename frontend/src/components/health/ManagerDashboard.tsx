@@ -14,7 +14,7 @@
  * - Team action recommendations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import ManagerDashboardService from '@/services/managerDashboardService';
 import type { ManagerDashboardData, StressDistribution } from '@/types/healthMonitoring';
+import { useDebouncedCallback } from '@/hooks/usePerformanceOptimizations';
 
 export const ManagerDashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<ManagerDashboardData | null>(null);
@@ -49,39 +50,71 @@ export const ManagerDashboard: React.FC = () => {
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<number>(30);
 
-  // Fetch dashboard data
-  const fetchDashboardData = async () => {
+  // Track the most recent request ID to ignore stale responses
+  // NO AbortController - let all requests complete naturally
+  const requestIdRef = useRef<number>(0);
+
+  // Fetch dashboard data with proper race condition protection
+  const fetchDashboardData = useCallback(async () => {
+    // Generate a unique request ID for this fetch
+    const currentRequestId = ++requestIdRef.current;
+
+    console.log('[ManagerDashboard] Fetch called, request ID:', currentRequestId);
+
+    console.log('[ManagerDashboard] Starting fetch...');
     setLoading(true);
     setError(null);
+
     try {
       const data = selectedTeam === 'all'
         ? await ManagerDashboardService.getOrganizationOverview(timeRange)
         : await ManagerDashboardService.getTeamOverview(selectedTeam, timeRange);
 
+      // Only update state if this is still the most recent request
+      if (currentRequestId !== requestIdRef.current) {
+        console.log('[ManagerDashboard] Ignoring stale response from request', currentRequestId, ', latest is', requestIdRef.current);
+        return;
+      }
+
+      console.log('[ManagerDashboard] Setting dashboard data:', data);
       setDashboardData(data);
     } catch (err: any) {
-      console.error('Failed to fetch dashboard data:', err);
-      // Log more details about the error
-      if (err.response) {
-        console.error('Error response:', {
-          status: err.response.status,
-          data: err.response.data,
-          headers: err.response.headers
-        });
-      } else if (err.request) {
-        console.error('No response received:', err.request);
+      // Only show error if this is still the most recent request
+      if (currentRequestId === requestIdRef.current) {
+        console.error('Failed to fetch dashboard data:', err);
+        if (err.response) {
+          console.error('Error response:', {
+            status: err.response.status,
+            data: err.response.data,
+            headers: err.response.headers
+          });
+        } else if (err.request) {
+          console.error('No response received:', err.request);
+        } else {
+          console.error('Error message:', err.message);
+        }
+        setError(`Unable to load team health data: ${err.response?.data?.message || err.message || 'Please check your permissions'}`);
       } else {
-        console.error('Error message:', err.message);
+        console.log('[ManagerDashboard] Ignoring error from stale request', currentRequestId);
       }
-      setError(`Unable to load team health data: ${err.response?.data?.message || err.message || 'Please check your permissions'}`);
     } finally {
-      setLoading(false);
+      // Only clear loading state if this is still the most recent request
+      if (currentRequestId === requestIdRef.current) {
+        console.log('[ManagerDashboard] Request', currentRequestId, 'completed, clearing loading state');
+        setLoading(false);
+      }
     }
-  };
+  }, [selectedTeam, timeRange]);
 
+  // Initial data load with race condition protection
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedTeam, timeRange]);
+  }, [fetchDashboardData]);
+
+  // Debounced refresh handler (500ms debounce)
+  const handleRefresh = useDebouncedCallback(() => {
+    fetchDashboardData();
+  }, 500, []);
 
   // Utility functions
   const getStressColor = (level: string): string => {
@@ -102,7 +135,7 @@ export const ManagerDashboard: React.FC = () => {
   };
 
   const getRiskPercentage = (distribution: StressDistribution, level: string): number => {
-    const total = Object.values(distribution).reduce((sum, count) => sum + count, 0);
+    const total = Object.values(distribution).reduce((sum, count) => sum + (count as number), 0);
     if (total === 0) return 0;
     return ((distribution as any)[level] / total) * 100;
   };
@@ -119,7 +152,7 @@ export const ManagerDashboard: React.FC = () => {
 
   if (error) {
     return (
-      <Alert variant="destructive">
+      <Alert variant="error">
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Access Error</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
@@ -152,7 +185,7 @@ export const ManagerDashboard: React.FC = () => {
             <option value={60}>Last 60 days</option>
             <option value={90}>Last 90 days</option>
           </select>
-          <Button onClick={fetchDashboardData} variant="outline">
+          <Button onClick={handleRefresh} variant="outline">
             <Activity className="mr-2 h-4 w-4" />
             Refresh
           </Button>
@@ -312,7 +345,7 @@ export const ManagerDashboard: React.FC = () => {
           <div className="grid gap-4 md:grid-cols-3">
             {(['low', 'medium', 'high'] as const).map((level) => {
               const count = dashboardData.cardiovascular_risk_distribution[level];
-              const total = Object.values(dashboardData.cardiovascular_risk_distribution).reduce((sum, c) => sum + c, 0);
+              const total = Object.values(dashboardData.cardiovascular_risk_distribution).reduce((sum, c) => sum + (c as number), 0);
               const percentage = total > 0 ? (count / total) * 100 : 0;
 
               return (

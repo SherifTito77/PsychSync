@@ -3,8 +3,8 @@ Path Sanitization Utilities for Secure File Operations
 Provides safe path handling to prevent directory traversal attacks
 """
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 
 class PathTraversalError(Exception):

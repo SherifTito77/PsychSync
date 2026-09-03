@@ -1,9 +1,9 @@
 # app/api/v1/endpoints/onboarding.py
 # FastAPI endpoints for value-first onboarding experience
-from datetime import datetime
 import json
-from typing import Any
 import uuid
+from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.deps import get_current_active_user, get_current_user_optional
 from app.core.database import get_async_db as get_db
 from app.core.input_validation import validate_input
-from app.core.rate_limiter import RateLimiter
+from app.core.rate_limiter_unified import RateLimiter, RateLimitStrategy
 from app.db.models.user import User
 from app.schemas.onboarding import (
     OnboardingAnalyticsEvent,
@@ -29,7 +29,7 @@ analytics_service = AnalyticsService()
 
 
 @router.post("/quick-assessment", response_model=QuickAssessmentResponse)
-@RateLimiter(limit=20, window_seconds=60)  # 20 requests per minute
+@rate_limit(limit=20, window=60)  # 20 requests per minute
 async def quick_assessment(
     request: QuickAssessmentRequest,
     http_request: Request,
@@ -53,10 +53,16 @@ async def quick_assessment(
             user_id=current_user.id if current_user else None,
             session_id=request.session_id or str(uuid.uuid4()),
             data={
-                "role": request.role.value if hasattr(request.role, "value") else str(request.role),
-                "challenge": request.challenge.value
-                if hasattr(request.challenge, "value")
-                else str(request.challenge),
+                "role": (
+                    request.role.value
+                    if hasattr(request.role, "value")
+                    else str(request.role)
+                ),
+                "challenge": (
+                    request.challenge.value
+                    if hasattr(request.challenge, "value")
+                    else str(request.challenge)
+                ),
                 "team_size": request.team_size,
                 "client_ip": client_ip,
                 "user_agent": user_agent[:200],  # Truncate for security
@@ -103,13 +109,19 @@ async def quick_assessment(
             event_type="quick_assessment_error",
             user_id=current_user.id if current_user else None,
             session_id=request.session_id or str(uuid.uuid4()),
-            data={"error": str(e), "role": request.role, "challenge": request.challenge},
+            data={
+                "error": str(e),
+                "role": request.role,
+                "challenge": request.challenge,
+            },
         )
-        raise HTTPException(status_code=500, detail=f"Assessment generation failed: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Assessment generation failed: {e!s}"
+        ) from e
 
 
 @router.post("/team-insights", response_model=TeamInsightResponse)
-@RateLimiter(limit=30, window_seconds=60)  # 30 requests per minute for authenticated users
+@rate_limit(limit=30, window=60)  # 30 requests per minute for authenticated users
 async def get_team_insights(
     request: TeamInsightRequest,
     db: AsyncSession = Depends(get_db),
@@ -127,8 +139,13 @@ async def get_team_insights(
             validate_input({"team_id": request.team_id})
 
         # Validate team composition data size to prevent DoS
-        if request.team_composition and len(json.dumps(request.team_composition)) > 10000:
-            raise HTTPException(status_code=400, detail="Team composition data too large")
+        if (
+            request.team_composition
+            and len(json.dumps(request.team_composition)) > 10000
+        ):
+            raise HTTPException(
+                status_code=400, detail="Team composition data too large"
+            )
         insights = await onboarding_service.generate_detailed_team_insights(
             user_id=current_user.id,
             team_id=request.team_id,
@@ -157,11 +174,13 @@ async def get_team_insights(
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Team insights generation failed: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Team insights generation failed: {e!s}"
+        ) from e
 
 
 @router.post("/track-conversion")
-@RateLimiter(limit=100, window_seconds=60)  # Higher limit for analytics
+@rate_limit(limit=100, window=60)  # Higher limit for analytics
 async def track_conversion_event(
     event: OnboardingAnalyticsEvent,
     http_request: Request,
@@ -186,17 +205,23 @@ async def track_conversion_event(
             event_type=event.event_type,
             user_id=current_user.id if current_user else None,
             session_id=event.session_id,
-            data={**(event.data or {}), "client_ip": client_ip, "user_agent": user_agent},
+            data={
+                **(event.data or {}),
+                "client_ip": client_ip,
+                "user_agent": user_agent,
+            },
         )
 
         return {"success": True, "message": "Event tracked successfully"}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analytics tracking failed: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Analytics tracking failed: {e!s}"
+        ) from e
 
 
 @router.get("/onboarding-status")
-@RateLimiter(limit=60, window_seconds=60)
+@rate_limit(limit=60, window=60)
 async def get_onboarding_status(
     http_request: Request,
     current_user: User = Depends(get_current_user_optional),
@@ -220,11 +245,13 @@ async def get_onboarding_status(
         return status
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get onboarding status: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get onboarding status: {e!s}"
+        ) from e
 
 
 @router.post("/setup-wizard")
-@RateLimiter(limit=20, window_seconds=60)
+@rate_limit(limit=20, window=60)
 async def setup_wizard_step(
     step_data: dict[str, Any],
     http_request: Request,
@@ -237,7 +264,9 @@ async def setup_wizard_step(
     try:
         # Input validation and size limits
         if not isinstance(step_data, dict):
-            raise HTTPException(status_code=400, detail="Step data must be a JSON object")
+            raise HTTPException(
+                status_code=400, detail="Step data must be a JSON object"
+            )
 
         if len(json.dumps(step_data)) > 8000:
             raise HTTPException(status_code=400, detail="Step data too large")
@@ -262,11 +291,13 @@ async def setup_wizard_step(
         return result
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Setup wizard step failed: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Setup wizard step failed: {e!s}"
+        ) from e
 
 
 @router.get("/value-metrics")
-@RateLimiter(limit=30, window_seconds=60)
+@rate_limit(limit=30, window=60)
 async def get_value_metrics(
     http_request: Request,
     current_user: User = Depends(get_current_active_user),  # Require authentication
@@ -280,4 +311,6 @@ async def get_value_metrics(
         return metrics
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to calculate value metrics: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to calculate value metrics: {e!s}"
+        ) from e

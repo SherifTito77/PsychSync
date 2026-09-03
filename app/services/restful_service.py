@@ -4,10 +4,10 @@ Provides utilities for consistent RESTful API design patterns
 Performance improvement: 40% better developer experience with standardized endpoints
 """
 
-from datetime import datetime
-from enum import Enum
 import logging
 import re
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from fastapi import APIRouter, Request, status
@@ -15,8 +15,10 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+
 class HTTPMethod(str, Enum):
     """Standard HTTP methods for RESTful APIs"""
+
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -25,8 +27,10 @@ class HTTPMethod(str, Enum):
     HEAD = "HEAD"
     OPTIONS = "OPTIONS"
 
+
 class ResourceAction(str, Enum):
     """Standard RESTful resource actions"""
+
     LIST = "list"
     CREATE = "create"
     RETRIEVE = "retrieve"
@@ -36,6 +40,7 @@ class ResourceAction(str, Enum):
     BATCH_CREATE = "batch_create"
     BATCH_UPDATE = "batch_update"
     BATCH_DELETE = "batch_delete"
+
 
 class RESTfulEndpointBuilder:
     """
@@ -50,7 +55,9 @@ class RESTfulEndpointBuilder:
     - OpenAPI documentation generation
     """
 
-    def __init__(self, router: APIRouter, resource_name: str, resource_model: BaseModel):
+    def __init__(
+        self, router: APIRouter, resource_name: str, resource_model: BaseModel
+    ):
         """
         Initialize RESTful endpoint builder
 
@@ -116,8 +123,12 @@ class RESTfulEndpointBuilder:
 
         if action in [ResourceAction.LIST]:
             return PaginatedResponse[self.resource_model]
-        if action in [ResourceAction.RETRIEVE, ResourceAction.CREATE,
-                        ResourceAction.UPDATE, ResourceAction.PARTIAL_UPDATE]:
+        if action in [
+            ResourceAction.RETRIEVE,
+            ResourceAction.CREATE,
+            ResourceAction.UPDATE,
+            ResourceAction.PARTIAL_UPDATE,
+        ]:
             return APIResponse[self.resource_model]
         if action == ResourceAction.DELETE:
             return APIResponse[None]
@@ -130,7 +141,7 @@ class RESTfulEndpointBuilder:
         update_model: BaseModel = None,
         auth_required: bool = True,
         pagination_enabled: bool = True,
-        soft_delete: bool = False
+        soft_delete: bool = False,
     ) -> dict[str, Any]:
         """
         Create complete CRUD endpoints for the resource
@@ -159,7 +170,7 @@ class RESTfulEndpointBuilder:
             self.base_path,
             response_model=self._generate_response_model(ResourceAction.LIST),
             summary=f"List {self.resource_plural.title()}",
-            description=f"Retrieve a paginated list of {self.resource_plural} with optional filtering"
+            description=f"Retrieve a paginated list of {self.resource_plural} with optional filtering",
         )
         async def list_resource(
             request: Request,
@@ -167,7 +178,7 @@ class RESTfulEndpointBuilder:
             size: int = 20,
             sort_by: str = None,
             sort_order: str = "desc",
-            **filters
+            **filters,
         ):
             # TODO(human): Implement actual service call
             # Context: This is a placeholder for the actual list implementation
@@ -180,12 +191,13 @@ class RESTfulEndpointBuilder:
             # 4. Handle authentication if auth_required is True
 
             from app.core.response import create_paginated_response
+
             return create_paginated_response(
                 data=[],
                 page=page,
                 size=size,
                 total=0,
-                message=f"{self.resource_plural.title()} retrieved successfully"
+                message=f"{self.resource_plural.title()} retrieved successfully",
             )
 
         endpoints["list"] = list_resource
@@ -196,12 +208,9 @@ class RESTfulEndpointBuilder:
             response_model=self._generate_response_model(ResourceAction.CREATE),
             status_code=status.HTTP_201_CREATED,
             summary=f"Create {self.resource_name.title()}",
-            description=f"Create a new {self.resource_name} with the provided data"
+            description=f"Create a new {self.resource_name} with the provided data",
         )
-        async def create_resource(
-            resource_data: create_model,
-            request: Request
-        ):
+        async def create_resource(resource_data: create_model, request: Request):
             # TODO(human): Implement actual service call
             # Context: This is a placeholder for the actual create implementation
             # Your task: Replace this with the actual service call using service_class
@@ -213,10 +222,11 @@ class RESTfulEndpointBuilder:
             # 4. Handle authentication and authorization
 
             from app.core.response import create_success_response
+
             return create_success_response(
                 data=resource_data,
                 message=f"{self.resource_name.title()} created successfully",
-                status_code=status.HTTP_201_CREATED
+                status_code=status.HTTP_201_CREATED,
             )
 
         endpoints["create"] = create_resource
@@ -226,12 +236,9 @@ class RESTfulEndpointBuilder:
             f"{self.base_path}/{{resource_id}}",
             response_model=self._generate_response_model(ResourceAction.RETRIEVE),
             summary=f"Get {self.resource_name.title()}",
-            description=f"Retrieve a specific {self.resource_name} by its ID"
+            description=f"Retrieve a specific {self.resource_name} by its ID",
         )
-        async def retrieve_resource(
-            resource_id: str,
-            request: Request
-        ):
+        async def retrieve_resource(resource_id: str, request: Request):
             # TODO(human): Implement actual service call
             # Context: This is a placeholder for the actual retrieve implementation
             # Your task: Replace this with the actual service call using service_class
@@ -243,9 +250,10 @@ class RESTfulEndpointBuilder:
             # 4. Return resource data
 
             from app.core.response import create_success_response
+
             return create_success_response(
                 data={"id": resource_id},
-                message=f"{self.resource_name.title()} retrieved successfully"
+                message=f"{self.resource_name.title()} retrieved successfully",
             )
 
         endpoints["retrieve"] = retrieve_resource
@@ -255,12 +263,10 @@ class RESTfulEndpointBuilder:
             f"{self.base_path}/{{resource_id}}",
             response_model=self._generate_response_model(ResourceAction.UPDATE),
             summary=f"Update {self.resource_name.title()}",
-            description=f"Update a {self.resource_name} with new data"
+            description=f"Update a {self.resource_name} with new data",
         )
         async def update_resource(
-            resource_id: str,
-            resource_data: update_model,
-            request: Request
+            resource_id: str, resource_data: update_model, request: Request
         ):
             # TODO(human): Implement actual service call
             # Context: This is a placeholder for the actual update implementation
@@ -273,9 +279,10 @@ class RESTfulEndpointBuilder:
             # 4. Return updated resource
 
             from app.core.response import create_success_response
+
             return create_success_response(
                 data={"id": resource_id, **resource_data.dict()},
-                message=f"{self.resource_name.title()} updated successfully"
+                message=f"{self.resource_name.title()} updated successfully",
             )
 
         endpoints["update"] = update_resource
@@ -285,12 +292,10 @@ class RESTfulEndpointBuilder:
             f"{self.base_path}/{{resource_id}}",
             response_model=self._generate_response_model(ResourceAction.PARTIAL_UPDATE),
             summary=f"Partially update {self.resource_name.title()}",
-            description=f"Update specific fields of a {self.resource_name}"
+            description=f"Update specific fields of a {self.resource_name}",
         )
         async def partial_update_resource(
-            resource_id: str,
-            resource_data: dict[str, Any],
-            request: Request
+            resource_id: str, resource_data: dict[str, Any], request: Request
         ):
             # TODO(human): Implement actual service call
             # Context: This is a placeholder for the actual partial update implementation
@@ -303,9 +308,10 @@ class RESTfulEndpointBuilder:
             # 4. Return updated resource
 
             from app.core.response import create_success_response
+
             return create_success_response(
                 data={"id": resource_id, **resource_data},
-                message=f"{self.resource_name.title()} partially updated successfully"
+                message=f"{self.resource_name.title()} partially updated successfully",
             )
 
         endpoints["partial_update"] = partial_update_resource
@@ -315,12 +321,9 @@ class RESTfulEndpointBuilder:
             f"{self.base_path}/{{resource_id}}",
             response_model=self._generate_response_model(ResourceAction.DELETE),
             summary=f"Delete {self.resource_name.title()}",
-            description=f"Delete a {self.resource_name} by its ID"
+            description=f"Delete a {self.resource_name} by its ID",
         )
-        async def delete_resource(
-            resource_id: str,
-            request: Request
-        ):
+        async def delete_resource(resource_id: str, request: Request):
             # TODO(human): Implement actual service call
             # Context: This is a placeholder for the actual delete implementation
             # Your task: Replace this with the actual service call using service_class
@@ -332,15 +335,16 @@ class RESTfulEndpointBuilder:
             # 4. Return success response
 
             from app.core.response import create_success_response
+
             return create_success_response(
-                data=None,
-                message=f"{self.resource_name.title()} deleted successfully"
+                data=None, message=f"{self.resource_name.title()} deleted successfully"
             )
 
         endpoints["delete"] = delete_resource
 
         logger.info(f"Created CRUD endpoints for resource: {self.resource_name}")
         return endpoints
+
 
 class RESTfulPathBuilder:
     """Utility class for building RESTful paths following best practices"""
@@ -371,10 +375,14 @@ class RESTfulPathBuilder:
         Returns:
             Full resource path
         """
-        return f"{RESTfulPathBuilder.build_collection_path(resource_name, prefix)}/{{id}}"
+        return (
+            f"{RESTfulPathBuilder.build_collection_path(resource_name, prefix)}/{{id}}"
+        )
 
     @staticmethod
-    def build_action_path(resource_name: str, action: str, prefix: str = "/api/v1") -> str:
+    def build_action_path(
+        resource_name: str, action: str, prefix: str = "/api/v1"
+    ) -> str:
         """
         Build action path (e.g., /api/v1/users/{id}/activate)
 
@@ -386,13 +394,13 @@ class RESTfulPathBuilder:
         Returns:
             Full action path
         """
-        return f"{RESTfulPathBuilder.build_resource_path(resource_name, prefix)}/{action}"
+        return (
+            f"{RESTfulPathBuilder.build_resource_path(resource_name, prefix)}/{action}"
+        )
 
     @staticmethod
     def build_relationship_path(
-        parent_resource: str,
-        child_resource: str,
-        prefix: str = "/api/v1"
+        parent_resource: str, child_resource: str, prefix: str = "/api/v1"
     ) -> str:
         """
         Build relationship path (e.g., /api/v1/users/{id}/assessments)
@@ -407,16 +415,13 @@ class RESTfulPathBuilder:
         """
         return f"{RESTfulPathBuilder.build_resource_path(parent_resource, prefix)}/{child_resource}"
 
+
 class RESTfulResponseBuilder:
     """Utility class for building standardized RESTful responses"""
 
     @staticmethod
     def build_collection_response(
-        items: list[Any],
-        page: int,
-        size: int,
-        total: int,
-        request: Request = None
+        items: list[Any], page: int, size: int, total: int, request: Request = None
     ) -> dict[str, Any]:
         """
         Build standardized collection response
@@ -458,17 +463,16 @@ class RESTfulResponseBuilder:
                 "total": total,
                 "pages": total_pages,
                 "has_next": has_next,
-                "has_prev": has_prev
+                "has_prev": has_prev,
             },
             "links": links,
-            "meta": {
-                "timestamp": datetime.utcnow().isoformat(),
-                "count": len(items)
-            }
+            "meta": {"timestamp": datetime.utcnow().isoformat(), "count": len(items)},
         }
 
     @staticmethod
-    def build_resource_response(resource: Any, request: Request = None) -> dict[str, Any]:
+    def build_resource_response(
+        resource: Any, request: Request = None
+    ) -> dict[str, Any]:
         """
         Build standardized resource response
 
@@ -493,9 +497,14 @@ class RESTfulResponseBuilder:
             "links": links,
             "meta": {
                 "timestamp": datetime.utcnow().isoformat(),
-                "type": resource.__class__.__name__ if hasattr(resource, "__class__") else "resource"
-            }
+                "type": (
+                    resource.__class__.__name__
+                    if hasattr(resource, "__class__")
+                    else "resource"
+                ),
+            },
         }
+
 
 class RESTfulValidator:
     """Validator for RESTful compliance"""
@@ -523,9 +532,13 @@ class RESTfulValidator:
                 # GET on collection should list
                 pass
             elif method.upper() in ["PUT", "PATCH"]:
-                issues.append(f"PUT/PATCH not recommended on collection endpoint: {path}")
+                issues.append(
+                    f"PUT/PATCH not recommended on collection endpoint: {path}"
+                )
             elif method.upper() == "DELETE" and not path.endswith("/bulk"):
-                issues.append(f"DELETE not recommended on collection endpoint without /bulk: {path}")
+                issues.append(
+                    f"DELETE not recommended on collection endpoint without /bulk: {path}"
+                )
 
         # Resource endpoints
         elif method.upper() == "GET":
@@ -542,12 +555,13 @@ class RESTfulValidator:
 
         return len(issues) == 0, issues
 
+
 # Convenience functions for quick endpoint creation
 def create_restful_router(
     resource_name: str,
     resource_model: BaseModel,
     service_class,
-    prefix: str = "/api/v1"
+    prefix: str = "/api/v1",
 ) -> APIRouter:
     """
     Quick function to create a RESTful router for a resource
@@ -566,8 +580,11 @@ def create_restful_router(
 
     endpoints = builder.create_crud_endpoints(service_class)
 
-    logger.info(f"Created RESTful router for {resource_name} with {len(endpoints)} endpoints")
+    logger.info(
+        f"Created RESTful router for {resource_name} with {len(endpoints)} endpoints"
+    )
     return router
+
 
 def validate_restful_compliance(router: APIRouter) -> dict[str, Any]:
     """
@@ -583,14 +600,16 @@ def validate_restful_compliance(router: APIRouter) -> dict[str, Any]:
         "compliant": True,
         "issues": [],
         "suggestions": [],
-        "endpoints_analyzed": len(router.routes)
+        "endpoints_analyzed": len(router.routes),
     }
 
     for route in router.routes:
         if hasattr(route, "methods") and hasattr(route, "path"):
             for method in route.methods:
                 if method != "HEAD":  # Skip HEAD methods
-                    is_valid, issues = RESTfulValidator.validate_endpoint_method(method, route.path)
+                    is_valid, issues = RESTfulValidator.validate_endpoint_method(
+                        method, route.path
+                    )
                     if not is_valid:
                         compliance_report["compliant"] = False
                         compliance_report["issues"].extend(issues)

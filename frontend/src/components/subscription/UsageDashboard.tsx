@@ -2,8 +2,8 @@
 // Usage tracking dashboard for assessment limits and feature usage
 import React, { memo } from 'react';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { SubscriptionTier } from '../../types/subscription';
-import TierBadge from './FeatureGate';
+import { SubscriptionTier, SubscriptionPermissions } from '../../types/subscription';
+import { TierBadge } from './FeatureGate';
 import UpgradePrompt from './UpgradePrompt';
 
 interface UsageMetricProps {
@@ -122,7 +122,7 @@ const UsageDashboard: React.FC = () => {
             Track your assessment usage and limits
           </p>
         </div>
-        <TierBadge tier={subscription.tier} />
+        <TierBadge tier={subscription.tier as SubscriptionTier} />
       </div>
 
       {/* Current Tier Info */}
@@ -130,7 +130,7 @@ const UsageDashboard: React.FC = () => {
         <div className="flex items-start justify-between">
           <div>
             <h3 className="font-semibold text-gray-900 mb-2">
-              Current Plan: {subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)}
+              Current Plan: {(subscription.tier as string).charAt(0).toUpperCase() + (subscription.tier as string).slice(1)}
             </h3>
             <p className="text-sm text-gray-600 mb-4">
               {subscription.tier === SubscriptionTier.FREE && (
@@ -184,7 +184,7 @@ const UsageDashboard: React.FC = () => {
           icon="📝"
         />
 
-        {canAccess('canAccessTeamInsights') && (
+        {canAccess('canAccessTeamInsights' as keyof SubscriptionPermissions) && (
           <UsageMetric
             label="Team Assessments"
             used={subscription.teamAssessmentsUsedThisMonth}
@@ -194,7 +194,7 @@ const UsageDashboard: React.FC = () => {
           />
         )}
 
-        {canAccess('maxTeamMembers') && limits.maxTeamMembers > 1 && (
+        {canAccess('maxTeamMembers' as keyof SubscriptionPermissions) && limits.maxTeamMembers > 1 && (
           <UsageMetric
             label="Team Members"
             used={5} // TODO: Get actual team member count
@@ -231,37 +231,37 @@ const UsageDashboard: React.FC = () => {
         <div className="space-y-3">
           <FeatureAccessItem
             name="Team Analytics"
-            hasAccess={canAccess('canAccessTeamAnalytics')}
+            hasAccess={canAccess('canAccessTeamAnalytics' as keyof SubscriptionPermissions)}
             tierRequired="Premium"
           />
           <FeatureAccessItem
             name="Clinical Tools"
-            hasAccess={canAccess('canAccessClinicalTools')}
+            hasAccess={canAccess('canAccessClinicalTools' as keyof SubscriptionPermissions)}
             tierRequired="Premium"
           />
           <FeatureAccessItem
             name="Benchmarking"
-            hasAccess={canAccess('canAccessBenchmarking')}
+            hasAccess={canAccess('canAccessBenchmarking' as keyof SubscriptionPermissions)}
             tierRequired="Premium"
           />
           <FeatureAccessItem
             name="Predictive Analytics"
-            hasAccess={canAccess('canAccessPredictiveAnalytics')}
+            hasAccess={canAccess('canAccessPredictiveAnalytics' as keyof SubscriptionPermissions)}
             tierRequired="Premium"
           />
           <FeatureAccessItem
             name="Integrations (Slack, Email)"
-            hasAccess={canAccess('canUseIntegrations')}
+            hasAccess={canAccess('canUseIntegrations' as keyof SubscriptionPermissions)}
             tierRequired="Premium"
           />
           <FeatureAccessItem
             name="API Access"
-            hasAccess={canAccess('canUseAPIAccess')}
+            hasAccess={canAccess('canUseAPIAccess' as keyof SubscriptionPermissions)}
             tierRequired="Enterprise"
           />
           <FeatureAccessItem
             name="White Labeling"
-            hasAccess={canAccess('canWhiteLabel')}
+            hasAccess={canAccess('canWhiteLabel' as keyof SubscriptionPermissions)}
             tierRequired="Enterprise"
           />
         </div>

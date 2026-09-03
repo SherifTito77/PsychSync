@@ -14,23 +14,26 @@ Author: Security Team
 Version: 3.0 OWASP-Compliant
 """
 
+import json
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
-import json
 
-from app.main import app
 from app.core.database import get_async_db
-from app.db.models.user import User
 from app.core.security_fixes import hash_password
+from app.db.models.user import User
+from app.main import app
 
 
 class TestXSXPrevention:
     """Test XSS attack prevention in authentication endpoints"""
 
     @pytest.mark.asyncio
-    async def test_register_xss_in_full_name(self, client: TestClient, db: AsyncSession):
+    async def test_register_xss_in_full_name(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: XSS attempt in full_name field during registration
 
@@ -44,7 +47,7 @@ class TestXSXPrevention:
             "javascript:alert('XSS')",
             "<svg onload=alert('XSS')>",
             "'-alert(1)-'",
-            "<iframe src='javascript:alert(1)'>"
+            "<iframe src='javascript:alert(1)'>",
         ]
 
         for payload in xss_payloads:
@@ -53,8 +56,8 @@ class TestXSXPrevention:
                 data={
                     "email": "test@example.com",
                     "password": "SecurePass123!",
-                    "full_name": payload
-                }
+                    "full_name": payload,
+                },
             )
 
             # Should reject XSS payloads
@@ -74,7 +77,7 @@ class TestXSXPrevention:
             "<script>@example.com",
             "test<script>@example.com",
             "test@example.com<script>",
-            "test@example.com<script>alert(1)</script>"
+            "test@example.com<script>alert(1)</script>",
         ]
 
         for email in xss_emails:
@@ -83,8 +86,8 @@ class TestXSXPrevention:
                 data={
                     "email": email,
                     "password": "SecurePass123!",
-                    "full_name": "Test User"
-                }
+                    "full_name": "Test User",
+                },
             )
 
             # Should reject XSS in email
@@ -95,7 +98,9 @@ class TestSQLInjectionPrevention:
     """Test SQL injection prevention in authentication endpoints"""
 
     @pytest.mark.asyncio
-    async def test_login_sql_injection_username(self, client: TestClient, db: AsyncSession):
+    async def test_login_sql_injection_username(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: SQL injection in username field during login
 
@@ -111,16 +116,13 @@ class TestSQLInjectionPrevention:
             "' UNION SELECT * FROM users--",
             "'; DROP TABLE users; --",
             "1' OR '1'='1",
-            "admin' #"
+            "admin' #",
         ]
 
         for payload in sqli_payloads:
             response = client.post(
                 "/api/v1/auth/token",
-                data={
-                    "username": payload,
-                    "password": "any_password"
-                }
+                data={"username": payload, "password": "any_password"},
             )
 
             # Should return 401 Unauthorized, not 500 (DB error)
@@ -128,7 +130,9 @@ class TestSQLInjectionPrevention:
             assert "Invalid credentials" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_login_sql_injection_password(self, client: TestClient, db: AsyncSession):
+    async def test_login_sql_injection_password(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: SQL injection in password field during login
 
@@ -138,10 +142,7 @@ class TestSQLInjectionPrevention:
         """
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "admin@example.com",
-                "password": "' OR '1'='1'--"
-            }
+            data={"username": "admin@example.com", "password": "' OR '1'='1'--"},
         )
 
         # Should return 401 Unauthorized, not 500 (DB error)
@@ -152,7 +153,9 @@ class TestInformationDisclosurePrevention:
     """Test prevention of information disclosure vulnerabilities"""
 
     @pytest.mark.asyncio
-    async def test_login_generic_error_messages(self, client: TestClient, db: AsyncSession):
+    async def test_login_generic_error_messages(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: Generic error messages prevent user enumeration
 
@@ -165,8 +168,8 @@ class TestInformationDisclosurePrevention:
             "/api/v1/auth/token",
             data={
                 "username": "nonexistent@example.com",
-                "password": "WrongPassword123!"
-            }
+                "password": "WrongPassword123!",
+            },
         )
 
         # Create a user and test with wrong password
@@ -175,17 +178,14 @@ class TestInformationDisclosurePrevention:
             email="existing@example.com",
             full_name="Existing User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
 
         response2 = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "existing@example.com",
-                "password": "WrongPassword123!"
-            }
+            data={"username": "existing@example.com", "password": "WrongPassword123!"},
         )
 
         # Both should return same generic message
@@ -206,10 +206,7 @@ class TestInformationDisclosurePrevention:
         # Send malformed request to trigger error
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "",  # Empty username
-                "password": ""   # Empty password
-            }
+            data={"username": "", "password": ""},  # Empty username  # Empty password
         )
 
         # Should return 400 or 401, not 500
@@ -241,14 +238,16 @@ class TestBruteForcePrevention:
                 "/api/v1/auth/token",
                 data={
                     "username": f"user{i}@example.com",
-                    "password": "WrongPassword123!"
-                }
+                    "password": "WrongPassword123!",
+                },
             )
             responses.append(response)
 
         # Should eventually be rate limited (429)
         rate_limited = [r for r in responses if r.status_code == 429]
-        assert len(rate_limited) > 0, "Rate limiting should trigger after multiple attempts"
+        assert (
+            len(rate_limited) > 0
+        ), "Rate limiting should trigger after multiple attempts"
 
     @pytest.mark.asyncio
     async def test_registration_rate_limiting(self, client: TestClient):
@@ -267,8 +266,8 @@ class TestBruteForcePrevention:
                 data={
                     "email": f"user{i}@example.com",
                     "password": "SecurePass123!",
-                    "full_name": f"Test User {i}"
-                }
+                    "full_name": f"Test User {i}",
+                },
             )
             responses.append(response)
 
@@ -281,7 +280,9 @@ class TestSessionSecurity:
     """Test session security features"""
 
     @pytest.mark.asyncio
-    async def test_httponly_cookie_prevents_xss(self, client: TestClient, db: AsyncSession):
+    async def test_httponly_cookie_prevents_xss(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: httpOnly cookies prevent XSS token theft
 
@@ -295,17 +296,14 @@ class TestSessionSecurity:
             email="test@example.com",
             full_name="Test User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
 
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "test@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "test@example.com", "password": "SecurePass123!"},
         )
 
         assert response.status_code == 200
@@ -334,17 +332,14 @@ class TestSessionSecurity:
             email="secure@example.com",
             full_name="Secure User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
 
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "secure@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "secure@example.com", "password": "SecurePass123!"},
         )
 
         assert response.status_code == 200
@@ -369,8 +364,8 @@ class TestAuditLogging:
             "/api/v1/auth/token",
             data={
                 "username": "nonexistent@example.com",
-                "password": "WrongPassword123!"
-            }
+                "password": "WrongPassword123!",
+            },
         )
 
         assert response.status_code == 401
@@ -393,17 +388,14 @@ class TestAuditLogging:
             email="audit@example.com",
             full_name="Audit User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
 
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "audit@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "audit@example.com", "password": "SecurePass123!"},
         )
 
         assert response.status_code == 200
@@ -430,8 +422,8 @@ class TestInputValidation:
             data={
                 "email": long_email,
                 "password": "SecurePass123!",
-                "full_name": "Test User"
-            }
+                "full_name": "Test User",
+            },
         )
 
         assert response.status_code == 400
@@ -445,13 +437,7 @@ class TestInputValidation:
         Attack Vector: XSS payloads in full_name
         Expected: Request rejected
         """
-        xss_patterns = [
-            "<script>",
-            "javascript:",
-            "onerror=",
-            "onload=",
-            "onclick="
-        ]
+        xss_patterns = ["<script>", "javascript:", "onerror=", "onload=", "onclick="]
 
         for pattern in xss_patterns:
             response = client.post(
@@ -459,8 +445,8 @@ class TestInputValidation:
                 data={
                     "email": "test@example.com",
                     "password": "SecurePass123!",
-                    "full_name": f"Test{pattern}User"
-                }
+                    "full_name": f"Test{pattern}User",
+                },
             )
 
             # Should reject
@@ -480,12 +466,12 @@ class TestPasswordSecurity:
         Expected: Request rejected with validation errors
         """
         weak_passwords = [
-            "password",      # Common password
-            "12345678",      # All numbers
-            "abcdefgh",      # All lowercase
-            "ABCDEFGH",      # All uppercase
-            "Pass1",         # Too short
-            "password123"    # No special character
+            "password",  # Common password
+            "12345678",  # All numbers
+            "abcdefgh",  # All lowercase
+            "ABCDEFGH",  # All uppercase
+            "Pass1",  # Too short
+            "password123",  # No special character
         ]
 
         for password in weak_passwords:
@@ -494,8 +480,8 @@ class TestPasswordSecurity:
                 data={
                     "email": "test@example.com",
                     "password": password,
-                    "full_name": "Test User"
-                }
+                    "full_name": "Test User",
+                },
             )
 
             # Should reject weak passwords
@@ -521,17 +507,14 @@ class TestCSRFPrevention:
             email="csrf@example.com",
             full_name="CSRF User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
 
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "csrf@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "csrf@example.com", "password": "SecurePass123!"},
         )
 
         assert response.status_code == 200
@@ -546,10 +529,12 @@ def client():
     """Test client fixture"""
     return TestClient(app)
 
+
 @pytest.fixture
 async def db():
     """Database fixture"""
     from app.core.database import get_async_db
+
     async for session in get_async_db():
         yield session
         break

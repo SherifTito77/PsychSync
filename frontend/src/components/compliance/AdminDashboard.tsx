@@ -123,10 +123,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
   const { showNotification } = useNotification();
   useEffect(() => {
     loadDashboardData();
+    let intervalId: NodeJS.Timeout | undefined;
     if (autoRefresh) {
-      const interval = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
+      intervalId = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
     }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [autoRefresh, activeTab]);
   const loadDashboardData = async () => {
     try {
@@ -263,7 +266,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ className = '' }
           <Card>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">System Health</h2>
-              <Badge color={getStatusColor(metrics.systemHealth)} size="lg">
+              <Badge color={getStatusColor(metrics.systemHealth)} size="sm">
                 {metrics.systemHealth.toUpperCase()}
               </Badge>
             </div>

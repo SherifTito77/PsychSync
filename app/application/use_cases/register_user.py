@@ -16,10 +16,16 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 
-from app.domain.entities.user import EmailAddress, User, UserPreferences, UserRole, UserStatus
+from app.domain.entities.user import (
+    EmailAddress,
+    User,
+    UserPreferences,
+    UserRole,
+    UserStatus,
+)
 from app.domain.events.user_events import UserRegisteredEvent
 from app.domain.repositories.user_repository import UserRepository
 from app.domain.services.email_service import EmailService
@@ -62,7 +68,9 @@ class RegisterUserUseCase:
         self.user_repository = user_repository
         self.email_service = email_service
 
-    async def execute(self, registration_request: RegistrationRequest) -> RegistrationResult:
+    async def execute(
+        self, registration_request: RegistrationRequest
+    ) -> RegistrationResult:
         """
         Execute user registration use case
 
@@ -73,12 +81,18 @@ class RegisterUserUseCase:
             Registration result with user or errors
         """
         try:
-            use_case_logger.info(f"Starting registration for email: {registration_request.email}")
+            use_case_logger.info(
+                f"Starting registration for email: {registration_request.email}"
+            )
 
             # Step 1: Validate business rules
-            validation_result = await self._validate_registration_rules(registration_request)
+            validation_result = await self._validate_registration_rules(
+                registration_request
+            )
             if not validation_result.is_valid:
-                return RegistrationResult(success=False, errors=validation_result.errors)
+                return RegistrationResult(
+                    success=False, errors=validation_result.errors
+                )
 
             # Step 2: Create domain entity
             user = await self._create_user_entity(registration_request)
@@ -90,12 +104,18 @@ class RegisterUserUseCase:
             verification_token = await self._generate_verification_token(persisted_user)
 
             # Step 5: Send verification email
-            email_sent = await self._send_verification_email(persisted_user, verification_token)
+            email_sent = await self._send_verification_email(
+                persisted_user, verification_token
+            )
 
             # Step 6: Publish domain event
-            await self._publish_user_registered_event(persisted_user, registration_request)
+            await self._publish_user_registered_event(
+                persisted_user, registration_request
+            )
 
-            use_case_logger.info(f"Registration completed for user: {persisted_user.id}")
+            use_case_logger.info(
+                f"Registration completed for user: {persisted_user.id}"
+            )
 
             return RegistrationResult(
                 success=True,
@@ -112,7 +132,9 @@ class RegisterUserUseCase:
 
     async def _validate_registration_rules(self, request: RegistrationRequest):
         """Validate registration business rules"""
-        from app.application.validation.registration_validator import RegistrationValidationResult
+        from app.application.validation.registration_validator import (
+            RegistrationValidationResult,
+        )
 
         validator = RegistrationValidationResult()
 
@@ -123,7 +145,9 @@ class RegisterUserUseCase:
 
         # Validate organization (if provided)
         if request.organization_id:
-            org_exists = await self.user_repository.organization_exists(request.organization_id)
+            org_exists = await self.user_repository.organization_exists(
+                request.organization_id
+            )
             if not org_exists:
                 validator.add_error("Invalid organization ID")
 
@@ -131,7 +155,9 @@ class RegisterUserUseCase:
 
         return validator
 
-    async def _create_user_entity(self, registration_request: RegistrationRequest) -> User:
+    async def _create_user_entity(
+        self, registration_request: RegistrationRequest
+    ) -> User:
         """Create user domain entity from registration request"""
         email_address = EmailAddress(value=registration_request.email)
 
@@ -159,7 +185,9 @@ class RegisterUserUseCase:
             from app.domain.services.password_service import PasswordService
 
             password_service = PasswordService()
-            user.password_hash = await password_service.hash_password(registration_request.password)
+            user.password_hash = await password_service.hash_password(
+                registration_request.password
+            )
 
         return user
 
@@ -184,10 +212,14 @@ class RegisterUserUseCase:
 
         return token
 
-    async def _send_verification_email(self, user: User, verification_token: str) -> bool:
+    async def _send_verification_email(
+        self, user: User, verification_token: str
+    ) -> bool:
         """Send verification email to user"""
         try:
-            verification_url = f"https://app.psychsync.com/verify-email?token={verification_token}"
+            verification_url = (
+                f"https://app.psychsync.com/verify-email?token={verification_token}"
+            )
 
             await self.email_service.send_verification_email(
                 to_email=user.email.value,

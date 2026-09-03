@@ -5,11 +5,11 @@ Advanced R&D platform for A/B testing, gamification, and voice/video analysis.
 This module provides cutting-edge features for innovation and user engagement.
 """
 
+import hashlib
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import hashlib
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -162,7 +162,9 @@ class ExperimentalFeaturesLab:
             logger.error(f"Error creating experiment {config.name}: {e}")
             raise
 
-    async def assign_user_to_variant(self, user_id: str, experiment_id: str) -> str | None:
+    async def assign_user_to_variant(
+        self, user_id: str, experiment_id: str
+    ) -> str | None:
         """Assign a user to an experiment variant"""
         try:
             experiment = self.running_experiments.get(experiment_id)
@@ -174,7 +176,9 @@ class ExperimentalFeaturesLab:
                 return experiment["participants"][user_id]["variant"]
 
             # Check if user meets target audience criteria
-            if not await self._user_meets_criteria(user_id, experiment["config"].target_audience):
+            if not await self._user_meets_criteria(
+                user_id, experiment["config"].target_audience
+            ):
                 return None
 
             # Assign to variant based on traffic split
@@ -193,11 +197,17 @@ class ExperimentalFeaturesLab:
             return variant
 
         except Exception as e:
-            logger.error(f"Error assigning user {user_id} to experiment {experiment_id}: {e}")
+            logger.error(
+                f"Error assigning user {user_id} to experiment {experiment_id}: {e}"
+            )
             raise
 
     async def track_experiment_event(
-        self, user_id: str, experiment_id: str, event_name: str, event_data: dict[str, Any]
+        self,
+        user_id: str,
+        experiment_id: str,
+        event_name: str,
+        event_data: dict[str, Any],
     ) -> bool:
         """Track user events for experiment analysis"""
         try:
@@ -224,7 +234,9 @@ class ExperimentalFeaturesLab:
             )
 
             # Update variant metrics
-            await self._update_variant_metrics(experiment, variant, event_name, event_data)
+            await self._update_variant_metrics(
+                experiment, variant, event_name, event_data
+            )
 
             return True
 
@@ -270,7 +282,9 @@ class ExperimentalFeaturesLab:
                 )
 
             # Calculate business impact
-            business_impact = await self._calculate_business_impact(variant_results, config)
+            business_impact = await self._calculate_business_impact(
+                variant_results, config
+            )
 
             experiment_results = ExperimentResults(
                 experiment_id=experiment_id,
@@ -318,7 +332,9 @@ class ExperimentalFeaturesLab:
     ) -> VoiceAnalysisResult:
         """Analyze voice/video response for emotional and behavioral insights"""
         try:
-            return await self.voice_analyzer.analyze_audio(audio_data, user_id, analysis_types)
+            return await self.voice_analyzer.analyze_audio(
+                audio_data, user_id, analysis_types
+            )
         except Exception as e:
             logger.error(f"Error analyzing voice response for user {user_id}: {e}")
             raise
@@ -328,7 +344,9 @@ class ExperimentalFeaturesLab:
     ) -> list[dict[str, Any]]:
         """Get gamification leaderboard"""
         try:
-            return await self.gamification_engine.get_leaderboard(leaderboard_type, limit)
+            return await self.gamification_engine.get_leaderboard(
+                leaderboard_type, limit
+            )
         except Exception as e:
             logger.error(f"Error getting {leaderboard_type} leaderboard: {e}")
             raise
@@ -370,7 +388,9 @@ class ExperimentalFeaturesLab:
         if not config.success_metrics:
             raise ValueError("At least one success metric must be defined")
 
-    async def _user_meets_criteria(self, user_id: str, target_audience: dict[str, Any]) -> bool:
+    async def _user_meets_criteria(
+        self, user_id: str, target_audience: dict[str, Any]
+    ) -> bool:
         """Check if user meets experiment target audience criteria"""
         # This would integrate with user data and segmentation
         # For now, return True (all users eligible)
@@ -393,7 +413,10 @@ class ExperimentalFeaturesLab:
         return list(traffic_split.keys())[0]
 
     async def _calculate_variant_metrics(
-        self, variant_name: str, variant_data: dict[str, Any], success_metrics: list[str]
+        self,
+        variant_name: str,
+        variant_data: dict[str, Any],
+        success_metrics: list[str],
     ) -> dict[str, Any]:
         """Calculate performance metrics for a variant"""
         events = variant_data.get("events", [])
@@ -409,12 +432,20 @@ class ExperimentalFeaturesLab:
         # Calculate success metrics
         for metric in success_metrics:
             if metric == "conversion_rate":
-                conversions = len([e for e in events if e["event_name"] == "conversion"])
+                conversions = len(
+                    [e for e in events if e["event_name"] == "conversion"]
+                )
                 total_users = metrics["unique_users"]
-                metrics["conversion_rate"] = conversions / total_users if total_users > 0 else 0
+                metrics["conversion_rate"] = (
+                    conversions / total_users if total_users > 0 else 0
+                )
             elif metric == "engagement_rate":
-                engagement_events = len([e for e in events if "engagement" in e["event_name"]])
-                metrics["engagement_rate"] = engagement_events / len(events) if events else 0
+                engagement_events = len(
+                    [e for e in events if "engagement" in e["event_name"]]
+                )
+                metrics["engagement_rate"] = (
+                    engagement_events / len(events) if events else 0
+                )
             # Add more metric calculations as needed
 
         return metrics
@@ -621,7 +652,10 @@ class GamificationEngine:
             elif level == 30:
                 rewards["unlock_features"] = ["premium_insights"]
 
-            progression[level] = {"points_required": int(points_required), "rewards": rewards}
+            progression[level] = {
+                "points_required": int(points_required),
+                "rewards": rewards,
+            }
 
         return progression
 
@@ -649,7 +683,11 @@ class GamificationEngine:
             ],
             leaderboard_rank=42,
             engagement_score=0.78,
-            preferences={"notifications": True, "public_profile": True, "challenge_mode": True},
+            preferences={
+                "notifications": True,
+                "public_profile": True,
+                "challenge_mode": True,
+            },
         )
 
     async def award_achievement(
@@ -680,12 +718,16 @@ class GamificationEngine:
             logger.info(f"Awarded achievement {achievement_type} to user {user_id}")
 
             # Trigger related events
-            await self._trigger_achievement_events(user_id, achievement_type, new_achievement)
+            await self._trigger_achievement_events(
+                user_id, achievement_type, new_achievement
+            )
 
             return True
 
         except Exception as e:
-            logger.error(f"Error awarding achievement {achievement_type} to user {user_id}: {e}")
+            logger.error(
+                f"Error awarding achievement {achievement_type} to user {user_id}: {e}"
+            )
             return False
 
     async def get_leaderboard(
@@ -790,16 +832,22 @@ class VoiceAnalyzer:
                 results["emotions"] = await self._detect_emotions(audio_data)
 
             if VoiceAnalysisType.SPEECH_RATE_ANALYSIS in analysis_types:
-                results["speech_metrics"] = await self._analyze_speech_patterns(audio_data)
+                results["speech_metrics"] = await self._analyze_speech_patterns(
+                    audio_data
+                )
 
             if VoiceAnalysisType.STRESS_DETECTION in analysis_types:
                 results["stress_indicators"] = await self._detect_stress(audio_data)
 
             if VoiceAnalysisType.ENGAGEMENT_LEVEL in analysis_types:
-                results["engagement_level"] = await self._calculate_engagement(audio_data)
+                results["engagement_level"] = await self._calculate_engagement(
+                    audio_data
+                )
 
             if VoiceAnalysisType.CONFIDENCE_SCORING in analysis_types:
-                results["confidence_score"] = await self._calculate_confidence(audio_data)
+                results["confidence_score"] = await self._calculate_confidence(
+                    audio_data
+                )
 
             # Generate recommendations based on analysis
             recommendations = await self._generate_voice_recommendations(results)
@@ -893,23 +941,33 @@ class VoiceAnalyzer:
         # Mock confidence calculation
         return 0.78
 
-    async def _generate_voice_recommendations(self, results: dict[str, Any]) -> list[str]:
+    async def _generate_voice_recommendations(
+        self, results: dict[str, Any]
+    ) -> list[str]:
         """Generate recommendations based on voice analysis"""
         recommendations = []
 
         if results.get("stress_indicators"):
-            recommendations.append("Consider stress management techniques to improve vocal clarity")
+            recommendations.append(
+                "Consider stress management techniques to improve vocal clarity"
+            )
 
         if results.get("engagement_level", 0) < 0.6:
-            recommendations.append("Try to speak with more enthusiasm and variation in tone")
+            recommendations.append(
+                "Try to speak with more enthusiasm and variation in tone"
+            )
 
         confidence_score = results.get("confidence_score", 0)
         if confidence_score < 0.7:
-            recommendations.append("Practice speaking more slowly and clearly to boost confidence")
+            recommendations.append(
+                "Practice speaking more slowly and clearly to boost confidence"
+            )
 
         sentiment = results.get("sentiment", {})
         if sentiment.get("negative", 0) > 0.3:
-            recommendations.append("Focus on maintaining a more positive tone in your responses")
+            recommendations.append(
+                "Focus on maintaining a more positive tone in your responses"
+            )
 
         return recommendations
 

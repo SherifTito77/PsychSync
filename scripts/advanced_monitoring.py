@@ -5,15 +5,17 @@ Sophisticated monitoring with trend analysis and predictive capabilities
 """
 
 import asyncio
-import time
 import json
 import statistics
 import subprocess
+import time
+from collections import deque
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Tuple, Optional
-from collections import deque
+from typing import Any, Dict, List, Optional, Tuple
+
 import psutil
+
 
 class AdvancedMonitoringSystem:
     def __init__(self):
@@ -197,8 +199,9 @@ class AdvancedMonitoringSystem:
     async def _collect_api_metrics(self) -> Dict[str, Any]:
         """Collect comprehensive API metrics"""
         try:
-            import requests
             import statistics
+
+            import requests
 
             # Test multiple endpoints
             endpoints = [

@@ -1,0 +1,1804 @@
+{
+  "test_id": "f034a4d5f2c3dac2",
+  "timestamp": "2025-12-19T10:14:19.689291",
+  "ssh_host": "localhost",
+  "ssh_port": 22,
+  "test_duration": 0.21549,
+  "results": {
+    "total_attempts": 196,
+    "successful_attempts": 0,
+    "blocked_attempts": 0,
+    "average_response_time": 0.005466328591716533,
+    "max_concurrent_attempts": 10,
+    "rate_limiting_detected": false,
+    "ip_blocking_detected": false,
+    "account_lockout_detected": false,
+    "security_score": 65
+  },
+  "detailed_attempts": [
+    {
+      "attempt_id": "5f51bbb5df0fdbba",
+      "timestamp": "2025-12-19T10:14:19.475022",
+      "username": "user",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.014389991760253906,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "26ed64af54d81023",
+      "timestamp": "2025-12-19T10:14:19.475417",
+      "username": "test",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0188901424407959,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "04985d35aa52f355",
+      "timestamp": "2025-12-19T10:14:19.474206",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.020733118057250977,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bd7237488fa1fd6a",
+      "timestamp": "2025-12-19T10:14:19.474666",
+      "username": "root",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.021142005920410156,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "e67e09f14b29b9e6",
+      "timestamp": "2025-12-19T10:14:19.475699",
+      "username": "guest",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.021253108978271484,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bece9087d10c6e8b",
+      "timestamp": "2025-12-19T10:14:19.495024",
+      "username": "root",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008340835571289062,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "e77b5c12fdb021da",
+      "timestamp": "2025-12-19T10:14:19.489640",
+      "username": "administrator",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.015649080276489258,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "358e1ee53412dc43",
+      "timestamp": "2025-12-19T10:14:19.494490",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.013370037078857422,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "7983bd58357c837d",
+      "timestamp": "2025-12-19T10:14:19.503624",
+      "username": "guest",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005179166793823242,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "e42fb58d0353ad98",
+      "timestamp": "2025-12-19T10:14:19.495907",
+      "username": "user",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.014076948165893555,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "8e29e5c6311820be",
+      "timestamp": "2025-12-19T10:14:19.508898",
+      "username": "root",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0017788410186767578,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b5bc7647523096ea",
+      "timestamp": "2025-12-19T10:14:19.507962",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.004832029342651367,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "9e82af5933e8c3fa",
+      "timestamp": "2025-12-19T10:14:19.505442",
+      "username": "administrator",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007708311080932617,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a0b7d4b773e58bd3",
+      "timestamp": "2025-12-19T10:14:19.510164",
+      "username": "user",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.003523111343383789,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "fc86c44b947c701f",
+      "timestamp": "2025-12-19T10:14:19.497265",
+      "username": "test",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.01771998405456543,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "814f69223d1b6b79",
+      "timestamp": "2025-12-19T10:14:19.512882",
+      "username": "guest",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0025177001953125,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "32e85697dd9e183d",
+      "timestamp": "2025-12-19T10:14:19.510829",
+      "username": "test",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005258083343505859,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f4eb47d614d3cb75",
+      "timestamp": "2025-12-19T10:14:19.513312",
+      "username": "administrator",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005042076110839844,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "e7ce131152076564",
+      "timestamp": "2025-12-19T10:14:19.515143",
+      "username": "root",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0035381317138671875,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "64ee825b77da6b61",
+      "timestamp": "2025-12-19T10:14:19.513881",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005054950714111328,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "6cebb3437950bfbd",
+      "timestamp": "2025-12-19T10:14:19.519421",
+      "username": "user0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009567737579345703,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "e9904e460da8e78d",
+      "timestamp": "2025-12-19T10:14:19.520433",
+      "username": "user1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008027553558349609,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c370ccfa3c0f6263",
+      "timestamp": "2025-12-19T10:14:19.521318",
+      "username": "user2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.000865936279296875,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "0426aa616e855f91",
+      "timestamp": "2025-12-19T10:14:19.522236",
+      "username": "user3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008368492126464844,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "3404f4d4d026455a",
+      "timestamp": "2025-12-19T10:14:19.523129",
+      "username": "user4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008141994476318359,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "ce4ff6550a515b14",
+      "timestamp": "2025-12-19T10:14:19.523992",
+      "username": "user5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008389949798583984,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c513be3ac04f1d4c",
+      "timestamp": "2025-12-19T10:14:19.524883",
+      "username": "user6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009417533874511719,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "3eee53583af3de76",
+      "timestamp": "2025-12-19T10:14:19.525891",
+      "username": "user7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0015337467193603516,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c01150439392d127",
+      "timestamp": "2025-12-19T10:14:19.527593",
+      "username": "user8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0017390251159667969,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "da32b68a17197b3d",
+      "timestamp": "2025-12-19T10:14:19.529382",
+      "username": "user9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0012698173522949219,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "6776c9506184a801",
+      "timestamp": "2025-12-19T10:14:19.530713",
+      "username": "user10",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.001550912857055664,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "96654dd760846f9c",
+      "timestamp": "2025-12-19T10:14:19.532447",
+      "username": "user11",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0018072128295898438,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a015812fe9ec0e13",
+      "timestamp": "2025-12-19T10:14:19.534535",
+      "username": "user12",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0012569427490234375,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c13a3c0c75672f08",
+      "timestamp": "2025-12-19T10:14:19.535903",
+      "username": "user13",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0013408660888671875,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a3cbeb1aef8e61b9",
+      "timestamp": "2025-12-19T10:14:19.537299",
+      "username": "user14",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0014362335205078125,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "9e9466e04773c9d0",
+      "timestamp": "2025-12-19T10:14:19.538856",
+      "username": "user15",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0010151863098144531,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "cc56a4daa14ba947",
+      "timestamp": "2025-12-19T10:14:19.539925",
+      "username": "user16",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007922649383544922,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "76a7ce71cb58cf2d",
+      "timestamp": "2025-12-19T10:14:19.540821",
+      "username": "user17",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0015439987182617188,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "0309eae55ddeb8ff",
+      "timestamp": "2025-12-19T10:14:19.542420",
+      "username": "user18",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007762908935546875,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bfe8a803f303fd72",
+      "timestamp": "2025-12-19T10:14:19.543241",
+      "username": "user19",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0017499923706054688,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "322168c6aa77ce5f",
+      "timestamp": "2025-12-19T10:14:19.545070",
+      "username": "user20",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0010499954223632812,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "d50c41c7d9358731",
+      "timestamp": "2025-12-19T10:14:19.546171",
+      "username": "user21",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008089542388916016,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c043a1693aa5e3c5",
+      "timestamp": "2025-12-19T10:14:19.547028",
+      "username": "user22",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008730888366699219,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bf0cf3387b202b41",
+      "timestamp": "2025-12-19T10:14:19.547945",
+      "username": "user23",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009069442749023438,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "97c824742e2506fe",
+      "timestamp": "2025-12-19T10:14:19.548904",
+      "username": "user24",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0012140274047851562,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "73f56f0244cef2fa",
+      "timestamp": "2025-12-19T10:14:19.550174",
+      "username": "user25",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008997917175292969,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "301632caca23ca47",
+      "timestamp": "2025-12-19T10:14:19.551123",
+      "username": "user26",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0011751651763916016,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "acd0a4f9f7db27ed",
+      "timestamp": "2025-12-19T10:14:19.552386",
+      "username": "user27",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.001199960708618164,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c1f949ab65db222a",
+      "timestamp": "2025-12-19T10:14:19.553695",
+      "username": "user28",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009729862213134766,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "1a717bfdfe5baf05",
+      "timestamp": "2025-12-19T10:14:19.554730",
+      "username": "user29",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0013120174407958984,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "da255f2772354bd2",
+      "timestamp": "2025-12-19T10:14:19.556110",
+      "username": "user30",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008108615875244141,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "d5e112080552e0fc",
+      "timestamp": "2025-12-19T10:14:19.556971",
+      "username": "user31",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0010502338409423828,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "86d3ee28fc3c1c77",
+      "timestamp": "2025-12-19T10:14:19.558072",
+      "username": "user32",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009107589721679688,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "88733b7aa3eddf6d",
+      "timestamp": "2025-12-19T10:14:19.559097",
+      "username": "user33",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008220672607421875,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "5a1993d45112d950",
+      "timestamp": "2025-12-19T10:14:19.559968",
+      "username": "user34",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0010521411895751953,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "26adbdfc9f3e463f",
+      "timestamp": "2025-12-19T10:14:19.561068",
+      "username": "user35",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009260177612304688,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b58c9d0202325f41",
+      "timestamp": "2025-12-19T10:14:19.562057",
+      "username": "user36",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007989406585693359,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "9e4df21080988013",
+      "timestamp": "2025-12-19T10:14:19.562928",
+      "username": "user37",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007669925689697266,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "05a3b4de19a288dc",
+      "timestamp": "2025-12-19T10:14:19.563813",
+      "username": "user38",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007560253143310547,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "24dd9c1dae9af662",
+      "timestamp": "2025-12-19T10:14:19.564616",
+      "username": "user39",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008618831634521484,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bd8031e74f8c9635",
+      "timestamp": "2025-12-19T10:14:19.565522",
+      "username": "user40",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0010638236999511719,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a59783e8621f7960",
+      "timestamp": "2025-12-19T10:14:19.566636",
+      "username": "user41",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0011608600616455078,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "3b0de627c0f312b8",
+      "timestamp": "2025-12-19T10:14:19.567884",
+      "username": "user42",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007939338684082031,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f9bd9593f4abd112",
+      "timestamp": "2025-12-19T10:14:19.568728",
+      "username": "user43",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009658336639404297,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "2d302e4a8fbf6e7b",
+      "timestamp": "2025-12-19T10:14:19.569750",
+      "username": "user44",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.000782012939453125,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b95d3fab988c8c0c",
+      "timestamp": "2025-12-19T10:14:19.570576",
+      "username": "user45",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008940696716308594,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b2764c50d8d991ea",
+      "timestamp": "2025-12-19T10:14:19.571518",
+      "username": "user46",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007359981536865234,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "46c53d9e45c501fc",
+      "timestamp": "2025-12-19T10:14:19.572304",
+      "username": "user47",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008990764617919922,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "d5025f72ce346e13",
+      "timestamp": "2025-12-19T10:14:19.573260",
+      "username": "user48",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007929801940917969,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "ee3b6b132f5534ff",
+      "timestamp": "2025-12-19T10:14:19.574138",
+      "username": "user49",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007879734039306641,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "998d9ccbb7800f82",
+      "timestamp": "2025-12-19T10:14:19.575230",
+      "username": "dist_user_0_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0030689239501953125,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f829b40551c616d0",
+      "timestamp": "2025-12-19T10:14:19.575660",
+      "username": "dist_user_1_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.004403829574584961,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "ee70df610337bdd9",
+      "timestamp": "2025-12-19T10:14:19.576037",
+      "username": "dist_user_2_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005338907241821289,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "6a5521bc3e9c6f2c",
+      "timestamp": "2025-12-19T10:14:19.578514",
+      "username": "dist_user_0_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008014917373657227,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a3a5049fd17373e5",
+      "timestamp": "2025-12-19T10:14:19.580922",
+      "username": "dist_user_6_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005825042724609375,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "aa9157ced93e8ad3",
+      "timestamp": "2025-12-19T10:14:19.577908",
+      "username": "dist_user_4_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008973121643066406,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b69b419368e123a1",
+      "timestamp": "2025-12-19T10:14:19.579800",
+      "username": "dist_user_5_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007832050323486328,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f00bd5cb53248d17",
+      "timestamp": "2025-12-19T10:14:19.582604",
+      "username": "dist_user_7_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005257129669189453,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "2574673f678a7388",
+      "timestamp": "2025-12-19T10:14:19.580104",
+      "username": "dist_user_1_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.00816798210144043,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "2cf6d0638879def3",
+      "timestamp": "2025-12-19T10:14:19.576899",
+      "username": "dist_user_3_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.01223301887512207,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "d1da094fb7afb1e4",
+      "timestamp": "2025-12-19T10:14:19.581432",
+      "username": "dist_user_2_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008018970489501953,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "03e3c96c66494be1",
+      "timestamp": "2025-12-19T10:14:19.583213",
+      "username": "dist_user_8_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007151126861572266,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "7f2cb8c9fcd03ad9",
+      "timestamp": "2025-12-19T10:14:19.584998",
+      "username": "dist_user_9_0",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0063648223876953125,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "8cb60bbf81255879",
+      "timestamp": "2025-12-19T10:14:19.586573",
+      "username": "dist_user_0_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005017280578613281,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "8e3d96abc3c4523b",
+      "timestamp": "2025-12-19T10:14:19.587729",
+      "username": "dist_user_5_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005395174026489258,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a7ef232cbaa63540",
+      "timestamp": "2025-12-19T10:14:19.586801",
+      "username": "dist_user_6_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0065670013427734375,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "33cf1770b2f73645",
+      "timestamp": "2025-12-19T10:14:19.587900",
+      "username": "dist_user_7_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.00571894645690918,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "eefa1002457713a9",
+      "timestamp": "2025-12-19T10:14:19.586972",
+      "username": "dist_user_4_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007161140441894531,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "e81c5057c0af250d",
+      "timestamp": "2025-12-19T10:14:19.588498",
+      "username": "dist_user_1_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007589101791381836,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "42bbec2f5a2cbfcb",
+      "timestamp": "2025-12-19T10:14:19.590501",
+      "username": "dist_user_8_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.006222963333129883,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "490603cc6aa45bfe",
+      "timestamp": "2025-12-19T10:14:19.591419",
+      "username": "dist_user_9_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005602836608886719,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "7c1ec5a2cdaf1ccf",
+      "timestamp": "2025-12-19T10:14:19.589240",
+      "username": "dist_user_3_1",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008537769317626953,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c40a77ce7e87f96e",
+      "timestamp": "2025-12-19T10:14:19.591623",
+      "username": "dist_user_0_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0064089298248291016,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "0ab3c5baf4a6b299",
+      "timestamp": "2025-12-19T10:14:19.589658",
+      "username": "dist_user_2_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008829832077026367,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bfb2c15f06e9110d",
+      "timestamp": "2025-12-19T10:14:19.593406",
+      "username": "dist_user_6_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0053060054779052734,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "13ade227d92f35cd",
+      "timestamp": "2025-12-19T10:14:19.596866",
+      "username": "dist_user_8_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0030138492584228516,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "7ea59ed763ce3fc1",
+      "timestamp": "2025-12-19T10:14:19.598086",
+      "username": "dist_user_0_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0024230480194091797,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f2f8c868b2134375",
+      "timestamp": "2025-12-19T10:14:19.593165",
+      "username": "dist_user_5_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007858753204345703,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b76a338bb4258e96",
+      "timestamp": "2025-12-19T10:14:19.593669",
+      "username": "dist_user_7_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008414030075073242,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "136bfc6e1db30b1f",
+      "timestamp": "2025-12-19T10:14:19.594185",
+      "username": "dist_user_4_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008919000625610352,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "66d59cb4d42c0864",
+      "timestamp": "2025-12-19T10:14:19.597132",
+      "username": "dist_user_9_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008881807327270508,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "1bb85d014a25c8f2",
+      "timestamp": "2025-12-19T10:14:19.606152",
+      "username": "dist_user_9_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0010821819305419922,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c75449d88833e5a0",
+      "timestamp": "2025-12-19T10:14:19.598564",
+      "username": "dist_user_2_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008967876434326172,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "ea0c7c6a2ae310d3",
+      "timestamp": "2025-12-19T10:14:19.600643",
+      "username": "dist_user_0_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008163213729858398,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "7a639281bf355a4c",
+      "timestamp": "2025-12-19T10:14:19.597904",
+      "username": "dist_user_3_2",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.011126041412353516,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "6a1ccbc1825c0716",
+      "timestamp": "2025-12-19T10:14:19.602271",
+      "username": "dist_user_7_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.006829977035522461,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "fcffbbddd6f44093",
+      "timestamp": "2025-12-19T10:14:19.603356",
+      "username": "dist_user_4_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.009212255477905273,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "cbb8abe551d2550f",
+      "timestamp": "2025-12-19T10:14:19.609088",
+      "username": "dist_user_3_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0058138370513916016,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f20540f1ff64267e",
+      "timestamp": "2025-12-19T10:14:19.609236",
+      "username": "dist_user_7_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.006370067596435547,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b25d04286f2ca545",
+      "timestamp": "2025-12-19T10:14:19.599932",
+      "username": "dist_user_8_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.015925168991088867,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "473348942de8345e",
+      "timestamp": "2025-12-19T10:14:19.601182",
+      "username": "dist_user_5_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.018941879272460938,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "42839db008881456",
+      "timestamp": "2025-12-19T10:14:19.612774",
+      "username": "dist_user_4_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007393836975097656,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "2bee26bff0cae2a7",
+      "timestamp": "2025-12-19T10:14:19.596205",
+      "username": "dist_user_1_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0255889892578125,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "2bbd27dd4dc0395f",
+      "timestamp": "2025-12-19T10:14:19.598877",
+      "username": "dist_user_6_3",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.02325892448425293,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "33ba09634fa34a2d",
+      "timestamp": "2025-12-19T10:14:19.620203",
+      "username": "dist_user_5_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.003325939178466797,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bad62939b6b26338",
+      "timestamp": "2025-12-19T10:14:19.607584",
+      "username": "dist_user_2_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.01624011993408203,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "08272e6922567a5d",
+      "timestamp": "2025-12-19T10:14:19.608872",
+      "username": "dist_user_0_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.015378952026367188,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "355e5ef9ede7c66e",
+      "timestamp": "2025-12-19T10:14:19.615663",
+      "username": "dist_user_7_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.009519815444946289,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b7c84584d2af64b0",
+      "timestamp": "2025-12-19T10:14:19.607289",
+      "username": "dist_user_9_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.01849079132080078,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "39d9046da94d5d7a",
+      "timestamp": "2025-12-19T10:14:19.620626",
+      "username": "dist_user_4_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0053670406341552734,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "91b07431c1674ff9",
+      "timestamp": "2025-12-19T10:14:19.622213",
+      "username": "dist_user_6_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.004705190658569336,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "0e625130230aee47",
+      "timestamp": "2025-12-19T10:14:19.623621",
+      "username": "dist_user_5_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0037031173706054688,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "eeb46cf5289fa7c1",
+      "timestamp": "2025-12-19T10:14:19.624301",
+      "username": "dist_user_0_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.004456043243408203,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "56eefa4bc6ec8c7c",
+      "timestamp": "2025-12-19T10:14:19.621875",
+      "username": "dist_user_1_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.00888514518737793,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "cf0a1a48bcb01526",
+      "timestamp": "2025-12-19T10:14:19.623862",
+      "username": "dist_user_2_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.008121013641357422,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "2f32b1e4eefcbafd",
+      "timestamp": "2025-12-19T10:14:19.626034",
+      "username": "dist_user_4_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.006489992141723633,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "04f21aed1fc108c8",
+      "timestamp": "2025-12-19T10:14:19.625234",
+      "username": "dist_user_7_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.009763002395629883,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "654eeae0f04c08a1",
+      "timestamp": "2025-12-19T10:14:19.615950",
+      "username": "dist_user_8_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.019310951232910156,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a4ce55f2b570d01a",
+      "timestamp": "2025-12-19T10:14:19.614953",
+      "username": "dist_user_3_4",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.02059197425842285,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "e57da6e8530db441",
+      "timestamp": "2025-12-19T10:14:19.627378",
+      "username": "dist_user_5_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.009177923202514648,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f7d5b753fad33777",
+      "timestamp": "2025-12-19T10:14:19.627035",
+      "username": "dist_user_6_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.010724067687988281,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "5e52087487136847",
+      "timestamp": "2025-12-19T10:14:19.630813",
+      "username": "dist_user_1_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.00716710090637207,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "423797986a746103",
+      "timestamp": "2025-12-19T10:14:19.635298",
+      "username": "dist_user_8_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0031359195709228516,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "6f99035a96ba1950",
+      "timestamp": "2025-12-19T10:14:19.635594",
+      "username": "dist_user_3_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.003987789154052734,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "23e365e969489b80",
+      "timestamp": "2025-12-19T10:14:19.635069",
+      "username": "dist_user_7_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005237102508544922,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c7a34bf5d76da656",
+      "timestamp": "2025-12-19T10:14:19.632085",
+      "username": "dist_user_2_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.009762048721313477,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b423b8f66a5cdabc",
+      "timestamp": "2025-12-19T10:14:19.640608",
+      "username": "dist_user_7_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.003805875778198242,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "0e84a3baa2fffb05",
+      "timestamp": "2025-12-19T10:14:19.625831",
+      "username": "dist_user_9_5",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.018784046173095703,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "2682bebc8606bf50",
+      "timestamp": "2025-12-19T10:14:19.644477",
+      "username": "dist_user_7_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0012662410736083984,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a44e1269492ff932",
+      "timestamp": "2025-12-19T10:14:19.632588",
+      "username": "dist_user_4_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.014343023300170898,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "1011202e6ca9dd3e",
+      "timestamp": "2025-12-19T10:14:19.638045",
+      "username": "dist_user_1_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.009114980697631836,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "ea8377509e3bddf6",
+      "timestamp": "2025-12-19T10:14:19.629012",
+      "username": "dist_user_0_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.019995927810668945,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "cd8fd98fb7b7600c",
+      "timestamp": "2025-12-19T10:14:19.638491",
+      "username": "dist_user_8_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.012536764144897461,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "fcce5567169f1614",
+      "timestamp": "2025-12-19T10:14:19.647228",
+      "username": "dist_user_1_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0040721893310546875,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "8c8cd236de13d66a",
+      "timestamp": "2025-12-19T10:14:19.642054",
+      "username": "dist_user_2_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.009582996368408203,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "91918ece802210ef",
+      "timestamp": "2025-12-19T10:14:19.639692",
+      "username": "dist_user_3_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0123138427734375,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "9762d5a95b91259e",
+      "timestamp": "2025-12-19T10:14:19.644656",
+      "username": "dist_user_9_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.007730960845947266,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f8815bb66d8a9d2d",
+      "timestamp": "2025-12-19T10:14:19.649096",
+      "username": "dist_user_0_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0036258697509765625,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "81f93a87343c18b6",
+      "timestamp": "2025-12-19T10:14:19.636608",
+      "username": "dist_user_5_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.016340017318725586,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "87e7a5ed76e04578",
+      "timestamp": "2025-12-19T10:14:19.637854",
+      "username": "dist_user_6_6",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.01641702651977539,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "22aad5355b38e70e",
+      "timestamp": "2025-12-19T10:14:19.647002",
+      "username": "dist_user_4_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0075151920318603516,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "549b88335452f2e7",
+      "timestamp": "2025-12-19T10:14:19.651337",
+      "username": "dist_user_1_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0033659934997558594,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a192da5a30d65e84",
+      "timestamp": "2025-12-19T10:14:19.651729",
+      "username": "dist_user_2_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0037529468536376953,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "afe2aee594451ce9",
+      "timestamp": "2025-12-19T10:14:19.653026",
+      "username": "dist_user_5_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.003298044204711914,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "bd54f884791fba2d",
+      "timestamp": "2025-12-19T10:14:19.651094",
+      "username": "dist_user_8_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005527019500732422,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "8583f44b6a0e2bb8",
+      "timestamp": "2025-12-19T10:14:19.654336",
+      "username": "dist_user_6_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.002920866012573242,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "61e4ec9957342502",
+      "timestamp": "2025-12-19T10:14:19.652113",
+      "username": "dist_user_3_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.005684852600097656,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b29a965b9cdaf079",
+      "timestamp": "2025-12-19T10:14:19.654735",
+      "username": "dist_user_1_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0035021305084228516,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "22e6632a6e1fc748",
+      "timestamp": "2025-12-19T10:14:19.654565",
+      "username": "dist_user_4_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.004302024841308594,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "4ee7356cc227c1f1",
+      "timestamp": "2025-12-19T10:14:19.652538",
+      "username": "dist_user_9_7",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.006929874420166016,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c55954d49c249134",
+      "timestamp": "2025-12-19T10:14:19.656372",
+      "username": "dist_user_5_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.003298044204711914,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "25f29b1f83812e84",
+      "timestamp": "2025-12-19T10:14:19.655535",
+      "username": "dist_user_2_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.004345893859863281,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "7002dc7f44453d71",
+      "timestamp": "2025-12-19T10:14:19.656691",
+      "username": "dist_user_8_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.003281116485595703,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "906a8cc0f7aceb36",
+      "timestamp": "2025-12-19T10:14:19.657304",
+      "username": "dist_user_6_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0031309127807617188,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "65ab43750dd00cf5",
+      "timestamp": "2025-12-19T10:14:19.657983",
+      "username": "dist_user_3_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0026810169219970703,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c120718eef65bf97",
+      "timestamp": "2025-12-19T10:14:19.659505",
+      "username": "dist_user_9_8",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0015070438385009766,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "66e5fc903f2d0d7d",
+      "timestamp": "2025-12-19T10:14:19.660520",
+      "username": "dist_user_6_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.002149820327758789,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "94e8b699ef84a0de",
+      "timestamp": "2025-12-19T10:14:19.660043",
+      "username": "dist_user_8_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.002885103225708008,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c67a01742b3b520a",
+      "timestamp": "2025-12-19T10:14:19.661095",
+      "username": "dist_user_9_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0023720264434814453,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "9e93e66a072395d4",
+      "timestamp": "2025-12-19T10:14:19.660737",
+      "username": "dist_user_3_9",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0027871131896972656,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "42084beeac303ff1",
+      "timestamp": "2025-12-19T10:14:19.664308",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008230209350585938,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "fd349bd1286a786d",
+      "timestamp": "2025-12-19T10:14:19.665171",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0012199878692626953,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "699ba86af4cde059",
+      "timestamp": "2025-12-19T10:14:19.666436",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008208751678466797,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a57a549583b13244",
+      "timestamp": "2025-12-19T10:14:19.667298",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007481575012207031,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b9520a7dee0480cf",
+      "timestamp": "2025-12-19T10:14:19.668083",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0006759166717529297,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "f1485118904b15bb",
+      "timestamp": "2025-12-19T10:14:19.668798",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009253025054931641,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "c69d486776fac329",
+      "timestamp": "2025-12-19T10:14:19.669760",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0006692409515380859,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "d1b71030e79d1cb1",
+      "timestamp": "2025-12-19T10:14:19.670463",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008139610290527344,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "d256f656ac98c941",
+      "timestamp": "2025-12-19T10:14:19.671327",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007290840148925781,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "eff4d4991a497757",
+      "timestamp": "2025-12-19T10:14:19.672096",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009260177612304688,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "5094204914073499",
+      "timestamp": "2025-12-19T10:14:19.673061",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0006930828094482422,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "eb4d0f061ce89564",
+      "timestamp": "2025-12-19T10:14:19.673792",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008299350738525391,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "b363355b311018f4",
+      "timestamp": "2025-12-19T10:14:19.674663",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009257793426513672,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "536ebd9c4e7cde08",
+      "timestamp": "2025-12-19T10:14:19.675633",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0006449222564697266,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "a7851910b1521c04",
+      "timestamp": "2025-12-19T10:14:19.676311",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007898807525634766,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "4ddf8e6f33f56ef3",
+      "timestamp": "2025-12-19T10:14:19.677141",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008032321929931641,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "202c0567deaae7d8",
+      "timestamp": "2025-12-19T10:14:19.678007",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0006489753723144531,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "1e94d815454eaa78",
+      "timestamp": "2025-12-19T10:14:19.678690",
+      "username": "root",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.001920938491821289,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "492a01f517d1f330",
+      "timestamp": "2025-12-19T10:14:19.680656",
+      "username": "user",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.001255035400390625,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "d407be721e6fa3e6",
+      "timestamp": "2025-12-19T10:14:19.681951",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.00156402587890625,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "84dc791ec0ce57c9",
+      "timestamp": "2025-12-19T10:14:19.683557",
+      "username": "root",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0010788440704345703,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "4a44c4c2fd5dbc5c",
+      "timestamp": "2025-12-19T10:14:19.684673",
+      "username": "admin",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0007369518280029297,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "9d6126fb07a34c32",
+      "timestamp": "2025-12-19T10:14:19.685464",
+      "username": "root",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009589195251464844,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "17bbe1a19906441e",
+      "timestamp": "2025-12-19T10:14:19.686466",
+      "username": "administrator",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0008099079132080078,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "df14305ee532e14c",
+      "timestamp": "2025-12-19T10:14:19.687311",
+      "username": "guest",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0006620883941650391,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    },
+    {
+      "attempt_id": "848be356e6079348",
+      "timestamp": "2025-12-19T10:14:19.688015",
+      "username": "test",
+      "success": false,
+      "blocked": false,
+      "response_time": 0.0009140968322753906,
+      "error_message": "Socket error: [Errno None] Unable to connect to port 22 on 127.0.0.1 or ::1"
+    }
+  ],
+  "recommendations": [
+    "Implement SSH rate limiting (e.g., fail2ban)",
+    "Configure MaxAuthTries in SSH configuration",
+    "Set reasonable connection timeout values",
+    "Implement IP blocking after failed attempts",
+    "Use tools like fail2ban or denyhosts",
+    "Configure firewall to block suspicious IPs",
+    "Implement account lockout after failed attempts",
+    "Set MaxAuthTries to a reasonable number (e.g., 3-5)",
+    "Configure automatic account unlocking policies",
+    "Disable password authentication, use key-based auth only",
+    "Disable root login (PermitRootLogin no)",
+    "Change default SSH port (22) to non-standard port",
+    "Implement strong cryptography (disable weak algorithms)",
+    "Use two-factor authentication (2FA) for SSH access",
+    "Regularly monitor SSH access logs for suspicious activity",
+    "Implement intrusion detection for SSH brute force attempts",
+    "Use SSH bastion host for multi-tier access",
+    "Regularly update OpenSSH to latest version"
+  ]
+}

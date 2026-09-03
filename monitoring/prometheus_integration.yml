@@ -1,0 +1,76 @@
+# Prometheus Configuration for PsychSync Integration Monitoring
+#
+# This configuration scrapes metrics from the PsychSync API integration monitoring endpoint
+#
+# Usage:
+#   prometheus --config.file=prometheus_integration.yml
+#
+# Or with Docker:
+#   docker run -p 9090:9090 \
+#     -v $(pwd)/prometheus_integration.yml:/etc/prometheus/prometheus.yml \
+#     prom/prometheus
+
+global:
+  scrape_interval: 15s  # Scrape targets every 15 seconds
+  evaluation_interval: 15s  # Evaluate rules every 15 seconds
+  external_labels:
+    cluster: 'psychsync-production'
+    environment: 'production'
+
+# Alertmanager configuration (optional - for alert routing)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - 'alertmanager:9093'  # Uncomment if using Alertmanager
+
+# Load alert rules
+rule_files:
+  - 'alerts_integration.yml'
+
+# Scrape configurations
+scrape_configs:
+  # PsychSync API integration metrics
+  - job_name: 'psychsync-integration-metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    metrics_path: '/api/v1/monitoring/metrics/prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:8000'  # PsychSync API
+        labels:
+          service: 'psychsync-api'
+          component: 'integration-metrics'
+
+  # PsychSync health checks (as metrics)
+  - job_name: 'psychsync-health'
+    scrape_interval: 30s
+    metrics_path: '/api/v1/monitoring/metrics/prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:8000'
+        labels:
+          service: 'psychsync-api'
+          component: 'health-check'
+
+  # Optional: Scrape from staging environment
+  # - job_name: 'psychsync-staging-metrics'
+  #   scrape_interval: 30s
+  #   metrics_path: '/api/v1/monitoring/metrics/prometheus'
+  #   static_configs:
+  #     - targets:
+  #         - 'staging.psychsync.io:8000'
+  #       labels:
+  #         service: 'psychsync-api'
+  #         environment: 'staging'
+
+  # Optional: Scrape from development environment
+  # - job_name: 'psychsync-dev-metrics'
+  #   scrape_interval: 60s
+  #   metrics_path: '/api/v1/monitoring/metrics/prometheus'
+  #   static_configs:
+  #     - targets:
+  #         - 'localhost:8000'
+  #       labels:
+  #         service: 'psychsync-api'
+  #         environment: 'development'

@@ -1,0 +1,26 @@
+# Re-export from canonical source to eliminate duplication.
+# app/services/clinical/scoring_algorithms.py is the single source of truth.
+from app.services.clinical.scoring_algorithms import (  # noqa: F401
+    BAIScorer,
+    BDI2Scorer,
+    CSSRSScorer,
+    EAT26Scorer,
+    GAD7Scorer,
+    LSASScorer,
+    PHQ9Scorer,
+    RiskLevel,
+    ScoringResult,
+    SeverityLevel,
+    YBOCSScorer,
+    get_scorer,
+    score_ace,
+    score_aq10,
+    score_asrs,
+    score_cssrs,
+    score_dast10,
+    score_gad7,
+    score_isi,
+    score_mdq,
+    score_phq9,
+    score_pss10,
+)

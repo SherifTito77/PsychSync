@@ -16,12 +16,13 @@ Author: Security Team
 Version: 1.0
 """
 
-import pytest
 import json
 import subprocess
 import tempfile
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
 
 
 class TestVEXGeneration:
@@ -36,9 +37,11 @@ class TestVEXGeneration:
         """Test that VEX script has valid Python syntax"""
         result = subprocess.run(
             ["python3", "-m", "py_compile", "scripts/generate-vex.py"],
-            capture_output=True
+            capture_output=True,
         )
-        assert result.returncode == 0, f"VEX script has syntax errors: {result.stderr.decode()}"
+        assert (
+            result.returncode == 0
+        ), f"VEX script has syntax errors: {result.stderr.decode()}"
 
     def test_vex_classes_defined(self):
         """Test that VEX classes are defined"""
@@ -48,7 +51,7 @@ class TestVEXGeneration:
         required_classes = [
             "class VEXStatus",
             "class VEXAnalyzer",
-            "class VEXGenerator"
+            "class VEXGenerator",
         ]
 
         for cls in required_classes:
@@ -63,15 +66,12 @@ class TestVEXGeneration:
             "version": 1,
             "metadata": {
                 "timestamp": datetime.utcnow().isoformat(),
-                "component": {
-                    "name": "test",
-                    "version": "1.0.0"
-                }
+                "component": {"name": "test", "version": "1.0.0"},
             },
-            "components": []
+            "components": [],
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(test_sbom, f)
             sbom_path = f.name
 
@@ -79,13 +79,17 @@ class TestVEXGeneration:
             # Run VEX generation
             result = subprocess.run(
                 [
-                    "python3", "scripts/generate-vex.py",
-                    "--sbom", sbom_path,
-                    "--output", "/tmp/test-vex.json",
-                    "--format", "openvex"
+                    "python3",
+                    "scripts/generate-vex.py",
+                    "--sbom",
+                    sbom_path,
+                    "--output",
+                    "/tmp/test-vex.json",
+                    "--format",
+                    "openvex",
                 ],
                 capture_output=True,
-                timeout=30
+                timeout=30,
             )
 
             # Check if it ran successfully
@@ -114,9 +118,11 @@ class TestCVEMonitoring:
         """Test that CVE monitor script has valid Python syntax"""
         result = subprocess.run(
             ["python3", "-m", "py_compile", "scripts/cve-monitor.py"],
-            capture_output=True
+            capture_output=True,
         )
-        assert result.returncode == 0, f"CVE monitor script has syntax errors: {result.stderr.decode()}"
+        assert (
+            result.returncode == 0
+        ), f"CVE monitor script has syntax errors: {result.stderr.decode()}"
 
     def test_cve_monitor_classes_defined(self):
         """Test that CVE monitor classes are defined"""
@@ -126,7 +132,7 @@ class TestCVEMonitoring:
         required_classes = [
             "class CVESource",
             "class CVEMonitor",
-            "class VulnerabilityAlert"
+            "class VulnerabilityAlert",
         ]
 
         for cls in required_classes:
@@ -159,8 +165,9 @@ class TestSignedReleases:
         with open(".github/workflows/signed-release.yml", "r") as f:
             content = f.read()
 
-        assert "slsa-framework/slsa-github-generator" in content, \
-            "SLSA generator not found in signed release workflow"
+        assert (
+            "slsa-framework/slsa-github-generator" in content
+        ), "SLSA generator not found in signed release workflow"
 
     def test_signed_release_has_cosign(self):
         """Test that signed release workflow uses cosign"""
@@ -181,12 +188,13 @@ class TestSignedReleases:
             "release-vex",
             "provenance",
             "signing",
-            "release"
+            "release",
         ]
 
         for job in required_jobs:
-            assert f"name: {job}" in content or f"{job}:" in content, \
-                f"Required job {job} not found in signed release workflow"
+            assert (
+                f"name: {job}" in content or f"{job}:" in content
+            ), f"Required job {job} not found in signed release workflow"
 
 
 class TestRegistryPolicies:
@@ -244,7 +252,7 @@ class TestDocumentation:
             "docs/SUPPLY_CHAIN_SECURITY_V2.md",
             "docs/SECURITY_IMPLEMENTATION_SUMMARY.md",
             "docs/SECURITY_SELF_ASSESSMENT_CHECKLIST.md",
-            "docs/SECURITY_QUICK_REFERENCE.md"
+            "docs/SECURITY_QUICK_REFERENCE.md",
         ]
 
         for doc in docs:
@@ -255,7 +263,7 @@ class TestDocumentation:
         docs = [
             "docs/SECURITY_README.md",
             "docs/SUPPLY_CHAIN_QUICK_START.md",
-            "docs/SUPPLY_CHAIN_SECURITY_V2.md"
+            "docs/SUPPLY_CHAIN_SECURITY_V2.md",
         ]
 
         for doc_path in docs:
@@ -279,7 +287,9 @@ class TestSecurityCI:
         with open(".github/workflows/security-ci.yml", "r") as f:
             content = f.read()
 
-        assert "generate-vex.py" in content, "VEX generation not in security CI workflow"
+        assert (
+            "generate-vex.py" in content
+        ), "VEX generation not in security CI workflow"
 
     def test_security_ci_has_sast(self):
         """Test that security CI workflow includes SAST"""
@@ -308,8 +318,9 @@ class TestSecurityCI:
             content = f.read()
 
         # Should block on high severity issues
-        assert "sys.exit(1)" in content or "exit 1" in content, \
-            "Security CI doesn't block on failures"
+        assert (
+            "sys.exit(1)" in content or "exit 1" in content
+        ), "Security CI doesn't block on failures"
 
 
 class TestDependencyGovernance:
@@ -325,22 +336,22 @@ class TestDependencyGovernance:
         with open(".github/workflows/dependency-governance.yml", "r") as f:
             content = f.read()
 
-        assert "check-allowlist.sh" in content, "Allow-list check not in dependency governance"
+        assert (
+            "check-allowlist.sh" in content
+        ), "Allow-list check not in dependency governance"
 
     def test_dependency_governance_has_signature_verification(self):
         """Test that dependency governance verifies signatures"""
         with open(".github/workflows/dependency-governance.yml", "r") as f:
             content = f.read()
 
-        assert "sigstore" in content or "signature-verification" in content, \
-            "Package signature verification not in dependency governance"
+        assert (
+            "sigstore" in content or "signature-verification" in content
+        ), "Package signature verification not in dependency governance"
 
     def test_allowlist_files_exist(self):
         """Test that allow-list files exist"""
-        files = [
-            "allowed-dependencies.txt",
-            "frontend/allowed-dependencies.json"
-        ]
+        files = ["allowed-dependencies.txt", "frontend/allowed-dependencies.json"]
 
         for file_path in files:
             assert Path(file_path).exists(), f"Allow-list file {file_path} not found"
@@ -351,7 +362,7 @@ class TestDependencyGovernance:
             content = f.read()
 
         # Should have some entries
-        lines = [l for l in content.split('\n') if l.strip() and not l.startswith('#')]
+        lines = [l for l in content.split("\n") if l.strip() and not l.startswith("#")]
         assert len(lines) > 0, "Python allow-list is empty"
 
     def test_js_allowlist_valid_json(self):
@@ -359,7 +370,9 @@ class TestDependencyGovernance:
         with open("frontend/allowed-dependencies.json", "r") as f:
             try:
                 data = json.load(f)
-                assert "allowedDependencies" in data, "Missing allowedDependencies in JS allow-list"
+                assert (
+                    "allowedDependencies" in data
+                ), "Missing allowedDependencies in JS allow-list"
             except json.JSONDecodeError as e:
                 pytest.fail(f"JavaScript allow-list has invalid JSON: {e}")
 
@@ -399,16 +412,18 @@ class TestComplianceReporting:
         """Test that compliance report script has valid Python syntax"""
         result = subprocess.run(
             ["python3", "-m", "py_compile", "scripts/compliance-report.py"],
-            capture_output=True
+            capture_output=True,
         )
-        assert result.returncode == 0, f"Compliance report script has syntax errors: {result.stderr.decode()}"
+        assert (
+            result.returncode == 0
+        ), f"Compliance report script has syntax errors: {result.stderr.decode()}"
 
     def test_compliance_report_generates_json(self):
         """Test that compliance report can generate JSON"""
         result = subprocess.run(
             ["python3", "scripts/compliance-report.py", "--format", "json"],
             capture_output=True,
-            timeout=30
+            timeout=30,
         )
 
         # May fail if dependencies missing, but should at least run
@@ -459,7 +474,7 @@ class TestVerificationScript:
             "scripts/generate-vex.py",
             "scripts/cve-monitor.py",
             ".github/workflows/security-ci.yml",
-            ".github/workflows/signed-release.yml"
+            ".github/workflows/signed-release.yml",
         ]
 
         for file in required_files:
@@ -480,7 +495,7 @@ class TestIntegration:
         """Test complete release workflow exists"""
         required_workflows = [
             ".github/workflows/security-ci.yml",
-            ".github/workflows/signed-release.yml"
+            ".github/workflows/signed-release.yml",
         ]
 
         for workflow in required_workflows:
@@ -494,7 +509,7 @@ class TestIntegration:
             "docs/SUPPLY_CHAIN_SECURITY_V2.md",
             "docs/SECURITY_IMPLEMENTATION_SUMMARY.md",
             "docs/SECURITY_SELF_ASSESSMENT_CHECKLIST.md",
-            "docs/SECURITY_QUICK_REFERENCE.md"
+            "docs/SECURITY_QUICK_REFERENCE.md",
         ]
 
         for doc in required_docs:

@@ -8,13 +8,13 @@ Enhanced Redis Caching Strategy with Multiple Cache Patterns
 """
 
 import asyncio
-from collections.abc import Callable
-from functools import wraps
 import hashlib
 import json
 import logging
 import pickle
 import time
+from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 import redis.asyncio as redis
@@ -42,7 +42,9 @@ class CacheKey:
 
     @staticmethod
     def api_response(endpoint: str, params: dict = None) -> str:
-        param_hash = hashlib.md5(json.dumps(params or {}, sort_keys=True).encode()).hexdigest()
+        param_hash = hashlib.md5(
+            json.dumps(params or {}, sort_keys=True).encode()
+        ).hexdigest()
         return f"api:{endpoint}:{param_hash}"
 
     @staticmethod
@@ -164,7 +166,9 @@ class EnhancedCacheManager:
             logger.error(f"Cache exists error for key {key}: {e}")
             return False
 
-    async def increment(self, key: str, amount: int = 1, ttl: int | None = None) -> int | None:
+    async def increment(
+        self, key: str, amount: int = 1, ttl: int | None = None
+    ) -> int | None:
         """Increment counter in cache"""
         try:
             pipe = self.redis.pipeline()
@@ -342,7 +346,9 @@ class RateLimiter:
                 # Get oldest request to calculate reset time
                 oldest = await self.cache.redis.zrange(key, 0, 0, withscores=True)
                 reset_time = (
-                    int(oldest[0][1]) + window_seconds if oldest else current_time + window_seconds
+                    int(oldest[0][1]) + window_seconds
+                    if oldest
+                    else current_time + window_seconds
                 )
 
                 return False, {
@@ -383,7 +389,13 @@ _cache_decorator: CacheDecorator | None = None
 _rate_limiter: RateLimiter | None = None
 
 # Cache statistics for performance monitoring
-_cache_stats = {"hits": 0, "misses": 0, "sets": 0, "hit_ratio": 0.0, "target_hit_ratio": 80.0}
+_cache_stats = {
+    "hits": 0,
+    "misses": 0,
+    "sets": 0,
+    "hit_ratio": 0.0,
+    "target_hit_ratio": 80.0,
+}
 
 
 def get_cache_manager() -> EnhancedCacheManager:

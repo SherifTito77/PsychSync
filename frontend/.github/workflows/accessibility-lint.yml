@@ -1,0 +1,180 @@
+name: Accessibility Linting
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.{ts,tsx,js,jsx}'
+      - '.github/workflows/accessibility-lint.yml'
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  accessibility-check:
+    name: Accessibility (WCAG 2.1 AA)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run ESLint with accessibility rules
+        working-directory: ./frontend
+        run: |
+          echo "🔍 Running ESLint with accessibility (jsx-a11y) rules..."
+          npm run lint -- --max-warnings=0 --format json > eslint-a11y-report.json || true
+          echo "✅ ESLint completed"
+
+      - name: Check for accessibility violations
+        working-directory: ./frontend
+        run: |
+          echo "📊 Accessibility Detection Summary"
+          echo "===================================="
+
+          # Count a11y violations by rule
+          ALT_TEXT_VIOLATIONS=$(grep -c "img-missing-alt-prop" eslint-a11y-report.json 2>/dev/null || echo "0")
+          BUTTON_TYPE_VIOLATIONS=$(grep -c "button-type-has-type" eslint-a11y-report.json 2>/dev/null || echo "0")
+          ANCHOR_VIOLATIONS=$(grep -c "anchor-is-valid" eslint-a11y-report.json 2>/dev/null || echo "0")
+          ARIA_VIOLATIONS=$(grep -c "jsx-a11y" eslint-a11y-report.json 2>/dev/null || echo "0")
+
+          TOTAL_VIOLATIONS=$((ALT_TEXT_VIOLATIONS + BUTTON_TYPE_VIOLATIONS + ANCHOR_VIOLATIONS + ARIA_VIOLATIONS))
+
+          echo "🖼️  Alt text violations: $ALT_TEXT_VIOLATIONS"
+          echo "🔘 Button type violations: $BUTTON_TYPE_VIOLATIONS"
+          echo "🔗 Anchor violations: $ANCHOR_VIOLATIONS"
+          echo "♿ ARIA violations: $ARIA_VIOLATIONS"
+          echo ""
+          echo "📈 Total accessibility violations: $TOTAL_VIOLATIONS"
+
+          if [ "$TOTAL_VIOLATIONS" -gt 0 ]; then
+            echo ""
+            echo "❌ Accessibility violations detected!"
+            echo "Please fix the following issues:"
+            jq '.[] | select(.messages[].ruleId | contains("jsx-a11y")) | {file: .filePath, messages: [.messages[] | select(.ruleId | contains("jsx-a11y")) | {rule: .ruleId, line: .line, message: .message}]}' eslint-a11y-report.json
+            exit 1
+          else
+            echo ""
+            echo "✅ No accessibility violations found!"
+          fi
+
+      - name: Generate HTML report
+        if: always()
+        working-directory: ./frontend
+        run: |
+          npm run lint -- --format html -o a11y-report.html || true
+          echo "📄 HTML report generated: a11y-report.html"
+
+      - name: Upload accessibility report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-lint-report
+          path: |
+            frontend/eslint-a11y-report.json
+            frontend/a11y-report.html
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## ♿ Accessibility Linting Results\n\n';
+
+            try {
+              const report = JSON.parse(fs.readFileSync('./frontend/eslint-a11y-report.json', 'utf8'));
+              const violations = report.filter(r =>
+                r.messages.some(m => m.ruleId && m.ruleId.includes('jsx-a11y'))
+              );
+
+              if (violations.length > 0) {
+                comment += `❌ **Found ${violations.length} file(s) with accessibility violations**\n\n`;
+
+                violations.forEach(v => {
+                  const messages = v.messages.filter(m => m.ruleId && m.ruleId.includes('jsx-a11y'));
+                  comment += `### ${v.filePath}\n`;
+                  messages.forEach(m => {
+                    comment += `- **${m.ruleId}** (Line ${m.line}): ${m.message}\n`;
+                  });
+                  comment += '\n';
+                });
+
+                comment += `\n📚 **WCAG 2.1 Level AA Compliance Required**\n`;
+                comment += `\nSee [ACCESSIBILITY_VIOLATIONS_REPORT.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/frontend/ACCESSIBILITY_VIOLATIONS_REPORT.md) for fixing these issues.\n`;
+              } else {
+                comment += '✅ **No accessibility violations detected!**\n\n';
+                comment += 'All components meet WCAG 2.1 Level AA standards.\n';
+                comment += '\n**Checked:**\n';
+                comment += '- ✅ Image alt text\n';
+                comment += '- ✅ Button semantics\n';
+                comment += '- ✅ ARIA attributes\n';
+                comment += '- ✅ Keyboard navigation\n';
+                comment += '- ✅ Form labels\n';
+              }
+            } catch (error) {
+              comment += '⚠️ Could not generate detailed report. Check the workflow logs.\n';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail on violations
+        if: always()
+        run: |
+          if [ -f frontend/eslint-a11y-report.json ]; then
+            VIOLATIONS=$(jq '[.[] | select(.messages[].ruleId | contains("jsx-a11y"))] | length' frontend/eslint-a11y-report.json)
+            if [ "$VIOLATIONS" -gt 0 ]; then
+              echo "❌ Found $VIOLATIONS file(s) with accessibility violations"
+              exit 1
+            fi
+          fi
+          echo "✅ All accessibility checks passed!"
+
+  type-check:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run TypeScript type check
+        working-directory: ./frontend
+        run: npm run type-check
+
+      - name: Upload type check results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-errors-a11y
+          path: frontend/
+          retention-days: 7

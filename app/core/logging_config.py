@@ -1,7 +1,9 @@
 # app/core/logging_config.py
+import json
 import logging
-from pathlib import Path
 import sys
+from datetime import datetime
+from pathlib import Path
 
 from app.core.log_sanitizer import SensitiveDataFilter
 
@@ -43,7 +45,7 @@ class StructuredFormatter(logging.Formatter):
             if len(parts) == 4:
                 parts[-1] = "xxx"
                 return ".".join(parts)
-        except:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             pass
         return "xxx.xxx.xxx.xxx"
 
@@ -55,7 +57,9 @@ def setup_logging():
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Configure logging format
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     # Create sensitive data filter
     sensitive_filter = SensitiveDataFilter(redaction_string="[REDACTED]")

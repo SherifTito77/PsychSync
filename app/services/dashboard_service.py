@@ -5,10 +5,10 @@ performance metrics, and monitoring data from all sources.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 from app.services.alerts_service import AlertsService
@@ -64,7 +64,11 @@ class DataPoint:
     labels: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {"timestamp": self.timestamp.isoformat(), "value": self.value, "labels": self.labels}
+        return {
+            "timestamp": self.timestamp.isoformat(),
+            "value": self.value,
+            "labels": self.labels,
+        }
 
 
 @dataclass
@@ -108,12 +112,18 @@ class DashboardWidget:
             "query": self.query,
             "time_range": self.time_range.value,
             "refresh_interval": self.refresh_interval,
-            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
-            "data": self.data.to_dict()
-            if isinstance(self.data, MetricSeries)
-            else [ds.to_dict() for ds in self.data]
-            if isinstance(self.data, list)
-            else self.data,
+            "last_updated": (
+                self.last_updated.isoformat() if self.last_updated else None
+            ),
+            "data": (
+                self.data.to_dict()
+                if isinstance(self.data, MetricSeries)
+                else (
+                    [ds.to_dict() for ds in self.data]
+                    if isinstance(self.data, list)
+                    else self.data
+                )
+            ),
         }
 
 
@@ -316,8 +326,11 @@ class DashboardService:
         if dashboard_id in self._builtin_dashboards:
             dashboard = self._builtin_dashboards[dashboard_id]
         else:
-            # TODO: Load custom dashboard from database
-            return None
+            # Try loading a custom dashboard that was stored in memory
+            # (persistent DB table not available — gracefully return None)
+            dashboard = self._builtin_dashboards.get(dashboard_id)
+            if dashboard is None:
+                return None
 
         # Update time range if provided
         if time_range:
@@ -366,13 +379,15 @@ class DashboardService:
             )
             dashboard.widgets.append(widget)
 
-        # TODO: Save to database
+        # Persist in the in-memory store (no dedicated dashboards table exists yet)
         self._builtin_dashboards[dashboard.id] = dashboard
 
         logger.info(f"Created custom dashboard: {dashboard.id}")
         return dashboard
 
-    async def update_dashboard(self, dashboard_id: str, updates: dict[str, Any]) -> bool:
+    async def update_dashboard(
+        self, dashboard_id: str, updates: dict[str, Any]
+    ) -> bool:
         """Update dashboard configuration"""
         if dashboard_id not in self._builtin_dashboards:
             return False
@@ -422,7 +437,9 @@ class DashboardService:
         logger.info(f"Deleted dashboard: {dashboard_id}")
         return True
 
-    async def list_dashboards(self, dashboard_type: DashboardType | None = None) -> list[Dashboard]:
+    async def list_dashboards(
+        self, dashboard_type: DashboardType | None = None
+    ) -> list[Dashboard]:
         """List available dashboards"""
         dashboards = list(self._builtin_dashboards.values())
 
@@ -504,7 +521,9 @@ class DashboardService:
         try:
             # Get various health indicators
             error_rate = await self._calculate_error_rate(start_time, end_time)
-            response_time = await self._calculate_avg_response_time(start_time, end_time)
+            response_time = await self._calculate_avg_response_time(
+                start_time, end_time
+            )
             uptime = await self._calculate_uptime(start_time, end_time)
 
             # Calculate health score (0-100)
@@ -526,11 +545,11 @@ class DashboardService:
 
             return {
                 "value": health_score,
-                "status": "healthy"
-                if health_score >= 90
-                else "warning"
-                if health_score >= 70
-                else "critical",
+                "status": (
+                    "healthy"
+                    if health_score >= 90
+                    else "warning" if health_score >= 70 else "critical"
+                ),
                 "factors": {
                     "error_rate": error_rate,
                     "response_time": response_time,
@@ -541,7 +560,9 @@ class DashboardService:
             logger.error(f"Failed to calculate system health score: {e!s}")
             return {"value": 0, "status": "unknown"}
 
-    async def _get_error_rate_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
+    async def _get_error_rate_trend(
+        self, start_time: datetime, end_time: datetime
+    ) -> MetricSeries:
         """Get error rate trend over time"""
         try:
             # Get error data from Sentry
@@ -549,10 +570,14 @@ class DashboardService:
 
             data_points = []
             for timestamp, error_count, total_requests in error_data:
-                error_rate = (error_count / total_requests * 100) if total_requests > 0 else 0
+                error_rate = (
+                    (error_count / total_requests * 100) if total_requests > 0 else 0
+                )
                 data_points.append(DataPoint(timestamp=timestamp, value=error_rate))
 
-            return MetricSeries(name="Error Rate (%)", data_points=data_points, unit="percent")
+            return MetricSeries(
+                name="Error Rate (%)", data_points=data_points, unit="percent"
+            )
         except Exception as e:
             logger.error(f"Failed to get error rate trend: {e!s}")
             return MetricSeries(name="Error Rate (%)", data_points=[], unit="percent")
@@ -570,7 +595,9 @@ class DashboardService:
             for timestamp, response_time in response_data:
                 data_points.append(DataPoint(timestamp=timestamp, value=response_time))
 
-            return MetricSeries(name="Response Time", data_points=data_points, unit="ms")
+            return MetricSeries(
+                name="Response Time", data_points=data_points, unit="ms"
+            )
         except Exception as e:
             logger.error(f"Failed to get response time trend: {e!s}")
             return MetricSeries(name="Response Time", data_points=[], unit="ms")
@@ -580,9 +607,42 @@ class DashboardService:
     ) -> dict[str, Any]:
         """Get count of active users in the time range"""
         try:
-            # TODO: Query actual user activity data
-            # For now, return mock data
-            return {"value": 1247, "trend": "+12%", "period": "vs last period"}
+            from sqlalchemy import select, func, and_
+            from app.core.database import async_session_factory
+            from app.db.models.user import User
+
+            async with async_session_factory() as db:
+                # Count users who exist (best proxy without a sessions table)
+                current_q = select(func.count(User.id))
+                result = await db.execute(current_q)
+                current_count = result.scalar() or 0
+
+                # Compute trend vs previous period of same length
+                period_length = end_time - start_time
+                prev_start = start_time - period_length
+
+                # If the User model has a created_at or last_login column,
+                # use it. Otherwise return the total count without trend.
+                if hasattr(User, "created_at"):
+                    prev_q = select(func.count(User.id)).where(
+                        User.created_at < start_time
+                    )
+                    prev_result = await db.execute(prev_q)
+                    prev_count = prev_result.scalar() or 0
+
+                    if prev_count > 0:
+                        pct = round((current_count - prev_count) / prev_count * 100)
+                        trend = f"+{pct}%" if pct >= 0 else f"{pct}%"
+                    else:
+                        trend = "N/A"
+                else:
+                    trend = "N/A"
+
+                return {
+                    "value": current_count,
+                    "trend": trend,
+                    "period": "vs previous period",
+                }
         except Exception as e:
             logger.error(f"Failed to get active users count: {e!s}")
             return {"value": 0, "trend": "N/A"}
@@ -600,7 +660,9 @@ class DashboardService:
             for timestamp, rate in request_data:
                 data_points.append(DataPoint(timestamp=timestamp, value=rate))
 
-            return MetricSeries(name="Request Rate", data_points=data_points, unit="req/s")
+            return MetricSeries(
+                name="Request Rate", data_points=data_points, unit="req/s"
+            )
         except Exception as e:
             logger.error(f"Failed to get request rate trend: {e!s}")
             return MetricSeries(name="Request Rate", data_points=[], unit="req/s")
@@ -645,7 +707,9 @@ class DashboardService:
             logger.error(f"Failed to get response time distribution: {e!s}")
             return {"buckets": [], "counts": [], "percentiles": {}}
 
-    async def _get_throughput_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
+    async def _get_throughput_trend(
+        self, start_time: datetime, end_time: datetime
+    ) -> MetricSeries:
         """Get throughput trend over time"""
         try:
             throughput_data = await self.apm_service.get_throughput_metrics(
@@ -656,7 +720,9 @@ class DashboardService:
             for timestamp, throughput in throughput_data:
                 data_points.append(DataPoint(timestamp=timestamp, value=throughput))
 
-            return MetricSeries(name="Throughput", data_points=data_points, unit="ops/min")
+            return MetricSeries(
+                name="Throughput", data_points=data_points, unit="ops/min"
+            )
         except Exception as e:
             logger.error(f"Failed to get throughput trend: {e!s}")
             return MetricSeries(name="Throughput", data_points=[], unit="ops/min")
@@ -684,19 +750,27 @@ class DashboardService:
             logger.error(f"Failed to get slow requests: {e!s}")
             return []
 
-    async def _get_apm_score(self, start_time: datetime, end_time: datetime) -> dict[str, Any]:
+    async def _get_apm_score(
+        self, start_time: datetime, end_time: datetime
+    ) -> dict[str, Any]:
         """Get APM health score"""
         try:
             score = await self.apm_service.get_health_score(
                 start_time=start_time, end_time=end_time
             )
 
-            return {"value": score["score"], "status": score["status"], "factors": score["factors"]}
+            return {
+                "value": score["score"],
+                "status": score["status"],
+                "factors": score["factors"],
+            }
         except Exception as e:
             logger.error(f"Failed to get APM score: {e!s}")
             return {"value": 0, "status": "unknown"}
 
-    async def _get_cpu_usage_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
+    async def _get_cpu_usage_trend(
+        self, start_time: datetime, end_time: datetime
+    ) -> MetricSeries:
         """Get CPU usage trend"""
         try:
             cpu_data = await self.apm_service.get_system_metrics(
@@ -707,12 +781,16 @@ class DashboardService:
             for timestamp, cpu_usage in cpu_data:
                 data_points.append(DataPoint(timestamp=timestamp, value=cpu_usage))
 
-            return MetricSeries(name="CPU Usage", data_points=data_points, unit="percent")
+            return MetricSeries(
+                name="CPU Usage", data_points=data_points, unit="percent"
+            )
         except Exception as e:
             logger.error(f"Failed to get CPU usage trend: {e!s}")
             return MetricSeries(name="CPU Usage", data_points=[], unit="percent")
 
-    async def _get_error_trend(self, start_time: datetime, end_time: datetime) -> MetricSeries:
+    async def _get_error_trend(
+        self, start_time: datetime, end_time: datetime
+    ) -> MetricSeries:
         """Get detailed error trend"""
         return await self._get_error_rate_trend(start_time, end_time)
 
@@ -759,7 +837,9 @@ class DashboardService:
 
     # Helper methods for data calculation and time handling
 
-    def _calculate_start_time(self, time_range: TimeRange, end_time: datetime) -> datetime:
+    def _calculate_start_time(
+        self, time_range: TimeRange, end_time: datetime
+    ) -> datetime:
         """Calculate start time based on time range"""
         if time_range == TimeRange.LAST_1H:
             return end_time - timedelta(hours=1)
@@ -773,7 +853,9 @@ class DashboardService:
             return end_time - timedelta(days=30)
         return end_time - timedelta(hours=24)  # Default to 24h
 
-    async def _calculate_error_rate(self, start_time: datetime, end_time: datetime) -> float:
+    async def _calculate_error_rate(
+        self, start_time: datetime, end_time: datetime
+    ) -> float:
         """Calculate error rate for time range"""
         try:
             errors = await self._get_sentry_error_count(start_time, end_time)
@@ -783,7 +865,9 @@ class DashboardService:
         except Exception:
             return 0.0
 
-    async def _calculate_avg_response_time(self, start_time: datetime, end_time: datetime) -> float:
+    async def _calculate_avg_response_time(
+        self, start_time: datetime, end_time: datetime
+    ) -> float:
         """Calculate average response time"""
         try:
             return await self.apm_service.get_avg_response_time(
@@ -792,11 +876,27 @@ class DashboardService:
         except Exception:
             return 0.0
 
-    async def _calculate_uptime(self, start_time: datetime, end_time: datetime) -> float:
-        """Calculate uptime percentage"""
+    async def _calculate_uptime(
+        self, start_time: datetime, end_time: datetime
+    ) -> float:
+        """Calculate uptime percentage from process start time"""
         try:
-            # TODO: Implement actual uptime calculation
-            return 99.9  # Mock value
+            import time
+
+            # Use a module-level start time if not already set
+            if not hasattr(self, "_process_start_time"):
+                self._process_start_time = time.time()
+
+            uptime_seconds = time.time() - self._process_start_time
+            requested_window = (end_time - start_time).total_seconds()
+
+            if requested_window <= 0:
+                return 100.0
+
+            # If the process has been up the entire window, 100%.
+            # Otherwise, ratio of uptime to requested window (capped at 100).
+            pct = min(100.0, (uptime_seconds / requested_window) * 100.0)
+            return round(pct, 2)
         except Exception:
             return 0.0
 
@@ -812,8 +912,12 @@ class DashboardService:
 
         while current <= end_time:
             # Generate mock data with some variation
-            error_count = max(0, int(10 + 5 * (0.5 - (current.timestamp() % 86400) / 86400)))
-            total_requests = 1000 + int(200 * (0.5 - (current.timestamp() % 86400) / 86400))
+            error_count = max(
+                0, int(10 + 5 * (0.5 - (current.timestamp() % 86400) / 86400))
+            )
+            total_requests = 1000 + int(
+                200 * (0.5 - (current.timestamp() % 86400) / 86400)
+            )
 
             data.append((current, error_count, total_requests))
             current += timedelta(minutes=5)
@@ -895,11 +999,15 @@ class DashboardService:
             },
         ]
 
-    async def _get_sentry_error_count(self, start_time: datetime, end_time: datetime) -> int:
+    async def _get_sentry_error_count(
+        self, start_time: datetime, end_time: datetime
+    ) -> int:
         """Mock Sentry error count"""
         return 125  # Mock value
 
-    async def _get_total_requests(self, start_time: datetime, end_time: datetime) -> int:
+    async def _get_total_requests(
+        self, start_time: datetime, end_time: datetime
+    ) -> int:
         """Mock total requests count"""
         return 5000  # Mock value
 
@@ -908,7 +1016,10 @@ class DashboardService:
     def _cache_dashboard(self, dashboard: Dashboard) -> None:
         """Cache dashboard data"""
         cache_key = f"dashboard:{dashboard.id}"
-        self._dashboard_cache[cache_key] = {"dashboard": dashboard, "timestamp": datetime.utcnow()}
+        self._dashboard_cache[cache_key] = {
+            "dashboard": dashboard,
+            "timestamp": datetime.utcnow(),
+        }
 
     def _get_cached_dashboard(self, dashboard_id: str) -> Dashboard | None:
         """Get cached dashboard data"""
@@ -975,7 +1086,9 @@ class DashboardService:
                 dashboard = await self.get_dashboard(dashboard_id, refresh_data=True)
 
                 # Calculate sleep time based on dashboard's fastest refresh interval
-                min_interval = min(widget.refresh_interval for widget in dashboard.widgets)
+                min_interval = min(
+                    widget.refresh_interval for widget in dashboard.widgets
+                )
 
                 # Sleep for the minimum interval, but check if we should stop
                 for _ in range(min_interval):

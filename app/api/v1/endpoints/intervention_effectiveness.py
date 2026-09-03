@@ -5,29 +5,37 @@ REST API endpoints for intervention tracking, analysis, and effectiveness evalua
 Provides comprehensive endpoints for managing interventions and analyzing their impact.
 """
 
+import asyncio
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from app.middleware.rate_limiter import check_rate_limit
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.auth import get_current_user
-from app.db.models.user import User
+from app.api.deps import get_async_db, get_current_active_user
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.intervention_effectiveness import (
-    Intervention, InterventionParticipant, PreInterventionMeasurement,
-    PostInterventionMeasurement, InterventionEffectiveness, InterventionOutcomes
+    Intervention,
+    InterventionEffectiveness,
+    InterventionOutcomes,
+    InterventionParticipant,
+    PostInterventionMeasurement,
+    PreInterventionMeasurement,
 )
+from app.db.models.user import User
 from app.services.intervention_analysis import InterventionAnalyzer
 from app.services.statistical_significance import StatisticalSignificanceTester
 
-router = APIRouter(prefix="/intervention-effectiveness", tags=["intervention-effectiveness"])
+router = APIRouter(
+    prefix="/intervention-effectiveness", tags=["intervention-effectiveness"]
+)
+
 
 # Request/Response Models
 class InterventionCreateRequest(BaseModel):
     """Request model for creating interventions"""
+
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     intervention_type: str = Field(..., min_length=1, max_length=100)
@@ -46,24 +54,34 @@ class InterventionCreateRequest(BaseModel):
     tags: Optional[List[str]] = None
     team_id: Optional[str] = None
 
+
 class InterventionUpdateRequest(BaseModel):
     """Request model for updating interventions"""
+
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    status: Optional[str] = Field(None, regex="^(planned|active|completed|cancelled|paused)$")
+    status: Optional[str] = Field(
+        None, regex="^(planned|active|completed|cancelled|paused)$"
+    )
     end_date: Optional[datetime] = None
     actual_participants: Optional[int] = Field(None, ge=0)
     priority: Optional[str] = Field(None, regex="^(low|medium|high|critical)$")
     budget: Optional[float] = Field(None, ge=0)
 
+
 class ParticipantEnrollmentRequest(BaseModel):
     """Request model for enrolling participants"""
+
     user_ids: List[str] = Field(..., min_items=1)
-    participant_role: str = Field(default="participant", regex="^(participant|facilitator|observer)$")
+    participant_role: str = Field(
+        default="participant", regex="^(participant|facilitator|observer)$"
+    )
     enrollment_notes: Optional[str] = None
+
 
 class MeasurementRequest(BaseModel):
     """Request model for adding measurements"""
+
     user_id: str
     metric_name: str = Field(..., min_length=1, max_length=100)
     metric_value: float
@@ -75,8 +93,10 @@ class MeasurementRequest(BaseModel):
     sample_size: Optional[int] = Field(None, ge=1)
     qualitative_notes: Optional[str] = None
 
+
 class AnalysisRequest(BaseModel):
     """Request model for intervention analysis"""
+
     intervention_id: str
     metrics: Optional[List[str]] = None
     control_group_id: Optional[str] = None
@@ -84,8 +104,10 @@ class AnalysisRequest(BaseModel):
     significance_level: float = Field(default=0.05, ge=0.001, le=0.1)
     power_threshold: float = Field(default=0.8, ge=0.5, le=0.99)
 
+
 class InterventionResponse(BaseModel):
     """Response model for intervention data"""
+
     id: str
     organization_id: Optional[str]
     team_id: Optional[str]
@@ -113,8 +135,10 @@ class InterventionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
 class MeasurementResponse(BaseModel):
     """Response model for measurement data"""
+
     id: str
     intervention_id: str
     user_id: str
@@ -129,8 +153,10 @@ class MeasurementResponse(BaseModel):
     qualitative_notes: Optional[str]
     created_at: datetime
 
+
 class EffectivenessResponse(BaseModel):
     """Response model for effectiveness analysis"""
+
     intervention_id: str
     metric_name: str
     effect_size: float
@@ -149,8 +175,10 @@ class EffectivenessResponse(BaseModel):
     recommendations: Optional[str]
     created_at: datetime
 
+
 class AnalysisSummaryResponse(BaseModel):
     """Response model for analysis summary"""
+
     intervention_id: str
     analysis_date: datetime
     total_metrics: int
@@ -162,17 +190,22 @@ class AnalysisSummaryResponse(BaseModel):
     confidence_score: float
     limitations: List[str]
 
+
 # Core Endpoints
 
-@check_rate_limit(identifier="public", limit_name="public")
+
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/interventions", response_model=InterventionResponse)
 async def create_intervention(
     request: InterventionCreateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Create a new intervention"""
     try:
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
         intervention = Intervention(
             organization_id=current_user.organization_id,
             team_id=request.team_id,
@@ -193,66 +226,99 @@ async def create_intervention(
             participants_target=request.participants_target,
             implementation_details=request.implementation_details,
             external_references=request.external_references,
-            tags=request.tags
+            tags=request.tags,
         )
 
-        db.add(intervention)
-        db.commit()
-        db.refresh(intervention)
+        await loop.run_in_executor(None, lambda: db.add(intervention))
+        await loop.run_in_executor(None, db.commit)
+        await loop.run_in_executor(None, lambda: db.refresh(intervention))
 
         return InterventionResponse.from_orm(intervention)
 
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create intervention: {str(e)}")
+        await loop.run_in_executor(None, db.rollback)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create intervention: {str(e)}"
+        )
+
 
 @router.get("/interventions", response_model=List[InterventionResponse])
 async def list_interventions(
-    status: Optional[str] = Query(None, pattern="^(planned|active|completed|cancelled|paused)$"),
+    status: Optional[str] = Query(
+        None, pattern="^(planned|active|completed|cancelled|paused)$"
+    ),
     intervention_type: Optional[str] = None,
     category: Optional[str] = None,
     team_id: Optional[str] = None,
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """List interventions with filtering"""
     try:
-        query = db.query(Intervention).filter(
-            Intervention.organization_id == current_user.organization_id,
-            Intervention.is_active == True
-        )
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
 
-        if status:
-            query = query.filter(Intervention.status == status)
-        if intervention_type:
-            query = query.filter(Intervention.intervention_type == intervention_type)
-        if category:
-            query = query.filter(Intervention.category == category)
-        if team_id:
-            query = query.filter(Intervention.team_id == team_id)
+        def query_db():
+            query = db.query(Intervention).filter(
+                Intervention.organization_id == current_user.organization_id,
+                Intervention.is_active == True,
+            )
 
-        interventions = query.order_by(Intervention.created_at.desc()).offset(offset).limit(limit).all()
+            if status:
+                query = query.filter(Intervention.status == status)
+            if intervention_type:
+                query = query.filter(
+                    Intervention.intervention_type == intervention_type
+                )
+            if category:
+                query = query.filter(Intervention.category == category)
+            if team_id:
+                query = query.filter(Intervention.team_id == team_id)
 
-        return [InterventionResponse.from_orm(intervention) for intervention in interventions]
+            interventions = (
+                query.order_by(Intervention.created_at.desc())
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
+            return interventions
+
+        interventions = await loop.run_in_executor(None, query_db)
+
+        return [
+            InterventionResponse.from_orm(intervention)
+            for intervention in interventions
+        ]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list interventions: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list interventions: {str(e)}"
+        )
+
 
 @router.get("/interventions/{intervention_id}", response_model=InterventionResponse)
 async def get_intervention(
     intervention_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Get specific intervention details"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id,
-            Intervention.is_active == True
-        ).first()
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
+        intervention = await loop.run_in_executor(
+            None,
+            lambda: db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+                Intervention.is_active == True,
+            )
+            .first(),
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -262,21 +328,32 @@ async def get_intervention(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get intervention: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get intervention: {str(e)}"
+        )
+
 
 @router.put("/interventions/{intervention_id}", response_model=InterventionResponse)
 async def update_intervention(
     intervention_id: str,
     request: InterventionUpdateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Update intervention details"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
+        intervention = await loop.run_in_executor(
+            None,
+            lambda: db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first(),
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -287,31 +364,38 @@ async def update_intervention(
             setattr(intervention, field, value)
 
         intervention.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(intervention)
+        await loop.run_in_executor(None, db.commit)
+        await loop.run_in_executor(None, lambda: db.refresh(intervention))
 
         return InterventionResponse.from_orm(intervention)
 
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to update intervention: {str(e)}")
+        await loop.run_in_executor(None, db.rollback)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update intervention: {str(e)}"
+        )
+
 
 # Participant Management
 @router.post("/interventions/{intervention_id}/participants")
 async def enroll_participants(
     intervention_id: str,
     request: ParticipantEnrollmentRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Enroll participants in intervention"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        intervention = (
+            db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -319,10 +403,14 @@ async def enroll_participants(
         enrolled_count = 0
         for user_id in request.user_ids:
             # Check if already enrolled
-            existing = db.query(InterventionParticipant).filter(
-                InterventionParticipant.intervention_id == intervention_id,
-                InterventionParticipant.user_id == user_id
-            ).first()
+            existing = (
+                db.query(InterventionParticipant)
+                .filter(
+                    InterventionParticipant.intervention_id == intervention_id,
+                    InterventionParticipant.user_id == user_id,
+                )
+                .first()
+            )
 
             if existing:
                 continue
@@ -331,47 +419,61 @@ async def enroll_participants(
                 intervention_id=intervention_id,
                 user_id=user_id,
                 participant_role=request.participant_role,
-                notes=request.enrollment_notes
+                notes=request.enrollment_notes,
             )
 
             db.add(participant)
             enrolled_count += 1
 
         # Update actual participants count
-        total_participants = db.query(InterventionParticipant).filter(
-            InterventionParticipant.intervention_id == intervention_id
-        ).count()
+        total_participants = (
+            db.query(InterventionParticipant)
+            .filter(InterventionParticipant.intervention_id == intervention_id)
+            .count()
+        )
         intervention.actual_participants = total_participants
 
         db.commit()
 
-        return {"enrolled_count": enrolled_count, "total_participants": total_participants}
+        return {
+            "enrolled_count": enrolled_count,
+            "total_participants": total_participants,
+        }
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to enroll participants: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to enroll participants: {str(e)}"
+        )
+
 
 @router.get("/interventions/{intervention_id}/participants")
 async def list_participants(
     intervention_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """List intervention participants"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        intervention = (
+            db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
 
-        participants = db.query(InterventionParticipant).filter(
-            InterventionParticipant.intervention_id == intervention_id
-        ).all()
+        participants = (
+            db.query(InterventionParticipant)
+            .filter(InterventionParticipant.intervention_id == intervention_id)
+            .all()
+        )
 
         return [
             {
@@ -381,7 +483,7 @@ async def list_participants(
                 "enrollment_date": participant.enrollment_date,
                 "completion_status": participant.completion_status,
                 "engagement_score": participant.engagement_score,
-                "attendance_rate": participant.attendance_rate
+                "attendance_rate": participant.attendance_rate,
             }
             for participant in participants
         ]
@@ -389,22 +491,32 @@ async def list_participants(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list participants: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list participants: {str(e)}"
+        )
+
 
 # Measurement Management
-@router.post("/interventions/{intervention_id}/measurements/pre", response_model=MeasurementResponse)
+@router.post(
+    "/interventions/{intervention_id}/measurements/pre",
+    response_model=MeasurementResponse,
+)
 async def add_pre_measurement(
     intervention_id: str,
     request: MeasurementRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Add pre-intervention measurement"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        intervention = (
+            db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -420,7 +532,7 @@ async def add_pre_measurement(
             data_source=request.data_source,
             confidence_level=request.confidence_level,
             sample_size=request.sample_size,
-            qualitative_notes=request.qualitative_notes
+            qualitative_notes=request.qualitative_notes,
         )
 
         db.add(measurement)
@@ -433,21 +545,31 @@ async def add_pre_measurement(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to add pre-measurement: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to add pre-measurement: {str(e)}"
+        )
 
-@router.post("/interventions/{intervention_id}/measurements/post", response_model=MeasurementResponse)
+
+@router.post(
+    "/interventions/{intervention_id}/measurements/post",
+    response_model=MeasurementResponse,
+)
 async def add_post_measurement(
     intervention_id: str,
     request: MeasurementRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Add post-intervention measurement"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        intervention = (
+            db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -463,7 +585,7 @@ async def add_post_measurement(
             data_source=request.data_source,
             confidence_level=request.confidence_level,
             sample_size=request.sample_size,
-            qualitative_notes=request.qualitative_notes
+            qualitative_notes=request.qualitative_notes,
         )
 
         db.add(measurement)
@@ -476,7 +598,10 @@ async def add_post_measurement(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to add post-measurement: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to add post-measurement: {str(e)}"
+        )
+
 
 @router.get("/interventions/{intervention_id}/measurements")
 async def list_measurements(
@@ -484,15 +609,19 @@ async def list_measurements(
     measurement_type: str = Query(..., pattern="^(pre|post)$"),
     metric_name: Optional[str] = None,
     user_id: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """List intervention measurements"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        intervention = (
+            db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -507,11 +636,18 @@ async def list_measurements(
             )
 
         if metric_name:
-            query = query.filter(getattr(query.column_descriptions[0]['type'], 'metric_name') == metric_name)
+            query = query.filter(
+                getattr(query.column_descriptions[0]["type"], "metric_name")
+                == metric_name
+            )
         if user_id:
-            query = query.filter(getattr(query.column_descriptions[0]['type'], 'user_id') == user_id)
+            query = query.filter(
+                getattr(query.column_descriptions[0]["type"], "user_id") == user_id
+            )
 
-        measurements = query.order_by(getattr(query.column_descriptions[0]['type'], 'measurement_date')).all()
+        measurements = query.order_by(
+            getattr(query.column_descriptions[0]["type"], "measurement_date")
+        ).all()
 
         return [
             {
@@ -523,7 +659,7 @@ async def list_measurements(
                 "measurement_date": measurement.measurement_date,
                 "measurement_method": measurement.measurement_method,
                 "confidence_level": measurement.confidence_level,
-                "qualitative_notes": measurement.qualitative_notes
+                "qualitative_notes": measurement.qualitative_notes,
             }
             for measurement in measurements
         ]
@@ -531,23 +667,30 @@ async def list_measurements(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list measurements: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list measurements: {str(e)}"
+        )
+
 
 # Analysis Endpoints
 @router.post("/analyze", response_model=AnalysisSummaryResponse)
 async def analyze_intervention_effectiveness(
     request: AnalysisRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Analyze intervention effectiveness"""
     try:
         # Verify intervention exists and user has access
-        intervention = db.query(Intervention).filter(
-            Intervention.id == request.intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        intervention = (
+            db.query(Intervention)
+            .filter(
+                Intervention.id == request.intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -561,33 +704,49 @@ async def analyze_intervention_effectiveness(
         )
 
         # Perform comprehensive analysis
-        analysis_results = await intervention_analyzer.analyze_intervention_effectiveness(
-            request.intervention_id,
-            request.metrics,
-            request.control_group_id,
-            request.follow_up_days
+        analysis_results = (
+            await intervention_analyzer.analyze_intervention_effectiveness(
+                request.intervention_id,
+                request.metrics,
+                request.control_group_id,
+                request.follow_up_days,
+            )
         )
 
         if not analysis_results:
-            raise HTTPException(status_code=400, detail="Insufficient data for analysis")
+            raise HTTPException(
+                status_code=400, detail="Insufficient data for analysis"
+            )
 
         # Calculate summary statistics
         total_metrics = len(analysis_results)
         significant_metrics = sum(
-            1 for result in analysis_results
-            if any(test.p_value < request.significance_level for test in result.statistical_tests if test.p_value)
-        )
-        average_effect_size = sum(
-            max([abs(es.effect_size) for es in result.effect_sizes] + [0])
+            1
             for result in analysis_results
-        ) / total_metrics
+            if any(
+                test.p_value < request.significance_level
+                for test in result.statistical_tests
+                if test.p_value
+            )
+        )
+        average_effect_size = (
+            sum(
+                max([abs(es.effect_size) for es in result.effect_sizes] + [0])
+                for result in analysis_results
+            )
+            / total_metrics
+        )
 
         # Generate overall recommendation
         significant_ratio = significant_metrics / total_metrics
-        avg_power = sum(
-            result.power_analysis.power for result in analysis_results
-            if result.power_analysis.power
-        ) / total_metrics
+        avg_power = (
+            sum(
+                result.power_analysis.power
+                for result in analysis_results
+                if result.power_analysis.power
+            )
+            / total_metrics
+        )
 
         if significant_ratio >= 0.7 and avg_power >= 0.8:
             overall_recommendation = "Strongly recommended - highly effective"
@@ -612,7 +771,7 @@ async def analyze_intervention_effectiveness(
             save_analysis_results,
             request.intervention_id,
             analysis_results,
-            current_user.id
+            current_user.id,
         )
 
         return AnalysisSummaryResponse(
@@ -622,10 +781,14 @@ async def analyze_intervention_effectiveness(
             significant_metrics=significant_metrics,
             average_effect_size=average_effect_size,
             statistical_power=avg_power,
-            bayesian_evidence={"strong": 0, "moderate": 0, "weak": 0},  # Simplified for now
+            bayesian_evidence={
+                "strong": 0,
+                "moderate": 0,
+                "weak": 0,
+            },  # Simplified for now
             overall_recommendation=overall_recommendation,
             confidence_score=confidence_score,
-            limitations=list(set(all_limitations))  # Remove duplicates
+            limitations=list(set(all_limitations)),  # Remove duplicates
         )
 
     except HTTPException:
@@ -633,19 +796,27 @@ async def analyze_intervention_effectiveness(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
-@router.get("/interventions/{intervention_id}/effectiveness", response_model=List[EffectivenessResponse])
+
+@router.get(
+    "/interventions/{intervention_id}/effectiveness",
+    response_model=List[EffectivenessResponse],
+)
 async def get_effectiveness_results(
     intervention_id: str,
     metric_name: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """Get saved effectiveness analysis results"""
     try:
-        intervention = db.query(Intervention).filter(
-            Intervention.id == intervention_id,
-            Intervention.organization_id == current_user.organization_id
-        ).first()
+        intervention = (
+            db.query(Intervention)
+            .filter(
+                Intervention.id == intervention_id,
+                Intervention.organization_id == current_user.organization_id,
+            )
+            .first()
+        )
 
         if not intervention:
             raise HTTPException(status_code=404, detail="Intervention not found")
@@ -664,14 +835,17 @@ async def get_effectiveness_results(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get effectiveness results: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get effectiveness results: {str(e)}"
+        )
+
 
 # Helper Functions
 async def save_analysis_results(
     intervention_id: str,
     analysis_results: List[Any],
     user_id: str,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Save analysis results to database"""
     try:
@@ -681,15 +855,26 @@ async def save_analysis_results(
                 effectiveness = InterventionEffectiveness(
                     intervention_id=intervention_id,
                     metric_name=result.metric_name,
-                    effect_size=max([abs(es.effect_size) for es in result.effect_sizes] + [0]),
+                    effect_size=max(
+                        [abs(es.effect_size) for es in result.effect_sizes] + [0]
+                    ),
                     p_value=test_result.p_value,
                     statistical_significance=test_result.p_value < 0.05,
                     test_type=test_result.test_name,
                     sample_size_pre=result.sample_size,
                     sample_size_post=result.sample_size,
-                    pre_intervention_mean=float(np.mean(result.pre_post_data.pre_values)),
-                    post_intervention_mean=float(np.mean(result.pre_post_data.post_values)),
-                    effect_category="positive" if float(np.mean(result.pre_post_data.post_values)) > float(np.mean(result.pre_post_data.pre_values)) else "negative"
+                    pre_intervention_mean=float(
+                        np.mean(result.pre_post_data.pre_values)
+                    ),
+                    post_intervention_mean=float(
+                        np.mean(result.pre_post_data.post_values)
+                    ),
+                    effect_category=(
+                        "positive"
+                        if float(np.mean(result.pre_post_data.post_values))
+                        > float(np.mean(result.pre_post_data.pre_values))
+                        else "negative"
+                    ),
                 )
 
                 db.add(effectiveness)

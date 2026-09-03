@@ -82,10 +82,11 @@ const ClinicalAssessments: React.FC = () => {
 
   useEffect(() => {
     // Simulate checking for any active crisis alerts
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       setLoading(false);
       setCrisisAlert(false); // Set to true to show crisis banner
     }, 1000);
+    return () => clearTimeout(timerId);
   }, []);
 
   const handleStartAssessment = (toolId: string) => {
@@ -199,7 +200,7 @@ const ClinicalAssessments: React.FC = () => {
                 <Button
                   onClick={() => handleStartAssessment(tool.id)}
                   className="w-full"
-                  size="lg"
+                  size="sm"
                 >
                   Start Assessment
                 </Button>

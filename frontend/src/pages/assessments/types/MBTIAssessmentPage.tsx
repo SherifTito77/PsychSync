@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import apiClient from '@/services/api';
 import assessmentResultsService from '@/services/assessmentResultsService';
@@ -31,61 +31,76 @@ export default function MBTIAssessmentPage() {
   const navigate = useNavigate();
   const { assessmentId } = useParams();
 
+  // ✅ FIXED: Use ref to track if assessment has been loaded
+  const hasLoaded = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // ✅ FIXED: Function moved inside useEffect with proper dependencies
   useEffect(() => {
     // Prevent multiple loads once assessment is loaded
-    if (assessment) return;
+    if (hasLoaded.current) return;
 
-    loadMBTIAssessment();
-  }, [assessmentId]); // Only depend on assessmentId
+    const loadMBTIAssessment = async () => {
+      // ✅ FIXED: Create AbortController for cleanup
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
 
-  const loadMBTIAssessment = async () => {
-    try {
-      console.log('🚀 Loading MBTI Assessment...');
-      console.log('📍 Assessment ID:', assessmentId);
-      setIsLoading(true);
-      setError(null);
+      try {
+        console.log('🚀 Loading MBTI Assessment...');
+        console.log('📍 Assessment ID:', assessmentId);
+        setIsLoading(true);
+        setError(null);
 
-      // Clear any cached results to ensure fresh start
-      setResults(null);
-      setAnswers({});
-      setCurrentQuestion(0);
+        // Clear any cached results to ensure fresh start
+        setResults(null);
+        setAnswers({});
+        setCurrentQuestion(0);
 
-      console.log('📡 Fetching MBTI questions from API...');
-      // Load MBTI assessment from backend API
-      const response = await apiClient.get('/assessment-questions/mbti');
+        console.log('📡 Fetching MBTI questions from API...');
+        // Load MBTI assessment from backend API
+        const response = await apiClient.get('/assessments/assessment-questions/mbti', {
+          signal: abortController.signal
+        });
 
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
+        if (response.data && (response.data as any).success) {
+          const backendAssessment = (response.data as any).assessment;
 
-        // Transform backend data to frontend format
-        const mbtiAssessment: MBTIAssessment = {
-          id: backendAssessment.id,
-          title: backendAssessment.title,
-          description: backendAssessment.description,
-          questions: backendAssessment.questions.map((q: any) => ({
-            id: q.id,
-            question_text: q.question_text,
-            dimension: q.dimension,
-            options: q.options.map((opt: any) => ({
-              text: opt.text,
-              value: opt.value
+          // Transform backend data to frontend format
+          const mbtiAssessment: MBTIAssessment = {
+            id: backendAssessment.id,
+            title: backendAssessment.title,
+            description: backendAssessment.description,
+            questions: backendAssessment.questions.map((q: any) => ({
+              id: q.id,
+              question_text: q.question_text,
+              dimension: q.dimension,
+              options: q.options.map((opt: any) => ({
+                text: opt.text,
+                value: opt.value
+              }))
             }))
-          }))
-        };
+          };
 
-        console.log('✅ MBTI Assessment loaded successfully:', mbtiAssessment.title, `(${mbtiAssessment.questions.length} questions)`);
-        setAssessment(mbtiAssessment);
-        setIsLoading(false);
-      } else {
-        throw new Error('Failed to load assessment from backend');
-      }
+          console.log('✅ MBTI Assessment loaded successfully:', mbtiAssessment.title, `(${mbtiAssessment.questions.length} questions)`);
+          setAssessment(mbtiAssessment);
+          hasLoaded.current = true; // Mark as loaded
+          setIsLoading(false);
+        } else {
+          throw new Error('Failed to load assessment from backend');
+        }
 
-    } catch (error) {
-      console.error('❌ Failed to load MBTI assessment from backend:', error);
+      } catch (error) {
+        // ✅ FIXED: Check if error is due to abort
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('⚠️ Assessment loading aborted');
+          return;
+        }
 
-      // Fallback to mock MBTI assessment if backend fails
-      console.log('⚠️ Using fallback mock data...');
-      const mockMBTI: MBTIAssessment = {
+        console.error('❌ Failed to load MBTI assessment from backend:', error);
+
+        // Fallback to mock MBTI assessment if backend fails
+        console.log('⚠️ Using fallback mock data...');
+        const mockMBTI: MBTIAssessment = {
         id: assessmentId || 'mbti-default',
         title: 'Myers-Briggs Type Indicator (MBTI) Assessment',
         description: 'Discover your personality type based on the four MBTI dimensions',
@@ -167,10 +182,22 @@ export default function MBTIAssessmentPage() {
 
       console.log('✅ Fallback MBTI Assessment ready:', mockMBTI.title, `(${mockMBTI.questions.length} questions)`);
       setAssessment(mockMBTI);
+      hasLoaded.current = true; // Mark as loaded
     } finally {
       setIsLoading(false);
     }
-  };
+    };
+
+    loadMBTIAssessment();
+
+    // ✅ FIXED: Cleanup function to abort requests on unmount
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, [assessmentId]); // ✅ Only depends on assessmentId
 
   const handleAnswer = (questionId: number, value: string) => {
     setAnswers(prev => ({

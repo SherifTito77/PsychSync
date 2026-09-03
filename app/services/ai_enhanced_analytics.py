@@ -3,20 +3,20 @@ AI-Enhanced Analytics Service
 Integrates AI engine with analytics dashboard for predictive insights and intelligent recommendations
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 import numpy as np
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai.processors.big_five import BigFiveProcessor
+from app.ai.processors.big_five import BigFiveProcessor
 
 # AI Engine imports
-from ai.processors.mbti_processor import MBTIProcessor
+from app.ai.processors.mbti_processor import MBTIProcessor
 from app.services.ai_behavioral_integration import AIBehavioralIntegrationService
 
 # Behavioral and analytics imports
@@ -122,10 +122,14 @@ class AIEnhancedAnalyticsService:
             )
 
             # Get predictive metrics
-            predictive_metrics = await self._generate_predictive_metrics(organization_id, team_id)
+            predictive_metrics = await self._generate_predictive_metrics(
+                organization_id, team_id
+            )
 
             # Get risk assessment
-            risk_assessment = await self._assess_risks(organization_id, team_id, time_period_days)
+            risk_assessment = await self._assess_risks(
+                organization_id, team_id, time_period_days
+            )
 
             # Get opportunities
             opportunities = await self._identify_opportunities(
@@ -133,10 +137,14 @@ class AIEnhancedAnalyticsService:
             )
 
             # Get team health AI analysis
-            team_health_ai = await self._analyze_team_health_ai(organization_id, team_id)
+            team_health_ai = await self._analyze_team_health_ai(
+                organization_id, team_id
+            )
 
             # Get user engagement predictions
-            engagement_predictions = await self._predict_user_engagement(organization_id, team_id)
+            engagement_predictions = await self._predict_user_engagement(
+                organization_id, team_id
+            )
 
             return {
                 "dashboard_metadata": {
@@ -156,7 +164,9 @@ class AIEnhancedAnalyticsService:
                     "high_priority_insights": len(
                         [i for i in ai_insights if i.priority == Priority.HIGH]
                     ),
-                    "insights": [self._serialize_insight(insight) for insight in ai_insights],
+                    "insights": [
+                        self._serialize_insight(insight) for insight in ai_insights
+                    ],
                 },
                 "predictive_metrics": {
                     "total_predictions": len(predictive_metrics),
@@ -180,7 +190,9 @@ class AIEnhancedAnalyticsService:
             logger.error(f"Error generating AI-enhanced dashboard: {e}")
             return {
                 "error": str(e),
-                "fallback_data": await self._get_fallback_analytics(organization_id, team_id),
+                "fallback_data": await self._get_fallback_analytics(
+                    organization_id, team_id
+                ),
             }
 
     async def _generate_ai_insights(
@@ -192,7 +204,9 @@ class AIEnhancedAnalyticsService:
 
         try:
             # Get user behavioral data
-            user_ids = await self._get_active_user_ids(organization_id, team_id, time_period_days)
+            user_ids = await self._get_active_user_ids(
+                organization_id, team_id, time_period_days
+            )
 
             for user_id in user_ids[:20]:  # Limit to 20 users for performance
                 try:
@@ -221,13 +235,15 @@ class AIEnhancedAnalyticsService:
             # Sort by priority and confidence
             insights.sort(
                 key=lambda x: (
-                    0
-                    if x.priority == Priority.CRITICAL
-                    else 1
-                    if x.priority == Priority.HIGH
-                    else 2
-                    if x.priority == Priority.MEDIUM
-                    else 3,
+                    (
+                        0
+                        if x.priority == Priority.CRITICAL
+                        else (
+                            1
+                            if x.priority == Priority.HIGH
+                            else 2 if x.priority == Priority.MEDIUM else 3
+                        )
+                    ),
                     -x.confidence,
                 )
             )
@@ -326,7 +342,8 @@ class AIEnhancedAnalyticsService:
 
         try:
             # Get team personality diversity analysis
-            team_query = text("""
+            team_query = text(
+                """
                 SELECT DISTINCT ar.respondent_id, a.framework_code, ar.responses
                 FROM assessment_responses ar
                 JOIN assessments a ON ar.assessment_id = a.id
@@ -334,9 +351,14 @@ class AIEnhancedAnalyticsService:
                 AND ar.status = 'completed'
                 AND ar.completed_at >= NOW() - INTERVAL ':days days'
                 LIMIT 50
-            """)
+            """
+            )
 
-            params = {"team_id": team_id, "org_id": organization_id, "days": time_period_days}
+            params = {
+                "team_id": team_id,
+                "org_id": organization_id,
+                "days": time_period_days,
+            }
             result = await self.db.execute(team_query, params)
             team_assessments = result.fetchall()
 
@@ -352,7 +374,7 @@ class AIEnhancedAnalyticsService:
                             result = processor._safe_process(responses)
                             if result.get("type"):
                                 mbti_types.append(result["type"])
-                        except:
+                        except Exception as e:
                             pass
                     elif framework == "big_five" and responses:
                         try:
@@ -360,7 +382,7 @@ class AIEnhancedAnalyticsService:
                             result = processor._safe_process(responses)
                             if result.get("dimensions"):
                                 big_five_profiles.append(result["dimensions"])
-                        except:
+                        except Exception as e:
                             pass
 
                 # Generate diversity insights
@@ -382,7 +404,9 @@ class AIEnhancedAnalyticsService:
                                     "Implement devil's advocate in decision making",
                                 ],
                                 time_horizon="60 days",
-                                affected_users_teams=[team_id] if team_id else ["organization"],
+                                affected_users_teams=(
+                                    [team_id] if team_id else ["organization"]
+                                ),
                             )
                         )
 
@@ -428,8 +452,12 @@ class AIEnhancedAnalyticsService:
 
         try:
             # User engagement prediction
-            current_engagement = await self._calculate_current_engagement(organization_id, team_id)
-            predicted_engagement = await self._predict_engagement_trend(organization_id, team_id)
+            current_engagement = await self._calculate_current_engagement(
+                organization_id, team_id
+            )
+            predicted_engagement = await self._predict_engagement_trend(
+                organization_id, team_id
+            )
 
             metrics.append(
                 PredictiveMetric(
@@ -437,9 +465,11 @@ class AIEnhancedAnalyticsService:
                     current_value=current_engagement,
                     predicted_value=predicted_engagement,
                     confidence=0.75,
-                    trend_direction="increasing"
-                    if predicted_engagement > current_engagement
-                    else "decreasing",
+                    trend_direction=(
+                        "increasing"
+                        if predicted_engagement > current_engagement
+                        else "decreasing"
+                    ),
                     time_period="30 days",
                     accuracy_score=0.82,
                     influencing_factors=[
@@ -454,7 +484,9 @@ class AIEnhancedAnalyticsService:
             current_completion_rate = await self._get_assessment_completion_rate(
                 organization_id, team_id
             )
-            predicted_completion_rate = current_completion_rate * 1.1  # AI predicts 10% improvement
+            predicted_completion_rate = (
+                current_completion_rate * 1.1
+            )  # AI predicts 10% improvement
 
             metrics.append(
                 PredictiveMetric(
@@ -484,9 +516,11 @@ class AIEnhancedAnalyticsService:
                         current_value=current_performance,
                         predicted_value=predicted_performance,
                         confidence=0.72,
-                        trend_direction="stable"
-                        if abs(predicted_performance - current_performance) < 0.05
-                        else "changing",
+                        trend_direction=(
+                            "stable"
+                            if abs(predicted_performance - current_performance) < 0.05
+                            else "changing"
+                        ),
                         time_period="60 days",
                         accuracy_score=0.68,
                         influencing_factors=[
@@ -517,7 +551,9 @@ class AIEnhancedAnalyticsService:
 
         try:
             # Get user risk profiles
-            user_ids = await self._get_active_user_ids(organization_id, team_id, time_period_days)
+            user_ids = await self._get_active_user_ids(
+                organization_id, team_id, time_period_days
+            )
             high_risk_count = 0
 
             for user_id in user_ids[:30]:  # Limit for performance
@@ -537,7 +573,9 @@ class AIEnhancedAnalyticsService:
                             {
                                 "user_id": user_id,
                                 "risk_score": risk_score,
-                                "risk_level": behavioral_risk.get("risk_level", "unknown"),
+                                "risk_level": behavioral_risk.get(
+                                    "risk_level", "unknown"
+                                ),
                                 "contributing_factors": behavioral_risk.get(
                                     "contributing_factors", []
                                 ),
@@ -590,7 +628,9 @@ class AIEnhancedAnalyticsService:
 
         try:
             # Identify high potential users
-            user_ids = await self._get_active_user_ids(organization_id, team_id, time_period_days)
+            user_ids = await self._get_active_user_ids(
+                organization_id, team_id, time_period_days
+            )
 
             for user_id in user_ids[:50]:  # Limit for performance
                 try:
@@ -626,9 +666,9 @@ class AIEnhancedAnalyticsService:
 
             # Team optimization opportunities
             if team_id:
-                opportunities[
-                    "team_optimization_opportunities"
-                ] = await self._analyze_team_optimization_opportunities(team_id)
+                opportunities["team_optimization_opportunities"] = (
+                    await self._analyze_team_optimization_opportunities(team_id)
+                )
 
         except Exception as e:
             logger.error(f"Error identifying opportunities: {e}")
@@ -648,18 +688,24 @@ class AIEnhancedAnalyticsService:
     ) -> list[str]:
         """Get list of active user IDs"""
         try:
-            query = text("""
+            query = text(
+                """
                 SELECT DISTINCT ar.respondent_id
                 FROM assessment_responses ar
                 JOIN assessments a ON ar.assessment_id = a.id
                 WHERE (a.organization_id = :org_id OR a.team_id = :team_id)
                 AND ar.started_at >= NOW() - INTERVAL ':days days'
                 LIMIT 100
-            """)
-            params = {"org_id": organization_id, "team_id": team_id, "days": time_period_days}
+            """
+            )
+            params = {
+                "org_id": organization_id,
+                "team_id": team_id,
+                "days": time_period_days,
+            }
             result = await self.db.execute(query, params)
             return [str(row[0]) for row in result.fetchall()]
-        except:
+        except Exception as e:
             return []
 
     async def _serialize_insight(self, insight: AIInsight) -> dict[str, Any]:
@@ -677,7 +723,9 @@ class AIEnhancedAnalyticsService:
             "affected_users_teams": insight.affected_users_teams,
         }
 
-    async def _serialize_predictive_metric(self, metric: PredictiveMetric) -> dict[str, Any]:
+    async def _serialize_predictive_metric(
+        self, metric: PredictiveMetric
+    ) -> dict[str, Any]:
         """Convert PredictiveMetric to dictionary for JSON serialization"""
         return {
             "metric_name": metric.metric_name,
@@ -721,7 +769,10 @@ class AIEnhancedAnalyticsService:
         self, organization_id: str | None, team_id: str | None
     ) -> dict[str, Any]:
         """AI-powered team health analysis"""
-        return {"health_score": 0.82, "factors": ["collaboration", "engagement", "performance"]}
+        return {
+            "health_score": 0.82,
+            "factors": ["collaboration", "engagement", "performance"],
+        }
 
     async def _predict_user_engagement(
         self, organization_id: str | None, team_id: str | None
@@ -729,7 +780,9 @@ class AIEnhancedAnalyticsService:
         """Predict individual user engagement trends"""
         return {"predictions": [], "confidence": 0.75}
 
-    async def _analyze_team_optimization_opportunities(self, team_id: str) -> list[dict[str, Any]]:
+    async def _analyze_team_optimization_opportunities(
+        self, team_id: str
+    ) -> list[dict[str, Any]]:
         """Analyze team composition optimization opportunities"""
         return [{"opportunity": "diversity_improvement", "priority": "medium"}]
 
@@ -742,10 +795,14 @@ class AIEnhancedAnalyticsService:
         """Generate executive summary of AI analysis"""
         return {
             "key_findings": f"Generated {len(insights)} AI insights with {len(metrics)} predictive metrics",
-            "overall_health": "good"
-            if risk_assessment.get("overall_risk_level") == "low"
-            else "attention_needed",
-            "top_priority": insights[0].title if insights else "No critical insights detected",
+            "overall_health": (
+                "good"
+                if risk_assessment.get("overall_risk_level") == "low"
+                else "attention_needed"
+            ),
+            "top_priority": (
+                insights[0].title if insights else "No critical insights detected"
+            ),
         }
 
     async def _get_fallback_analytics(

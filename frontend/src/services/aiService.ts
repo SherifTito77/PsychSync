@@ -1,10 +1,11 @@
 // AI Service - Connects frontend to AI engine endpoints
 import { apiClient } from './api';
 import axios from 'axios';
+import { safeJSONParse } from '../utils/safeJSON';
 
 // Create a separate axios instance for AI requests that don't require authentication
 const aiApiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : (import.meta.env.PROD ? '/api/v1' : 'http://localhost:8000/api/v1'),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,7 +14,7 @@ const aiApiClient = axios.create({
 // Enhanced AI client that supports both authenticated and non-authenticated requests
 const createAuthenticatedAIClient = (token?: string) => {
   return axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+    baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : (import.meta.env.PROD ? '/api/v1' : 'http://localhost:8000/api/v1'),
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -57,14 +58,14 @@ class AIService {
       // Try the public endpoint first (no authentication required)
       const response = await aiApiClient.post(`${this.baseUrl}/process-public`, request);
       console.log('✅ AI Processing successful using public endpoint');
-      return response.data;
+      return response.data as any;
     } catch (error: any) {
       console.log('⚠️ Public endpoint failed, trying authenticated endpoint...');
       try {
         // Fallback to authenticated endpoint if public fails
         const response = await apiClient.post(`${this.baseUrl}/process-public`, request);
         console.log('✅ AI Processing successful using authenticated endpoint');
-        return response.data;
+        return response.data as any;
       } catch (authError: any) {
         console.error('❌ Both AI endpoints failed:', authError);
         throw new Error(authError.response?.data?.detail || 'Failed to process assessment');
@@ -78,7 +79,7 @@ class AIService {
   async getAvailableFrameworks(): Promise<PersonalityFramework[]> {
     try {
       const response = await apiClient.get(`${this.baseUrl}/frameworks`);
-      return response.data;
+      return response.data as any;
     } catch (error: any) {
       console.error('Error fetching frameworks:', error);
       // Return fallback frameworks
@@ -178,7 +179,7 @@ class AIService {
       };
 
       const response = await client.post(`${this.baseUrl}/process-user`, enhancedRequest);
-      return response.data;
+      return response.data as any;
     } catch (error: any) {
       console.error('User assessment processing error:', error);
       // Fallback to non-authenticated processing
@@ -204,7 +205,7 @@ class AIService {
         user_context: this.getUserContext()
       });
 
-      return response.data;
+      return response.data as any;
     } catch (error) {
       console.error('Error getting personalized insights:', error);
       // Fallback to standard insights
@@ -217,7 +218,7 @@ class AIService {
    */
   private getUserContext(): any {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = safeJSONParse<any>(localStorage.getItem('user'), {});
       return {
         user_id: user.id,
         email: user.email,
@@ -283,7 +284,7 @@ class AIService {
     return descriptions[type] || `${type} personality type analysis`;
   }
 
-  
+
   /**
    * Fallback frameworks if API fails
    */

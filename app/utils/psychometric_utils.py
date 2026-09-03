@@ -3,13 +3,15 @@
 # Utility functions for psychometric analysis
 # ============================================================================
 
-from datetime import datetime
 import json
+from datetime import datetime
 
 import numpy as np
 
 
-def calculate_reliability_score(responses: list[dict], reverse_items: list[int]) -> float:
+def calculate_reliability_score(
+    responses: list[dict], reverse_items: list[int]
+) -> float:
     """
     Calculate Cronbach's alpha for internal consistency
 
@@ -129,7 +131,9 @@ def generate_confidence_interval(
     return (float(max(0, score - margin)), float(min(1, score + margin)))
 
 
-def format_psychometric_report(results: dict, include_visualizations: bool = True) -> str:
+def format_psychometric_report(
+    results: dict, include_visualizations: bool = True
+) -> str:
     """
     Format psychometric results into readable report
 
@@ -170,13 +174,15 @@ def format_psychometric_report(results: dict, include_visualizations: bool = Tru
     report.append("-" * 60)
 
     emotions = results.get("emotion_analysis", {})
-    report.append(f"Dominant Emotion: {emotions.get('dominant_emotion', 'N/A').title()}")
+    report.append(
+        f"Dominant Emotion: {emotions.get('dominant_emotion', 'N/A').title()}"
+    )
 
     if "scores" in emotions:
         report.append("\nEmotion Scores:")
-        for emotion, score in sorted(emotions["scores"].items(), key=lambda x: x[1], reverse=True)[
-            :5
-        ]:
+        for emotion, score in sorted(
+            emotions["scores"].items(), key=lambda x: x[1], reverse=True
+        )[:5]:
             report.append(f"  {emotion.title()}: {score:.2%}")
 
     report.append("")
@@ -199,7 +205,9 @@ def format_psychometric_report(results: dict, include_visualizations: bool = Tru
 
     report.append("")
     report.append("=" * 60)
-    report.append(f"Report Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    report.append(
+        f"Report Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    )
     report.append("=" * 60)
 
     return "\n".join(report)

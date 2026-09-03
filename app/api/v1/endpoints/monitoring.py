@@ -13,21 +13,20 @@ Features:
 """
 
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
 import httpx
 import psutil
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import audit_action
 from app.core.deps import get_async_db, get_current_user
 from app.core.rate_limiting import rate_limit
 from app.core.response import StandardResponse, create_response
-from app.core.security import require_permissions
 from app.db.models.response import Response
 from app.db.models.user import User
 from app.monitoring.prometheus_metrics import generate_prometheus_metrics
@@ -36,6 +35,7 @@ from app.monitoring.security_metrics import (
     get_security_grade,
     get_security_score,
 )
+from app.services.security import require_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,8 @@ class AlertStatus(str, Enum):
 @rate_limit(limit=60, window=60)
 @require_permissions("monitoring:read")
 async def get_health_overview(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, Any]]:
     """
     Get overall system health overview including:
@@ -113,18 +114,23 @@ async def get_health_overview(
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-        return create_response(data=overview, message="Health overview retrieved successfully")
+        return create_response(
+            data=overview, message="Health overview retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get health overview: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve health overview") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve health overview"
+        ) from e
 
 
 @router.get("/services")
 @rate_limit(limit=60, window=60)
 @require_permissions("monitoring:read")
 async def get_service_health(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[list[dict[str, Any]]]:
     """
     Get detailed health status for all services
@@ -132,11 +138,15 @@ async def get_service_health(
     try:
         services = await _get_service_health()
 
-        return create_response(data=services, message="Service health data retrieved successfully")
+        return create_response(
+            data=services, message="Service health data retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get service health: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve service health") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve service health"
+        ) from e
 
 
 @router.get("/metrics/system")
@@ -158,11 +168,15 @@ async def get_system_metrics(
         # Get system metrics time series
         metrics = await _get_system_metrics_time_series(start_time)
 
-        return create_response(data=metrics, message="System metrics retrieved successfully")
+        return create_response(
+            data=metrics, message="System metrics retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get system metrics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve system metrics") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve system metrics"
+        ) from e
 
 
 @router.get("/alerts")
@@ -171,7 +185,7 @@ async def get_system_metrics(
 async def get_alerts(
     level: AlertLevel | None = Query(None, description="Filter by alert level"),
     status: AlertStatus | None = Query(None, description="Filter by alert status"),
-    limit: int = Query(50, ge=1, le=500, description="Maximum number of alerts"),
+    limit: int = Query(50, ge=1, le=200, description="Maximum number of alerts"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[list[dict[str, Any]]]:
@@ -214,7 +228,9 @@ async def acknowledge_alert(
         raise
     except Exception as e:
         logger.error(f"Failed to acknowledge alert: {e}")
-        raise HTTPException(status_code=500, detail="Failed to acknowledge alert") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to acknowledge alert"
+        ) from e
 
 
 @router.get("/deployments")
@@ -231,11 +247,15 @@ async def get_deployments(
     try:
         deployments = await _get_recent_deployments(limit=limit)
 
-        return create_response(data=deployments, message="Deployment data retrieved successfully")
+        return create_response(
+            data=deployments, message="Deployment data retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get deployments: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve deployment data") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve deployment data"
+        ) from e
 
 
 # Helper functions
@@ -245,7 +265,7 @@ async def _calculate_system_health() -> dict[str, Any]:
     """Calculate overall system health score"""
     try:
         # Get current system metrics
-        cpu_percent = psutil.cpu_percent(interval=1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
 
@@ -280,11 +300,11 @@ async def _calculate_system_health() -> dict[str, Any]:
                 "redis": redis_score,
                 "database": db_score,
             },
-            "status": "healthy"
-            if overall_score > 80
-            else "degraded"
-            if overall_score > 60
-            else "critical",
+            "status": (
+                "healthy"
+                if overall_score > 80
+                else "degraded" if overall_score > 60 else "critical"
+            ),
         }
 
     except Exception as e:
@@ -371,7 +391,12 @@ async def _check_api_health() -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"API health check failed: {e}")
-        return {"status": ServiceStatus.DOWN, "response_time": 0, "error_rate": 100, "uptime": 0}
+        return {
+            "status": ServiceStatus.DOWN,
+            "response_time": 0,
+            "error_rate": 100,
+            "uptime": 0,
+        }
 
 
 async def _check_database_health() -> dict[str, Any]:
@@ -394,7 +419,12 @@ async def _check_database_health() -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
-        return {"status": ServiceStatus.DOWN, "response_time": 0, "error_rate": 100, "uptime": 0}
+        return {
+            "status": ServiceStatus.DOWN,
+            "response_time": 0,
+            "error_rate": 100,
+            "uptime": 0,
+        }
 
 
 async def _check_redis_health() -> dict[str, Any]:
@@ -417,7 +447,12 @@ async def _check_redis_health() -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Redis health check failed: {e}")
-        return {"status": ServiceStatus.DOWN, "response_time": 0, "error_rate": 100, "uptime": 0}
+        return {
+            "status": ServiceStatus.DOWN,
+            "response_time": 0,
+            "error_rate": 100,
+            "uptime": 0,
+        }
 
 
 async def _get_active_alerts_count() -> dict[str, int]:
@@ -475,7 +510,9 @@ async def _get_system_metrics_time_series(start_time: datetime) -> list[dict[str
                 ),  # Add some variation
                 "memory": memory.percent,
                 "disk": disk.percent,
-                "network": min(100, max(0, (hash(str(timestamp)) % 50))),  # Mock network usage
+                "network": min(
+                    100, max(0, (hash(str(timestamp)) % 50))
+                ),  # Mock network usage
             }
         )
 
@@ -596,7 +633,9 @@ async def get_revenue_impact(
         start_time = datetime.utcnow() - time_delta
 
         # Get business metrics
-        business_metrics = await _calculate_business_metrics(db, start_time, current_user)
+        business_metrics = await _calculate_business_metrics(
+            db, start_time, current_user
+        )
 
         # Calculate revenue impact
         revenue_impact = await _calculate_revenue_impact(business_metrics)
@@ -617,7 +656,9 @@ async def get_revenue_impact(
 
     except Exception as e:
         logger.error(f"Failed to get revenue impact: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve revenue impact analysis") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve revenue impact analysis"
+        ) from e
 
 
 @router.get("/business/user-journey")
@@ -642,10 +683,14 @@ async def get_user_journey_analytics(
         drop_off_analysis = await _analyze_drop_off_points(funnel_data)
 
         # Get feature adoption metrics
-        feature_adoption = await _get_feature_adoption_metrics(db, start_time, current_user)
+        feature_adoption = await _get_feature_adoption_metrics(
+            db, start_time, current_user
+        )
 
         # Generate journey insights
-        journey_insights = await _generate_journey_insights(funnel_data, feature_adoption)
+        journey_insights = await _generate_journey_insights(
+            funnel_data, feature_adoption
+        )
 
         return create_response(
             data={
@@ -663,14 +708,17 @@ async def get_user_journey_analytics(
 
     except Exception as e:
         logger.error(f"Failed to get user journey analytics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve user journey analytics") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve user journey analytics"
+        ) from e
 
 
 @router.get("/business/competitive-benchmarking")
 @rate_limit(limit=30, window=60)
 @require_permissions("monitoring:read")
 async def get_competitive_benchmarking(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, Any]]:
     """
     Get competitive benchmarking data comparing PsychSync performance to industry standards
@@ -688,7 +736,9 @@ async def get_competitive_benchmarking(
         )
 
         # Generate market positioning insights
-        positioning_insights = await _generate_positioning_insights(competitive_analysis)
+        positioning_insights = await _generate_positioning_insights(
+            competitive_analysis
+        )
 
         return create_response(
             data={
@@ -696,21 +746,26 @@ async def get_competitive_benchmarking(
                 "industry_benchmarks": industry_benchmarks,
                 "competitive_advantages": competitive_analysis,
                 "market_positioning": positioning_insights,
-                "recommendations": await _get_competitive_recommendations(competitive_analysis),
+                "recommendations": await _get_competitive_recommendations(
+                    competitive_analysis
+                ),
             },
             message="Competitive benchmarking data retrieved successfully",
         )
 
     except Exception as e:
         logger.error(f"Failed to get competitive benchmarking: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve competitive benchmarking") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve competitive benchmarking"
+        ) from e
 
 
 @router.get("/business/dashboard-summary")
 @rate_limit(limit=60, window=60)
 @require_permissions("monitoring:read")
 async def get_business_dashboard_summary(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, Any]]:
     """
     Get summary data for the business intelligence dashboard
@@ -741,7 +796,9 @@ async def get_business_dashboard_summary(
 
     except Exception as e:
         logger.error(f"Failed to get business dashboard summary: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve business dashboard summary") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve business dashboard summary"
+        ) from e
 
 
 # Business Intelligence Helper Functions
@@ -762,7 +819,9 @@ async def _calculate_business_metrics(
         monthly_revenue = 125000.00
 
         completion_rate = (
-            (completed_assessments / total_assessments) * 100 if total_assessments > 0 else 0
+            (completed_assessments / total_assessments) * 100
+            if total_assessments > 0
+            else 0
         )
 
         return {
@@ -896,7 +955,12 @@ async def _get_conversion_funnel(
         }
     except Exception as e:
         logger.error(f"Failed to get conversion funnel: {e}")
-        return {"visitors": 0, "signups": 0, "first_assessment": 0, "completed_assessment": 0}
+        return {
+            "visitors": 0,
+            "signups": 0,
+            "first_assessment": 0,
+            "completed_assessment": 0,
+        }
 
 
 async def _get_feature_adoption_metrics(
@@ -905,11 +969,31 @@ async def _get_feature_adoption_metrics(
     """Get feature adoption metrics"""
     try:
         return {
-            "team_analytics": {"adoption_rate": 45.0, "active_teams": 89, "total_teams": 198},
-            "custom_assessments": {"adoption_rate": 32.0, "active_users": 456, "total_users": 1425},
-            "advanced_reports": {"adoption_rate": 18.0, "active_users": 257, "total_users": 1425},
-            "team_collaboration": {"adoption_rate": 67.0, "active_teams": 133, "total_teams": 198},
-            "progress_tracking": {"adoption_rate": 78.0, "active_users": 1112, "total_users": 1425},
+            "team_analytics": {
+                "adoption_rate": 45.0,
+                "active_teams": 89,
+                "total_teams": 198,
+            },
+            "custom_assessments": {
+                "adoption_rate": 32.0,
+                "active_users": 456,
+                "total_users": 1425,
+            },
+            "advanced_reports": {
+                "adoption_rate": 18.0,
+                "active_users": 257,
+                "total_users": 1425,
+            },
+            "team_collaboration": {
+                "adoption_rate": 67.0,
+                "active_teams": 133,
+                "total_teams": 198,
+            },
+            "progress_tracking": {
+                "adoption_rate": 78.0,
+                "active_users": 1112,
+                "total_users": 1425,
+            },
         }
     except Exception as e:
         logger.error(f"Failed to get feature adoption metrics: {e}")
@@ -1030,15 +1114,18 @@ async def _analyze_drop_off_points(funnel_data: dict[str, Any]) -> dict[str, Any
 
     # Find the highest drop-off point
     highest_drop_off = (
-        max(drop_off_points, key=lambda x: x.get("drop_off_rate", 0)) if drop_off_points else None
+        max(drop_off_points, key=lambda x: x.get("drop_off_rate", 0))
+        if drop_off_points
+        else None
     )
 
     return {
         "highest_drop_off": highest_drop_off,
-        "total_potential_lost": funnel_data.get("visitors", 0) * 0.265,  # Total lost at all steps
-        "optimization_opportunity": highest_drop_off.get("drop_off_rate", 0) > 20
-        if highest_drop_off
-        else False,
+        "total_potential_lost": funnel_data.get("visitors", 0)
+        * 0.265,  # Total lost at all steps
+        "optimization_opportunity": (
+            highest_drop_off.get("drop_off_rate", 0) > 20 if highest_drop_off else False
+        ),
         "recommendations": [
             "Simplify team creation flow to reduce 25% drop-off",
             "Add progress indicators to prevent assessment abandonment",
@@ -1054,7 +1141,9 @@ async def _generate_journey_insights(
     insights = []
 
     # Conversion rate insights
-    visitor_to_signup = funnel_data.get("conversion_rates", {}).get("visitor_to_signup", 0)
+    visitor_to_signup = funnel_data.get("conversion_rates", {}).get(
+        "visitor_to_signup", 0
+    )
     if visitor_to_signup < 15:
         insights.append(
             {
@@ -1066,7 +1155,9 @@ async def _generate_journey_insights(
         )
 
     # Feature adoption insights
-    team_analytics_adoption = feature_adoption.get("team_analytics", {}).get("adoption_rate", 0)
+    team_analytics_adoption = feature_adoption.get("team_analytics", {}).get(
+        "adoption_rate", 0
+    )
     if team_analytics_adoption < 50:
         insights.append(
             {
@@ -1080,7 +1171,9 @@ async def _generate_journey_insights(
     return insights
 
 
-async def _get_optimization_recommendations(funnel_data: dict[str, Any]) -> list[dict[str, Any]]:
+async def _get_optimization_recommendations(
+    funnel_data: dict[str, Any]
+) -> list[dict[str, Any]]:
     """Get optimization recommendations based on funnel analysis"""
     return [
         {
@@ -1114,7 +1207,11 @@ async def _generate_positioning_insights(
     return {
         "overall_position": "Leader",
         "key_advantages": len(competitive_analysis),
-        "market_leadership_areas": ["API Performance", "System Reliability", "User Satisfaction"],
+        "market_leadership_areas": [
+            "API Performance",
+            "System Reliability",
+            "User Satisfaction",
+        ],
         "improvement_opportunities": [
             "Feature Adoption",
             "Market Education",
@@ -1173,14 +1270,26 @@ async def _get_business_impact_alerts() -> list[dict[str, Any]]:
 async def _get_kpi_trends(db: AsyncSession, user: User) -> dict[str, Any]:
     """Get KPI trend data"""
     return {
-        "revenue_trend": {"direction": "up", "change_percentage": 12.5, "period": "30d"},
-        "user_satisfaction_trend": {"direction": "up", "change_percentage": 5.2, "period": "30d"},
+        "revenue_trend": {
+            "direction": "up",
+            "change_percentage": 12.5,
+            "period": "30d",
+        },
+        "user_satisfaction_trend": {
+            "direction": "up",
+            "change_percentage": 5.2,
+            "period": "30d",
+        },
         "system_performance_trend": {
             "direction": "stable",
             "change_percentage": 0.8,
             "period": "30d",
         },
-        "feature_adoption_trend": {"direction": "up", "change_percentage": 8.7, "period": "30d"},
+        "feature_adoption_trend": {
+            "direction": "up",
+            "change_percentage": 8.7,
+            "period": "30d",
+        },
     }
 
 
@@ -1193,7 +1302,8 @@ async def _get_kpi_trends(db: AsyncSession, user: User) -> dict[str, Any]:
 @rate_limit(limit=30, window=60)
 @require_permissions("monitoring:read")
 async def get_security_overview(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, Any]]:
     """
     Get security overview including:
@@ -1216,11 +1326,15 @@ async def get_security_overview(
             "compliance_status": dashboard_data["compliance"],
         }
 
-        return create_response(data=overview, message="Security overview retrieved successfully")
+        return create_response(
+            data=overview, message="Security overview retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get security overview: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security overview") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve security overview"
+        ) from e
 
 
 @router.get("/security/vulnerabilities")
@@ -1231,7 +1345,9 @@ async def get_security_vulnerabilities(
         None, description="Filter by severity: critical, high, medium, low"
     ),
     source: str | None = Query(None, description="Filter by source: SAST, DAST, SCA"),
-    limit: int = Query(100, ge=1, le=500, description="Maximum number of vulnerabilities"),
+    limit: int = Query(
+        100, ge=1, le=200, description="Maximum number of vulnerabilities"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[list[dict[str, Any]]]:
@@ -1244,10 +1360,14 @@ async def get_security_vulnerabilities(
 
         # Apply filters
         if severity:
-            vulnerabilities = [v for v in vulnerabilities if v["severity"] == severity.lower()]
+            vulnerabilities = [
+                v for v in vulnerabilities if v["severity"] == severity.lower()
+            ]
 
         if source:
-            vulnerabilities = [v for v in vulnerabilities if v["source"] == source.upper()]
+            vulnerabilities = [
+                v for v in vulnerabilities if v["source"] == source.upper()
+            ]
 
         return create_response(
             data=vulnerabilities[:limit],
@@ -1256,14 +1376,17 @@ async def get_security_vulnerabilities(
 
     except Exception as e:
         logger.error(f"Failed to get vulnerabilities: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve vulnerabilities") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve vulnerabilities"
+        ) from e
 
 
 @router.get("/security/by-tool")
 @rate_limit(limit=30, window=60)
 @require_permissions("monitoring:read")
 async def get_security_by_tool(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, dict[str, int]]]:
     """
     Get vulnerability breakdown by security tool
@@ -1273,19 +1396,23 @@ async def get_security_by_tool(
         by_tool = metrics.get_vulnerabilities_by_tool()
 
         return create_response(
-            data=by_tool, message="Vulnerability breakdown by tool retrieved successfully"
+            data=by_tool,
+            message="Vulnerability breakdown by tool retrieved successfully",
         )
 
     except Exception as e:
         logger.error(f"Failed to get tool breakdown: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve tool breakdown") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve tool breakdown"
+        ) from e
 
 
 @router.get("/security/compliance")
 @rate_limit(limit=30, window=60)
 @require_permissions("monitoring:read")
 async def get_security_compliance(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, bool]]:
     """
     Get compliance status against security standards
@@ -1293,18 +1420,23 @@ async def get_security_compliance(
     try:
         compliance = await security_collector.get_compliance_status()
 
-        return create_response(data=compliance, message="Compliance status retrieved successfully")
+        return create_response(
+            data=compliance, message="Compliance status retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get compliance status: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve compliance status") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve compliance status"
+        ) from e
 
 
 @router.get("/security/score")
 @rate_limit(limit=60, window=60)
 @require_permissions("monitoring:read")
 async def get_security_score_endpoint(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, Any]]:
     """
     Get current security score (0-100) and grade
@@ -1324,7 +1456,9 @@ async def get_security_score_endpoint(
 
     except Exception as e:
         logger.error(f"Failed to get security score: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security score") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve security score"
+        ) from e
 
 
 @router.get("/security/trend")
@@ -1355,26 +1489,35 @@ async def get_security_trend(
             "trend_data": [
                 {
                     "date": (datetime.utcnow() - timedelta(days=days + i)).isoformat(),
-                    "score": max(0, current_metrics.get_summary()["security_score"] - (i * 2.5)),
-                    "critical": max(0, current_metrics.get_summary()["critical_severity"] + i),
+                    "score": max(
+                        0, current_metrics.get_summary()["security_score"] - (i * 2.5)
+                    ),
+                    "critical": max(
+                        0, current_metrics.get_summary()["critical_severity"] + i
+                    ),
                     "high": max(0, current_metrics.get_summary()["high_severity"] + i),
                 }
                 for i in range(min(days, 10))  # Limit to 10 data points
             ],
         }
 
-        return create_response(data=trend, message="Security trend retrieved successfully")
+        return create_response(
+            data=trend, message="Security trend retrieved successfully"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get security trend: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security trend") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve security trend"
+        ) from e
 
 
 @router.get("/security/dashboard")
 @rate_limit(limit=30, window=60)
 @require_permissions("monitoring:read")
 async def get_security_dashboard(
-    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> StandardResponse[dict[str, Any]]:
     """
     Get complete security dashboard data
@@ -1383,12 +1526,15 @@ async def get_security_dashboard(
         dashboard_data = await security_collector.generate_dashboard_data()
 
         return create_response(
-            data=dashboard_data, message="Security dashboard data retrieved successfully"
+            data=dashboard_data,
+            message="Security dashboard data retrieved successfully",
         )
 
     except Exception as e:
         logger.error(f"Failed to get security dashboard: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve security dashboard data") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve security dashboard data"
+        ) from e
 
 
 @router.post("/security/scan/trigger")
@@ -1426,7 +1572,9 @@ async def trigger_security_scan(
                 "scan_type": scan_type,
                 "scan_description": scan_types[scan_type],
                 "status": "triggered",
-                "estimated_completion": (datetime.utcnow() + timedelta(minutes=15)).isoformat(),
+                "estimated_completion": (
+                    datetime.utcnow() + timedelta(minutes=15)
+                ).isoformat(),
                 "workflow_url": "https://github.com/your-org/psychsync/actions/workflows",
             },
             message=f"{scan_types[scan_type]} triggered successfully",
@@ -1436,7 +1584,9 @@ async def trigger_security_scan(
         raise
     except Exception as e:
         logger.error(f"Failed to trigger security scan: {e}")
-        raise HTTPException(status_code=500, detail="Failed to trigger security scan") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to trigger security scan"
+        ) from e
 
 
 @router.get("/metrics")

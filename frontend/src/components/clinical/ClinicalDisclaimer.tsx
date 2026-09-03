@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from '@/components/ui/Alert';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 
 interface ClinicalDisclaimerProps {
   variant?: 'info' | 'warning';
@@ -23,7 +23,7 @@ const ClinicalDisclaimer: React.FC<ClinicalDisclaimerProps> = ({
 
   return (
     <Alert variant="info" className="mt-8">
-      <Alert.Heading>Important Medical Disclaimer</Alert.Heading>
+      <AlertTitle>Important Medical Disclaimer</AlertTitle>
       <div className="mt-4 space-y-3">
         <p>
           <strong>This screening tool is NOT a diagnostic instrument.</strong> It's designed to help

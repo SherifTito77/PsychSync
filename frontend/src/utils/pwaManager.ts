@@ -47,6 +47,8 @@ class PWAManager {
   private swRegistration: ServiceWorkerRegistration | null = null;
   private isOnline = navigator.onLine;
   private connection: any = null;
+  private cleanupCallbacks: Array<() => void> = [];
+  private isInitialized = false; // Guard to prevent multiple initializations
 
   private constructor() {
     this.initializeConnectionMonitoring();
@@ -65,11 +67,18 @@ class PWAManager {
    * Initialize PWA functionality
    */
   public async initialize(): Promise<void> {
+    // Guard: Prevent multiple initializations
+    if (this.isInitialized) {
+      console.log('ℹ️ PWA Manager already initialized, skipping...');
+      return;
+    }
+
     try {
       await this.registerServiceWorker();
       this.setupNetworkListeners();
       this.setupVisibilityChangeListeners();
 
+      this.isInitialized = true;
       console.log('🚀 PWA Manager initialized successfully');
     } catch (error) {
       console.error('PWA initialization failed:', error);
@@ -119,22 +128,31 @@ class PWAManager {
    * Setup install prompt listeners
    */
   private setupInstallPromptListeners(): void {
-    window.addEventListener('beforeinstallprompt', (event) => {
+    const handleBeforeInstall = (event: Event) => {
       event.preventDefault();
       this.beforeInstallPrompt = event as BeforeInstallPromptEvent;
       this.deferredPrompt = event as BeforeInstallPromptEvent;
 
       console.log('📱 Install prompt detected');
       this.onInstallPromptReady();
-    });
+    };
 
-    window.addEventListener('appinstalled', () => {
+    const handleAppInstalled = () => {
       this.isInstalled = true;
       this.beforeInstallPrompt = null;
       this.deferredPrompt = null;
 
       console.log('✅ App successfully installed');
       this.onAppInstalled();
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Register cleanup
+    this.cleanupCallbacks.push(() => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     });
   }
 
@@ -142,14 +160,23 @@ class PWAManager {
    * Setup network status monitoring
    */
   private setupNetworkListeners(): void {
-    window.addEventListener('online', () => {
+    const handleOnline = () => {
       this.isOnline = true;
       this.onNetworkStatusChange(true);
-    });
+    };
 
-    window.addEventListener('offline', () => {
+    const handleOffline = () => {
       this.isOnline = false;
       this.onNetworkStatusChange(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Register cleanup
+    this.cleanupCallbacks.push(() => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     });
   }
 
@@ -157,10 +184,17 @@ class PWAManager {
    * Setup visibility change listeners
    */
   private setupVisibilityChangeListeners(): void {
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibilityChange = () => {
       if (!document.hidden) {
         this.checkForUpdates();
       }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Register cleanup
+    this.cleanupCallbacks.push(() => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     });
   }
 
@@ -175,7 +209,7 @@ class PWAManager {
     if (connection) {
       this.connection = connection;
 
-      connection.addEventListener('change', () => {
+      const handleConnectionChange = () => {
         console.log('🌐 Connection changed:', {
           type: connection.effectiveType,
           downlink: connection.downlink,
@@ -184,6 +218,13 @@ class PWAManager {
         });
 
         this.onConnectionChange();
+      };
+
+      connection.addEventListener('change', handleConnectionChange);
+
+      // Register cleanup
+      this.cleanupCallbacks.push(() => {
+        connection.removeEventListener('change', handleConnectionChange);
       });
     }
   }
@@ -203,8 +244,15 @@ class PWAManager {
 
     // Listen for display mode changes
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
-    mediaQuery.addListener((e) => {
+    const handleMediaQueryChange = (e: MediaQueryListEvent) => {
       this.isInstalled = e.matches;
+    };
+
+    mediaQuery.addEventListener('change', handleMediaQueryChange);
+
+    // Register cleanup
+    this.cleanupCallbacks.push(() => {
+      mediaQuery.removeEventListener('change', handleMediaQueryChange);
     });
   }
 
@@ -367,7 +415,7 @@ class PWAManager {
         applicationServerKey: this.urlBase64ToUint8Array(
           // This would be your VAPID public key
           'BM_xFTJtKhMkYaHAKnBk1r5J9KpFbChfJ3gHqKjX4zqkX9xLrM7n8qPpQrSsTuVwXyZbNcLmVdKnQpStRqNpK'
-        )
+        ) as BufferSource
       });
 
       console.log('✅ Push notification subscription successful');
@@ -492,6 +540,26 @@ class PWAManager {
 
   public setOnConnectionChange(callback: () => void): void {
     this.onConnectionChange = callback;
+  }
+
+  /**
+   * Cleanup all event listeners and resources
+   * Call this when the app is shutting down or the PWA manager is no longer needed
+   */
+  public cleanup(): void {
+    console.log('🧹 Cleaning up PWA Manager resources...');
+
+    // Execute all cleanup callbacks
+    this.cleanupCallbacks.forEach(cleanup => cleanup());
+    this.cleanupCallbacks = [];
+
+    // Clear references
+    this.beforeInstallPrompt = null;
+    this.deferredPrompt = null;
+    this.swRegistration = null;
+    this.connection = null;
+
+    console.log('✅ PWA Manager cleanup complete');
   }
 }
 

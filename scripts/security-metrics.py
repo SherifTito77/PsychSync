@@ -24,7 +24,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -40,7 +40,7 @@ class SecurityMetrics:
             "vulnerabilities": {},
             "tests": {},
             "code_quality": {},
-            "documentation": {}
+            "documentation": {},
         }
 
     def collect_vulnerability_metrics(self) -> Dict[str, Any]:
@@ -49,27 +49,17 @@ class SecurityMetrics:
 
         metrics = {
             "total_found": 30,
-            "by_severity": {
-                "critical": 1,
-                "high": 6,
-                "medium": 12,
-                "low": 11
-            },
+            "by_severity": {"critical": 1, "high": 6, "medium": 12, "low": 11},
             "by_category": {
                 "A01_Broken_Access_Control": 8,
                 "A03_Injection": 10,
                 "A05_Security_Misconfiguration": 6,
                 "A07_Authentication_Failures": 2,
                 "A09_Logging_Failures": 3,
-                "A10_SSRF": 1
+                "A10_SSRF": 1,
             },
-            "remediated": {
-                "critical": 1,
-                "high": 6,
-                "medium": 12,
-                "low": 11
-            },
-            "remediation_rate": 1.0
+            "remediated": {"critical": 1, "high": 6, "medium": 12, "low": 11},
+            "remediation_rate": 1.0,
         }
 
         self.metrics["vulnerabilities"] = metrics
@@ -82,11 +72,18 @@ class SecurityMetrics:
         # Try to run pytest collection
         try:
             result = subprocess.run(
-                ["python", "-m", "pytest", "tests/integration/test_owasp_security.py", "--collect-only", "-q"],
+                [
+                    "python",
+                    "-m",
+                    "pytest",
+                    "tests/integration/test_owasp_security.py",
+                    "--collect-only",
+                    "-q",
+                ],
                 cwd=project_root,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             output = result.stdout
@@ -101,7 +98,7 @@ class SecurityMetrics:
                 "test_categories": 7,
                 "coverage": "95%+",
                 "status": "PASS" if result.returncode == 0 else "FAIL",
-                "last_run": datetime.utcnow().isoformat()
+                "last_run": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
@@ -111,7 +108,7 @@ class SecurityMetrics:
                 "test_categories": 7,
                 "coverage": "95%+",
                 "status": "PASS",
-                "last_run": datetime.utcnow().isoformat()
+                "last_run": datetime.utcnow().isoformat(),
             }
 
         self.metrics["tests"] = metrics
@@ -128,8 +125,10 @@ class SecurityMetrics:
         total_lines = 0
         for file in python_files:
             try:
-                total_lines += len(file.read_text(encoding='utf-8', errors='ignore').split('\n'))
-            except:
+                total_lines += len(
+                    file.read_text(encoding="utf-8", errors="ignore").split("\n")
+                )
+            except Exception as e:
                 pass
 
         metrics = {
@@ -138,7 +137,7 @@ class SecurityMetrics:
             "semgrep_rules": 20,
             "security_tests": 27,
             "documentation_pages": 6,
-            "code_coverage": "95%+"
+            "code_coverage": "95%+",
         }
 
         self.metrics["code_quality"] = metrics
@@ -156,7 +155,7 @@ class SecurityMetrics:
             "CHANGELOG": "CHANGELOG_SECURITY.md",
             "Review_Summary": "OWASP_SECURITY_REVIEW_SUMMARY.md",
             "Final_Report": "OWASP_SECURITY_FINAL_REPORT.md",
-            "Index": "SECURITY_INDEX.md"
+            "Index": "SECURITY_INDEX.md",
         }
 
         existing_docs = {}
@@ -166,14 +165,14 @@ class SecurityMetrics:
                 existing_docs[name] = {
                     "path": path,
                     "size_kb": full_path.stat().st_size / 1024,
-                    "lines": len(full_path.read_text(encoding='utf-8').split('\n'))
+                    "lines": len(full_path.read_text(encoding="utf-8").split("\n")),
                 }
 
         metrics = {
             "total_documents": len(existing_docs),
             "documents": existing_docs,
             "total_words": 15000,
-            "completion_status": "100%"
+            "completion_status": "100%",
         }
 
         self.metrics["documentation"] = metrics
@@ -181,9 +180,9 @@ class SecurityMetrics:
 
     def generate_report(self) -> str:
         """Generate comprehensive security report"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("🎯 PSYCHSYNC SECURITY METRICS DASHBOARD")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
         # Collect all metrics
         self.collect_vulnerability_metrics()
@@ -207,13 +206,15 @@ class SecurityMetrics:
         print("-" * 80)
         vulns = self.metrics["vulnerabilities"]
         print(f"  Total Found:    {vulns['total_found']}")
-        print(f"  Remediated:     {sum(vulns['remediated'].values())} ({vulns['remediation_rate']*100:.0f}%)")
+        print(
+            f"  Remediated:     {sum(vulns['remediated'].values())} ({vulns['remediation_rate']*100:.0f}%)"
+        )
         print(f"\n  By Severity:")
-        for severity, count in vulns['by_severity'].items():
+        for severity, count in vulns["by_severity"].items():
             print(f"    • {severity.upper():10}: {count:2} issues")
 
         print(f"\n  By Category:")
-        for category, count in vulns['by_category'].items():
+        for category, count in vulns["by_category"].items():
             print(f"    • {category}: {count} issues")
 
         # Tests Section
@@ -244,8 +245,10 @@ class SecurityMetrics:
         print(f"  Total Words:    {docs['total_words']:,}")
         print(f"  Completion:     {docs['completion_status']}")
         print(f"\n  Documents:")
-        for name, info in docs['documents'].items():
-            print(f"    • {name:20} ({info['lines']:4} lines, {info['size_kb']:.1f} KB)")
+        for name, info in docs["documents"].items():
+            print(
+                f"    • {name:20} ({info['lines']:4} lines, {info['size_kb']:.1f} KB)"
+            )
 
         # Security Score
         print("\n" + "🎯 SECURITY SCORE")
@@ -256,9 +259,11 @@ class SecurityMetrics:
 
         print(f"  Overall Score:  {score_bar}")
         print(f"  Rating:         {self._get_rating(score)}")
-        print(f"  Status:         {'✅ PRODUCTION READY' if score >= 90 else '⚠️  NEEDS ATTENTION'}")
+        print(
+            f"  Status:         {'✅ PRODUCTION READY' if score >= 90 else '⚠️  NEEDS ATTENTION'}"
+        )
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
 
     def _calculate_security_score(self) -> int:
         """Calculate overall security score (0-100)"""
@@ -268,9 +273,13 @@ class SecurityMetrics:
         vulns = self.metrics["vulnerabilities"]
 
         # Calculate remaining (unremediated) vulnerabilities
-        remaining_critical = vulns["by_severity"]["critical"] - vulns["remediated"]["critical"]
+        remaining_critical = (
+            vulns["by_severity"]["critical"] - vulns["remediated"]["critical"]
+        )
         remaining_high = vulns["by_severity"]["high"] - vulns["remediated"]["high"]
-        remaining_medium = vulns["by_severity"]["medium"] - vulns["remediated"]["medium"]
+        remaining_medium = (
+            vulns["by_severity"]["medium"] - vulns["remediated"]["medium"]
+        )
         remaining_low = vulns["by_severity"]["low"] - vulns["remediated"]["low"]
 
         # Only deduct for remaining vulnerabilities
@@ -321,9 +330,12 @@ class SecurityMetrics:
         report_dir = project_root / "reports"
         report_dir.mkdir(exist_ok=True)
 
-        report_file = report_dir / f"security-metrics-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+        report_file = (
+            report_dir
+            / f"security-metrics-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+        )
 
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(self.metrics, f, indent=2)
 
         print(f"\n📄 Report saved: {report_file}")
@@ -353,6 +365,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Error generating dashboard: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

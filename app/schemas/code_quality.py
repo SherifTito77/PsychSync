@@ -16,9 +16,17 @@ from pydantic import BaseModel, Field
 
 class CodeQualityIssueBase(BaseModel):
     """Base schema for code quality issues"""
-    issue_type: str = Field(..., description="Type of issue: bug, vulnerability, code_smell, duplication")
-    severity: str = Field(..., description="Severity level: critical, major, minor, info")
-    category: Optional[str] = Field(None, description="Category: security, performance, maintainability, reliability")
+
+    issue_type: str = Field(
+        ..., description="Type of issue: bug, vulnerability, code_smell, duplication"
+    )
+    severity: str = Field(
+        ..., description="Severity level: critical, major, minor, info"
+    )
+    category: Optional[str] = Field(
+        None,
+        description="Category: security, performance, maintainability, reliability",
+    )
     file_path: str = Field(..., description="File where issue was found")
     line_number: Optional[int] = Field(None, description="Line number")
     function_name: Optional[str] = Field(None, description="Function name")
@@ -30,11 +38,13 @@ class CodeQualityIssueBase(BaseModel):
 
 class CodeQualityIssueCreate(CodeQualityIssueBase):
     """Schema for creating a code quality issue"""
+
     metric_id: str = Field(..., description="Parent metric ID")
 
 
 class CodeQualityIssue(CodeQualityIssueBase):
     """Schema for code quality issue response"""
+
     id: str
     metric_id: str
     remediation_cost: Optional[float] = None
@@ -50,19 +60,31 @@ class CodeQualityIssue(CodeQualityIssueBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class CodeQualityMetricBase(BaseModel):
     """Base schema for code quality metrics"""
+
     scan_date: datetime
-    module_name: Optional[str] = Field(None, description="Module name, null for overall codebase")
-    cyclomatic_complexity: float = Field(..., ge=0, description="Average cyclomatic complexity")
-    cognitive_complexity: float = Field(..., ge=0, description="Average cognitive complexity")
-    maintainability_index: float = Field(..., le=100, description="Maintainability index (0-100)")
-    duplication_percentage: float = Field(..., ge=0, le=100, description="Code duplication percentage")
+    module_name: Optional[str] = Field(
+        None, description="Module name, null for overall codebase"
+    )
+    cyclomatic_complexity: float = Field(
+        ..., ge=0, description="Average cyclomatic complexity"
+    )
+    cognitive_complexity: float = Field(
+        ..., ge=0, description="Average cognitive complexity"
+    )
+    maintainability_index: float = Field(
+        ..., le=100, description="Maintainability index (0-100)"
+    )
+    duplication_percentage: float = Field(
+        ..., ge=0, le=100, description="Code duplication percentage"
+    )
     test_coverage_percentage: Optional[float] = Field(None, ge=0, le=100)
     technical_debt_ratio: float = Field(..., ge=0, description="Technical debt ratio")
     file_count: int = Field(..., ge=0)
@@ -72,6 +94,7 @@ class CodeQualityMetricBase(BaseModel):
 
 class CodeQualityMetricCreate(CodeQualityMetricBase):
     """Schema for creating code quality metrics"""
+
     duplicated_lines: int
     total_lines: int
     test_count: Optional[int] = None
@@ -87,6 +110,7 @@ class CodeQualityMetricCreate(CodeQualityMetricBase):
 
 class CodeQualityMetric(CodeQualityMetricBase):
     """Schema for code quality metric response"""
+
     id: str
     duplicated_lines: int
     total_lines: int
@@ -109,18 +133,21 @@ class CodeQualityMetric(CodeQualityMetricBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class CodeQualityMetricWithIssues(CodeQualityMetric):
     """Schema for code quality metric with issues"""
+
     quality_issues: list[CodeQualityIssue] = []
 
 
 class PullRequestQualityBase(BaseModel):
     """Base schema for pull request quality"""
+
     pr_number: int
     pr_title: str
     source_branch: str
@@ -135,6 +162,7 @@ class PullRequestQualityBase(BaseModel):
 
 class PullRequestQualityCreate(PullRequestQualityBase):
     """Schema for creating pull request quality record"""
+
     author_id: Optional[str] = None
     merged_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
@@ -161,6 +189,7 @@ class PullRequestQualityCreate(PullRequestQualityBase):
 
 class PullRequestQuality(PullRequestQualityBase):
     """Schema for pull request quality response"""
+
     id: str
     author_id: Optional[str]
     merged_at: Optional[datetime]
@@ -192,13 +221,15 @@ class PullRequestQuality(PullRequestQualityBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class CodeQualityTrend(BaseModel):
     """Schema for code quality trend data"""
+
     date: datetime
     quality_score: float
     complexity_trend: str
@@ -210,6 +241,7 @@ class CodeQualityTrend(BaseModel):
 
 class CodeQualitySummary(BaseModel):
     """Schema for code quality summary"""
+
     current_score: float
     current_grade: str
     trend: str  # "improving", "declining", "stable"
@@ -225,6 +257,7 @@ class CodeQualitySummary(BaseModel):
 
 class PullRequestQualitySummary(BaseModel):
     """Schema for pull request quality summary"""
+
     avg_quality_score: float
     avg_review_time_hours: float
     total_prs_analyzed: int

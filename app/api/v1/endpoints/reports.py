@@ -3,33 +3,39 @@ Advanced Reporting API Endpoints
 REST API for report generation, templates, scheduling, and management
 """
 
+import asyncio
 from datetime import datetime, timedelta
-
-from app.middleware.rate_limiter import check_rate_limit
-from typing import List, Optional, Dict, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, validator
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
-from app.db.models.user import User
-from app.db.models.reports import (
-    ReportType, ReportStatus, ExportFormat, ScheduleFrequency
-)
-from app.services.reporting_service import (
-    ReportGenerationService, ReportGenerationRequest
-)
+from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
 from app.core.config import settings
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
+from app.db.models.reports import (
+    ExportFormat,
+    ReportStatus,
+    ReportType,
+    ScheduleFrequency,
+)
+from app.db.models.user import User
+from app.services.reporting_service import (
+    ReportGenerationRequest,
+    ReportGenerationService,
+)
 
 router = APIRouter()
 
 
 # Pydantic Models for API
 
+
 class ReportGenerationRequestModel(BaseModel):
     """Request model for report generation"""
+
     template_id: Optional[UUID] = None
     report_type: ReportType = ReportType.CUSTOM
     title: str = Field(..., min_length=5, max_length=200)
@@ -43,16 +49,17 @@ class ReportGenerationRequestModel(BaseModel):
     shared_with: Optional[List[UUID]] = None
     retention_days: Optional[int] = Field(None, ge=1, le=365)
 
-    @validator('data_range_end')
+    @validator("data_range_end")
     def validate_date_range(cls, v, values):
-        if v and 'data_range_start' in values and values['data_range_start']:
-            if v <= values['data_range_start']:
-                raise ValueError('End date must be after start date')
+        if v and "data_range_start" in values and values["data_range_start"]:
+            if v <= values["data_range_start"]:
+                raise ValueError("End date must be after start date")
         return v
 
 
 class ReportTemplateRequest(BaseModel):
     """Request model for report template creation"""
+
     name: str = Field(..., min_length=5, max_length=200)
     description: str = Field(..., min_length=10, max_length=500)
     report_type: ReportType
@@ -66,34 +73,37 @@ class ReportTemplateRequest(BaseModel):
 
 class ReportScheduleRequest(BaseModel):
     """Request model for report scheduling"""
+
     name: str = Field(..., min_length=5, max_length=200)
     description: str = Field(..., min_length=10, max_length=500)
     template_id: UUID
     frequency: ScheduleFrequency
     schedule_config: Dict[str, Any] = {}
-    delivery_method: str = Field(default="download", pattern="^(download|email|webhook)$")
+    delivery_method: str = Field(
+        default="download", pattern="^(download|email|webhook)$"
+    )
     delivery_config: Dict[str, Any] = {}
     custom_cron: Optional[str] = None
     end_date: Optional[datetime] = None
     default_format: ExportFormat = ExportFormat.PDF
 
-    @validator('end_date')
+    @validator("end_date")
     def validate_end_date(cls, v):
         if v and v <= datetime.utcnow():
-            raise ValueError('End date must be in the future')
+            raise ValueError("End date must be in the future")
         return v
 
 
 # Report Generation Endpoints
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/generate", response_model=Dict[str, Any])
 async def generate_report(
     report_request: ReportGenerationRequestModel,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Generate a new report
@@ -126,7 +136,7 @@ async def generate_report(
             export_format=report_request.export_format,
             organization_id=current_user.organization_id,
             team_id=report_request.team_id,
-            requested_by_id=current_user.id
+            requested_by_id=current_user.id,
         )
 
         # Add retention days to parameters
@@ -142,19 +152,20 @@ async def generate_report(
                 "message": "Report generation started successfully",
                 "report_id": result["report_id"],
                 "file_url": result.get("file_url"),
-                "estimated_completion": "2-5 minutes"
+                "estimated_completion": "2-5 minutes",
             }
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result.get("error", "Report generation failed")
+                detail=result.get("error", "Report generation failed"),
             )
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate report: {str(e)}"
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate report: {str(e)}",
         ) from e
 
 
@@ -167,8 +178,8 @@ async def list_reports(
     team_id: Optional[UUID] = None,
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get list of reports with filtering options
@@ -187,8 +198,10 @@ async def list_reports(
         # Get date range
         date_range = None
         if start_date or end_date:
-            date_range = (start_date or datetime.utcnow() - timedelta(days=30),
-                          end_date or datetime.utcnow())
+            date_range = (
+                start_date or datetime.utcnow() - timedelta(days=30),
+                end_date or datetime.utcnow(),
+            )
 
         result = await reporting_service.list_reports(
             organization_id=current_user.organization_id,
@@ -198,13 +211,12 @@ async def list_reports(
             status=status,
             limit=limit,
             offset=offset,
-            date_range=date_range
+            date_range=date_range,
         )
 
         if "error" in result:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
             )
 
         return result
@@ -212,17 +224,14 @@ async def list_reports(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-
-            detail=f"Failed to list reports: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to list reports: {str(e)}") from e
 
 
 @router.get("/{report_id}", response_model=Dict[str, Any])
 async def get_report(
     report_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get details of a specific report
@@ -237,7 +246,7 @@ async def get_report(
         if not report:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Report not found or access denied"
+                detail="Report not found or access denied",
             )
 
         return report
@@ -245,16 +254,14 @@ async def get_report(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to get report: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to get report: {str(e)}") from e
 
 
 @router.get("/{report_id}/download")
 async def download_report(
     report_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Download a generated report file
@@ -270,19 +277,23 @@ async def download_report(
         if not report:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Report not found or access denied"
+                detail="Report not found or access denied",
             )
 
         # Get file path from database
         from app.db.models.reports import GeneratedReport
-        report_record = db.query(GeneratedReport).filter(
-            GeneratedReport.id == report_id
-        ).first()
+
+        loop = asyncio.get_event_loop()
+        report_record = await loop.run_in_executor(
+            None,
+            lambda: db.query(GeneratedReport)
+            .filter(GeneratedReport.id == report_id)
+            .first(),
+        )
 
         if not report_record or not report_record.file_path:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Report file not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Report file not found"
             )
 
         # Return file response (implementation would use FastAPI FileResponse)
@@ -296,24 +307,23 @@ async def download_report(
             "download_url": f"/api/v1/reports/{report_id}/download",
             "filename": report_record.file_name,
             "file_size": report_record.file_size,
-            "format": report_record.file_format.value
+            "format": report_record.file_format.value,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to download report: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to download report: {str(e)}") from e
 
 
 # Template Management Endpoints
 
+
 @router.post("/templates", response_model=Dict[str, Any])
 async def create_template(
     template_data: ReportTemplateRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new report template
@@ -341,27 +351,25 @@ async def create_template(
             created_by_id=current_user.id,
             organization_id=current_user.organization_id,
             category=template_data.category,
-            tags=template_data.tags
+            tags=template_data.tags,
         )
 
         if result["success"]:
             return {
                 "success": True,
                 "message": result["message"],
-                "template_id": result["template_id"]
+                "template_id": result["template_id"],
             }
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result.get("error", "Template creation failed")
+                detail=result.get("error", "Template creation failed"),
             )
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to create template: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to create template: {str(e)}") from e
 
 
 @router.get("/templates", response_model=List[Dict[str, Any]])
@@ -369,8 +377,8 @@ async def get_templates(
     report_type: Optional[ReportType] = None,
     category: Optional[str] = None,
     is_public: Optional[bool] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get available report templates
@@ -386,24 +394,23 @@ async def get_templates(
             organization_id=current_user.organization_id,
             report_type=report_type,
             category=category,
-            is_public=is_public
+            is_public=is_public,
         )
 
         return templates
 
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to get templates: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to get templates: {str(e)}") from e
 
 
 # Scheduling Endpoints
 
+
 @router.post("/schedules", response_model=Dict[str, Any])
 async def create_schedule(
     schedule_data: ReportScheduleRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new report schedule
@@ -433,7 +440,7 @@ async def create_schedule(
             created_by_id=current_user.id,
             organization_id=current_user.organization_id,
             custom_cron=schedule_data.custom_cron,
-            end_date=schedule_data.end_date
+            end_date=schedule_data.end_date,
         )
 
         if result["success"]:
@@ -441,27 +448,25 @@ async def create_schedule(
                 "success": True,
                 "message": result["message"],
                 "schedule_id": result["schedule_id"],
-                "next_run": result["next_run"]
+                "next_run": result["next_run"],
             }
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result.get("error", "Schedule creation failed")
+                detail=result.get("error", "Schedule creation failed"),
             )
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to create schedule: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to create schedule: {str(e)}") from e
 
 
 @router.get("/schedules", response_model=List[Dict[str, Any]])
 async def get_schedules(
     is_active: Optional[bool] = None,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get report schedules
@@ -472,25 +477,23 @@ async def get_schedules(
         reporting_service = ReportGenerationService(db)
 
         schedules = await reporting_service.get_schedules(
-            organization_id=current_user.organization_id,
-            is_active=is_active
+            organization_id=current_user.organization_id, is_active=is_active
         )
 
         return schedules
 
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to get schedules: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to get schedules: {str(e)}") from e
 
 
 # Analytics Endpoints
 
+
 @router.get("/analytics", response_model=Dict[str, Any])
 async def get_report_analytics(
     days: int = Query(30, ge=1, le=365),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get comprehensive report analytics
@@ -506,14 +509,12 @@ async def get_report_analytics(
         date_range = (start_date, end_date)
 
         analytics = await reporting_service.get_report_analytics(
-            organization_id=current_user.organization_id,
-            date_range=date_range
+            organization_id=current_user.organization_id, date_range=date_range
         )
 
         if "error" in analytics:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=analytics["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=analytics["error"]
             )
 
         return analytics
@@ -521,18 +522,17 @@ async def get_report_analytics(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to get report analytics: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to get report analytics: {str(e)}") from e
 
 
 # System Administration Endpoints
 
+
 @router.post("/execute-scheduled", response_model=Dict[str, Any])
 async def execute_scheduled_reports(
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Execute all pending scheduled reports (Admin only)
@@ -542,7 +542,7 @@ async def execute_scheduled_reports(
         if not current_user.is_admin and not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only administrators can execute scheduled reports"
+                detail="Only administrators can execute scheduled reports",
             )
 
         reporting_service = ReportGenerationService(db)
@@ -553,7 +553,7 @@ async def execute_scheduled_reports(
         return {
             "success": True,
             "message": "Scheduled report execution started",
-            "status": "running"
+            "status": "running",
         }
 
     except HTTPException:
@@ -566,8 +566,8 @@ async def execute_scheduled_reports(
 
 @router.post("/cleanup", response_model=Dict[str, Any])
 async def cleanup_expired_reports(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Clean up expired reports (Admin only)
@@ -577,7 +577,7 @@ async def cleanup_expired_reports(
         if not current_user.is_admin and not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only administrators can cleanup reports"
+                detail="Only administrators can cleanup reports",
             )
 
         reporting_service = ReportGenerationService(db)
@@ -590,18 +590,17 @@ async def cleanup_expired_reports(
             "success": True,
             "message": "Cleanup completed successfully",
             "reports_cleaned": reports_cleaned,
-            "cache_cleaned": cache_cleaned
+            "cache_cleaned": cache_cleaned,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            detail=f"Failed to cleanup reports: {str(e)}"
-        ) from e
+        raise HTTPException(detail=f"Failed to cleanup reports: {str(e)}") from e
 
 
 # Health Check Endpoint
+
 
 @router.get("/health")
 async def health_check():
@@ -617,6 +616,6 @@ async def health_check():
             "Report scheduling",
             "Template management",
             "Analytics",
-            "Multi-format export"
-        ]
+            "Multi-format export",
+        ],
     }

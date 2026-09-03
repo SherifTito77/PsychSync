@@ -1,10 +1,10 @@
 // frontend/src/services/responseService.ts
 import api from './api';
 export interface ResponseSession {
-  id: number;
-  assessment_id: number;
-  assignment_id?: number;
-  respondent_id?: number;
+  id: string | number;
+  assessment_id: string | number;
+  assignment_id?: string | number;
+  respondent_id?: string | number;
   responses: Record<string, any>;
   status: 'in_progress' | 'completed' | 'submitted';
   is_complete: boolean;
@@ -16,8 +16,8 @@ export interface ResponseSession {
   submitted_at?: string;
 }
 export interface ResponseScore {
-  id: number;
-  response_id: number;
+  id: string | number;
+  response_id: string | number;
   total_score?: number;
   max_possible_score?: number;
   percentage_score?: number;
@@ -29,8 +29,8 @@ export interface ResponseWithScore extends ResponseSession {
   score?: ResponseScore;
 }
 export interface StartResponseRequest {
-  assessment_id: number;
-  assignment_id?: number;
+  assessment_id: string | number;
+  assignment_id?: string | number;
 }
 export interface SaveProgressRequest {
   responses: Record<string, any>;
@@ -54,13 +54,13 @@ export const responseService = {
     return response.data;
   },
   // Get response by ID
-  async getResponse(responseId: number): Promise<ResponseWithScore> {
+  async getResponse(responseId: string | number): Promise<ResponseWithScore> {
     const response = await api.get<ResponseWithScore>(`/responses/${responseId}`);
     return response.data;
   },
   // Save progress
   async saveProgress(
-    responseId: number,
+    responseId: string | number,
     data: SaveProgressRequest
   ): Promise<ResponseSession> {
     const response = await api.put<ResponseSession>(
@@ -71,7 +71,7 @@ export const responseService = {
   },
   // Submit response
   async submitResponse(
-    responseId: number,
+    responseId: string | number,
     data: SubmitResponseRequest
   ): Promise<ResponseWithScore> {
     const response = await api.post<ResponseWithScore>(
@@ -81,11 +81,11 @@ export const responseService = {
     return response.data;
   },
   // Delete response
-  async deleteResponse(responseId: number): Promise<void> {
+  async deleteResponse(responseId: string | number): Promise<void> {
     await api.delete(`/responses/${responseId}`);
   },
   // Get response score
-  async getResponseScore(responseId: number): Promise<ResponseScore> {
+  async getResponseScore(responseId: string | number): Promise<ResponseScore> {
     const response = await api.get<ResponseScore>(`/responses/${responseId}/score`);
     return response.data;
   },

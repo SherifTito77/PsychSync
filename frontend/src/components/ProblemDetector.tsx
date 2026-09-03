@@ -3,7 +3,7 @@
  * Identifies potential responsive list issues during development
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, CSSProperties } from 'react';
 import { listProblemPredictor, type ListConfiguration, type ListProblem } from '../utils/responsive/problemPredictor';
 
 interface ProblemDetectorProps {
@@ -29,6 +29,60 @@ export const ListProblemDetector: React.FC<ProblemDetectorProps> = ({
   });
   const [problems, setProblems] = useState<ListProblem[]>([]);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Memoized styles to prevent re-renders
+  const containerStyle = useMemo((): CSSProperties => ({
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    zIndex: 9999,
+    width: '100%',
+    maxWidth: '400px'
+  }), []);
+
+  const indicatorStyle = useMemo(() => (color: string) => ({
+    backgroundColor: color,
+    color: 'white',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: '14px',
+    fontWeight: '600'
+  } as React.CSSProperties), []);
+
+  const panelStyle = useMemo(() => ({
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+    marginTop: '10px',
+    maxHeight: '70vh',
+    overflowY: 'auto'
+  } as React.CSSProperties), []);
+
+  const headerStyle = useMemo(() => ({
+    padding: '16px',
+    borderBottom: '1px solid #eee',
+    backgroundColor: '#f8f9fa'
+  } as React.CSSProperties), []);
+
+  const riskGridStyle = useMemo(() => ({
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '8px',
+    textAlign: 'center'
+  } as React.CSSProperties), []);
+
+  const problemItemStyle = useMemo(() => (severity: number) => ({
+    marginBottom: '12px',
+    padding: '12px',
+    border: `1px solid ${getSeverityColor(severity)}33`,
+    borderRadius: '6px',
+    backgroundColor: `${getSeverityColor(severity)}11`
+  } as React.CSSProperties), []);
 
   useEffect(() => {
     // Check if we're in development mode
@@ -81,8 +135,9 @@ export const ListProblemDetector: React.FC<ProblemDetectorProps> = ({
       position: 'fixed',
       top: '20px',
       right: '20px',
+      left: '20px',
       zIndex: 9999,
-      minWidth: '320px',
+      width: 'auto',
       maxWidth: '400px'
     }}>
       {/* Problem Indicator */}
@@ -170,22 +225,22 @@ export const ListProblemDetector: React.FC<ProblemDetectorProps> = ({
           </div>
 
           {/* Implementation Plan */}
-          <div style={{ padding: '16px', borderBottom: '1px solid #eee' }}>
-            <h4 style={{ margin: '0 0 8px 0', color: '#333', fontSize: '14px' }}>
+          <div className="p-4 border-b border-gray-200">
+            <h4 className="my-0 mb-2 text-gray-900 text-sm">
               📋 Implementation Plan
             </h4>
-            <div style={{ backgroundColor: '#e3f2fd', padding: '10px', borderRadius: '4px', fontSize: '12px' }}>
-              <div style={{ fontWeight: '600', color: '#1976d2' }}>
+            <div className="bg-blue-50 p-2.5 rounded text-xs">
+              <div className="font-semibold text-blue-700">
                 {implementationPlan.phase}
               </div>
-              <div style={{ color: '#666', marginTop: '4px' }}>
-                ⏱️ {implementationPlan.time} | Priority: {implementationPlan.priority}
+              <div className="text-gray-600 mt-1">
+                ⏱️ {implementationPlan.estimatedTime} | Priority: {implementationPlan.priority}
               </div>
             </div>
-            <div style={{ marginTop: '8px' }}>
-              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px' }}>
+            <div className="mt-2">
+              <ul className="my-0 ml-4 text-xs list-disc">
                 {implementationPlan.steps.slice(0, 3).map((step, index) => (
-                  <li key={index} style={{ marginBottom: '4px' }}>{step}</li>
+                  <li key={index} className="mb-1">{step}</li>
                 ))}
               </ul>
             </div>
@@ -193,35 +248,28 @@ export const ListProblemDetector: React.FC<ProblemDetectorProps> = ({
 
           {/* Problem List */}
           {problems.length > 0 && (
-            <div style={{ padding: '16px' }}>
-              <h4 style={{ margin: '0 0 12px 0', color: '#333', fontSize: '14px' }}>
+            <div className="p-4">
+              <h4 className="my-0 mb-3 text-gray-900 text-sm">
                 ⚠️ Predicted Problems
               </h4>
               {problems.slice(0, 5).map((problem, index) => (
                 <div
                   key={problem.id}
+                  className="mb-3 p-3 border rounded bg-opacity-5"
                   style={{
-                    marginBottom: '12px',
-                    padding: '12px',
-                    border: `1px solid ${getSeverityColor(problem.severity)}33`,
-                    borderRadius: '6px',
+                    borderColor: `${getSeverityColor(problem.severity)}33`,
                     backgroundColor: `${getSeverityColor(problem.severity)}11`
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1, marginRight: '8px' }}>
-                      <div style={{
-                        fontWeight: '600',
-                        color: '#333',
-                        fontSize: '13px',
-                        marginBottom: '4px'
-                      }}>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 mr-2">
+                      <div className="font-semibold text-gray-900 text-xs mb-1">
                         {problem.title}
                       </div>
-                      <div style={{ color: '#666', fontSize: '11px', marginBottom: '6px' }}>
+                      <div className="text-gray-600 text-[11px] mb-1.5">
                         {problem.description}
                       </div>
-                      <div style={{ fontSize: '10px', color: '#888' }}>
+                      <div className="text-[10px] text-gray-400">
                         <span style={{ color: getSeverityColor(problem.severity) }}>
                           {problem.likelihood}% likelihood
                         </span>
@@ -230,15 +278,8 @@ export const ListProblemDetector: React.FC<ProblemDetectorProps> = ({
                       </div>
                     </div>
                     <div
-                      style={{
-                        backgroundColor: getSeverityColor(problem.severity),
-                        color: 'white',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        flexShrink: 0
-                      }}
+                      className="text-white py-0.5 px-1.5 rounded text-[10px] font-semibold flex-shrink-0"
+                      style={{ backgroundColor: getSeverityColor(problem.severity) }}
                     >
                       {Math.round(problem.severity)}%
                     </div>
@@ -247,7 +288,7 @@ export const ListProblemDetector: React.FC<ProblemDetectorProps> = ({
               ))}
 
               {problems.length > 5 && (
-                <div style={{ textAlign: 'center', fontSize: '12px', color: '#666' }}>
+                <div className="text-center text-xs text-gray-600">
                   ... and {problems.length - 5} more issues
                 </div>
               )}
@@ -255,11 +296,11 @@ export const ListProblemDetector: React.FC<ProblemDetectorProps> = ({
           )}
 
           {/* Quick Actions */}
-          <div style={{ padding: '16px', borderTop: '1px solid #eee' }}>
-            <h4 style={{ margin: '0 0 8px 0', color: '#333', fontSize: '14px' }}>
+          <div className="p-4 border-t border-gray-200">
+            <h4 className="my-0 mb-2 text-gray-900 text-sm">
               🚀 Quick Actions
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(currentConfig, null, 2));
@@ -346,11 +387,13 @@ export const ListProblemDevToolbar: React.FC = () => {
       position: 'fixed',
       bottom: '20px',
       left: '20px',
+      right: '20px',
       backgroundColor: 'white',
       borderRadius: '8px',
       boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       padding: '16px',
-      minWidth: '280px',
+      width: 'auto',
+      maxWidth: '400px',
       zIndex: 9999,
       fontSize: '12px'
     }}>

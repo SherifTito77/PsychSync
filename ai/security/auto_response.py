@@ -11,24 +11,24 @@ Date: 2025-12-26
 """
 
 import asyncio
+import json
 import logging
-from typing import Dict, List, Any, Optional, Callable
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from collections import defaultdict
-import json
+from typing import Any, Callable, Dict, List, Optional
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 class ResponseStatus(Enum):
     """Status of automated response"""
+
     PENDING = "pending"
     EXECUTED = "executed"
     FAILED = "failed"
@@ -38,6 +38,7 @@ class ResponseStatus(Enum):
 
 class ActionPriority(Enum):
     """Priority of response actions"""
+
     LOW = 1
     MEDIUM = 2
     HIGH = 3
@@ -47,6 +48,7 @@ class ActionPriority(Enum):
 @dataclass
 class ResponseAction:
     """Individual response action"""
+
     action_id: str
     name: str
     description: str
@@ -62,6 +64,7 @@ class ResponseAction:
 @dataclass
 class ResponseExecutionReport:
     """Report of automated response execution"""
+
     incident_id: str
     threat_report: Dict[str, Any]
     actions_executed: List[ResponseAction]
@@ -80,7 +83,7 @@ class ResponseExecutionReport:
             "threat_summary": {
                 "threat_level": self.threat_report.get("overall_threat_level"),
                 "risk_score": self.threat_report.get("risk_score"),
-                "recommended_action": self.threat_report.get("recommended_action")
+                "recommended_action": self.threat_report.get("recommended_action"),
             },
             "actions_total": self.total_actions,
             "actions_successful": self.successful_actions,
@@ -92,10 +95,10 @@ class ResponseExecutionReport:
                     "name": a.name,
                     "status": a.status.value,
                     "result": a.result,
-                    "error": a.error
+                    "error": a.error,
                 }
                 for a in self.actions_executed
-            ]
+            ],
         }
 
 
@@ -110,7 +113,7 @@ class AutomatedThreatResponder:
         self,
         enable_auto_response: bool = True,
         dry_run: bool = False,
-        notification_hooks: Optional[List[Callable]] = None
+        notification_hooks: Optional[List[Callable]] = None,
     ):
         """
         Initialize automated threat responder.
@@ -138,23 +141,21 @@ class AutomatedThreatResponder:
     def _register_default_actions(self):
         """Register default response actions"""
         self.action_registry = {
-            'log_warning': self._action_log_warning,
-            'add_response_header': self._action_add_response_header,
-            'throttle_requests': self._action_throttle_requests,
-            'require_mfa': self._action_require_mfa,
-            'block_session': self._action_block_session,
-            'block_user': self._action_block_user,
-            'block_ip': self._action_block_ip,
-            'revoke_sessions': self._action_revoke_sessions,
-            'send_alert': self._action_send_alert,
-            'quarantine_user': self._action_quarantine_user,
-            'notify_security_team': self._action_notify_security_team,
+            "log_warning": self._action_log_warning,
+            "add_response_header": self._action_add_response_header,
+            "throttle_requests": self._action_throttle_requests,
+            "require_mfa": self._action_require_mfa,
+            "block_session": self._action_block_session,
+            "block_user": self._action_block_user,
+            "block_ip": self._action_block_ip,
+            "revoke_sessions": self._action_revoke_sessions,
+            "send_alert": self._action_send_alert,
+            "quarantine_user": self._action_quarantine_user,
+            "notify_security_team": self._action_notify_security_team,
         }
 
     async def execute_response(
-        self,
-        threat_report: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
+        self, threat_report: Dict[str, Any], context: Optional[Dict[str, Any]] = None
     ) -> ResponseExecutionReport:
         """
         Execute automated response based on threat report.
@@ -231,7 +232,7 @@ class AutomatedThreatResponder:
             start_time=start_time,
             end_time=end_time,
             duration_seconds=duration,
-            overall_status=overall_status
+            overall_status=overall_status,
         )
 
         # Store in history
@@ -246,137 +247,154 @@ class AutomatedThreatResponder:
         return report
 
     def _plan_response_actions(
-        self,
-        threat_report: Dict[str, Any],
-        context: Dict[str, Any]
+        self, threat_report: Dict[str, Any], context: Dict[str, Any]
     ) -> List[ResponseAction]:
         """Plan which actions to execute based on threat"""
         actions = []
-        recommended_action = threat_report.get('recommended_action')
-        threat_level = threat_report.get('overall_threat_level')
-        risk_score = threat_report.get('risk_score', 0.0)
+        recommended_action = threat_report.get("recommended_action")
+        threat_level = threat_report.get("overall_threat_level")
+        risk_score = threat_report.get("risk_score", 0.0)
 
         # Action 1: Always log the threat
-        actions.append(ResponseAction(
-            action_id=f"log_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-            name="Log Warning",
-            description="Log threat detection to security logs",
-            priority=ActionPriority.LOW,
-            execute_func=self.action_registry['log_warning'],
-            params={'threat_report': threat_report}
-        ))
+        actions.append(
+            ResponseAction(
+                action_id=f"log_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                name="Log Warning",
+                description="Log threat detection to security logs",
+                priority=ActionPriority.LOW,
+                execute_func=self.action_registry["log_warning"],
+                params={"threat_report": threat_report},
+            )
+        )
 
         # Action 2: Add security headers to response
-        if threat_level in ['low', 'medium']:
-            actions.append(ResponseAction(
-                action_id=f"header_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Add Security Headers",
-                description="Add security warning headers to response",
-                priority=ActionPriority.MEDIUM,
-                execute_func=self.action_registry['add_response_header'],
-                params={'threat_level': threat_level}
-            ))
+        if threat_level in ["low", "medium"]:
+            actions.append(
+                ResponseAction(
+                    action_id=f"header_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Add Security Headers",
+                    description="Add security warning headers to response",
+                    priority=ActionPriority.MEDIUM,
+                    execute_func=self.action_registry["add_response_header"],
+                    params={"threat_level": threat_level},
+                )
+            )
 
         # Action 3: Throttle requests
-        if threat_level == 'medium' or risk_score >= 0.4:
-            actions.append(ResponseAction(
-                action_id=f"throttle_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Throttle Requests",
-                description="Apply rate limiting to user/session",
-                priority=ActionPriority.MEDIUM,
-                execute_func=self.action_registry['throttle_requests'],
-                params={
-                    'user_id': threat_report.get('user_id'),
-                    'session_id': threat_report.get('session_id'),
-                    'requests_per_minute': 10
-                }
-            ))
+        if threat_level == "medium" or risk_score >= 0.4:
+            actions.append(
+                ResponseAction(
+                    action_id=f"throttle_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Throttle Requests",
+                    description="Apply rate limiting to user/session",
+                    priority=ActionPriority.MEDIUM,
+                    execute_func=self.action_registry["throttle_requests"],
+                    params={
+                        "user_id": threat_report.get("user_id"),
+                        "session_id": threat_report.get("session_id"),
+                        "requests_per_minute": 10,
+                    },
+                )
+            )
 
         # Action 4: Require MFA
-        if threat_level == 'medium' or risk_score >= 0.5:
-            actions.append(ResponseAction(
-                action_id=f"mfa_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Require MFA",
-                description="Require multi-factor authentication",
-                priority=ActionPriority.HIGH,
-                execute_func=self.action_registry['require_mfa'],
-                params={'user_id': threat_report.get('user_id')}
-            ))
+        if threat_level == "medium" or risk_score >= 0.5:
+            actions.append(
+                ResponseAction(
+                    action_id=f"mfa_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Require MFA",
+                    description="Require multi-factor authentication",
+                    priority=ActionPriority.HIGH,
+                    execute_func=self.action_registry["require_mfa"],
+                    params={"user_id": threat_report.get("user_id")},
+                )
+            )
 
         # Action 5: Block session
-        if threat_level == 'high' or recommended_action == 'block':
-            actions.append(ResponseAction(
-                action_id=f"block_session_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Block Session",
-                description="Block current session",
-                priority=ActionPriority.HIGH,
-                execute_func=self.action_registry['block_session'],
-                params={'session_id': threat_report.get('session_id')}
-            ))
+        if threat_level == "high" or recommended_action == "block":
+            actions.append(
+                ResponseAction(
+                    action_id=f"block_session_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Block Session",
+                    description="Block current session",
+                    priority=ActionPriority.HIGH,
+                    execute_func=self.action_registry["block_session"],
+                    params={"session_id": threat_report.get("session_id")},
+                )
+            )
 
         # Action 6: Block user temporarily
-        if threat_level == 'high' or risk_score >= 0.7:
-            actions.append(ResponseAction(
-                action_id=f"block_user_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Block User",
-                description="Temporarily block user account",
-                priority=ActionPriority.HIGH,
-                execute_func=self.action_registry['block_user'],
-                params={
-                    'user_id': threat_report.get('user_id'),
-                    'duration_minutes': 30
-                }
-            ))
+        if threat_level == "high" or risk_score >= 0.7:
+            actions.append(
+                ResponseAction(
+                    action_id=f"block_user_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Block User",
+                    description="Temporarily block user account",
+                    priority=ActionPriority.HIGH,
+                    execute_func=self.action_registry["block_user"],
+                    params={
+                        "user_id": threat_report.get("user_id"),
+                        "duration_minutes": 30,
+                    },
+                )
+            )
 
         # Action 7: Block IP address
-        if threat_level == 'critical' or risk_score >= 0.8:
-            actions.append(ResponseAction(
-                action_id=f"block_ip_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Block IP",
-                description="Block IP address at firewall",
-                priority=ActionPriority.CRITICAL,
-                execute_func=self.action_registry['block_ip'],
-                params={
-                    'ip_address': context.get('ip_address'),
-                    'duration_hours': 24
-                }
-            ))
+        if threat_level == "critical" or risk_score >= 0.8:
+            actions.append(
+                ResponseAction(
+                    action_id=f"block_ip_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Block IP",
+                    description="Block IP address at firewall",
+                    priority=ActionPriority.CRITICAL,
+                    execute_func=self.action_registry["block_ip"],
+                    params={
+                        "ip_address": context.get("ip_address"),
+                        "duration_hours": 24,
+                    },
+                )
+            )
 
         # Action 8: Revoke all user sessions
-        if threat_level == 'critical':
-            actions.append(ResponseAction(
-                action_id=f"revoke_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Revoke Sessions",
-                description="Revoke all user sessions",
-                priority=ActionPriority.CRITICAL,
-                execute_func=self.action_registry['revoke_sessions'],
-                params={'user_id': threat_report.get('user_id')}
-            ))
+        if threat_level == "critical":
+            actions.append(
+                ResponseAction(
+                    action_id=f"revoke_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Revoke Sessions",
+                    description="Revoke all user sessions",
+                    priority=ActionPriority.CRITICAL,
+                    execute_func=self.action_registry["revoke_sessions"],
+                    params={"user_id": threat_report.get("user_id")},
+                )
+            )
 
         # Action 9: Send alert to security team
-        if threat_level in ['high', 'critical']:
-            actions.append(ResponseAction(
-                action_id=f"alert_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Send Alert",
-                description="Send alert to security team",
-                priority=ActionPriority.CRITICAL,
-                execute_func=self.action_registry['send_alert'],
-                params={
-                    'threat_report': threat_report,
-                    'severity': threat_level
-                }
-            ))
+        if threat_level in ["high", "critical"]:
+            actions.append(
+                ResponseAction(
+                    action_id=f"alert_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Send Alert",
+                    description="Send alert to security team",
+                    priority=ActionPriority.CRITICAL,
+                    execute_func=self.action_registry["send_alert"],
+                    params={"threat_report": threat_report, "severity": threat_level},
+                )
+            )
 
         # Action 10: Notify security team directly for critical
-        if threat_level == 'critical':
-            actions.append(ResponseAction(
-                action_id=f"notify_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                name="Notify Security Team",
-                description="Page/on-call security team",
-                priority=ActionPriority.CRITICAL,
-                execute_func=self.action_registry['notify_security_team'],
-                params={'incident_id': f"INC-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"}
-            ))
+        if threat_level == "critical":
+            actions.append(
+                ResponseAction(
+                    action_id=f"notify_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                    name="Notify Security Team",
+                    description="Page/on-call security team",
+                    priority=ActionPriority.CRITICAL,
+                    execute_func=self.action_registry["notify_security_team"],
+                    params={
+                        "incident_id": f"INC-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+                    },
+                )
+            )
 
         # Sort by priority
         actions.sort(key=lambda a: a.priority.value, reverse=True)
@@ -417,7 +435,7 @@ class AutomatedThreatResponder:
             "actions_total": report.total_actions,
             "actions_successful": report.successful_actions,
             "actions_failed": report.failed_actions,
-            "duration_seconds": report.duration_seconds
+            "duration_seconds": report.duration_seconds,
         }
 
         if report.overall_status in [ResponseStatus.FAILED, ResponseStatus.PARTIAL]:
@@ -439,9 +457,9 @@ class AutomatedThreatResponder:
         """Add security headers to response (would be done in middleware)"""
         # In production, this would set headers on the HTTP response
         headers = {
-            'X-Threat-Detected': 'true',
-            'X-Threat-Level': threat_level,
-            'X-Security-Monitor': 'active'
+            "X-Threat-Detected": "true",
+            "X-Threat-Level": threat_level,
+            "X-Security-Monitor": "active",
         }
         return {"headers": headers}
 
@@ -449,12 +467,14 @@ class AutomatedThreatResponder:
         self,
         user_id: Optional[str],
         session_id: Optional[str],
-        requests_per_minute: int
+        requests_per_minute: int,
     ) -> Dict[str, Any]:
         """Apply rate limiting"""
         # In production, this would update rate limit rules in Redis/database
-        logger.info(f"Rate limiting applied: {requests_per_minute} req/min "
-                   f"(user: {user_id}, session: {session_id})")
+        logger.info(
+            f"Rate limiting applied: {requests_per_minute} req/min "
+            f"(user: {user_id}, session: {session_id})"
+        )
         return {"throttled": True, "limit": requests_per_minute}
 
     async def _action_require_mfa(self, user_id: Optional[str]) -> Dict[str, Any]:
@@ -470,9 +490,7 @@ class AutomatedThreatResponder:
         return {"session_blocked": True, "session_id": session_id}
 
     async def _action_block_user(
-        self,
-        user_id: Optional[str],
-        duration_minutes: int
+        self, user_id: Optional[str], duration_minutes: int
     ) -> Dict[str, Any]:
         """Block user account temporarily"""
         # In production, this would set account status in database
@@ -480,13 +498,11 @@ class AutomatedThreatResponder:
         return {
             "user_blocked": True,
             "user_id": user_id,
-            "duration_minutes": duration_minutes
+            "duration_minutes": duration_minutes,
         }
 
     async def _action_block_ip(
-        self,
-        ip_address: Optional[str],
-        duration_hours: int
+        self, ip_address: Optional[str], duration_hours: int
     ) -> Dict[str, Any]:
         """Block IP address at firewall/load balancer"""
         # In production, this would update firewall rules or use CDN blocking
@@ -494,7 +510,7 @@ class AutomatedThreatResponder:
         return {
             "ip_blocked": True,
             "ip_address": ip_address,
-            "duration_hours": duration_hours
+            "duration_hours": duration_hours,
         }
 
     async def _action_revoke_sessions(self, user_id: Optional[str]) -> Dict[str, Any]:
@@ -504,19 +520,17 @@ class AutomatedThreatResponder:
         return {"sessions_revoked": True, "user_id": user_id}
 
     async def _action_send_alert(
-        self,
-        threat_report: Dict[str, Any],
-        severity: str
+        self, threat_report: Dict[str, Any], severity: str
     ) -> Dict[str, Any]:
         """Send alert to security monitoring"""
         # In production, this would send to SIEM, Slack, PagerDuty, etc.
         alert_data = {
             "severity": severity,
-            "threat_level": threat_report.get('overall_threat_level'),
-            "risk_score": threat_report.get('risk_score'),
-            "user_id": threat_report.get('user_id'),
-            "session_id": threat_report.get('session_id'),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "threat_level": threat_report.get("overall_threat_level"),
+            "risk_score": threat_report.get("risk_score"),
+            "user_id": threat_report.get("user_id"),
+            "session_id": threat_report.get("session_id"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         logger.critical(f"Security alert: {json.dumps(alert_data)}")
         return {"alert_sent": True, "alert_data": alert_data}
@@ -540,10 +554,7 @@ class AutomatedThreatResponder:
         self.action_registry[name] = func
         logger.info(f"Registered custom action: {name}")
 
-    def get_response_history(
-        self,
-        limit: int = 50
-    ) -> List[ResponseExecutionReport]:
+    def get_response_history(self, limit: int = 50) -> List[ResponseExecutionReport]:
         """Get recent response execution history"""
         return self.response_history[-limit:]
 
@@ -554,10 +565,14 @@ class AutomatedThreatResponder:
             return {
                 "total_responses": 0,
                 "success_rate": 0.0,
-                "avg_duration_seconds": 0.0
+                "avg_duration_seconds": 0.0,
             }
 
-        successful = sum(1 for r in self.response_history if r.overall_status == ResponseStatus.EXECUTED)
+        successful = sum(
+            1
+            for r in self.response_history
+            if r.overall_status == ResponseStatus.EXECUTED
+        )
         avg_duration = sum(r.duration_seconds for r in self.response_history) / total
 
         return {
@@ -565,7 +580,7 @@ class AutomatedThreatResponder:
             "successful": successful,
             "success_rate": successful / total,
             "avg_duration_seconds": avg_duration,
-            "dry_run": self.dry_run
+            "dry_run": self.dry_run,
         }
 
 
@@ -574,8 +589,7 @@ auto_responder = AutomatedThreatResponder(dry_run=False)
 
 
 async def execute_response(
-    threat_report: Dict[str, Any],
-    context: Optional[Dict[str, Any]] = None
+    threat_report: Dict[str, Any], context: Optional[Dict[str, Any]] = None
 ) -> ResponseExecutionReport:
     """
     Convenience function to execute automated response.
@@ -604,34 +618,19 @@ def main():
     """CLI interface for automated threat responder"""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Automated Threat Response System"
-    )
+    parser = argparse.ArgumentParser(description="Automated Threat Response System")
     parser.add_argument(
-        '--threat-level',
+        "--threat-level",
         required=True,
-        choices=['safe', 'low', 'medium', 'high', 'critical'],
-        help='Threat level'
+        choices=["safe", "low", "medium", "high", "critical"],
+        help="Threat level",
     )
+    parser.add_argument("--risk-score", type=float, help="Risk score (0.0 to 1.0)")
+    parser.add_argument("--user-id", help="User ID")
     parser.add_argument(
-        '--risk-score',
-        type=float,
-        help='Risk score (0.0 to 1.0)'
+        "--dry-run", action="store_true", help="Simulate actions without executing"
     )
-    parser.add_argument(
-        '--user-id',
-        help='User ID'
-    )
-    parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Simulate actions without executing'
-    )
-    parser.add_argument(
-        '--json',
-        action='store_true',
-        help='Output results as JSON'
-    )
+    parser.add_argument("--json", action="store_true", help="Output results as JSON")
 
     args = parser.parse_args()
 
@@ -639,9 +638,11 @@ def main():
     threat_report = {
         "overall_threat_level": args.threat_level,
         "risk_score": args.risk_score or 0.5,
-        "recommended_action": "block" if args.threat_level in ["high", "critical"] else "monitor",
+        "recommended_action": (
+            "block" if args.threat_level in ["high", "critical"] else "monitor"
+        ),
         "user_id": args.user_id,
-        "session_id": "test_session"
+        "session_id": "test_session",
     }
 
     # Set dry run mode
@@ -655,21 +656,23 @@ def main():
         if args.json:
             print(json.dumps(report.to_dict(), indent=2))
         else:
-            print("\n" + "="*80)
+            print("\n" + "=" * 80)
             print("AUTOMATED RESPONSE EXECUTION RESULTS")
-            print("="*80)
+            print("=" * 80)
             print(f"Incident ID: {report.incident_id}")
             print(f"Overall Status: {report.overall_status.value.upper()}")
-            print(f"Actions: {report.successful_actions}/{report.total_actions} successful")
+            print(
+                f"Actions: {report.successful_actions}/{report.total_actions} successful"
+            )
             print(f"Duration: {report.duration_seconds:.2f}s")
             print(f"\nActions Executed:")
             for action in report.actions_executed:
                 status_icon = "✓" if action.status == ResponseStatus.EXECUTED else "✗"
                 print(f"  {status_icon} {action.name}: {action.status.value}")
-            print("="*80 + "\n")
+            print("=" * 80 + "\n")
 
     asyncio.run(run_response())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

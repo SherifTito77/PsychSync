@@ -8,9 +8,9 @@ Odoo: Complete business suite with comprehensive HR modules
 API Documentation: https://www.odoo.com/documentation/16.0/developer/reference/external_api.html
 """
 
-from datetime import date, datetime
 import logging
 import xmlrpc.client
+from datetime import date, datetime
 
 from .base_connector import (
     AttendanceRecord,
@@ -50,11 +50,17 @@ class OdooHRConnector(HRISConnector):
 
         if self.base_url:
             try:
-                self.common = xmlrpc.client.ServerProxy(f"{self.base_url}/xmlrpc/2/common")
-                self.models = xmlrpc.client.ServerProxy(f"{self.base_url}/xmlrpc/2/object")
+                self.common = xmlrpc.client.ServerProxy(
+                    f"{self.base_url}/xmlrpc/2/common"
+                )
+                self.models = xmlrpc.client.ServerProxy(
+                    f"{self.base_url}/xmlrpc/2/object"
+                )
 
                 # Authenticate
-                self.uid = self.common.authenticate(self.database, self.username, self.password, {})
+                self.uid = self.common.authenticate(
+                    self.database, self.username, self.password, {}
+                )
 
                 if self.uid:
                     logger.info(f"Authenticated with Odoo as UID: {self.uid}")
@@ -100,7 +106,9 @@ class OdooHRConnector(HRISConnector):
 
         if department:
             # Search for department ID first
-            dept_ids = self._execute("hr.department", "search", [[("name", "=", department)]])
+            dept_ids = self._execute(
+                "hr.department", "search", [[("name", "=", department)]]
+            )
             if dept_ids:
                 domain.append(("department_id", "=", dept_ids[0]))
 
@@ -123,7 +131,9 @@ class OdooHRConnector(HRISConnector):
             "active",
         ]
 
-        employees_data = self._execute("hr.employee", "read", [employee_ids], {"fields": fields})
+        employees_data = self._execute(
+            "hr.employee", "read", [employee_ids], {"fields": fields}
+        )
 
         employees = []
         for item in employees_data:
@@ -144,11 +154,16 @@ class OdooHRConnector(HRISConnector):
                 )
                 if contract_ids:
                     contracts = self._execute(
-                        "hr.contract", "read", [contract_ids], {"fields": ["date_start"]}
+                        "hr.contract",
+                        "read",
+                        [contract_ids],
+                        {"fields": ["date_start"]},
                     )
                     if contracts and contracts[0].get("date_start"):
-                        hire_date = datetime.strptime(contracts[0]["date_start"], "%Y-%m-%d").date()
-            except:
+                        hire_date = datetime.strptime(
+                            contracts[0]["date_start"], "%Y-%m-%d"
+                        ).date()
+            except Exception as e:
                 pass
 
             emp = Employee(
@@ -157,12 +172,18 @@ class OdooHRConnector(HRISConnector):
                 last_name=last_name,
                 email=item.get("work_email", ""),
                 phone=item.get("mobile_phone"),
-                department=item["department_id"][1] if item.get("department_id") else None,
+                department=(
+                    item["department_id"][1] if item.get("department_id") else None
+                ),
                 position=item["job_id"][1] if item.get("job_id") else None,
                 hire_date=hire_date,
                 employment_status="active" if item.get("active") else "inactive",
                 manager_id=str(item["parent_id"][0]) if item.get("parent_id") else None,
-                location=item["work_location_id"][1] if item.get("work_location_id") else None,
+                location=(
+                    item["work_location_id"][1]
+                    if item.get("work_location_id")
+                    else None
+                ),
             )
             employees.append(emp)
 
@@ -202,12 +223,18 @@ class OdooHRConnector(HRISConnector):
                 last_name=last_name,
                 email=item.get("work_email", ""),
                 phone=item.get("mobile_phone"),
-                department=item["department_id"][1] if item.get("department_id") else None,
+                department=(
+                    item["department_id"][1] if item.get("department_id") else None
+                ),
                 position=item["job_id"][1] if item.get("job_id") else None,
                 hire_date=None,
                 employment_status="active" if item.get("active") else "inactive",
                 manager_id=str(item["parent_id"][0]) if item.get("parent_id") else None,
-                location=item["work_location_id"][1] if item.get("work_location_id") else None,
+                location=(
+                    item["work_location_id"][1]
+                    if item.get("work_location_id")
+                    else None
+                ),
             )
 
         except Exception as e:
@@ -232,7 +259,9 @@ class OdooHRConnector(HRISConnector):
             return []
 
         fields = ["id", "employee_id", "check_in", "check_out", "worked_hours"]
-        attendances = self._execute("hr.attendance", "read", [attendance_ids], {"fields": fields})
+        attendances = self._execute(
+            "hr.attendance", "read", [attendance_ids], {"fields": fields}
+        )
 
         records = []
         for item in attendances:
@@ -253,7 +282,9 @@ class OdooHRConnector(HRISConnector):
                 date=check_in.date() if check_in else start_date,
                 clock_in=check_in,
                 clock_out=check_out,
-                hours_worked=float(item["worked_hours"]) if item.get("worked_hours") else None,
+                hours_worked=(
+                    float(item["worked_hours"]) if item.get("worked_hours") else None
+                ),
                 status="present",
             )
             records.append(record)
@@ -319,10 +350,14 @@ class OdooHRConnector(HRISConnector):
             record = LeaveRecord(
                 leave_id=str(item["id"]),
                 employee_id=str(item["employee_id"][0]),
-                leave_type=item["holiday_status_id"][1]
-                if item.get("holiday_status_id")
-                else "vacation",
-                start_date=datetime.strptime(item["request_date_from"], "%Y-%m-%d").date(),
+                leave_type=(
+                    item["holiday_status_id"][1]
+                    if item.get("holiday_status_id")
+                    else "vacation"
+                ),
+                start_date=datetime.strptime(
+                    item["request_date_from"], "%Y-%m-%d"
+                ).date(),
                 end_date=datetime.strptime(item["request_date_to"], "%Y-%m-%d").date(),
                 days_taken=float(item.get("number_of_days", 0)),
                 status=state_map.get(item.get("state", "confirm"), "pending"),
@@ -366,7 +401,9 @@ if __name__ == "__main__":
         print(f"Active employees: {len(employees)}")
 
         if employees:
-            print(f"\nFirst employee: {employees[0].first_name} {employees[0].last_name}")
+            print(
+                f"\nFirst employee: {employees[0].first_name} {employees[0].last_name}"
+            )
 
         from datetime import timedelta
 

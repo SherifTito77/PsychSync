@@ -1,7 +1,10 @@
 # app/api/v1/api.py
 """
-Improved API router for PsychSync AI v1 endpoints
-Clean, modular endpoint inclusion with proper error handling
+PsychSync API v1 Router - Static endpoint registration.
+
+All core endpoints use explicit imports that fail loudly at startup.
+Optional feature endpoints use try/except so one broken module doesn't
+bring down the entire server, but failures ARE logged as errors.
 """
 
 import logging
@@ -10,154 +13,189 @@ from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
-
-def safe_import_endpoint(module_name: str) -> APIRouter | None:
-    """Safely import an endpoint module with proper error handling"""
-    try:
-        module = __import__(f"app.api.v1.endpoints.{module_name}", fromlist=[module_name])
-        router = getattr(module, "router", None)
-        if router is None:
-            logger.warning(f"Module {module_name} imported but no router found")
-            return None
-        logger.info(f"Successfully imported endpoint: {module_name}")
-        return router
-    except ImportError as e:
-        logger.warning(f"Could not import endpoint {module_name}: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error importing endpoint {module_name}: {e}")
-        return None
-
-
-# Core endpoints (always required)
-CORE_ENDPOINTS = [
-    # SECURITY: standalone_auth disabled - backdoor endpoint allowing any login
-    # This is a TEST endpoint that bypasses proper authentication
-    # TODO: Delete standalone_auth.py entirely after confirming no dependencies
-    # "standalone_auth",  # ❌ DISABLED - Security backdoor
-    "simple_auth",  # ✅ ENABLED - Simple auth without CSRF requirements
-    # Temporarily disabled due to syntax errors:
-    # "users",  # ❌ unterminated string literal at line 41
-    # "admin",  # ❌ invalid syntax at line 76
-    # "dns_security",  # ❌ invalid syntax at line 86
-    # "security_monitoring",  # ❌ invalid syntax at line 193
-    "docs_local",  # ✅ NEW: Local documentation (no CDN dependencies)
-    "security_monitoring_public",  # ✅ NEW: Security monitoring dashboard API
-    "auth_unified",  # ✅ NEW: Unified auth with MFA support (replaces auth.py)
-    # "auth",  # ⚠️ TEMPORARILY DISABLED - Using auth_unified instead
-    "health",  # ✅ Health check endpoint
-    # "two_factor_auth",  # ⚠️ DISABLED - MFA now integrated in auth_unified
-    # "database_security"  # TEMPORARILY DISABLED - has syntax error on line 306
-]
-
-# Broken endpoints that need fixing (made optional for now)
-BROKEN_ENDPOINTS = [
-    # "standalone_auth",  # ❌ DISABLED - Security backdoor (accepts any credentials)
-    # "simple_auth",  # ✅ MOVED TO CORE_ENDPOINTS - Now working
-    "users",
-    "admin",
-    "dns_security",
-    "security_monitoring",
-]
-
-# Feature endpoints (optional, can fail gracefully)
-FEATURE_ENDPOINTS = [
-    # Temporarily minimized for debugging - enabling only essential endpoints
-    "assessments",
-    "responses",
-    "ai_analytics",  # NEW: AI-enhanced analytics endpoints
-    "ai_monitoring",  # NEW: AI engine monitoring endpoints
-    "gdpr",  # GDPR compliance endpoints
-    "sql_audit",  # NEW: SQL injection vulnerability scanning
-    "query_performance",  # NEW: Slow query optimization and analysis
-    "build_analysis",  # NEW: Build failure analysis and root cause detection
-    "caching_config",  # NEW: Caching configuration optimization
-    "breaking_changes",  # NEW: Breaking changes detection before merge
-    "corporate_integrations",  # ✅ ENABLED - Corporate data source integrations
-    "toxic_behavior_detection",  # ✅ NEW: Toxic behavior detection and prevention
-    # Temporarily disabled potentially problematic endpoints:
-    # "teams",
-    # "team_optimization",
-    # "predictions",
-    # "reliability_validity",
-    # "csrf",
-    # "analytics",
-    # "backups",
-    # "scoring",
-    # "succession_planning",
-    # "longitudinal_analysis",
-    # "nlp_routes",
-    # "users_gdpr",
-    # "email_connections",
-    # "email_simple",
-    # "onboarding"  # NEW: Value-first onboarding endpoints
-    # "assessment_results",  # NEW: Comprehensive assessment results API - temporarily disabled due to syntax error
-    # "billing",  # NEW: Revenue generation and subscription management
-    # "enterprise_sales"  # NEW: B2B account management and customer success
-]
-
-# Separated Service Areas (NEW: Five distinct service areas)
-SEPARATED_SERVICE_ENDPOINTS = [
-    "personality_assessments",  # MBTI, Enneagram, Big Five, etc.
-    # "behavioral_analysis",         # Behavioral patterns, anomaly detection - temporarily disabled due to import issues
-    "clinical_assessments",  # Mental health screening, wellness
-    "screening",  # NEW: Clinical screening tools (PHQ-9, GAD-7, C-SSRS) with crisis intervention
-    "health_monitoring",  # NEW: Real-time stress & burnout monitoring with automated interventions
-    # "email_connector",            # Email integration and analytics - temporarily disabled due to missing schemas
-    # "hris_connector",             # HR system integration and workforce analytics - temporarily disabled due to syntax errors
-    # Temporarily disabled new analytics:
-    # "growth_analytics"            # Advanced growth analytics and conversion optimization
-]
-
-# Create the main API router
 api_router = APIRouter(prefix="/api/v1", tags=["PsychSync API v1"])
 
 
-def register_endpoints(router: APIRouter, endpoints: list[str], required: bool = True) -> None:
-    """Register endpoints with the main router"""
-    failed_imports = []
+def _try_include(module_path: str, name: str) -> bool:
+    """Import an optional endpoint module and include it if available."""
+    try:
+        import importlib
 
-    for endpoint_name in endpoints:
-        endpoint_router = safe_import_endpoint(endpoint_name)
-        if endpoint_router:
-            router.include_router(endpoint_router)
-        elif required:
-            failed_imports.append(endpoint_name)
+        mod = importlib.import_module(module_path)
+        router = getattr(mod, "router", None)
+        if router is None:
+            logger.error("Module %s has no 'router' attribute", name)
+            return False
+        api_router.include_router(router)
+        logger.debug(
+            "Registered optional endpoint: %s (%d routes)", name, len(router.routes)
+        )
+        return True
+    except Exception as exc:
+        logger.error("Failed to load optional endpoint '%s': %s", name, exc)
+        return False
 
-    if failed_imports and required:
-        error_msg = f"Failed to import required endpoints: {', '.join(failed_imports)}"
-        logger.error(error_msg)
-        raise ImportError(error_msg)
 
+# =============================================================================
+# CORE ENDPOINTS — static imports, fail loudly at startup if broken
+# =============================================================================
 
-# Register core endpoints (required)
-register_endpoints(api_router, CORE_ENDPOINTS, required=True)
+from app.api.v1.endpoints.auth_unified import router as _auth_unified_router
+from app.api.v1.endpoints.simple_auth import router as _simple_auth_router
+from app.api.v1.endpoints.health import router as _health_router
+from app.api.v1.endpoints.users import router as _users_router
+from app.api.v1.endpoints.admin import router as _admin_router
+from app.api.v1.endpoints.dns_security import router as _dns_security_router
+from app.api.v1.endpoints.security_monitoring import (
+    router as _security_monitoring_router,
+)
+from app.api.v1.endpoints.docs_local import router as _docs_local_router
+from app.api.v1.endpoints.security_monitoring_public import (
+    router as _security_monitoring_public_router,
+)
 
-# Register feature endpoints (optional)
-register_endpoints(api_router, FEATURE_ENDPOINTS, required=False)
+api_router.include_router(_auth_unified_router)
+api_router.include_router(_simple_auth_router)
+api_router.include_router(_health_router)
+api_router.include_router(_users_router)
+api_router.include_router(_admin_router)
+api_router.include_router(_dns_security_router)
+api_router.include_router(_security_monitoring_router)
+api_router.include_router(_docs_local_router)
+api_router.include_router(_security_monitoring_public_router)
 
-# Register separated service area endpoints (NEW)
-register_endpoints(api_router, SEPARATED_SERVICE_ENDPOINTS, required=False)
+# =============================================================================
+# FEATURE ENDPOINTS — optional, logged as errors if broken but server still starts
+# =============================================================================
 
-# Attempt to register broken endpoints (optional - won't fail if they have syntax errors)
-register_endpoints(api_router, BROKEN_ENDPOINTS, required=False)
+_FEATURE_ENDPOINTS = [
+    "frontend_logs",
+    "client_errors",
+    "assessments",
+    "responses",
+    "clinical_analytics",
+    "notifications",
+    "ai_analytics",
+    "ai_monitoring",
+    "gdpr",
+    "sql_audit",
+    "query_performance",
+    "build_analysis",
+    "caching_config",
+    "breaking_changes",
+    "corporate_integrations",
+    "toxic_behavior_detection",
+    "legal_rights",
+    "discrimination_analysis",
+    "anonymous_feedback",
+    "teams",
+    "team_optimization",
+    "predictions",
+    "analytics",
+    "reliability_validity",
+    "encryption",
+    "audit",
+    "rbac",
+    "ai_agents",
+    "product_management",
+    "executive_burnout",
+    "radar",
+    "advanced_burnout_analytics",
+    "safety",
+    "jira_integration",
+    "pull_requests",
+    "settings",
+    "anomaly_detection",
+    "code_quality",
+    "wellness",
+    "behavioral_user_dashboard",
+    "email_connector",
+    "hris_connector",
+    "security_analytics",
+    "corporate_psychology",
+    "performance_monitoring",
+    "telehealth",
+    "behavioral_intelligence",
+    "executive_intelligence",
+    "org_digital_twin",
+    "manager_intelligence",
+    "organizational_network",
+    "organizational_pulse",
+    "work_systems",
+    "ai_behavioral_coach",
+    "calendar_integration",
+    "communication_analytics",
+    "scheduled_reports",
+    "clinical_resources",
+    "succession_planning",
+    "ai",
+    "heuristic",
+    "monitoring",
+    "behavioral_patterns",
+    "burnout_predictions",
+    "backups",
+    "voice_video_analysis",
+    "okr",
+    "peer_recognition",
+    "ona_alerts",
+    "okr_health",
+    "interventions",
+    "slack_events",
+    "org_chat",
+    "narrative_reports",
+    "benchmarks",
+    "pulse_survey",
+    "action_plans",
+    "onboarding_analytics",
+    "feedback_360",
+    "meeting_effectiveness",
+    "external_benchmarks",
+    "nudge_bot",
+    "skills",
+    "change_impact",
+    "survey_translations",
+    "email_metadata",
+    "slack_metadata",
+    "teams_metadata",
+    "computer_usage_metadata",
+    "badge_access_metadata",
+    "pto_patterns",
+    "git_metadata",
+    "toxicity_burnout",
+    "video_conference_metadata",
+    "knowledge_base_metadata",
+    "project_management_metadata",
+    "employee_lifecycle",
+    "module_registry",
+    "network_intelligence",
+    "intelligence_loop",
+]
 
-# Log final status
-logger.info(f"API router initialized with {len(api_router.routes)} routes")
+_SEPARATED_SERVICE_ENDPOINTS = [
+    "personality_assessments",
+    "behavioral_analysis",
+    "clinical_assessments",
+    "clinical_assessments_extended",
+    "clinical_ml_predictions",
+    "population_health",
+    "automated_alerts",
+    "push_notifications",
+    "biometric_auth",
+    "screening",
+    "health_monitoring",
+    "biometric_integrations",
+]
 
-# TODO(human): Implement dynamic endpoint registration
-# Context: The current endpoint registration is static and requires manual updates
-# Your task is to implement dynamic endpoint discovery and registration
-#
-# Guidance:
-# 1. Scan the endpoints directory for Python files
-# 2. Automatically import and register modules that contain a 'router' object
-# 3. Add configuration for enabling/disabling endpoints via settings
-# 4. Implement health check for registered endpoints
-# 5. Add version compatibility checking for endpoints
-#
-# The system should support:
-# - Hot-loading of endpoints in development
-# - Endpoint dependency management
-# - Automatic endpoint health monitoring
-# - Configuration-driven endpoint enablement
+_BASE = "app.api.v1.endpoints"
+_loaded = sum(
+    _try_include(f"{_BASE}.{name}", name)
+    for name in _FEATURE_ENDPOINTS + _SEPARATED_SERVICE_ENDPOINTS
+)
+
+logger.info(
+    "API router initialized: %d core + %d/%d optional endpoints registered (%d total routes)",
+    9,
+    _loaded,
+    len(_FEATURE_ENDPOINTS) + len(_SEPARATED_SERVICE_ENDPOINTS),
+    len(api_router.routes),
+)

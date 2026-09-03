@@ -20,17 +20,26 @@ const VerifyEmail: React.FC = () => {
         await api.post('/auth/verify-email', { token });
         setStatus('success');
         setMessage('Your email has been verified successfully!');
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          navigate('/login');
-        }, 3000);
       } catch (error: any) {
         setStatus('error');
         setMessage(error.response?.data?.detail || 'Email verification failed');
       }
     };
     verifyEmail();
-  }, [searchParams, navigate]);
+  }, [searchParams]);
+
+  // Separate useEffect for redirect with cleanup
+  useEffect(() => {
+    let timerId: NodeJS.Timeout | undefined;
+    if (status === 'success') {
+      timerId = setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+    }
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [status, navigate]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">

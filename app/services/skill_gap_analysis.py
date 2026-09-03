@@ -4,19 +4,16 @@ Skill Gap Analysis Service
 Advanced skill gap analysis and competency development system for organizations.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.db.models import (
-    User,
-)
-from app.services.team_optimization_service import (
-    # PersonalityProfile, SkillRequirement, CompetencyLevel,  # TODO: Implement these classes
+from app.db.models import User
+from app.services.team_optimization_service import (  # PersonalityProfile, SkillRequirement, CompetencyLevel,  # TODO: Implement these classes
     get_personality_profile_for_user,
 )
 
@@ -201,11 +198,15 @@ class SkillGapAnalyzer:
             ],
         }
 
-    async def analyze_individual_skill_gaps(self, user_id: str) -> list[SkillAssessment]:
+    async def analyze_individual_skill_gaps(
+        self, user_id: str
+    ) -> list[SkillAssessment]:
         """Analyze skill gaps for an individual user"""
         try:
             # Get user's personality profile for skill prediction
-            personality_profile = await get_personality_profile_for_user(user_id, self.db)
+            personality_profile = await get_personality_profile_for_user(
+                user_id, self.db
+            )
 
             # Get current skill assessments
             current_assessments = await self._get_current_skill_assessments(user_id)
@@ -217,7 +218,9 @@ class SkillGapAnalyzer:
 
             for skill, requirement in role_requirements.items():
                 current_level = current_assessments.get(skill, 0)
-                gap_percentage = max(0, (requirement - current_level) / requirement * 100)
+                gap_percentage = max(
+                    0, (requirement - current_level) / requirement * 100
+                )
 
                 # Determine priority based on role importance and gap size
                 priority = self._calculate_skill_priority(
@@ -249,11 +252,17 @@ class SkillGapAnalyzer:
             logger.error(f"Error analyzing skill gaps for user {user_id}: {e}")
             raise
 
-    async def analyze_organizational_skill_gaps(self, organization_id: str) -> dict[str, Any]:
+    async def analyze_organizational_skill_gaps(
+        self, organization_id: str
+    ) -> dict[str, Any]:
         """Analyze skill gaps across the entire organization"""
         try:
             # Get all users in organization
-            users = self.db.query(User).filter(User.organization_id == organization_id).all()
+            users = (
+                self.db.query(User)
+                .filter(User.organization_id == organization_id)
+                .all()
+            )
 
             # Aggregate skill gaps by department and role
             organizational_gaps = {
@@ -289,8 +298,8 @@ class SkillGapAnalyzer:
             ]
 
             # Calculate skill supply vs demand
-            organizational_gaps["skill_supply_demand"] = await self._calculate_skill_supply_demand(
-                organization_id
+            organizational_gaps["skill_supply_demand"] = (
+                await self._calculate_skill_supply_demand(organization_id)
             )
 
             logger.info(f"Analyzed organizational skill gaps for org {organization_id}")
@@ -318,11 +327,15 @@ class SkillGapAnalyzer:
 
             for category_data in self.industry_trends.values():
                 for skill_name, trend_data in category_data.items():
-                    current_demand = current_demands.get(skill_name, 50)  # Default baseline
+                    current_demand = current_demands.get(
+                        skill_name, 50
+                    )  # Default baseline
 
                     # Apply industry growth rate
                     growth_rate = trend_data["growth_rate"]
-                    predicted_demand = current_demand * (1 + growth_rate) ** (timeframe_months / 12)
+                    predicted_demand = current_demand * (1 + growth_rate) ** (
+                        timeframe_months / 12
+                    )
 
                     # Adjust for organizational strategic initiatives
                     strategic_adjustment = self._calculate_strategic_adjustment(
@@ -339,19 +352,25 @@ class SkillGapAnalyzer:
                         predicted_demand_24m=final_demand,
                         growth_rate=growth_rate,
                         market_trend=trend_data["trend"],
-                        industry_relevance=self._calculate_industry_relevance(skill_name, industry),
+                        industry_relevance=self._calculate_industry_relevance(
+                            skill_name, industry
+                        ),
                     )
 
                     skill_demands.append(skill_demand)
 
             # Sort by growth potential and relevance
-            skill_demands.sort(key=lambda x: (x.growth_rate * x.industry_relevance), reverse=True)
+            skill_demands.sort(
+                key=lambda x: (x.growth_rate * x.industry_relevance), reverse=True
+            )
 
             logger.info(f"Predicted future skill demands for org {organization_id}")
             return skill_demands[:20]  # Return top 20 skills
 
         except Exception as e:
-            logger.error(f"Error predicting future skill demands for org {organization_id}: {e}")
+            logger.error(
+                f"Error predicting future skill demands for org {organization_id}: {e}"
+            )
             raise
 
     async def recommend_learning_path(
@@ -360,7 +379,9 @@ class SkillGapAnalyzer:
         """Generate personalized learning recommendations"""
         try:
             # Get user profile and preferences
-            personality_profile = await get_personality_profile_for_user(user_id, self.db)
+            personality_profile = await get_personality_profile_for_user(
+                user_id, self.db
+            )
             learning_style = self._determine_learning_style(personality_profile)
 
             # Get current skill levels
@@ -405,14 +426,17 @@ class SkillGapAnalyzer:
 
             # Sort by completion probability and expected improvement
             recommendations.sort(
-                key=lambda x: (x.completion_probability * x.expected_improvement), reverse=True
+                key=lambda x: (x.completion_probability * x.expected_improvement),
+                reverse=True,
             )
 
             logger.info(f"Generated learning recommendations for user {user_id}")
             return recommendations
 
         except Exception as e:
-            logger.error(f"Error generating learning recommendations for user {user_id}: {e}")
+            logger.error(
+                f"Error generating learning recommendations for user {user_id}: {e}"
+            )
             raise
 
     async def recommend_development_programs(
@@ -423,7 +447,9 @@ class SkillGapAnalyzer:
             # Get user skill gaps
             skill_gaps = await self.analyze_individual_skill_gaps(user_id)
             target_skills = [
-                gap.skill_name for gap in skill_gaps if gap.priority in ["critical", "high"]
+                gap.skill_name
+                for gap in skill_gaps
+                if gap.priority in ["critical", "high"]
             ]
 
             # Get available programs
@@ -433,15 +459,19 @@ class SkillGapAnalyzer:
 
             for program in available_programs:
                 # Calculate skill coverage
-                skill_coverage = len(set(program["target_skills"]) & set(target_skills)) / len(
-                    target_skills
-                )
+                skill_coverage = len(
+                    set(program["target_skills"]) & set(target_skills)
+                ) / len(target_skills)
 
                 # Calculate expected ROI based on organizational data
-                expected_roi = await self._calculate_program_roi(program, organization_id)
+                expected_roi = await self._calculate_program_roi(
+                    program, organization_id
+                )
 
                 # Calculate success probability for this user
-                success_probability = await self._calculate_success_probability(user_id, program)
+                success_probability = await self._calculate_success_probability(
+                    user_id, program
+                )
 
                 if skill_coverage > 0.3:  # Program covers at least 30% of target skills
                     recommendation = DevelopmentProgram(
@@ -467,7 +497,9 @@ class SkillGapAnalyzer:
             return program_recommendations[:5]  # Return top 5 recommendations
 
         except Exception as e:
-            logger.error(f"Error recommending development programs for user {user_id}: {e}")
+            logger.error(
+                f"Error recommending development programs for user {user_id}: {e}"
+            )
             raise
 
     async def analyze_career_trajectories(self, user_id: str) -> list[CareerTrajectory]:
@@ -484,7 +516,9 @@ class SkillGapAnalyzer:
 
             for target_role in career_paths:
                 # Get role requirements for target position
-                role_requirements = await self._get_role_requirements_by_name(target_role)
+                role_requirements = await self._get_role_requirements_by_name(
+                    target_role
+                )
 
                 # Calculate skill gaps for this role
                 skill_gaps = []
@@ -505,7 +539,9 @@ class SkillGapAnalyzer:
 
                 # Generate learning plan
                 target_skills_list = [gap["skill"] for gap in skill_gaps]
-                learning_plan = await self.recommend_learning_path(user_id, target_skills_list)
+                learning_plan = await self.recommend_learning_path(
+                    user_id, target_skills_list
+                )
 
                 # Calculate promotion probability
                 promotion_probability = self._calculate_promotion_probability(
@@ -513,7 +549,9 @@ class SkillGapAnalyzer:
                 )
 
                 # Estimate salary impact
-                salary_impact = await self._estimate_salary_impact(current_role, target_role)
+                salary_impact = await self._estimate_salary_impact(
+                    current_role, target_role
+                )
 
                 trajectory = CareerTrajectory(
                     current_role=current_role,
@@ -601,7 +639,12 @@ class SkillGapAnalyzer:
             "mobile_development",
             "web_development",
         ]
-        soft_skills = ["communication", "collaboration", "adaptability", "emotional_intelligence"]
+        soft_skills = [
+            "communication",
+            "collaboration",
+            "adaptability",
+            "emotional_intelligence",
+        ]
         leadership_skills = ["leadership", "team_development", "strategic_thinking"]
 
         if skill_name in technical_skills:
@@ -640,7 +683,9 @@ class SkillGapAnalyzer:
 
         return min(1.0, base_confidence)
 
-    def _aggregate_skill_gaps(self, assessments: list[SkillAssessment]) -> dict[str, Any]:
+    def _aggregate_skill_gaps(
+        self, assessments: list[SkillAssessment]
+    ) -> dict[str, Any]:
         """Aggregate individual skill gaps into organizational view"""
         skill_summary = {}
 

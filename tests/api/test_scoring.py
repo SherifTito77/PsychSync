@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -44,22 +48,22 @@ def create_scoring_config(client, auth_headers):
     response = client.post(
         "/assessments/{assessment_id}/scoring-config",
         json={},
-        params={'assessment_id': 'test_value', 'config_data': 'test_value'}
+        params={"assessment_id": "test_value", "config_data": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -67,12 +71,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -86,8 +91,9 @@ def get_scoring_config(client, auth_headers):
     Get scoring configuration for an assessment
     """
     # TODO: Implement test logic
-    response = client.get("/assessments/{assessment_id}/scoring-config",
-        params={'assessment_id': 'test_value'}
+    response = client.get(
+        "/assessments/{assessment_id}/scoring-config",
+        params={"assessment_id": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -96,16 +102,16 @@ def get_scoring_config(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -113,12 +119,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -135,22 +142,22 @@ def update_scoring_config(client, auth_headers):
     response = client.put(
         "/scoring-configs/{config_id}",
         json={},
-        params={'config_id': 'test_value', 'config_update': 'test_value'}
+        params={"config_id": "test_value", "config_update": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -158,12 +165,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -177,10 +185,7 @@ def get_mbti_template(client):
     Get template for MBTI scoring configuration
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/scoring-helpers/mbti-template"
-        
-    )
+    response = client.get("/scoring-helpers/mbti-template")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -188,16 +193,16 @@ def get_mbti_template(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -205,12 +210,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -224,10 +230,7 @@ def get_big_five_template(client):
     Get template for Big Five scoring configuration
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/scoring-helpers/big-five-template"
-        
-    )
+    response = client.get("/scoring-helpers/big-five-template")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -235,16 +238,16 @@ def get_big_five_template(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -252,12 +255,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -271,10 +275,7 @@ def get_disc_template(client):
     Get template for DISC scoring configuration
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/scoring-helpers/disc-template"
-        
-    )
+    response = client.get("/scoring-helpers/disc-template")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -282,16 +283,16 @@ def get_disc_template(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -299,12 +300,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -318,10 +320,6 @@ def submit_assessment(client):
     Submit assessment responses for scoring
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/submit",
-        json={},
-        params={'assessment_data': 'test_value'}
-    )
+    response = client.post("/submit", json={}, params={"assessment_data": "test_value"})
 
     assert response.status_code in [200, 201, 202]

@@ -5,12 +5,12 @@ including interactive and theme-based word clouds.
 """
 
 import colorsys
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 import json
 import logging
 import math
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from app.services.nlp_service import NLPService, WordFrequency
@@ -21,17 +21,19 @@ logger = logging.getLogger(__name__)
 
 class WordCloudType(Enum):
     """Types of word clouds"""
+
     FREQUENCY = "frequency"  # Basic frequency-based word cloud
-    TFIDF = "tfidf"         # TF-IDF weighted word cloud
-    THEMATIC = "thematic"   # Theme-based word cloud
-    SENTIMENT = "sentiment" # Sentiment-colored word cloud
-    TEMPORAL = "temporal"   # Time-evolving word cloud
+    TFIDF = "tfidf"  # TF-IDF weighted word cloud
+    THEMATIC = "thematic"  # Theme-based word cloud
+    SENTIMENT = "sentiment"  # Sentiment-colored word cloud
+    TEMPORAL = "temporal"  # Time-evolving word cloud
     COMPARATIVE = "comparative"  # Comparison word cloud
     HIERARCHICAL = "hierarchical"  # Hierarchical word cloud
 
 
 class ColorScheme(Enum):
     """Color schemes for word clouds"""
+
     RAINBOW = "rainbow"
     GRADIENT = "gradient"
     SENTIMENT = "sentiment"
@@ -42,6 +44,7 @@ class ColorScheme(Enum):
 
 class LayoutAlgorithm(Enum):
     """Layout algorithms for word cloud positioning"""
+
     SPIRAL = "spiral"
     ARCHIMEDEAN = "archimedean"
     RECTANGULAR = "rectangular"
@@ -52,6 +55,7 @@ class LayoutAlgorithm(Enum):
 @dataclass
 class WordCloudWord:
     """Individual word in word cloud"""
+
     text: str
     size: float
     color: str
@@ -74,13 +78,14 @@ class WordCloudWord:
             "weight": self.weight,
             "category": self.category,
             "sentiment": self.sentiment,
-            "theme_id": self.theme_id
+            "theme_id": self.theme_id,
         }
 
 
 @dataclass
 class WordCloudConfig:
     """Configuration for word cloud generation"""
+
     width: int = 800
     height: int = 600
     max_words: int = 100
@@ -113,13 +118,14 @@ class WordCloudConfig:
             "relative_scaling": self.relative_scaling,
             "min_rotation": self.min_rotation,
             "max_rotation": self.max_rotation,
-            "random_state": self.random_state
+            "random_state": self.random_state,
         }
 
 
 @dataclass
 class WordCloudData:
     """Complete word cloud data"""
+
     words: list[WordCloudWord]
     config: WordCloudConfig
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -130,7 +136,7 @@ class WordCloudData:
             "words": [word.to_dict() for word in self.words],
             "config": self.config.to_dict(),
             "metadata": self.metadata,
-            "generated_at": self.generated_at.isoformat()
+            "generated_at": self.generated_at.isoformat(),
         }
 
 
@@ -147,7 +153,7 @@ class WordCloudService:
             ColorScheme.GRADIENT: self._generate_gradient_palette,
             ColorScheme.SENTIMENT: self._generate_sentiment_palette,
             ColorScheme.MONOCHROME: self._generate_monochrome_palette,
-            ColorScheme.THEME: self._generate_theme_palette
+            ColorScheme.THEME: self._generate_theme_palette,
         }
 
         # Layout functions
@@ -156,7 +162,7 @@ class WordCloudService:
             LayoutAlgorithm.ARCHIMEDEAN: self._archimedean_layout,
             LayoutAlgorithm.RECTANGULAR: self._rectangular_layout,
             LayoutAlgorithm.CIRCULAR: self._circular_layout,
-            LayoutAlgorithm.RANDOM: self._random_layout
+            LayoutAlgorithm.RANDOM: self._random_layout,
         }
 
         logger.info("Word Cloud Service initialized")
@@ -168,7 +174,7 @@ class WordCloudService:
         config: WordCloudConfig | None = None,
         themes: list[Theme] | None = None,
         sentiment_data: dict[str, float] | None = None,
-        time_data: list[datetime] | None = None
+        time_data: list[datetime] | None = None,
     ) -> WordCloudData:
         """Generate word cloud from text data"""
         try:
@@ -184,11 +190,17 @@ class WordCloudService:
             elif cloud_type == WordCloudType.TFIDF:
                 words = await self._generate_tfidf_word_cloud(texts, config)
             elif cloud_type == WordCloudType.THEMATIC:
-                words = await self._generate_thematic_word_cloud(texts, themes or [], config)
+                words = await self._generate_thematic_word_cloud(
+                    texts, themes or [], config
+                )
             elif cloud_type == WordCloudType.SENTIMENT:
-                words = await self._generate_sentiment_word_cloud(texts, sentiment_data or {}, config)
+                words = await self._generate_sentiment_word_cloud(
+                    texts, sentiment_data or {}, config
+                )
             elif cloud_type == WordCloudType.TEMPORAL:
-                words = await self._generate_temporal_word_cloud(texts, time_data or [], config)
+                words = await self._generate_temporal_word_cloud(
+                    texts, time_data or [], config
+                )
             elif cloud_type == WordCloudType.HIERARCHICAL:
                 words = await self._generate_hierarchical_word_cloud(texts, config)
             else:
@@ -207,22 +219,20 @@ class WordCloudService:
                 "num_texts": len(texts),
                 "num_words": len(words),
                 "processing_time_seconds": processing_time,
-                "total_word_count": sum(len(text.split()) for text in texts)
+                "total_word_count": sum(len(text.split()) for text in texts),
             }
 
             return WordCloudData(
                 words=words,
                 config=config,
                 metadata=metadata,
-                generated_at=datetime.utcnow()
+                generated_at=datetime.utcnow(),
             )
 
         except Exception as e:
             logger.error(f"Word cloud generation failed: {e!s}")
             return WordCloudData(
-                words=[],
-                config=config or WordCloudConfig(),
-                metadata={"error": str(e)}
+                words=[], config=config or WordCloudConfig(), metadata={"error": str(e)}
             )
 
     async def generate_comparative_word_cloud(
@@ -231,7 +241,7 @@ class WordCloudService:
         texts2: list[str],
         label1: str = "Group 1",
         label2: str = "Group 2",
-        config: WordCloudConfig | None = None
+        config: WordCloudConfig | None = None,
     ) -> WordCloudData:
         """Generate comparative word cloud showing differences between two text groups"""
         try:
@@ -239,8 +249,12 @@ class WordCloudService:
                 config = WordCloudConfig()
 
             # Analyze both groups
-            freq1 = await self.nlp_service.analyze_word_frequency(texts1, normalize=True)
-            freq2 = await self.nlp_service.analyze_word_frequency(texts2, normalize=True)
+            freq1 = await self.nlp_service.analyze_word_frequency(
+                texts1, normalize=True
+            )
+            freq2 = await self.nlp_service.analyze_word_frequency(
+                texts2, normalize=True
+            )
 
             # Create word maps for lookup
             freq1_map = {freq.word: freq.normalized_frequency for freq in freq1}
@@ -282,14 +296,14 @@ class WordCloudService:
                     color=color,
                     category=category,
                     weight=max_freq,
-                    rotation=0  # No rotation for comparative clouds
+                    rotation=0,  # No rotation for comparative clouds
                 )
 
                 words.append(word_obj)
 
             # Sort by size and limit
             words.sort(key=lambda w: w.size, reverse=True)
-            words = words[:config.max_words]
+            words = words[: config.max_words]
 
             # Apply layout
             words = await self._apply_layout(words, config)
@@ -304,28 +318,22 @@ class WordCloudService:
                 "unique_words_group1": len(unique1),
                 "unique_words_group2": len(unique2),
                 "shared_words": len(shared_words),
-                "total_words": len(words)
+                "total_words": len(words),
             }
 
-            return WordCloudData(
-                words=words,
-                config=config,
-                metadata=metadata
-            )
+            return WordCloudData(words=words, config=config, metadata=metadata)
 
         except Exception as e:
             logger.error(f"Comparative word cloud generation failed: {e!s}")
             return WordCloudData(
-                words=[],
-                config=config or WordCloudConfig(),
-                metadata={"error": str(e)}
+                words=[], config=config or WordCloudConfig(), metadata={"error": str(e)}
             )
 
     async def generate_animated_word_cloud(
         self,
         text_sequences: list[list[str]],
         timestamps: list[datetime],
-        config: WordCloudConfig | None = None
+        config: WordCloudConfig | None = None,
     ) -> list[WordCloudData]:
         """Generate animated word cloud showing evolution over time"""
         try:
@@ -340,18 +348,17 @@ class WordCloudService:
             for i, (texts, timestamp) in enumerate(zip(text_sequences, timestamps)):
                 # Generate word cloud for this time point
                 frame = await self.generate_word_cloud(
-                    texts,
-                    WordCloudType.TEMPORAL,
-                    config,
-                    time_data=[timestamp]
+                    texts, WordCloudType.TEMPORAL, config, time_data=[timestamp]
                 )
 
                 # Add frame metadata
-                frame.metadata.update({
-                    "frame_number": i,
-                    "timestamp": timestamp.isoformat(),
-                    "total_frames": len(text_sequences)
-                })
+                frame.metadata.update(
+                    {
+                        "frame_number": i,
+                        "timestamp": timestamp.isoformat(),
+                        "total_frames": len(text_sequences),
+                    }
+                )
 
                 frames.append(frame)
 
@@ -362,22 +369,18 @@ class WordCloudService:
             return []
 
     async def _generate_frequency_word_cloud(
-        self,
-        texts: list[str],
-        config: WordCloudConfig
+        self, texts: list[str], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Generate frequency-based word cloud"""
         try:
             # Get word frequencies
             frequencies = await self.nlp_service.analyze_word_frequency(
-                texts,
-                normalize=True,
-                min_frequency=1
+                texts, normalize=True, min_frequency=1
             )
 
             # Convert to WordCloudWord objects
             words = []
-            for freq in frequencies[:config.max_words]:
+            for freq in frequencies[: config.max_words]:
                 size = self._calculate_word_size(freq.normalized_frequency, config)
                 weight = freq.normalized_frequency
 
@@ -386,7 +389,7 @@ class WordCloudService:
                     size=size,
                     color="",  # Will be set by color scheme
                     weight=weight,
-                    category="frequency"
+                    category="frequency",
                 )
 
                 words.append(word)
@@ -398,9 +401,7 @@ class WordCloudService:
             return []
 
     async def _generate_tfidf_word_cloud(
-        self,
-        texts: list[str],
-        config: WordCloudConfig
+        self, texts: list[str], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Generate TF-IDF weighted word cloud"""
         try:
@@ -412,7 +413,7 @@ class WordCloudService:
                 stop_words="english",
                 ngram_range=(1, 2),
                 min_df=2,
-                max_df=0.8
+                max_df=0.8,
             )
 
             tfidf_matrix = vectorizer.fit_transform(texts)
@@ -422,7 +423,7 @@ class WordCloudService:
             mean_scores = tfidf_matrix.mean(axis=0).A1
 
             # Get top terms
-            top_indices = mean_scores.argsort()[::-1][:config.max_words]
+            top_indices = mean_scores.argsort()[::-1][: config.max_words]
 
             words = []
             for idx in top_indices:
@@ -438,7 +439,7 @@ class WordCloudService:
                         size=size,
                         color="",  # Will be set by color scheme
                         weight=weight,
-                        category="tfidf"
+                        category="tfidf",
                     )
 
                     words.append(word)
@@ -447,17 +448,16 @@ class WordCloudService:
 
         except ImportError:
             # Fallback to frequency-based if sklearn not available
-            logger.warning("sklearn not available, falling back to frequency-based word cloud")
+            logger.warning(
+                "sklearn not available, falling back to frequency-based word cloud"
+            )
             return await self._generate_frequency_word_cloud(texts, config)
         except Exception as e:
             logger.error(f"TF-IDF word cloud generation failed: {e!s}")
             return []
 
     async def _generate_thematic_word_cloud(
-        self,
-        texts: list[str],
-        themes: list[Theme],
-        config: WordCloudConfig
+        self, texts: list[str], themes: list[Theme], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Generate theme-based word cloud"""
         try:
@@ -483,14 +483,14 @@ class WordCloudService:
                         color=theme_color,
                         weight=theme.relevance_score,
                         category=theme.name,
-                        theme_id=theme.id
+                        theme_id=theme.id,
                     )
 
                     words.append(word)
 
             # Sort by size and limit
             words.sort(key=lambda w: w.size, reverse=True)
-            return words[:config.max_words]
+            return words[: config.max_words]
 
         except Exception as e:
             logger.error(f"Thematic word cloud generation failed: {e!s}")
@@ -500,15 +500,17 @@ class WordCloudService:
         self,
         texts: list[str],
         sentiment_data: dict[str, float],
-        config: WordCloudConfig
+        config: WordCloudConfig,
     ) -> list[WordCloudWord]:
         """Generate sentiment-colored word cloud"""
         try:
             # Get word frequencies
-            frequencies = await self.nlp_service.analyze_word_frequency(texts, normalize=True)
+            frequencies = await self.nlp_service.analyze_word_frequency(
+                texts, normalize=True
+            )
 
             words = []
-            for freq in frequencies[:config.max_words]:
+            for freq in frequencies[: config.max_words]:
                 size = self._calculate_word_size(freq.normalized_frequency, config)
 
                 # Determine sentiment from sentiment_data
@@ -521,7 +523,7 @@ class WordCloudService:
                     color=color,
                     weight=freq.normalized_frequency,
                     category="sentiment",
-                    sentiment=word_sentiment
+                    sentiment=word_sentiment,
                 )
 
                 words.append(word)
@@ -533,15 +535,14 @@ class WordCloudService:
             return []
 
     async def _generate_temporal_word_cloud(
-        self,
-        texts: list[str],
-        time_data: list[datetime],
-        config: WordCloudConfig
+        self, texts: list[str], time_data: list[datetime], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Generate temporal word cloud with time-based coloring"""
         try:
             # Get word frequencies
-            frequencies = await self.nlp_service.analyze_word_frequency(texts, normalize=True)
+            frequencies = await self.nlp_service.analyze_word_frequency(
+                texts, normalize=True
+            )
 
             # Calculate time weights (more recent words get higher weight)
             if time_data and len(time_data) == len(texts):
@@ -566,15 +567,16 @@ class WordCloudService:
                     freq_copy = WordFrequency(
                         word=freq.word,
                         frequency=freq.frequency,
-                        normalized_frequency=freq.normalized_frequency * (1.0 + temporal_weight / len(texts)),
-                        context_words=freq.context_words
+                        normalized_frequency=freq.normalized_frequency
+                        * (1.0 + temporal_weight / len(texts)),
+                        context_words=freq.context_words,
                     )
                     weighted_frequencies.append(freq_copy)
 
                 frequencies = weighted_frequencies
 
             words = []
-            for freq in frequencies[:config.max_words]:
+            for freq in frequencies[: config.max_words]:
                 size = self._calculate_word_size(freq.normalized_frequency, config)
 
                 # Color based on frequency (gradient from blue to red)
@@ -585,7 +587,7 @@ class WordCloudService:
                     size=size,
                     color=color,
                     weight=freq.normalized_frequency,
-                    category="temporal"
+                    category="temporal",
                 )
 
                 words.append(word)
@@ -597,14 +599,14 @@ class WordCloudService:
             return []
 
     async def _generate_hierarchical_word_cloud(
-        self,
-        texts: list[str],
-        config: WordCloudConfig
+        self, texts: list[str], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Generate hierarchical word cloud with parent-child relationships"""
         try:
             # Get word frequencies and extract themes
-            frequencies = await self.nlp_service.analyze_word_frequency(texts, normalize=True)
+            frequencies = await self.nlp_service.analyze_word_frequency(
+                texts, normalize=True
+            )
             theme_result = await self.theme_service.extract_themes(texts)
             themes = [Theme(**theme_data) for theme_data in theme_result["themes"]]
 
@@ -628,20 +630,24 @@ class WordCloudService:
                     color=color,
                     weight=theme.relevance_score,
                     category="theme",
-                    theme_id=theme.id
+                    theme_id=theme.id,
                 )
 
                 words.append(word)
 
             # Add keyword words (smaller, related to themes)
-            for freq in frequencies[:config.max_words - len(themes)]:
+            for freq in frequencies[: config.max_words - len(themes)]:
                 word_lower = freq.word.lower()
 
                 # Check if this word belongs to a theme
                 if word_lower in theme_keywords_map:
                     parent_theme = theme_keywords_map[word_lower]
-                    size = config.min_font_size + (config.max_font_size * 0.3 * freq.normalized_frequency)
-                    color = self._get_theme_color(len(themes), themes.index(parent_theme))
+                    size = config.min_font_size + (
+                        config.max_font_size * 0.3 * freq.normalized_frequency
+                    )
+                    color = self._get_theme_color(
+                        len(themes), themes.index(parent_theme)
+                    )
 
                     word = WordCloudWord(
                         text=freq.word,
@@ -649,7 +655,7 @@ class WordCloudService:
                         color=color,
                         weight=freq.normalized_frequency,
                         category="keyword",
-                        theme_id=parent_theme.id
+                        theme_id=parent_theme.id,
                     )
 
                     words.append(word)
@@ -661,13 +667,13 @@ class WordCloudService:
             return []
 
     async def _apply_layout(
-        self,
-        words: list[WordCloudWord],
-        config: WordCloudConfig
+        self, words: list[WordCloudWord], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Apply layout algorithm to position words"""
         try:
-            layout_func = self.layout_functions.get(config.layout_algorithm, self._spiral_layout)
+            layout_func = self.layout_functions.get(
+                config.layout_algorithm, self._spiral_layout
+            )
             return await layout_func(words, config)
 
         except Exception as e:
@@ -676,13 +682,13 @@ class WordCloudService:
             return await self._spiral_layout(words, config)
 
     async def _apply_colors(
-        self,
-        words: list[WordCloudWord],
-        config: WordCloudConfig
+        self, words: list[WordCloudWord], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Apply color scheme to words"""
         try:
-            color_func = self.color_palettes.get(config.color_scheme, self._generate_rainbow_palette)
+            color_func = self.color_palettes.get(
+                config.color_scheme, self._generate_rainbow_palette
+            )
 
             for i, word in enumerate(words):
                 if not word.color:  # Only apply if color not already set
@@ -697,9 +703,7 @@ class WordCloudService:
     # Layout algorithms
 
     async def _spiral_layout(
-        self,
-        words: list[WordCloudWord],
-        config: WordCloudConfig
+        self, words: list[WordCloudWord], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Apply spiral layout to words"""
         try:
@@ -709,14 +713,16 @@ class WordCloudService:
             for i, word in enumerate(words):
                 # Spiral parameters
                 angle = i * 0.5  # radians
-                radius = i * 3    # pixels per step
+                radius = i * 3  # pixels per step
 
                 word.x = center_x + radius * math.cos(angle)
                 word.y = center_y + radius * math.sin(angle)
 
                 # Random rotation within limits
                 if np.secrets.SystemRandom().random() > config.prefer_horizontal:
-                    word.rotation = np.random.uniform(config.min_rotation, config.max_rotation)
+                    word.rotation = np.random.uniform(
+                        config.min_rotation, config.max_rotation
+                    )
                 else:
                     word.rotation = 0
 
@@ -732,9 +738,7 @@ class WordCloudService:
             return words
 
     async def _archimedean_layout(
-        self,
-        words: list[WordCloudWord],
-        config: WordCloudConfig
+        self, words: list[WordCloudWord], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Apply Archimedean spiral layout"""
         try:
@@ -750,7 +754,9 @@ class WordCloudService:
                 word.y = center_y + radius * math.sin(theta)
 
                 # Rotation based on position
-                word.rotation = np.random.uniform(config.min_rotation, config.max_rotation)
+                word.rotation = np.random.uniform(
+                    config.min_rotation, config.max_rotation
+                )
 
             return words
 
@@ -759,9 +765,7 @@ class WordCloudService:
             return await self._spiral_layout(words, config)
 
     async def _rectangular_layout(
-        self,
-        words: list[WordCloudWord],
-        config: WordCloudConfig
+        self, words: list[WordCloudWord], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Apply rectangular grid layout"""
         try:
@@ -786,9 +790,7 @@ class WordCloudService:
             return await self._spiral_layout(words, config)
 
     async def _circular_layout(
-        self,
-        words: list[WordCloudWord],
-        config: WordCloudConfig
+        self, words: list[WordCloudWord], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Apply circular layout"""
         try:
@@ -821,9 +823,7 @@ class WordCloudService:
             return await self._spiral_layout(words, config)
 
     async def _random_layout(
-        self,
-        words: list[WordCloudWord],
-        config: WordCloudConfig
+        self, words: list[WordCloudWord], config: WordCloudConfig
     ) -> list[WordCloudWord]:
         """Apply random layout"""
         try:
@@ -832,7 +832,9 @@ class WordCloudService:
             for word in words:
                 word.x = np.random.uniform(margin, config.width - margin)
                 word.y = np.random.uniform(margin, config.height - margin)
-                word.rotation = np.random.uniform(config.min_rotation, config.max_rotation)
+                word.rotation = np.random.uniform(
+                    config.min_rotation, config.max_rotation
+                )
 
             return words
 
@@ -843,10 +845,7 @@ class WordCloudService:
     # Color generation functions
 
     def _generate_rainbow_palette(
-        self,
-        index: int,
-        total: int,
-        word: WordCloudWord
+        self, index: int, total: int, word: WordCloudWord
     ) -> str:
         """Generate rainbow color"""
         hue = (index / total) * 0.8  # 0.8 to avoid red again
@@ -854,10 +853,7 @@ class WordCloudService:
         return f"#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}"
 
     def _generate_gradient_palette(
-        self,
-        index: int,
-        total: int,
-        word: WordCloudWord
+        self, index: int, total: int, word: WordCloudWord
     ) -> str:
         """Generate gradient color (blue to red)"""
         ratio = index / total if total > 0 else 0
@@ -866,10 +862,7 @@ class WordCloudService:
         return f"#{red:02x}00{blue:02x}"
 
     def _generate_sentiment_palette(
-        self,
-        index: int,
-        total: int,
-        word: WordCloudWord
+        self, index: int, total: int, word: WordCloudWord
     ) -> str:
         """Generate sentiment-based color"""
         if hasattr(word, "sentiment") and word.sentiment:
@@ -877,20 +870,14 @@ class WordCloudService:
         return self._generate_rainbow_palette(index, total, word)
 
     def _generate_monochrome_palette(
-        self,
-        index: int,
-        total: int,
-        word: WordCloudWord
+        self, index: int, total: int, word: WordCloudWord
     ) -> str:
         """Generate monochrome color"""
         value = int(100 + (155 * word.weight))  # Range from dark to light gray
         return f"#{value:02x}{value:02x}{value:02x}"
 
     def _generate_theme_palette(
-        self,
-        index: int,
-        total: int,
-        word: WordCloudWord
+        self, index: int, total: int, word: WordCloudWord
     ) -> str:
         """Generate theme-based color"""
         if hasattr(word, "theme_id") and word.theme_id:
@@ -921,11 +908,11 @@ class WordCloudService:
     def _get_sentiment_color(self, sentiment: str) -> str:
         """Get color for sentiment"""
         sentiment_colors = {
-            "positive": "#4CAF50",    # Green
-            "negative": "#F44336",    # Red
-            "neutral": "#9E9E9E",     # Gray
+            "positive": "#4CAF50",  # Green
+            "negative": "#F44336",  # Red
+            "neutral": "#9E9E9E",  # Gray
             "very_positive": "#2E7D32",  # Dark green
-            "very_negative": "#C62828"  # Dark red
+            "very_negative": "#C62828",  # Dark red
         }
         return sentiment_colors.get(sentiment, "#9E9E9E")
 
@@ -949,7 +936,9 @@ class WordCloudService:
         for i in range(num_themes):
             hue = (i / num_themes) * 0.8  # 0.8 to avoid red again
             rgb = colorsys.hsv_to_rgb(hue, 0.7, 0.8)
-            colors.append(f"#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}")
+            colors.append(
+                f"#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}"
+            )
         return colors
 
     def _get_theme_color(self, total_themes: int, theme_index: int) -> str:
@@ -959,9 +948,7 @@ class WordCloudService:
         return f"#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}"
 
     def export_to_svg(
-        self,
-        word_cloud_data: WordCloudData,
-        filename: str | None = None
+        self, word_cloud_data: WordCloudData, filename: str | None = None
     ) -> str:
         """Export word cloud to SVG format"""
         try:
@@ -996,9 +983,7 @@ class WordCloudService:
             return ""
 
     def export_to_json(
-        self,
-        word_cloud_data: WordCloudData,
-        filename: str | None = None
+        self, word_cloud_data: WordCloudData, filename: str | None = None
     ) -> str:
         """Export word cloud to JSON format"""
         try:
@@ -1032,5 +1017,5 @@ __all__ = [
     "WordCloudData",
     "WordCloudService",
     "WordCloudType",
-    "WordCloudWord"
+    "WordCloudWord",
 ]

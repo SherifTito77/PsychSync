@@ -1,0 +1,98 @@
+# Coverage configuration for PsychSync
+# Run with: pytest --cov=app --cov-report=html
+
+[run]
+# Source code directories to measure
+source = app
+omit =
+    # Test files
+    */tests/*
+    */test_*.py
+
+    # Virtual environments
+    .venv/*
+    .venv-py314*
+    */site-packages/*
+
+    # Migrations
+    alembic/versions/*
+
+    # Standard patterns
+    __pycache__/*
+    */.tox/*
+    */.pytest_cache/*
+
+    # Configuration and entry points
+    */conftest.py
+    app/main.py
+
+    # Legacy code (if any)
+    app/legacy/*
+    *_old.py
+    *_v1.py
+
+# Branch coverage
+branch = True
+
+# Note: partial_branches is deprecated in coverage 7.x
+# Use [report] partial_branches_always or remove entirely
+# Coverage now automatically handles partial branches
+
+[report]
+# Coverage precision
+precision = 2
+
+# Show missing lines
+show_missing = True
+
+# Skip empty files
+skip_empty = True
+
+# Exclude lines from coverage
+exclude_lines =
+    # Default exclusions
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise AssertionError
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    if __name__ == .__main__.:.
+
+    # Debugging
+    if DEBUG:
+    if logger.debug
+
+    # Abstract methods
+    @abstractmethod
+
+    # Type checking
+    : \.\.\.$
+    pass
+
+    # Unused variables
+    ^\s*\.\.\.$
+
+    # Test-specific patterns
+    @pytest.fixture
+    @pytest.mark
+
+[html]
+# HTML report directory
+directory = htmlcov
+
+# Title for the report
+title = PsychSync Coverage Report
+
+[xml]
+# XML coverage output (for CI/CD)
+output = coverage.xml
+
+[json]
+# JSON coverage output
+output = coverage.json
+
+[diff]
+# For differential coverage in CI
+notice = true
+fail_under = 75

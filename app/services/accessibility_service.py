@@ -3,10 +3,10 @@ Accessibility Compliance Service
 Provides WCAG 2.1 compliance testing, audit tools, and accessibility monitoring
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -487,7 +487,9 @@ class AccessibilityAuditService:
         applicable_tests = [
             test
             for test in self.tests.values()
-            if self._is_applicable_test(test, conformance_target, include_automated, include_manual)
+            if self._is_applicable_test(
+                test, conformance_target, include_automated, include_manual
+            )
         ]
 
         audit.total_tests = len(applicable_tests)
@@ -520,9 +522,13 @@ class AccessibilityAuditService:
 
         # Calculate scores
         audit.compliance_percentage = (
-            (audit.passed_tests / audit.total_tests) * 100 if audit.total_tests > 0 else 0
+            (audit.passed_tests / audit.total_tests) * 100
+            if audit.total_tests > 0
+            else 0
         )
-        audit.score = self._calculate_accessibility_score(audit.issues, audit.total_tests)
+        audit.score = self._calculate_accessibility_score(
+            audit.issues, audit.total_tests
+        )
         audit.remediation_priority = self._prioritize_remediation(audit.issues)
 
         logger.info(
@@ -554,7 +560,11 @@ class AccessibilityAuditService:
 
     def _conformance_level_priority(self, level: ConformanceLevel) -> int:
         """Get numeric priority for conformance level (higher = stricter)"""
-        priorities = {ConformanceLevel.A: 1, ConformanceLevel.AA: 2, ConformanceLevel.AAA: 3}
+        priorities = {
+            ConformanceLevel.A: 1,
+            ConformanceLevel.AA: 2,
+            ConformanceLevel.AAA: 3,
+        }
         return priorities.get(level, 0)
 
     async def _run_individual_test(
@@ -662,7 +672,9 @@ class AccessibilityAuditService:
             for issue in prioritized_issues[:10]  # Top 10 priorities
         ]
 
-    def generate_accessibility_report(self, audit: AccessibilityAudit) -> dict[str, Any]:
+    def generate_accessibility_report(
+        self, audit: AccessibilityAudit
+    ) -> dict[str, Any]:
         """Generate comprehensive accessibility audit report"""
         return {
             "executive_summary": {
@@ -683,7 +695,9 @@ class AccessibilityAuditService:
                 "automated_tests": len(
                     [t for t in self.tests.values() if t.test_type == "automated"]
                 ),
-                "manual_tests": len([t for t in self.tests.values() if t.test_type == "manual"]),
+                "manual_tests": len(
+                    [t for t in self.tests.values() if t.test_type == "manual"]
+                ),
                 "semi_automated_tests": len(
                     [t for t in self.tests.values() if t.test_type == "semi-automated"]
                 ),
@@ -708,7 +722,9 @@ class AccessibilityAuditService:
             "recommendations": self._generate_recommendations(audit),
         }
 
-    def _group_issues_by_severity(self, issues: list[AccessibilityIssue]) -> dict[str, int]:
+    def _group_issues_by_severity(
+        self, issues: list[AccessibilityIssue]
+    ) -> dict[str, int]:
         """Group issues by severity level"""
         severity_counts = {level.value: 0 for level in SeverityLevel}
         for issue in issues:
@@ -728,7 +744,9 @@ class AccessibilityAuditService:
         recommendations = []
 
         # Check for critical issues
-        critical_issues = [i for i in audit.issues if i.severity == SeverityLevel.CRITICAL]
+        critical_issues = [
+            i for i in audit.issues if i.severity == SeverityLevel.CRITICAL
+        ]
         if critical_issues:
             recommendations.append(
                 f"URGENT: Address {len(critical_issues)} critical accessibility issues immediately "
@@ -754,7 +772,8 @@ class AccessibilityAuditService:
             )
 
         if any(
-            "alt" in str(issue).lower() or "aria" in str(issue).lower() for issue in audit.issues
+            "alt" in str(issue).lower() or "aria" in str(issue).lower()
+            for issue in audit.issues
         ):
             recommendations.append(
                 "Create guidelines and training for content authors on accessible media and ARIA usage"
@@ -780,7 +799,12 @@ class AccessibilityAuditService:
         }
 
         # Group tests by WCAG principle
-        principles = {"Perceivable": [], "Operable": [], "Understandable": [], "Robust": []}
+        principles = {
+            "Perceivable": [],
+            "Operable": [],
+            "Understandable": [],
+            "Robust": [],
+        }
 
         for test in applicable_tests:
             # Determine principle based on WCAG criteria first digit

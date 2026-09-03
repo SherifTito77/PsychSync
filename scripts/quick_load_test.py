@@ -4,10 +4,11 @@ Quick Load Test for Async Cache Endpoints
 Simple Python script to test endpoint performance
 """
 
+import statistics
 import subprocess
 import time
-import statistics
 from datetime import datetime
+
 
 def test_endpoint(url, num_requests=100):
     """Test endpoint with multiple requests"""
@@ -23,14 +24,14 @@ def test_endpoint(url, num_requests=100):
         start = time.time()
         try:
             result = subprocess.run(
-                ['curl', '-s', '-w', '\n%{http_code}\n%{time_total}', url],
+                ["curl", "-s", "-w", "\n%{http_code}\n%{time_total}", url],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             end = time.time()
 
-            output = result.stdout.strip().split('\n')
+            output = result.stdout.strip().split("\n")
             if len(output) >= 2:
                 http_code = output[-2]
                 time_total = output[-1]
@@ -38,7 +39,7 @@ def test_endpoint(url, num_requests=100):
                 latency = end - start
                 latencies.append(latency)
 
-                if http_code in ['200', '401']:  # 401 is expected (not authenticated)
+                if http_code in ["200", "401"]:  # 401 is expected (not authenticated)
                     success += 1
                 else:
                     errors += 1
@@ -82,8 +83,16 @@ def main():
     if latencies:
         avg = statistics.mean(latencies)
         median = statistics.median(latencies)
-        p95 = statistics.quantiles(latencies, n=20)[18] if len(latencies) >= 20 else max(latencies)
-        p99 = statistics.quantiles(latencies, n=100)[98] if len(latencies) >= 100 else max(latencies)
+        p95 = (
+            statistics.quantiles(latencies, n=20)[18]
+            if len(latencies) >= 20
+            else max(latencies)
+        )
+        p99 = (
+            statistics.quantiles(latencies, n=100)[98]
+            if len(latencies) >= 100
+            else max(latencies)
+        )
 
         print("⏱️  Latency Statistics:")
         print(f"  Average: {avg*1000:.2f}ms")
@@ -93,9 +102,13 @@ def main():
         print()
 
     print("🎯 Performance Targets:")
-    print(f"  Success Rate >95%: {'✅' if success_rate >= 95 else '⚠️'} {success_rate:.1f}%")
+    print(
+        f"  Success Rate >95%: {'✅' if success_rate >= 95 else '⚠️'} {success_rate:.1f}%"
+    )
     if latencies:
-        print(f"  P95 Latency <500ms: {'✅' if statistics.quantiles(latencies, n=20)[18] < 0.5 else '⚠️'} {p95*1000:.2f}ms")
+        print(
+            f"  P95 Latency <500ms: {'✅' if statistics.quantiles(latencies, n=20)[18] < 0.5 else '⚠️'} {p95*1000:.2f}ms"
+        )
 
     print()
     print("=" * 80)

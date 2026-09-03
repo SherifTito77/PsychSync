@@ -377,7 +377,7 @@ export const ListProblemScenarios: React.FC = () => {
     }
   };
 
-  const { problems, risk } = useListProblemDetector(scenarioConfigs[activeScenario]);
+  const { problems, risk } = useListProblemDetector(scenarioConfigs[activeScenario] as any);
 
   return (
     <div style={{ padding: '20px' }}>
@@ -388,7 +388,7 @@ export const ListProblemScenarios: React.FC = () => {
 
       {/* Problem Detection */}
       <ListProblemDetector
-        configuration={scenarioConfigs[activeScenario]}
+        configuration={scenarioConfigs[activeScenario] as any}
         showInDevelopment={true}
       />
 

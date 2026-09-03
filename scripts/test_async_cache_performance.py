@@ -6,11 +6,11 @@ Expected improvement: 30-50% faster response times
 """
 
 import asyncio
-import time
-import statistics
-from typing import List, Dict
-import sys
 import os
+import statistics
+import sys
+import time
+from typing import Dict, List
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,8 +34,16 @@ class PerformanceTest:
 
         avg = statistics.mean(self.latencies)
         median = statistics.median(self.latencies)
-        p95 = statistics.quantiles(self.latencies, n=20)[18] if len(self.latencies) >= 20 else max(self.latencies)
-        p99 = statistics.quantiles(self.latencies, n=100)[98] if len(self.latencies) >= 100 else max(self.latencies)
+        p95 = (
+            statistics.quantiles(self.latencies, n=20)[18]
+            if len(self.latencies) >= 20
+            else max(self.latencies)
+        )
+        p99 = (
+            statistics.quantiles(self.latencies, n=100)[98]
+            if len(self.latencies) >= 100
+            else max(self.latencies)
+        )
 
         return f"""
 {self.name} Results:
@@ -127,6 +135,7 @@ class ConcurrentLoadTest(PerformanceTest):
 
             # Cleanup
             from app.core.async_cache import AsyncCache
+
             for i in range(20):
                 await AsyncCache.delete(f"concurrent_test_{i}")
 
@@ -229,7 +238,9 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Test async cache performance")
     parser.add_argument("--smoke", action="store_true", help="Run smoke test only")
-    parser.add_argument("--iterations", type=int, default=100, help="Number of test iterations")
+    parser.add_argument(
+        "--iterations", type=int, default=100, help="Number of test iterations"
+    )
     args = parser.parse_args()
 
     if args.smoke:

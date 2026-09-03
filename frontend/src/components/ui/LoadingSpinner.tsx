@@ -1,9 +1,11 @@
 import React from 'react';
+
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+
+export const LoadingSpinner = React.memo<LoadingSpinnerProps>(({
   size = 'md',
   className = ''
 }) => {
@@ -35,5 +37,8 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
       </svg>
     </div>
   );
-};
+});
+
+LoadingSpinner.displayName = 'LoadingSpinner';
+
 export default LoadingSpinner;

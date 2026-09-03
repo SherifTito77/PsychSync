@@ -4,12 +4,12 @@ Handles data export, deletion, consent management, and compliance workflows
 """
 
 import csv
-from datetime import datetime, timedelta
 import json
 import logging
+import zipfile
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-import zipfile
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_
@@ -62,7 +62,8 @@ class GDPRService:
                 file_path = await self._export_zip(user_id, user_data)
             else:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported export format"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Unsupported export format",
                 )
 
             # Create export record
@@ -96,7 +97,10 @@ class GDPRService:
         except Exception as e:
             logger.error(f"GDPR data export failed for user {user_id}: {e!s}")
             await self._log_gdpr_action(
-                user_id=user_id, action="data_export_failed", details={"error": str(e)}, db=db
+                user_id=user_id,
+                action="data_export_failed",
+                details={"error": str(e)},
+                db=db,
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -109,7 +113,9 @@ class GDPRService:
         # Get user基本信息
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            )
 
         # Collect data from different sources
         user_data = {
@@ -144,12 +150,16 @@ class GDPRService:
                         "team_id": str(team.id),
                         "team_name": team.name,
                         "role": tm.role.value,
-                        "joined_at": tm.created_at.isoformat() if tm.created_at else None,
+                        "joined_at": (
+                            tm.created_at.isoformat() if tm.created_at else None
+                        ),
                     }
                 )
 
         # Assessments
-        assessments = db.query(Assessment).filter(Assessment.created_by_id == user_id).all()
+        assessments = (
+            db.query(Assessment).filter(Assessment.created_by_id == user_id).all()
+        )
         for assessment in assessments:
             user_data["assessments"].append(
                 {
@@ -157,12 +167,16 @@ class GDPRService:
                     "title": assessment.title,
                     "type": assessment.type,
                     "status": assessment.status,
-                    "created_at": assessment.created_at.isoformat()
-                    if assessment.created_at
-                    else None,
-                    "updated_at": assessment.updated_at.isoformat()
-                    if assessment.updated_at
-                    else None,
+                    "created_at": (
+                        assessment.created_at.isoformat()
+                        if assessment.created_at
+                        else None
+                    ),
+                    "updated_at": (
+                        assessment.updated_at.isoformat()
+                        if assessment.updated_at
+                        else None
+                    ),
                 }
             )
 
@@ -175,10 +189,14 @@ class GDPRService:
                     "assessment_id": str(response.assessment_id),
                     "response_data": response.response_data,
                     "score": response.score,
-                    "completed_at": response.completed_at.isoformat()
-                    if response.completed_at
-                    else None,
-                    "created_at": response.created_at.isoformat() if response.created_at else None,
+                    "completed_at": (
+                        response.completed_at.isoformat()
+                        if response.completed_at
+                        else None
+                    ),
+                    "created_at": (
+                        response.created_at.isoformat() if response.created_at else None
+                    ),
                 }
             )
 
@@ -186,7 +204,9 @@ class GDPRService:
         cutoff_date = datetime.utcnow() - timedelta(days=90)
         audit_logs = (
             db.query(AuditLog)
-            .filter(and_(AuditLog.user_id == user_id, AuditLog.timestamp >= cutoff_date))
+            .filter(
+                and_(AuditLog.user_id == user_id, AuditLog.timestamp >= cutoff_date)
+            )
             .all()
         )
 
@@ -206,11 +226,13 @@ class GDPRService:
         try:
             # This would be from a consent management table
             user_data["consent_records"] = await self._get_user_consents(user_id, db)
-        except:
+        except Exception as e:
             user_data["consent_records"] = []
 
         # Privacy settings
-        user_data["privacy_settings"] = await self._get_user_privacy_settings(user_id, db)
+        user_data["privacy_settings"] = await self._get_user_privacy_settings(
+            user_id, db
+        )
 
         return user_data
 
@@ -247,7 +269,12 @@ class GDPRService:
                 writer.writerow(["Team ID", "Team Name", "Role", "Joined At"])
                 for team in user_data["team_memberships"]:
                     writer.writerow(
-                        [team["team_id"], team["team_name"], team["role"], team["joined_at"]]
+                        [
+                            team["team_id"],
+                            team["team_name"],
+                            team["role"],
+                            team["joined_at"],
+                        ]
                     )
 
         # Export assessments
@@ -255,7 +282,9 @@ class GDPRService:
             assessments_file = export_dir / "assessments.csv"
             with open(assessments_file, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["ID", "Title", "Type", "Status", "Created At", "Updated At"])
+                writer.writerow(
+                    ["ID", "Title", "Type", "Status", "Created At", "Updated At"]
+                )
                 for assessment in user_data["assessments"]:
                     writer.writerow(
                         [
@@ -347,7 +376,9 @@ Contact privacy@psychsync.com for any questions about this data export.
 
             user = db.query(User).filter(User.id == user_id).first()
             if not user:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+                )
 
             deletion_record = {
                 "user_id": user_id,
@@ -391,7 +422,10 @@ Contact privacy@psychsync.com for any questions about this data export.
         except Exception as e:
             logger.error(f"GDPR data deletion failed for user {user_id}: {e!s}")
             await self._log_gdpr_action(
-                user_id=user_id, action="data_deletion_failed", details={"error": str(e)}, db=db
+                user_id=user_id,
+                action="data_deletion_failed",
+                details={"error": str(e)},
+                db=db,
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -438,7 +472,9 @@ Contact privacy@psychsync.com for any questions about this data export.
 
         db.commit()
 
-    async def _get_user_consents(self, user_id: str, db: Session) -> list[dict[str, Any]]:
+    async def _get_user_consents(
+        self, user_id: str, db: Session
+    ) -> list[dict[str, Any]]:
         """Get user consent records"""
         # This would be implemented when consent management system is created
         return [
@@ -451,14 +487,20 @@ Contact privacy@psychsync.com for any questions about this data export.
             }
         ]
 
-    async def _get_user_privacy_settings(self, user_id: str, db: Session) -> dict[str, Any]:
+    async def _get_user_privacy_settings(
+        self, user_id: str, db: Session
+    ) -> dict[str, Any]:
         """Get user privacy settings"""
         # This would be implemented when privacy settings system is created
         return {
             "data_sharing": False,
             "analytics_consent": True,
             "marketing_consent": False,
-            "cookie_preferences": {"essential": True, "analytics": True, "marketing": False},
+            "cookie_preferences": {
+                "essential": True,
+                "analytics": True,
+                "marketing": False,
+            },
         }
 
     async def _log_gdpr_action(

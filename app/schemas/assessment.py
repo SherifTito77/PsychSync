@@ -1,6 +1,7 @@
 # app/schemas/assessment.py
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, validator
 
@@ -47,8 +48,8 @@ class QuestionUpdate(BaseModel):
 class Question(QuestionBase):
     """Question response schema"""
 
-    id: int
-    section_id: int
+    id: UUID
+    section_id: UUID
     created_at: datetime
     updated_at: datetime
 
@@ -83,8 +84,8 @@ class SectionUpdate(BaseModel):
 class Section(SectionBase):
     """Section response schema"""
 
-    id: int
-    assessment_id: int
+    id: UUID
+    assessment_id: UUID
     questions: list[Question] = []
     created_at: datetime
     updated_at: datetime
@@ -112,7 +113,7 @@ class AssessmentBase(BaseModel):
 class AssessmentCreate(AssessmentBase):
     """Assessment creation schema"""
 
-    team_id: int | None = None
+    team_id: UUID | None = None
     sections: list[SectionCreate] | None = []
 
     @validator("category")
@@ -157,11 +158,11 @@ class AssessmentUpdate(BaseModel):
 class Assessment(AssessmentBase):
     """Assessment response schema"""
 
-    id: int
+    id: UUID
     status: str
     version: int
-    created_by_id: int
-    team_id: int | None = None
+    created_by_id: UUID
+    team_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
     published_at: datetime | None = None
@@ -191,9 +192,9 @@ class AssessmentList(BaseModel):
 class AssignmentBase(BaseModel):
     """Base assignment schema"""
 
-    assessment_id: int
-    team_id: int | None = None
-    assigned_to_user_id: int | None = None
+    assessment_id: UUID
+    team_id: UUID | None = None
+    assigned_to_user_id: UUID | None = None
     due_date: datetime | None = None
 
 
@@ -218,8 +219,8 @@ class AssignmentUpdate(BaseModel):
 class Assignment(AssignmentBase):
     """Assignment response schema"""
 
-    id: int
-    assigned_by_id: int
+    id: UUID
+    assigned_by_id: UUID
     is_active: bool
     created_at: datetime
     completed_at: datetime | None = None
@@ -233,7 +234,7 @@ class Assignment(AssignmentBase):
 class ResponseSubmit(BaseModel):
     """Response submission schema"""
 
-    assignment_id: int | None = None
+    assignment_id: UUID | None = None
     responses: dict[str, Any]
     is_complete: bool = False
 
@@ -248,10 +249,10 @@ class ResponseUpdate(BaseModel):
 class Response(BaseModel):
     """Response response schema"""
 
-    id: int
-    assessment_id: int
-    assignment_id: int | None = None
-    respondent_id: int | None = None
+    id: UUID
+    assessment_id: UUID
+    assignment_id: UUID | None = None
+    respondent_id: UUID | None = None
     responses: dict[str, Any]
     is_complete: bool
     time_taken: int | None = None

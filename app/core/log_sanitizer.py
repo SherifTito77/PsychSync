@@ -157,11 +157,15 @@ class SensitiveDataFilter(logging.Filter):
                 sanitized[key] = self.sanitize_dict(value)
             elif isinstance(value, list):
                 sanitized[key] = [
-                    self.sanitize_dict(item)
-                    if isinstance(item, dict)
-                    else self.sanitize(str(item))
-                    if isinstance(item, (str, bytes))
-                    else item
+                    (
+                        self.sanitize_dict(item)
+                        if isinstance(item, dict)
+                        else (
+                            self.sanitize(str(item))
+                            if isinstance(item, (str, bytes))
+                            else item
+                        )
+                    )
                     for item in value
                 ]
             elif isinstance(value, (str, bytes)):
@@ -190,7 +194,8 @@ class SecureLogger:
 
         # Create formatter
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         console_handler.setFormatter(formatter)
 

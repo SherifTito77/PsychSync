@@ -8,21 +8,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import text
+
 from app.core.database import get_async_db
 
 
 async def create_tables():
     """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+    Args:
+        db: Database session
+        **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+    Returns:
+        Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+    Raises:
+        ValidationError: If input data is invalid
     """
     """Create a new resource.
 
@@ -38,7 +39,9 @@ Raises:
     """
     async for db in get_async_db():
         try:
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS slow_queries (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     query_hash VARCHAR(64) UNIQUE NOT NULL,
@@ -67,9 +70,13 @@ Raises:
                     first_detected TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     last_detected TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
-            """))
+            """
+                )
+            )
 
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS index_recommendations (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     query_id UUID NOT NULL REFERENCES slow_queries(id) ON DELETE CASCADE,
@@ -89,9 +96,13 @@ Raises:
                     created_by VARCHAR(100),
                     priority VARCHAR(20) NOT NULL
                 );
-            """))
+            """
+                )
+            )
 
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS query_performance_history (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     query_id UUID NOT NULL REFERENCES slow_queries(id) ON DELETE CASCADE,
@@ -101,9 +112,13 @@ Raises:
                     recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     context JSON
                 );
-            """))
+            """
+                )
+            )
 
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS query_optimization_reports (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     report_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -125,15 +140,41 @@ Raises:
                     performance_trend VARCHAR(20),
                     optimization_progress FLOAT
                 );
-            """))
+            """
+                )
+            )
 
             # Indexes
-            await db.execute(text('CREATE INDEX IF NOT EXISTS idx_slow_queries_hash ON slow_queries(query_hash);'))
-            await db.execute(text('CREATE INDEX IF NOT EXISTS idx_slow_queries_tier ON slow_queries(performance_tier);'))
-            await db.execute(text('CREATE INDEX IF NOT EXISTS idx_slow_queries_optimized ON slow_queries(is_optimized);'))
-            await db.execute(text('CREATE INDEX IF NOT EXISTS idx_index_recommendations_query ON index_recommendations(query_id);'))
-            await db.execute(text('CREATE INDEX IF NOT EXISTS idx_index_recommendations_table ON index_recommendations(table_name);'))
-            await db.execute(text('CREATE INDEX IF NOT EXISTS idx_optimization_reports_date ON query_optimization_reports(report_date);'))
+            await db.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_slow_queries_hash ON slow_queries(query_hash);"
+                )
+            )
+            await db.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_slow_queries_tier ON slow_queries(performance_tier);"
+                )
+            )
+            await db.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_slow_queries_optimized ON slow_queries(is_optimized);"
+                )
+            )
+            await db.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_index_recommendations_query ON index_recommendations(query_id);"
+                )
+            )
+            await db.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_index_recommendations_table ON index_recommendations(table_name);"
+                )
+            )
+            await db.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_optimization_reports_date ON query_optimization_reports(report_date);"
+                )
+            )
 
             await db.commit()
             print("✓ Query Performance tables created successfully")

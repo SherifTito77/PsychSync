@@ -4,6 +4,8 @@ Provides comprehensive application performance monitoring, tracing, and analytic
 """
 
 import asyncio
+import logging
+import uuid
 from collections import defaultdict, deque
 from collections.abc import Callable
 from contextlib import asynccontextmanager
@@ -11,9 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import wraps
-import logging
 from typing import Any
-import uuid
 
 import psutil
 
@@ -301,7 +301,11 @@ class APMService:
             value=network.bytes_sent,
             unit="bytes",
             timestamp=timestamp,
-            tags={"host": "localhost", "service": "psychsync-api", "direction": "outbound"},
+            tags={
+                "host": "localhost",
+                "service": "psychsync-api",
+                "direction": "outbound",
+            },
         )
 
         await self.record_metric(
@@ -310,7 +314,11 @@ class APMService:
             value=network.bytes_recv,
             unit="bytes",
             timestamp=timestamp,
-            tags={"host": "localhost", "service": "psychsync-api", "direction": "inbound"},
+            tags={
+                "host": "localhost",
+                "service": "psychsync-api",
+                "direction": "inbound",
+            },
         )
 
     async def _check_all_thresholds(self):
@@ -325,7 +333,9 @@ class APMService:
                     continue
 
                 # Get recent metrics within evaluation window
-                cutoff_time = datetime.utcnow() - timedelta(seconds=threshold.evaluation_window)
+                cutoff_time = datetime.utcnow() - timedelta(
+                    seconds=threshold.evaluation_window
+                )
                 recent_metrics = [m for m in metrics if m.timestamp >= cutoff_time]
 
                 if not recent_metrics:
@@ -343,7 +353,9 @@ class APMService:
                             recent_metrics[-1].timestamp - recent_metrics[0].timestamp
                         ).total_seconds()
                         if time_diff > 0:
-                            value_diff = recent_metrics[-1].value - recent_metrics[0].value
+                            value_diff = (
+                                recent_metrics[-1].value - recent_metrics[0].value
+                            )
                             current_value = value_diff / time_diff
                         else:
                             current_value = 0
@@ -361,7 +373,8 @@ class APMService:
                         should_alert = True
                         alert_level = "critical"
                     elif (
-                        threshold.warning_threshold and current_value >= threshold.warning_threshold
+                        threshold.warning_threshold
+                        and current_value >= threshold.warning_threshold
                     ):
                         should_alert = True
                         alert_level = "warning"
@@ -370,7 +383,8 @@ class APMService:
                         should_alert = True
                         alert_level = "critical"
                     elif (
-                        threshold.warning_threshold and current_value <= threshold.warning_threshold
+                        threshold.warning_threshold
+                        and current_value <= threshold.warning_threshold
                     ):
                         should_alert = True
                         alert_level = "warning"
@@ -381,7 +395,9 @@ class APMService:
                     )
                 else:
                     # Check if existing alert should be resolved
-                    await self._resolve_alert_if_resolved(threshold_name, current_value, threshold)
+                    await self._resolve_alert_if_resolved(
+                        threshold_name, current_value, threshold
+                    )
 
             except Exception as e:
                 logger.error(f"Error checking threshold {threshold_name}: {e!s}")
@@ -408,9 +424,11 @@ class APMService:
                     level=alert_level,
                     message=f"{threshold_name} threshold exceeded",
                     current_value=current_value,
-                    threshold=threshold.critical_threshold
-                    if alert_level == "critical"
-                    else threshold.warning_threshold,
+                    threshold=(
+                        threshold.critical_threshold
+                        if alert_level == "critical"
+                        else threshold.warning_threshold
+                    ),
                     triggered_at=datetime.utcnow(),
                     tags=threshold.tags,
                 )
@@ -425,9 +443,11 @@ class APMService:
                 level=alert_level,
                 message=f"{threshold_name} threshold exceeded",
                 current_value=current_value,
-                threshold=threshold.critical_threshold
-                if alert_level == "critical"
-                else threshold.warning_threshold,
+                threshold=(
+                    threshold.critical_threshold
+                    if alert_level == "critical"
+                    else threshold.warning_threshold
+                ),
                 triggered_at=datetime.utcnow(),
                 tags=threshold.tags,
             )
@@ -466,10 +486,16 @@ class APMService:
         # Check if value is back to normal
         is_normal = False
         if threshold.comparison_operator == "greater_than":
-            if threshold.warning_threshold and current_value < threshold.warning_threshold:
+            if (
+                threshold.warning_threshold
+                and current_value < threshold.warning_threshold
+            ):
                 is_normal = True
         elif threshold.comparison_operator == "less_than":
-            if threshold.warning_threshold and current_value > threshold.warning_threshold:
+            if (
+                threshold.warning_threshold
+                and current_value > threshold.warning_threshold
+            ):
                 is_normal = True
 
         if is_normal:
@@ -489,7 +515,9 @@ class APMService:
             message += f"Metric: {alert.name}\n"
             message += f"Current Value: {alert.current_value:.2f}\n"
             message += f"Threshold: {alert.threshold:.2f}\n"
-            message += f"Triggered: {alert.triggered_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            message += (
+                f"Triggered: {alert.triggered_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            )
 
             logger.warning(f"PERFORMANCE ALERT: {message}")
             alert.metadata["notification_sent"] = True
@@ -502,7 +530,9 @@ class APMService:
         try:
             message = f" Performance Alert Resolved: {alert.name}\n"
             message += "Value returned to normal range\n"
-            message += f"Resolved: {alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            message += (
+                f"Resolved: {alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            )
 
             logger.info(f"PERFORMANCE ALERT RESOLVED: {message}")
 
@@ -516,7 +546,9 @@ class APMService:
 
         for metric_name in list(self.metrics_store.keys()):
             metrics = self.metrics_store[metric_name]
-            recent_metrics = deque((m for m in metrics if m.timestamp >= cutoff_time), maxlen=10000)
+            recent_metrics = deque(
+                (m for m in metrics if m.timestamp >= cutoff_time), maxlen=10000
+            )
             self.metrics_store[metric_name] = recent_metrics
 
         # Clean up resolved alerts older than 7 days
@@ -567,7 +599,9 @@ class APMService:
 
         self.metrics_store[name].append(metric)
 
-    def trace_request(self, operation_name: str, service_name: str = "psychsync-api") -> Callable:
+    def trace_request(
+        self, operation_name: str, service_name: str = "psychsync-api"
+    ) -> Callable:
         """Decorator for tracing function execution"""
 
         def decorator(func):
@@ -602,7 +636,9 @@ class APMService:
                         # Update span with success
                         end_time = datetime.utcnow()
                         span.end_time = end_time
-                        span.duration_ms = (end_time - start_time).total_seconds() * 1000
+                        span.duration_ms = (
+                            end_time - start_time
+                        ).total_seconds() * 1000
                         span.status = "ok"
 
                         # Record performance metrics
@@ -624,7 +660,9 @@ class APMService:
                         # Update span with error
                         end_time = datetime.utcnow()
                         span.end_time = end_time
-                        span.duration_ms = (end_time - start_time).total_seconds() * 1000
+                        span.duration_ms = (
+                            end_time - start_time
+                        ).total_seconds() * 1000
                         span.status = "error"
                         span.logs.append(f"Error: {e!s}")
 
@@ -739,11 +777,15 @@ class APMService:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # If loop is running, schedule the async call
-                asyncio.create_task(self.record_metric(name, metric_type, value, unit, **kwargs))
+                asyncio.create_task(
+                    self.record_metric(name, metric_type, value, unit, **kwargs)
+                )
             else:
                 # If no loop running, create a new one
-                asyncio.run(self.record_metric(name, metric_type, value, unit, **kwargs))
-        except:
+                asyncio.run(
+                    self.record_metric(name, metric_type, value, unit, **kwargs)
+                )
+        except (OSError, IOError, ValueError) as e:
             # Fallback - ignore if we can't record the metric
             pass
 
@@ -822,8 +864,12 @@ class APMService:
             "total": len(self.alerts),
             "active": len([a for a in self.alerts.values() if not a.resolved_at]),
             "by_level": {
-                "critical": len([a for a in self.alerts.values() if a.level == "critical"]),
-                "warning": len([a for a in self.alerts.values() if a.level == "warning"]),
+                "critical": len(
+                    [a for a in self.alerts.values() if a.level == "critical"]
+                ),
+                "warning": len(
+                    [a for a in self.alerts.values() if a.level == "warning"]
+                ),
             },
             "by_type": {},
         }
@@ -834,7 +880,9 @@ class APMService:
             )
 
         # Performance level assessment
-        performance_level = self._assess_performance_level(metrics_summary, alert_summary)
+        performance_level = self._assess_performance_level(
+            metrics_summary, alert_summary
+        )
 
         return {
             "period_hours": hours,
@@ -843,7 +891,9 @@ class APMService:
             "performance_level": performance_level.value,
             "active_traces": len(self.active_traces),
             "performance_profiles": len(self.performance_profiles),
-            "recommendations": self._generate_recommendations(metrics_summary, alert_summary),
+            "recommendations": self._generate_recommendations(
+                metrics_summary, alert_summary
+            ),
         }
 
     def _calculate_trend(self, values: list[float]) -> str:
@@ -960,7 +1010,11 @@ class APMService:
         return True
 
     async def update_threshold(
-        self, name: str, warning_threshold: float | None, critical_threshold: float, **kwargs
+        self,
+        name: str,
+        warning_threshold: float | None,
+        critical_threshold: float,
+        **kwargs,
     ) -> PerformanceThreshold:
         """Update performance threshold"""
         threshold = PerformanceThreshold(

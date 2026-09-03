@@ -4,18 +4,20 @@ Pre-Production Security Audit Script for PsychSync
 Validates all critical security measures before production deployment
 """
 
-import os
-import sys
-import re
-import requests
-import subprocess
-from pathlib import Path
-import hashlib
-import secrets
-from typing import List, Dict, Any
 import asyncio
-import asyncpg
+import hashlib
 import json
+import os
+import re
+import secrets
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, Dict, List
+
+import asyncpg
+import requests
+
 
 class SecurityAuditor:
     def __init__(self):
@@ -108,7 +110,7 @@ class SecurityAuditor:
                                'Use more random characters')
             else:
                 self.log_pass('Secrets', f'SECRET_KEY is strong ({len(secret_key)} chars)')
-        except:
+        except Exception as e:
             self.log_warning('Secrets', 'Could not check SECRET_KEY entropy')
 
         # Check token expiration

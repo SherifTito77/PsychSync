@@ -297,7 +297,7 @@ export const EnhancedHealthDashboard: React.FC = () => {
           <TabsTrigger value="interventions">
             Interventions
             {interventions.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
+              <Badge variant="error" className="ml-2">
                 {interventions.length}
               </Badge>
             )}

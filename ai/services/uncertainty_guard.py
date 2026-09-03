@@ -21,24 +21,25 @@ Version: 1.0.0
 
 import functools
 import logging
-from typing import Any, Callable, Dict, Optional, TypeVar
 from dataclasses import dataclass
+from typing import Any, Callable, Dict, Optional, TypeVar
 
 from ai.security.uncertainty_detection import (
-    SemanticUncertaintyDetector,
     HumanReviewQueue,
+    SemanticUncertaintyDetector,
     TaskCategory,
     UncertaintyReport,
 )
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
 class GuardedResult:
     """Result from AI call with uncertainty guard."""
+
     success: bool
     output: Optional[Any]
     uncertainty_report: Optional[UncertaintyReport] = None
@@ -93,7 +94,7 @@ class UncertaintyGuard:
         self,
         enable_review_queue: bool = True,
         max_queue_size: int = 1000,
-        enable_logging: bool = True
+        enable_logging: bool = True,
     ):
         """
         Initialize uncertainty guard.
@@ -107,8 +108,7 @@ class UncertaintyGuard:
             return
 
         self.detector = SemanticUncertaintyDetector(
-            enable_logging=enable_logging,
-            cache_results=True
+            enable_logging=enable_logging, cache_results=True
         )
         self.queue = HumanReviewQueue(max_queue_size) if enable_review_queue else None
         self.enable_review_queue = enable_review_queue
@@ -119,7 +119,7 @@ class UncertaintyGuard:
         self,
         task_category: TaskCategory,
         block_on_review: bool = False,
-        raise_on_uncertainty: bool = False
+        raise_on_uncertainty: bool = False,
     ) -> Callable:
         """
         Decorator to protect a function with uncertainty checking.
@@ -132,6 +132,7 @@ class UncertaintyGuard:
         Returns:
             Decorated function that includes uncertainty check
         """
+
         def decorator(func: Callable[..., T]) -> Callable[..., GuardedResult]:
             @functools.wraps(func)
             def wrapper(*args, **kwargs) -> GuardedResult:
@@ -146,7 +147,7 @@ class UncertaintyGuard:
                     report = self.detector.check_uncertainty(
                         output_text,
                         task_category,
-                        additional_context=kwargs.get('context')
+                        additional_context=kwargs.get("context"),
                     )
 
                     # Queue for review if needed
@@ -156,16 +157,12 @@ class UncertaintyGuard:
                             report=report,
                             llm_input=str(args),
                             llm_output=output_text,
-                            metadata={'function': func.__name__}
+                            metadata={"function": func.__name__},
                         )
 
                     # Log the guarded call
                     if self.enable_logging:
-                        self._log_guarded_call(
-                            func.__name__,
-                            report,
-                            review_ticket
-                        )
+                        self._log_guarded_call(func.__name__, report, review_ticket)
 
                     # Handle based on configuration
                     if raise_on_uncertainty and report.requires_human_review:
@@ -184,13 +181,10 @@ class UncertaintyGuard:
 
                 except Exception as e:
                     logger.error(f"Error in guarded function {func.__name__}: {e}")
-                    return GuardedResult(
-                        success=False,
-                        output=None,
-                        error=str(e)
-                    )
+                    return GuardedResult(success=False, output=None, error=str(e))
 
             return wrapper
+
         return decorator
 
     def protect_context(self, task_category: TaskCategory):
@@ -217,6 +211,7 @@ class UncertaintyGuard:
             print(ctx.guarded_result)
             ```
         """
+
         class UncertaintyGuardContext:
             def __init__(self, outer_guard, category):
                 self.outer_guard = outer_guard
@@ -244,7 +239,7 @@ class UncertaintyGuard:
                     report = self.outer_guard.detector.check_uncertainty(
                         output_text,
                         self.task_category,
-                        additional_context={'input': str(self._input)}
+                        additional_context={"input": str(self._input)},
                     )
 
                     review_ticket = None
@@ -252,7 +247,7 @@ class UncertaintyGuard:
                         review_ticket = self.outer_guard.queue.queue_for_review(
                             report=report,
                             llm_input=str(self._input),
-                            llm_output=output_text
+                            llm_output=output_text,
                         )
 
                     self.guarded_result = GuardedResult(
@@ -265,9 +260,7 @@ class UncertaintyGuard:
 
                     if self.outer_guard.enable_logging:
                         self.outer_guard._log_guarded_call(
-                            "context_manager",
-                            report,
-                            review_ticket
+                            "context_manager", report, review_ticket
                         )
 
                 return False  # Don't suppress exceptions
@@ -278,7 +271,7 @@ class UncertaintyGuard:
         self,
         output: Any,
         task_category: TaskCategory,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> GuardedResult:
         """
         Directly check an output for uncertainty.
@@ -294,17 +287,13 @@ class UncertaintyGuard:
         output_text = self._extract_text(output)
 
         report = self.detector.check_uncertainty(
-            output_text,
-            task_category,
-            additional_context=context
+            output_text, task_category, additional_context=context
         )
 
         review_ticket = None
         if report.requires_human_review and self.queue:
             review_ticket = self.queue.queue_for_review(
-                report=report,
-                llm_input=str(context),
-                llm_output=output_text
+                report=report, llm_input=str(context), llm_output=output_text
             )
 
         return GuardedResult(
@@ -327,13 +316,14 @@ class UncertaintyGuard:
             return output
         elif isinstance(output, dict):
             # Extract 'text', 'content', or 'output' fields
-            for key in ['text', 'content', 'output', 'response', 'result']:
+            for key in ["text", "content", "output", "response", "result"]:
                 if key in output and isinstance(output[key], str):
                     return output[key]
             # Fallback to JSON
             import json
+
             return json.dumps(output, default=str)
-        elif hasattr(output, '__str__'):
+        elif hasattr(output, "__str__"):
             return str(output)
         else:
             return ""
@@ -342,7 +332,7 @@ class UncertaintyGuard:
         self,
         function_name: str,
         report: UncertaintyReport,
-        review_ticket: Optional[str]
+        review_ticket: Optional[str],
     ):
         """Log a guarded AI call for audit trail."""
         logger.info(
@@ -356,6 +346,7 @@ class UncertaintyGuard:
 
 class UncertaintyExceededError(Exception):
     """Raised when uncertainty exceeds threshold and raise_on_uncertainty=True."""
+
     pass
 
 
@@ -363,7 +354,7 @@ class UncertaintyExceededError(Exception):
 def with_uncertainty_check(
     task_category: TaskCategory,
     block_on_review: bool = False,
-    raise_on_uncertainty: bool = False
+    raise_on_uncertainty: bool = False,
 ) -> Callable:
     """
     Convenience decorator for adding uncertainty checks to functions.
@@ -390,7 +381,7 @@ def with_uncertainty_check(
     return guard.protect(
         task_category=task_category,
         block_on_review=block_on_review,
-        raise_on_uncertainty=raise_on_uncertainty
+        raise_on_uncertainty=raise_on_uncertainty,
     )
 
 

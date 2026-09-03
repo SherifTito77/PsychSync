@@ -23,15 +23,12 @@ from app.core.api_utils import (
 )
 from app.core.async_cache import async_cached  # ✅ ASYNC CACHE (non-blocking)
 from app.core.audit_logger import AuditLogger
-from app.core.rate_limiter import RateLimiter
+from app.core.rate_limiter_unified import RateLimiter, RateLimitStrategy, rate_limit
 from app.core.response import (
     SuccessResponse,
     create_error_response,
     create_success_response,
 )
-
-# Enhanced Core - Updated imports
-from app.core.security import verify_password
 from app.core.security_validator import security_validator
 
 # Models
@@ -44,12 +41,14 @@ from app.schemas.user import UserCreate, UserUpdate
 # Services
 from app.services import user_service
 
+# Enhanced Core - Updated imports
+from app.services.security import verify_password
+
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me")
 @measure_performance
-@async_cached(expire=300, key_prefix="user_profile")  # ✅ ASYNC: Non-blocking cache
 async def get_user_profile(current_user: User = Depends(get_current_active_user)):
     """
     Retrieve the profile of the currently authenticated user.
@@ -60,12 +59,13 @@ async def get_user_profile(current_user: User = Depends(get_current_active_user)
     - Standardized response format with metadata
     """
     return create_success_response(
-        data=serialize_model(current_user), message="User profile retrieved successfully"
+        data=serialize_model(current_user),
+        message="User profile retrieved successfully",
     )
 
 
 @router.post("/change-password")
-@RateLimiter(limit=5, window_seconds=900)  # 5 attempts per 15 minutes
+@rate_limit(limit=5, window=900)  # 5 attempts per 15 minutes
 @measure_performance
 async def change_password(
     password_change: PasswordChange,
@@ -104,7 +104,8 @@ async def change_password(
                 client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid current password format"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid current password format",
             )
 
         if not new_password_validation.is_valid:
@@ -115,7 +116,8 @@ async def change_password(
                 client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid new password format"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid new password format",
             )
 
         # Password strength validation
@@ -143,7 +145,8 @@ async def change_password(
                 client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect current password"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect current password",
             )
 
         # Update password using user service with transaction
@@ -153,7 +156,9 @@ async def change_password(
 
             # Use database transaction to ensure atomic password update
             async with db.begin():
-                updated_user = await user_service.update_user(db, str(current_user.id), user_update)
+                updated_user = await user_service.update_user(
+                    db, str(current_user.id), user_update
+                )
 
                 # Invalidate all existing sessions for this user
                 await _invalidate_user_sessions(str(current_user.id))
@@ -208,7 +213,9 @@ async def change_password(
             details=f"Unexpected error after {execution_time:.2f}s: {e!s}",
             client_ip=client_ip,
         )
-        logger.error(f"Unexpected error in password change for user {current_user.id}: {e!s}")
+        logger.error(
+            f"Unexpected error in password change for user {current_user.id}: {e!s}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Please try again.",
@@ -252,7 +259,7 @@ async def _invalidate_user_sessions(user_id: str) -> None:
 
 
 @router.get("/")
-@RateLimiter(limit=30, window_seconds=60)  # 30 requests per minute
+@rate_limit(limit=30, window=60)  # 30 requests per minute
 @measure_performance
 @async_cached(expire=60, key_prefix="users_list")  # ✅ ASYNC: Non-blocking cache
 async def list_users(
@@ -265,7 +272,9 @@ async def list_users(
         None, description="Search users by name or email", min_length=1, max_length=100
     ),
     is_active: bool | None = Query(None, description="Filter by active status"),
-    organization_id: int | None = Query(None, description="Filter by organization", ge=1),
+    organization_id: int | None = Query(
+        None, description="Filter by organization", ge=1
+    ),
     role: str | None = Query(
         None, description="Filter by user role", pattern="^(admin|user|team_lead)$"
     ),
@@ -294,7 +303,8 @@ async def list_users(
                 client_ip=client_ip,
             )
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Only administrators can list users"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only administrators can list users",
             )
 
         # INPUT VALIDATION AND SANITIZATION
@@ -303,7 +313,9 @@ async def list_users(
 
         # Validate and sanitize search parameter
         if search:
-            search_validation = security_validator.validate_search_query(search, "search")
+            search_validation = security_validator.validate_search_query(
+                search, "search"
+            )
             if not search_validation.is_valid:
                 validation_errors.extend(
                     [f"Search: {issue}" for issue in search_validation.security_issues]
@@ -325,7 +337,9 @@ async def list_users(
             try:
                 org_id_int = int(organization_id)
                 if org_id_int < 1:
-                    validation_errors.append("Organization ID must be a positive integer")
+                    validation_errors.append(
+                        "Organization ID must be a positive integer"
+                    )
                 else:
                     sanitized_params["organization_id"] = org_id_int
             except (ValueError, TypeError):
@@ -335,7 +349,9 @@ async def list_users(
         if role:
             valid_roles = ["admin", "user", "team_lead"]
             if role not in valid_roles:
-                validation_errors.append(f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+                validation_errors.append(
+                    f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+                )
             else:
                 sanitized_params["role"] = role
 
@@ -366,7 +382,10 @@ async def list_users(
             # Use parameterized ILIKE queries
             search_pattern = f"%{sanitized_search}%"
             query = query.where(
-                or_(User.full_name.ilike(search_pattern), User.email.ilike(search_pattern))
+                or_(
+                    User.full_name.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                )
             )
 
         # Apply filters with safe parameter binding
@@ -376,7 +395,9 @@ async def list_users(
 
         if "organization_id" in sanitized_params:
             filter_params["organization_id"] = sanitized_params["organization_id"]
-            query = query.where(User.organization_id == sanitized_params["organization_id"])
+            query = query.where(
+                User.organization_id == sanitized_params["organization_id"]
+            )
 
         if "role" in sanitized_params:
             filter_params["role"] = sanitized_params["role"]
@@ -422,13 +443,19 @@ async def list_users(
                     k: v
                     for k, v in user_item.items()
                     if k
-                    not in ["password_hash", "password_reset_token", "email_verification_token"]
+                    not in [
+                        "password_hash",
+                        "password_reset_token",
+                        "email_verification_token",
+                    ]
                 }
                 sanitized_users.append(sanitized_user)
             response_data["data"]["items"] = sanitized_users
 
         execution_time = time.time() - start_time
-        logger.info(f"User list completed in {execution_time:.2f}s for user {current_user.id}")
+        logger.info(
+            f"User list completed in {execution_time:.2f}s for user {current_user.id}"
+        )
 
         return response_data
 
@@ -468,7 +495,8 @@ async def get_user_by_id(
     # Permission check - users can view their own profile or admins can view any
     if user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this user profile"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this user profile",
         )
 
     result = await db.execute(select(User).filter(User.id == user_id))
@@ -476,7 +504,8 @@ async def get_user_by_id(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"User with ID {user_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with ID {user_id} not found",
         )
 
     return create_success_response(
@@ -504,7 +533,9 @@ async def update_user_profile(
         # Use database transaction to prevent concurrent modification issues
         async with db.begin():
             # Update user using service within transaction
-            updated_user = await user_service.update_user(db, str(current_user.id), user_update)
+            updated_user = await user_service.update_user(
+                db, str(current_user.id), user_update
+            )
 
         # Transaction automatically commits here if successful
 
@@ -513,7 +544,9 @@ async def update_user_profile(
         )
     except ValueError as e:
         return create_error_response(
-            message=str(e), error_code="VALIDATION_ERROR", status_code=status.HTTP_400_BAD_REQUEST
+            message=str(e),
+            error_code="VALIDATION_ERROR",
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
     except Exception as e:
         logger.error(f"Profile update failed for user {current_user.id}: {e!s}")
@@ -525,7 +558,7 @@ async def update_user_profile(
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-@RateLimiter(limit=5, window_seconds=300)  # 5 registrations per 5 minutes per IP
+@rate_limit(limit=5, window=300)  # 5 registrations per 5 minutes per IP
 @measure_performance
 async def create_user_endpoint(
     request: Request, user_create: UserCreate, db: AsyncSession = Depends(get_db)
@@ -578,7 +611,10 @@ async def create_user_endpoint(
         )
         if not full_name_validation.is_valid:
             validation_errors.extend(
-                [f"Full name: {issue}" for issue in full_name_validation.security_issues]
+                [
+                    f"Full name: {issue}"
+                    for issue in full_name_validation.security_issues
+                ]
             )
             validated_full_name = None
         else:
@@ -625,11 +661,13 @@ async def create_user_endpoint(
         # CHECK FOR EXISTING EMAIL WITH RACE CONDITION PROTECTION
         try:
             # Use SELECT FOR UPDATE to prevent race conditions
-            existing_email_query = text("""
+            existing_email_query = text(
+                """
                 SELECT id FROM users
                 WHERE email = :email
                 FOR UPDATE
-            """)
+            """
+            )
 
             existing_user_result = await db.execute(
                 existing_email_query, {"email": validated_email}
@@ -645,7 +683,8 @@ async def create_user_endpoint(
                     user_agent=user_agent,
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Email already registered",
                 )
 
         except Exception as db_error:
@@ -704,7 +743,9 @@ async def create_user_endpoint(
                 "full_name": new_user.full_name,
                 "is_active": new_user.is_active,
                 "is_verified": new_user.is_verified,
-                "created_at": new_user.created_at.isoformat() if new_user.created_at else None,
+                "created_at": (
+                    new_user.created_at.isoformat() if new_user.created_at else None
+                ),
                 "verification_required": True,
                 "message": "Registration successful. Please check your email for verification.",
             }
@@ -723,7 +764,9 @@ async def create_user_endpoint(
                 client_ip=client_ip,
                 user_agent=user_agent,
             )
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+            ) from e
         except Exception as e:
             AuditLogger.log_security_event(
                 user_id=None,

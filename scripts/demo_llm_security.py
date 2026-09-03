@@ -14,8 +14,8 @@ Date: 2025-12-27
 """
 
 import asyncio
-import sys
 import os
+import sys
 from datetime import datetime
 from typing import Dict, List
 
@@ -24,28 +24,29 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from app.middleware.spotlighting import (
-    SpotlightingEngine,
-    ToolAllowList,
     ApprovalManager,
     ContentSource,
-    TrustLevel,
+    SpotlightingEngine,
     SpotlightingMode,
+    ToolAllowList,
+    TrustLevel,
 )
-
 
 # ==================== Demo Configuration ====================
 
+
 class Colors:
     """Terminal colors for output"""
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
 
 def print_header(text: str):
@@ -83,6 +84,7 @@ def print_section(text: str):
 
 # ==================== Demo Scenarios ====================
 
+
 async def demo_spotlighting():
     """Demonstrate content spotlighting"""
     print_section("DEMO 1: Content Spotlighting")
@@ -96,9 +98,7 @@ async def demo_spotlighting():
     user_input = "Tell me about my personality assessment results"
 
     spotlighted = engine.spotlight_content(
-        content=user_input,
-        source=ContentSource.USER,
-        trust_level=TrustLevel.UNTRUSTED
+        content=user_input, source=ContentSource.USER, trust_level=TrustLevel.UNTRUSTED
     )
 
     wrapped = engine.wrap_content(user_input, spotlighted)
@@ -124,8 +124,7 @@ async def demo_spotlighting():
     print("\n4️⃣  Testing special characters:")
     special_content = "Test with special chars: !@#$%^&*()"
     spotlighted_special = engine.spotlight_content(
-        content=special_content,
-        source=ContentSource.USER
+        content=special_content, source=ContentSource.USER
     )
     print_success(f"Special characters handled: '{special_content}'")
 
@@ -138,8 +137,10 @@ async def demo_output_validation():
 
     # Test 1: Safe output
     print("\n1️⃣  Testing safe LLM output:")
-    safe_output = "Based on your assessment, you show high openness to experience " \
-                  "and strong conscientiousness traits."
+    safe_output = (
+        "Based on your assessment, you show high openness to experience "
+        "and strong conscientiousness traits."
+    )
 
     is_valid, issues = engine.validate_llm_output(safe_output)
     print(f"   Output: {safe_output}")
@@ -170,8 +171,7 @@ async def demo_output_validation():
     leaked_output = f"You told me: {input_content} and more..."
 
     input_spotlighted = engine.spotlight_content(
-        content=input_content,
-        source=ContentSource.USER
+        content=input_content, source=ContentSource.USER
     )
 
     is_valid, issues = engine.validate_llm_output(leaked_output, input_spotlighted)
@@ -228,14 +228,18 @@ async def demo_tool_authorization():
     ]
 
     for tool in approval_tools:
-        is_allowed, reason = allowlist.is_tool_allowed(tool, require_human_approval=False)
+        is_allowed, reason = allowlist.is_tool_allowed(
+            tool, require_human_approval=False
+        )
         if not is_allowed and "approval" in reason.lower():
             print_success(f"{tool}: REQUIRES APPROVAL")
         else:
             print_error(f"{tool}: Should require approval!")
 
         # With approval
-        is_allowed, reason = allowlist.is_tool_allowed(tool, require_human_approval=True)
+        is_allowed, reason = allowlist.is_tool_allowed(
+            tool, require_human_approval=True
+        )
         if is_allowed:
             print_success(f"{tool}: APPROVED (with approval)")
         else:
@@ -271,9 +275,9 @@ async def demo_human_approval():
         context={
             "user_id": 123,
             "reason": "Policy violation",
-            "requested_by": "admin_456"
+            "requested_by": "admin_456",
         },
-        user_id="admin_456"
+        user_id="admin_456",
     )
 
     print_success(f"Approval requested: {approval_id}")
@@ -290,8 +294,7 @@ async def demo_human_approval():
     # Test 3: Approve operation
     print("\n3️⃣  Approving operation:")
     success = approval_manager.approve_operation(
-        approval_id=approval_id,
-        approver_id="security_admin"
+        approval_id=approval_id, approver_id="security_admin"
     )
 
     if success:
@@ -309,8 +312,7 @@ async def demo_human_approval():
     # Test 5: Duplicate approval attempt
     print("\n5️⃣  Testing duplicate approval prevention:")
     success2 = approval_manager.approve_operation(
-        approval_id=approval_id,
-        approver_id="another_admin"
+        approval_id=approval_id, approver_id="another_admin"
     )
 
     if not success2:
@@ -321,9 +323,7 @@ async def demo_human_approval():
     # Test 6: Denial after approval
     print("\n6️⃣  Testing denial after approval:")
     success3 = approval_manager.deny_operation(
-        approval_id=approval_id,
-        denier_id="admin",
-        reason="Changed mind"
+        approval_id=approval_id, denier_id="admin", reason="Changed mind"
     )
 
     if not success3:
@@ -341,7 +341,7 @@ async def demo_attack_scenarios():
 
     # Scenario 1: Prompt injection attempt
     print("\n1️⃣  SCENARIO: Prompt Injection Attack")
-    print("   " + "─"*76)
+    print("   " + "─" * 76)
     print("   Attacker tries to override system instructions:")
 
     injection_attempts = [
@@ -356,8 +356,7 @@ async def demo_attack_scenarios():
 
         # Spotlight the input
         spotlighted = engine.spotlight_content(
-            content=attempt,
-            source=ContentSource.USER
+            content=attempt, source=ContentSource.USER
         )
 
         # Would be detected by jailbreak detector (integrated)
@@ -367,7 +366,7 @@ async def demo_attack_scenarios():
 
     # Scenario 2: Tool abuse attempt
     print("\n2️⃣  SCENARIO: Tool Abuse / Authorization Bypass")
-    print("   " + "─"*76)
+    print("   " + "─" * 76)
     print("   Attacker tries to execute dangerous tools:")
 
     abuse_attempts = [
@@ -390,7 +389,7 @@ async def demo_attack_scenarios():
 
     # Scenario 3: XSS in LLM output
     print("\n3️⃣  SCENARIO: XSS Attack via LLM Output")
-    print("   " + "─"*76)
+    print("   " + "─" * 76)
     print("   Attacker tricks LLM into generating malicious JavaScript:")
 
     xss_attempts = [
@@ -412,7 +411,7 @@ async def demo_attack_scenarios():
 
     # Scenario 4: SQL injection
     print("\n4️⃣  SCENARIO: SQL Injection Attack")
-    print("   " + "─"*76)
+    print("   " + "─" * 76)
     print("   Attacker attempts SQL injection:")
 
     sqli_attempts = [
@@ -445,7 +444,7 @@ async def demo_integration_workflow():
 
     print_info("All security components initialized")
     print("\n📋 Workflow: User Assessment Analysis Request")
-    print("   " + "─"*76)
+    print("   " + "─" * 76)
 
     # Step 1: User submits assessment for analysis
     print("\n1️⃣  User Request:")
@@ -455,9 +454,7 @@ async def demo_integration_workflow():
     # Step 2: Spotlight user input
     print("\n2️⃣  Content Spotlighting:")
     spotlighted = engine.spotlight_content(
-        content=user_prompt,
-        source=ContentSource.USER,
-        trust_level=TrustLevel.UNTRUSTED
+        content=user_prompt, source=ContentSource.USER, trust_level=TrustLevel.UNTRUSTED
     )
     wrapped = engine.wrap_content(user_prompt, spotlighted)
     print_success("Input spotlighted with UNTRUSTED marker")
@@ -465,9 +462,11 @@ async def demo_integration_workflow():
 
     # Step 3: AI generates analysis
     print("\n3️⃣  AI Generation:")
-    llm_output = "Based on your assessment, you score high on Openness (85%) " \
-                 "and Conscientiousness (78%). This suggests you are creative " \
-                 "and well-organized."
+    llm_output = (
+        "Based on your assessment, you score high on Openness (85%) "
+        "and Conscientiousness (78%). This suggests you are creative "
+        "and well-organized."
+    )
     print(f"   LLM Output: {llm_output}")
 
     # Step 4: Validate LLM output
@@ -492,7 +491,7 @@ async def demo_integration_workflow():
     approval_id = approval_manager.request_approval(
         operation=tool_name,
         context={"user_id": 123, "format": "csv"},
-        user_id="user_123"
+        user_id="user_123",
     )
     print_success(f"Approval requested: {approval_id}")
 
@@ -509,12 +508,13 @@ async def demo_integration_workflow():
     print("\n8️⃣  Operation Execution:")
     print_success("Tool executed successfully")
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print_success("Complete workflow executed successfully!")
-    print("="*80)
+    print("=" * 80)
 
 
 # ==================== Main Demo ====================
+
 
 async def run_demo():
     """Run all demo scenarios"""
@@ -535,19 +535,34 @@ async def run_demo():
         # Final summary
         print_header("✅ DEMO COMPLETED SUCCESSFULLY")
         print("\n📊 Summary:")
-        print(f"   {Colors.OKGREEN}✓ Content Spotlighting{Colors.ENDC} - Provenance tracking working")
-        print(f"   {Colors.OKGREEN}✓ Output Validation{Colors.ENDC} - Malicious patterns blocked")
-        print(f"   {Colors.OKGREEN}✓ Tool Authorization{Colors.ENDC} - Allow-list enforcement active")
-        print(f"   {Colors.OKGREEN}✓ Human Approval{Colors.ENDC} - Workflow operational")
-        print(f"   {Colors.OKGREEN}✓ Attack Prevention{Colors.ENDC} - Multiple vectors blocked")
-        print(f"   {Colors.OKGREEN}✓ Integration Workflow{Colors.ENDC} - End-to-end functional")
+        print(
+            f"   {Colors.OKGREEN}✓ Content Spotlighting{Colors.ENDC} - Provenance tracking working"
+        )
+        print(
+            f"   {Colors.OKGREEN}✓ Output Validation{Colors.ENDC} - Malicious patterns blocked"
+        )
+        print(
+            f"   {Colors.OKGREEN}✓ Tool Authorization{Colors.ENDC} - Allow-list enforcement active"
+        )
+        print(
+            f"   {Colors.OKGREEN}✓ Human Approval{Colors.ENDC} - Workflow operational"
+        )
+        print(
+            f"   {Colors.OKGREEN}✓ Attack Prevention{Colors.ENDC} - Multiple vectors blocked"
+        )
+        print(
+            f"   {Colors.OKGREEN}✓ Integration Workflow{Colors.ENDC} - End-to-end functional"
+        )
 
-        print(f"\n{Colors.BOLD}{Colors.OKBLUE}🚀 The LLM Security Framework is production-ready!{Colors.ENDC}")
+        print(
+            f"\n{Colors.BOLD}{Colors.OKBLUE}🚀 The LLM Security Framework is production-ready!{Colors.ENDC}"
+        )
         print()
 
     except Exception as e:
         print_error(f"Demo failed with error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

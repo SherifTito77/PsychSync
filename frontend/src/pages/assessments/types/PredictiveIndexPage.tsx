@@ -57,10 +57,10 @@ const PredictiveIndexPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      const response = await apiClient.get('/assessment-questions/predictive-index');
+      const response = await apiClient.get('/assessments/assessment-questions/predictive-index');
 
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
+      if (response.data && (response.data as any).success) {
+        const backendAssessment = (response.data as any).assessment;
         const predictiveIndexAssessment: PredictiveIndexAssessment = {
           id: backendAssessment.id,
           title: backendAssessment.title,
@@ -118,8 +118,8 @@ const PredictiveIndexPage: React.FC = () => {
         raw_type: 'Predictive Index'
       });
 
-      if (response.data && response.data.success) {
-        setResults(response.data.result);
+      if (response.data && (response.data as any).success) {
+        setResults((response.data as any).result);
         console.log('✅ Predictive Index assessment submitted successfully');
       } else {
         throw new Error('Submission failed');

@@ -3,9 +3,9 @@
 Additional evidence-based screening tool scorers
 Extends core clinical screening capabilities
 """
-from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -39,6 +39,7 @@ class SeverityLevel(Enum):
 # MDQ - MOOD DISORDER QUESTIONNAIRE (BIPOLAR SCREENING)
 # ============================================================================
 
+
 class MDQScorer:
     """
     Mood Disorder Questionnaire
@@ -61,22 +62,19 @@ class MDQScorer:
         """
 
         # Part 1: 13 symptom items (yes/no)
-        symptom_count = sum(
-            1 for i in range(1, 14)
-            if responses.get(f'q{i}', False)
-        )
+        symptom_count = sum(1 for i in range(1, 14) if responses.get(f"q{i}", False))
 
         # Part 2: Clustering (yes/no)
-        clustered = responses.get('q14_clustered', False)
+        clustered = responses.get("q14_clustered", False)
 
         # Part 3: Impairment level (0-3)
-        impairment = responses.get('q15_impairment', 0)
+        impairment = responses.get("q15_impairment", 0)
 
         # Determine positive screen
         positive_screen = (
-            symptom_count >= 7 and
-            clustered and
-            impairment >= 2  # Moderate or serious problems
+            symptom_count >= 7
+            and clustered
+            and impairment >= 2  # Moderate or serious problems
         )
 
         if positive_screen:
@@ -105,17 +103,19 @@ class MDQScorer:
             severity_level=severity,
             risk_level=risk_level,
             subscale_scores={
-                'symptom_count': float(symptom_count),
-                'impairment_level': float(impairment)
+                "symptom_count": float(symptom_count),
+                "impairment_level": float(impairment),
             },
             interpretation=interpretation,
             recommendations=recommendations,
             crisis_alert=crisis_alert,
-            risk_flags=risk_flags
+            risk_flags=risk_flags,
         )
 
     @staticmethod
-    def _get_interpretation(symptoms: int, clustered: bool, impairment: int, positive: bool) -> str:
+    def _get_interpretation(
+        symptoms: int, clustered: bool, impairment: int, positive: bool
+    ) -> str:
         if positive:
             return (
                 f"POSITIVE SCREEN for bipolar disorder ({symptoms} symptoms, "
@@ -138,19 +138,20 @@ class MDQScorer:
                 "Bipolar disorder requires specialized treatment",
                 "Medication evaluation important",
                 "Do not discontinue any current medications without MD consultation",
-                "Avoid stimulants and excessive caffeine"
+                "Avoid stimulants and excessive caffeine",
             ]
         else:
             return [
                 "Continue monitoring mood changes",
                 "Seek evaluation if symptoms worsen",
-                "Maintain regular sleep schedule"
+                "Maintain regular sleep schedule",
             ]
 
 
 # ============================================================================
 # DAST-10 - DRUG ABUSE SCREENING TEST
 # ============================================================================
+
 
 class DAST10Scorer:
     """
@@ -204,7 +205,7 @@ class DAST10Scorer:
             interpretation=interpretation,
             recommendations=recommendations,
             crisis_alert=crisis_alert,
-            risk_flags=risk_flags
+            risk_flags=risk_flags,
         )
 
     @staticmethod
@@ -228,25 +229,26 @@ class DAST10Scorer:
                 "Consider addiction treatment program",
                 "Connect with support groups (NA, SMART Recovery)",
                 "Medical detox may be necessary - consult physician",
-                "Address co-occurring mental health conditions"
+                "Address co-occurring mental health conditions",
             ]
         elif score >= 3:
             return [
                 "Evaluate substance use patterns",
                 "Consider counseling or brief intervention",
                 "Monitor for escalation",
-                "Reduce harm where possible"
+                "Reduce harm where possible",
             ]
         else:
             return [
                 "Continue healthy coping strategies",
-                "Be aware of substance use risks"
+                "Be aware of substance use risks",
             ]
 
 
 # ============================================================================
 # AQ-10 - AUTISM SPECTRUM QUOTIENT (SHORT VERSION)
 # ============================================================================
+
 
 class AQ10Scorer:
     """
@@ -300,7 +302,7 @@ class AQ10Scorer:
             interpretation=interpretation,
             recommendations=recommendations,
             crisis_alert=False,
-            risk_flags=risk_flags
+            risk_flags=risk_flags,
         )
 
     @staticmethod
@@ -321,18 +323,19 @@ class AQ10Scorer:
                 "Consider neuropsychological testing",
                 "Explore workplace accommodations if needed",
                 "Connect with autism support communities",
-                "Occupational therapy may be beneficial"
+                "Occupational therapy may be beneficial",
             ]
         else:
             return [
                 "No specific follow-up indicated",
-                "Neurodiversity awareness resources available"
+                "Neurodiversity awareness resources available",
             ]
 
 
 # ============================================================================
 # ACE - ADVERSE CHILDHOOD EXPERIENCES
 # ============================================================================
+
 
 class ACEScorer:
     """
@@ -343,7 +346,7 @@ class ACEScorer:
 
     NAME = "ACE"
     ITEMS = 10
-    CATEGORIES = ['abuse', 'neglect', 'household_dysfunction']
+    CATEGORIES = ["abuse", "neglect", "household_dysfunction"]
 
     @staticmethod
     def score(responses: Dict[int, bool]) -> ScoringResult:
@@ -372,9 +375,11 @@ class ACEScorer:
 
         # Calculate subcategories
         subscales = {
-            'abuse': float(sum(1 for i in [1, 2, 3] if responses.get(i, False))),
-            'neglect': float(sum(1 for i in [4, 5] if responses.get(i, False))),
-            'household_dysfunction': float(sum(1 for i in [6, 7, 8, 9, 10] if responses.get(i, False)))
+            "abuse": float(sum(1 for i in [1, 2, 3] if responses.get(i, False))),
+            "neglect": float(sum(1 for i in [4, 5] if responses.get(i, False))),
+            "household_dysfunction": float(
+                sum(1 for i in [6, 7, 8, 9, 10] if responses.get(i, False))
+            ),
         }
 
         interpretation = ACEScorer._get_interpretation(total_score, subscales)
@@ -388,7 +393,7 @@ class ACEScorer:
             interpretation=interpretation,
             recommendations=recommendations,
             crisis_alert=False,
-            risk_flags=risk_flags
+            risk_flags=risk_flags,
         )
 
     @staticmethod
@@ -411,12 +416,14 @@ class ACEScorer:
 
         # Add subcategory details
         categories = []
-        if subscales['abuse'] > 0:
+        if subscales["abuse"] > 0:
             categories.append(f"Abuse: {int(subscales['abuse'])}")
-        if subscales['neglect'] > 0:
+        if subscales["neglect"] > 0:
             categories.append(f"Neglect: {int(subscales['neglect'])}")
-        if subscales['household_dysfunction'] > 0:
-            categories.append(f"Household dysfunction: {int(subscales['household_dysfunction'])}")
+        if subscales["household_dysfunction"] > 0:
+            categories.append(
+                f"Household dysfunction: {int(subscales['household_dysfunction'])}"
+            )
 
         if categories:
             interpretation += f" Categories: {', '.join(categories)}."
@@ -431,19 +438,19 @@ class ACEScorer:
                 "Screen for PTSD and complex trauma",
                 "Address co-occurring conditions (substance use, depression)",
                 "Build resilience and coping skills",
-                "Consider support groups for trauma survivors"
+                "Consider support groups for trauma survivors",
             ]
         elif score >= 1:
             return [
                 "Consider trauma-informed therapy",
                 "Monitor for trauma-related symptoms",
                 "Build healthy coping mechanisms",
-                "Resilience-building activities"
+                "Resilience-building activities",
             ]
         else:
             return [
                 "No specific trauma-focused interventions indicated",
-                "Continue healthy development practices"
+                "Continue healthy development practices",
             ]
 
 
@@ -452,10 +459,10 @@ class ACEScorer:
 # ============================================================================
 
 SCORER_REGISTRY = {
-    'MDQ': MDQScorer,
-    'DAST10': DAST10Scorer,
-    'AQ10': AQ10Scorer,
-    'ACE': ACEScorer,
+    "MDQ": MDQScorer,
+    "DAST10": DAST10Scorer,
+    "AQ10": AQ10Scorer,
+    "ACE": ACEScorer,
 }
 
 

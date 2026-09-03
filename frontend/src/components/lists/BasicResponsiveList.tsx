@@ -3,7 +3,7 @@
  * Start small with immediate impact and measurable improvements
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 
 interface BasicResponsiveListProps {
   items: string[];
@@ -20,14 +20,14 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
 
-  const handleClick = (item: string, index: number) => {
+  const handleClick = useCallback((item: string, index: number) => {
     if (interactive && onSelect) {
       setSelectedIndex(index);
       onSelect(item);
     }
-  };
+  }, [interactive, onSelect]);
 
-  const handleKeyDown = (e: React.KeyboardEvent, item: string, index: number) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, item: string, index: number) => {
     if (!interactive || !onSelect) return;
 
     switch (e.key) {
@@ -47,7 +47,15 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
         setSelectedIndex(prevIndex);
         break;
     }
-  };
+  }, [interactive, onSelect, handleClick, items.length]);
+
+  // Memoize the click handlers for each item to prevent re-renders
+  const itemHandlers = useMemo(() => {
+    return items.map((item, index) => ({
+      onClick: () => handleClick(item, index),
+      onKeyDown: (e: React.KeyboardEvent) => handleKeyDown(e, item, index)
+    }));
+  }, [items, handleClick, handleKeyDown]);
 
   return (
     <div className="basic-responsive-list">
@@ -64,8 +72,8 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
             className={`list-item ${interactive ? 'interactive' : ''} ${
               selectedIndex === index ? 'selected' : ''
             }`}
-            onClick={() => handleClick(item, index)}
-            onKeyDown={(e) => handleKeyDown(e, item, index)}
+            onClick={itemHandlers[index].onClick}
+            onKeyDown={itemHandlers[index].onKeyDown}
             role={interactive ? 'option' : 'listitem'}
             aria-selected={interactive && selectedIndex === index}
             tabIndex={interactive && selectedIndex === index ? 0 : -1}
@@ -80,7 +88,7 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
         ))}
       </ul>
 
-      <style jsx>{`
+      <style>{`
         .basic-responsive-list {
           width: 100%;
           max-width: 600px;
@@ -91,7 +99,7 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
           font-size: 1.5rem;
           font-weight: 600;
           margin-bottom: 1rem;
-          color: #1a202c;
+          color: var(--color-gray-900);
         }
 
         .responsive-list {
@@ -109,12 +117,12 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
           align-items: center;
           justify-content: space-between;
           padding: 12px 16px; /* Mobile first */
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 1px solid var(--color-gray-200);
           min-height: 44px; /* Touch target requirement */
           line-height: 1.5;
           word-wrap: break-word;
           overflow-wrap: break-word;
-          color: #2d3748;
+          color: var(--color-gray-800);
           transition: background-color 0.2s ease;
         }
 
@@ -127,18 +135,18 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
         }
 
         .list-item.interactive:hover {
-          background-color: #f7fafc;
+          background-color: var(--color-gray-50);
         }
 
         .list-item.interactive:focus {
-          outline: 2px solid #3182ce;
+          outline: 2px solid var(--color-primary-600);
           outline-offset: -2px;
-          background-color: #ebf8ff;
+          background-color: var(--color-blue-50);
         }
 
         .list-item.selected {
-          background-color: #ebf8ff;
-          border-left: 3px solid #3182ce;
+          background-color: var(--color-blue-50);
+          border-left: 3px solid var(--color-primary-600);
         }
 
         .item-content {
@@ -149,7 +157,7 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
         .item-indicator {
           margin-left: 12px;
           font-size: 1rem;
-          color: #3182ce;
+          color: var(--color-primary-600);
           font-weight: 600;
         }
 
@@ -181,25 +189,25 @@ export const BasicResponsiveList: React.FC<BasicResponsiveListProps> = ({
         /* Dark mode support */
         @media (prefers-color-scheme: dark) {
           .list-title {
-            color: #f7fafc;
+            color: var(--color-gray-50);
           }
 
           .responsive-list {
-            background: #2d3748;
+            background: var(--color-gray-800);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
           }
 
           .list-item {
-            color: #e2e8f0;
-            border-bottom-color: #4a5568;
+            color: var(--color-gray-200);
+            border-bottom-color: var(--color-gray-600);
           }
 
           .list-item.interactive:hover {
-            background-color: #4a5568;
+            background-color: var(--color-gray-600);
           }
 
           .list-item.selected {
-            background-color: #2c5282;
+            background-color: var(--color-primary-800);
           }
         }
       `}</style>
@@ -226,7 +234,7 @@ export const BasicListExample: React.FC = () => {
   return (
     <div style={{ padding: '20px' }}>
       <h1>PsychSync Team Directory</h1>
-      <p style={{ marginBottom: '2rem', color: '#718096' }}>
+      <p style={{ marginBottom: '2rem', color: 'var(--color-gray-600)' }}>
         Click any team member to view their profile. This list is fully responsive
         and accessible across all devices.
       </p>

@@ -4,10 +4,10 @@ Advanced Database Index Optimization System for PsychSync
 Intelligent index management, analysis, and automated optimization
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import re
 from typing import Any
 
 from sqlalchemy import text
@@ -112,7 +112,8 @@ class DatabaseIndexOptimizer:
         """
         try:
             # Get current index information
-            index_query = text("""
+            index_query = text(
+                """
                 SELECT
                     schemaname,
                     tablename,
@@ -123,7 +124,8 @@ class DatabaseIndexOptimizer:
                 FROM pg_indexes
                 WHERE schemaname = 'public'
                 ORDER BY tablename, indexname
-            """)
+            """
+            )
 
             result = await db.execute(index_query)
             indexes = []
@@ -161,10 +163,13 @@ class DatabaseIndexOptimizer:
             self.logger.log_error(e, operation="analyze_current_indexes")
             raise
 
-    async def _update_index_usage_stats(self, db: AsyncSession, indexes: list[IndexMetrics]):
+    async def _update_index_usage_stats(
+        self, db: AsyncSession, indexes: list[IndexMetrics]
+    ):
         """Update index usage statistics from PostgreSQL"""
         try:
-            usage_query = text("""
+            usage_query = text(
+                """
                 SELECT
                     schemaname,
                     tablename,
@@ -175,7 +180,8 @@ class DatabaseIndexOptimizer:
                     pg_stat_get_last_vacuum_time(indexrelid) as last_vacuum
                 FROM pg_stat_user_indexes
                 WHERE schemaname = 'public'
-            """)
+            """
+            )
 
             result = await db.execute(usage_query)
 
@@ -251,12 +257,15 @@ class DatabaseIndexOptimizer:
                 continue
 
             recommendation = await self._create_index_recommendation(pattern, queries)
-            if recommendation and self._meets_priority_threshold(recommendation, min_priority):
+            if recommendation and self._meets_priority_threshold(
+                recommendation, min_priority
+            ):
                 recommendations.append(recommendation)
 
         # Sort by estimated impact
         recommendations.sort(
-            key=lambda x: x.estimated_improvement_ms * x.estimated_impact_queries, reverse=True
+            key=lambda x: x.estimated_improvement_ms * x.estimated_impact_queries,
+            reverse=True,
         )
 
         return recommendations
@@ -319,7 +328,9 @@ class DatabaseIndexOptimizer:
             table_name=best_config["table"],
             column_names=best_config["columns"],
             index_type=best_config["type"],
-            priority=self._calculate_recommendation_priority(estimated_improvement, len(queries)),
+            priority=self._calculate_recommendation_priority(
+                estimated_improvement, len(queries)
+            ),
             estimated_improvement_ms=estimated_improvement,
             estimated_impact_queries=len(queries),
             creation_sql=self._generate_index_creation_sql(best_config),
@@ -330,7 +341,9 @@ class DatabaseIndexOptimizer:
 
         return recommendation
 
-    def _extract_table_columns_from_pattern(self, pattern: str) -> list[tuple[str, list[str]]]:
+    def _extract_table_columns_from_pattern(
+        self, pattern: str
+    ) -> list[tuple[str, list[str]]]:
         """Extract table and column information from query pattern"""
         table_columns = []
 
@@ -554,7 +567,9 @@ class DatabaseIndexOptimizer:
                 f"Create {len(recommendations)} new indexes for potential {total_impact:.0f}ms improvement"
             )
         if len(underutilized) > 0:
-            analysis_recommendations.append(f"Review {len(underutilized)} underutilized indexes")
+            analysis_recommendations.append(
+                f"Review {len(underutilized)} underutilized indexes"
+            )
 
         return IndexAnalysisReport(
             total_indexes=len(current_indexes),

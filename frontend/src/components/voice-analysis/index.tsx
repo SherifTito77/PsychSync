@@ -117,7 +117,7 @@ const VoiceVideoAnalysis: React.FC = () => {
                   ) : (
                     <Button
                       onClick={stopRecording}
-                      variant="destructive"
+                      variant="danger"
                       className="flex items-center gap-2"
                     >
                       Stop Recording

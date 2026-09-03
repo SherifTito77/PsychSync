@@ -96,3 +96,22 @@ gitlab-ci/
 *.tmp
 *.temp
 .cache/
+
+# Non-essential — CRITICAL: must never leak into Docker images
+# Contains credentials, DB dumps, legacy scripts, debug artifacts
+_non_essential/
+
+# Dev data and local DB files
+data/
+*.dump
+psychsync_dev.db
+psychsync_test.db
+
+# Local virtualenv
+.venv/
+
+# Test/coverage artifacts at root level
+htmlcov/
+coverage.xml
+coverage_reports/
+sbom/

@@ -17,9 +17,9 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+import logging
 from collections.abc import Callable
 from contextlib import asynccontextmanager
-import logging
 
 from fastapi import FastAPI
 
@@ -122,7 +122,10 @@ class ApplicationFactory:
             # Log application startup
             app_factory_logger.info(
                 "Application startup completed",
-                extra={"environment": settings.ENVIRONMENT, "version": settings.APP_VERSION},
+                extra={
+                    "environment": settings.ENVIRONMENT,
+                    "version": settings.APP_VERSION,
+                },
             )
 
         except Exception as e:
@@ -192,7 +195,9 @@ class ApplicationFactory:
             from sqlalchemy.exc import SQLAlchemyError
 
             @self.app.exception_handler(RequestValidationError)
-            async def validation_exception_handler(request: Request, exc: RequestValidationError):
+            async def validation_exception_handler(
+                request: Request, exc: RequestValidationError
+            ):
                 app_factory_logger.warning(
                     f"Validation error: {exc}",
                     extra={
@@ -221,11 +226,14 @@ class ApplicationFactory:
                     },
                 )
                 return JSONResponse(
-                    status_code=exc.status_code, content={"error": exc.detail, "type": "http_error"}
+                    status_code=exc.status_code,
+                    content={"error": exc.detail, "type": "http_error"},
                 )
 
             @self.app.exception_handler(SQLAlchemyError)
-            async def database_exception_handler(request: Request, exc: SQLAlchemyError):
+            async def database_exception_handler(
+                request: Request, exc: SQLAlchemyError
+            ):
                 app_factory_logger.error(
                     f"Database error: {exc}",
                     extra={
@@ -236,7 +244,10 @@ class ApplicationFactory:
                 )
                 return JSONResponse(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    content={"error": "Database operation failed", "type": "database_error"},
+                    content={
+                        "error": "Database operation failed",
+                        "type": "database_error",
+                    },
                 )
 
             @self.app.exception_handler(Exception)
@@ -292,7 +303,9 @@ class ApplicationFactory:
 
                     overall_status = (
                         "healthy"
-                        if all(status == "healthy" for status in services_status.values())
+                        if all(
+                            status == "healthy" for status in services_status.values()
+                        )
                         else "degraded"
                     )
 
@@ -335,7 +348,9 @@ class ApplicationFactory:
 
     def add_middleware(self, middleware_class: Callable, **kwargs):
         """Add custom middleware to the application"""
-        self._middleware_stack.append(lambda app: app.add_middleware(middleware_class, **kwargs))
+        self._middleware_stack.append(
+            lambda app: app.add_middleware(middleware_class, **kwargs)
+        )
         app_factory_logger.info(f"Custom middleware added: {middleware_class.__name__}")
 
     def add_route(self, route_func: Callable):

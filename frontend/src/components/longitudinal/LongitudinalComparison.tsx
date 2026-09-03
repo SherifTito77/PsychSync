@@ -17,7 +17,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   LineChart,
@@ -143,9 +143,9 @@ const LongitudinalComparison: React.FC<LongitudinalComparisonProps> = ({
   users = [],
   metrics = [],
   timeRange = '90d',
-  showChangePoints = true,
-  showForecasts = true,
-  showTrends = true,
+  showChangePoints: propShowChangePoints = true,
+  showForecasts: propShowForecasts = true,
+  showTrends: propShowTrends = true,
   className
 }) => {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -154,6 +154,9 @@ const LongitudinalComparison: React.FC<LongitudinalComparisonProps> = ({
   const [showStatisticalTests, setShowStatisticalTests] = useState(true);
   const [highlightChanges, setHighlightChanges] = useState(true);
   const [viewType, setViewType] = useState<'line' | 'area' | 'bar'>('line');
+  const [showChangePoints, setShowChangePoints] = useState(propShowChangePoints);
+  const [showForecasts, setShowForecasts] = useState(propShowForecasts);
+  const [showTrends, setShowTrends] = useState(propShowTrends);
 
   // TODO(human): Fetch actual data from API
   const mockData: LongitudinalData[] = useMemo(() => {
@@ -488,15 +491,16 @@ const LongitudinalComparison: React.FC<LongitudinalComparisonProps> = ({
               <Tooltip content={<CustomTooltip />} />
               <Legend />
 
-              {usersToRender.map((userId, index) => (
-                <Bar
-                  key={userId}
-                  dataKey="value"
-                  data={processedData.filter(d => d.user_id === userId)}
-                  fill={COLORS[index % COLORS.length]}
-                  name={users.find(u => u.id === userId)?.name || `User ${index + 1}`}
-                />
-              ))}
+              {usersToRender.map((userId, index) => {
+                return (
+                  <Bar
+                    key={userId}
+                    dataKey="value"
+                    fill={COLORS[index % COLORS.length]}
+                    name={users.find(u => u.id === userId)?.name || `User ${index + 1}`}
+                  />
+                );
+              })}
             </BarChart>
           </ResponsiveContainer>
         );

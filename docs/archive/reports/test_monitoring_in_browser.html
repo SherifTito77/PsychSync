@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Monitoring API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+        .result { margin: 20px 0; padding: 15px; background: #f0f0f0; border-radius: 5px; }
+        pre { background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .error { background: #ffe0e0; }
+        .success { background: #e0ffe0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Performance Monitoring API Test</h1>
+    <p>This page tests the monitoring endpoints using your browser's authentication.</p>
+
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testPerformance()">Test Performance Endpoint</button>
+    <button onclick="testSlowQueries()">Test Slow Queries</button>
+
+    <div id="result" class="result" style="display:none;">
+        <h3>Result:</h3>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        async function testHealth() {
+            await testEndpoint('/api/v1/monitoring/health');
+        }
+
+        async function testPerformance() {
+            await testEndpoint('/api/v1/monitoring/performance');
+        }
+
+        async function testSlowQueries() {
+            await testEndpoint('/api/v1/monitoring/slow-queries');
+        }
+
+        async function testEndpoint(endpoint) {
+            const resultDiv = document.getElementById('result');
+            const output = document.getElementById('output');
+
+            resultDiv.style.display = 'block';
+            output.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(`http://localhost:8000${endpoint}`);
+                const data = await response.json();
+
+                output.textContent = JSON.stringify(data, null, 2);
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.className = 'result error';
+                    output.textContent += '\n\nStatus: ' + response.status;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                output.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

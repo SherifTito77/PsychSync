@@ -1,0 +1,245 @@
+# Prometheus Alert Rules for PsychSync Integration Monitoring
+#
+# These rules trigger alerts based on integration health metrics
+#
+# Usage:
+# Include this file in your prometheus.yml:
+#   rule_files:
+#     - 'alerts_integration.yml'
+#
+# Alert Severity Levels:
+#   - info: Informational, no immediate action required
+#   - warning: Warning, investigate soon
+#   - critical: Critical, immediate action required
+#   - emergency: Emergency, service impact
+
+groups:
+  - name: psychsync_integration_alerts
+    interval: 30s
+    rules:
+      # ============================================================
+      # DATABASE ALERTS
+      # ============================================================
+
+      # Database circuit breaker is OPEN
+      - alert: DatabaseCircuitBreakerOpen
+        expr: psychsync_db_circuit_breaker_open == 1
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+          component: circuit-breaker
+        annotations:
+          summary: "Database circuit breaker is OPEN"
+          description: "Database circuit breaker has been open for more than 1 minute. Requests are being rejected."
+          runbook_url: "https://docs.psychsync.io/runbooks/database-circuit-breaker"
+
+      # Database success rate below threshold
+      - alert: DatabaseLowSuccessRate
+        expr: psychsync_db_success_rate < 95
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          component: performance
+        annotations:
+          summary: "Database success rate below 95%"
+          description: "Database success rate is {{ $value }}% for the last 5 minutes."
+
+      # Database high failure rate
+      - alert: DatabaseHighFailureRate
+        expr: (100 - psychsync_db_success_rate) > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: database
+          component: availability
+        annotations:
+          summary: "Database failure rate above 10%"
+          description: "Database failure rate is {{ $value }}% for the last 2 minutes."
+
+      # Database response time degradation
+      - alert: DatabaseSlowResponse
+        expr: psychsync_db_avg_response_time_ms > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+          component: performance
+        annotations:
+          summary: "Database response time degraded"
+          description: "Database average response time is {{ $value }}ms (threshold: 500ms)."
+
+      # ============================================================
+      # REDIS ALERTS
+      # ============================================================
+
+      # Redis circuit breaker is OPEN
+      - alert: RedisCircuitBreakerOpen
+        expr: psychsync_redis_circuit_breaker_open == 1
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+          component: circuit-breaker
+        annotations:
+          summary: "Redis circuit breaker is OPEN"
+          description: "Redis circuit breaker has been open for more than 1 minute. Cache operations are failing."
+          runbook_url: "https://docs.psychsync.io/runbooks/redis-circuit-breaker"
+
+      # Redis success rate below threshold
+      - alert: RedisLowSuccessRate
+        expr: psychsync_redis_success_rate < 90
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          component: performance
+        annotations:
+          summary: "Redis success rate below 90%"
+          description: "Redis success rate is {{ $value }}% for the last 5 minutes."
+
+      # Redis response time degradation
+      - alert: RedisSlowResponse
+        expr: psychsync_redis_avg_response_time_ms > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+          component: performance
+        annotations:
+          summary: "Redis response time degraded"
+          description: "Redis average response time is {{ $value }}ms (threshold: 100ms)."
+
+      # ============================================================
+      # HRIS CONNECTOR ALERTS
+      # ============================================================
+
+      # HRIS connector circuit breaker OPEN (for any connector)
+      - alert: HRISCircuitBreakerOpen
+        expr: psychsync_hris_circuit_breaker_open == 1
+        for: 2m
+        labels:
+          severity: warning
+          service: hris
+          component: circuit-breaker
+        annotations:
+          summary: "HRIS connector circuit breaker is OPEN"
+          description: "HRIS connector '{{ $labels.connector }}' circuit breaker has been open for more than 2 minutes."
+          runbook_url: "https://docs.psychsync.io/runbooks/hris-circuit-breaker"
+
+      # HRIS connector low success rate
+      - alert: HRISLowSuccessRate
+        expr: psychsync_hris_success_rate < 85
+        for: 10m
+        labels:
+          severity: warning
+          service: hris
+          component: availability
+        annotations:
+          summary: "HRIS connector success rate low"
+          description: "HRIS connector '{{ $labels.connector }}' success rate is {{ $value }}% for the last 10 minutes."
+
+      # HRIS connector high failure rate
+      - alert: HRISHighFailureRate
+        expr: (100 - psychsync_hris_success_rate) > 20
+        for: 5m
+        labels:
+          severity: critical
+          service: hris
+          component: availability
+        annotations:
+          summary: "HRIS connector high failure rate"
+          description: "HRIS connector '{{ $labels.connector }}' failure rate is {{ $value }}% for the last 5 minutes."
+
+      # HRIS connector slow response
+      - alert: HRISSlowResponse
+        expr: psychsync_hris_avg_response_time_ms > 2000
+        for: 10m
+        labels:
+          severity: warning
+          service: hris
+          component: performance
+        annotations:
+          summary: "HRIS connector slow response"
+          description: "HRIS connector '{{ $labels.connector }}' average response time is {{ $value }}ms (threshold: 2000ms)."
+
+      # ============================================================
+      # INTEGRATION HEALTH SUMMARY ALERTS
+      # ============================================================
+
+      # Overall integration health degraded
+      - alert: IntegrationHealthDegraded
+        expr: |
+          (
+            (psychsync_integration_healthy_count / psychsync_integration_total_count) < 0.5
+            and psychsync_integration_total_count > 0
+          )
+        for: 5m
+        labels:
+          severity: warning
+          service: integration
+          component: health
+        annotations:
+          summary: "Integration health degraded"
+          description: "Less than 50% of integrations are healthy ({{ $value }}% healthy)."
+
+      # Overall integration health critical
+      - alert: IntegrationHealthCritical
+        expr: |
+          (
+            (psychsync_integration_healthy_count / psychsync_integration_total_count) < 0.25
+            and psychsync_integration_total_count > 0
+          )
+        for: 2m
+        labels:
+          severity: critical
+          service: integration
+          component: health
+        annotations:
+          summary: "Integration health critical"
+          description: "Less than 25% of integrations are healthy ({{ $value }}% healthy). Immediate action required."
+
+      # High number of degraded integrations
+      - alert: TooManyDegradedIntegrations
+        expr: psychsync_integration_degraded_count > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: integration
+          component: health
+        annotations:
+          summary: "Multiple integrations degraded"
+          description: "{{ $value }} integrations are in degraded state."
+
+      # ============================================================
+      # RATE LIMITING & THROTTLING ALERTS
+      # ============================================================
+
+      # High retry rate indicates issues
+      - alert: HighRetryRate
+        expr: |
+          rate(psychsync_db_retried_calls[5m]) > 10
+          or rate(psychsync_redis_retried_calls[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: integration
+          component: resilience
+        annotations:
+          summary: "High retry rate detected"
+          description: "High rate of retries indicates underlying issues with dependencies."
+
+      # Circuit breaker frequently opening
+      - alert: CircuitBreakerFlapping
+        expr: |
+          rate(psychsync_db_circuit_breaker_opens[1h]) > 0.1
+          or rate(psychsync_redis_circuit_breaker_opens[1h]) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          service: integration
+          component: circuit-breaker
+        annotations:
+          summary: "Circuit breaker flapping"
+          description: "Circuit breaker is opening frequently (more than 6 times per hour). Check for unstable dependencies."

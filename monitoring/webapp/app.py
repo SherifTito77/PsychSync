@@ -4,25 +4,25 @@ PsychSync Monitoring Web Application
 Web-based interface for easy monitoring setup and business intelligence
 """
 
-import os
-import json
 import asyncio
+import json
 import logging
+import os
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, HttpUrl, validator
 import aiohttp
 import yaml
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, HttpUrl, validator
 
 # Import pricing and subscription services
-from services.pricing_service import pricing_service, SubscriptionTier, BillingCycle
+from services.pricing_service import BillingCycle, SubscriptionTier, pricing_service
 from services.subscription_service import subscription_service
 from services.upgrade_recommendation_service import upgrade_recommendation_service
 
@@ -184,7 +184,7 @@ class PsychSyncAPI:
                         if response.status == 200:
                             # Could parse OpenAPI spec here for more endpoints
                             pass
-                except:
+                except Exception as e:
                     pass
 
             # Add standard endpoints if base app is accessible

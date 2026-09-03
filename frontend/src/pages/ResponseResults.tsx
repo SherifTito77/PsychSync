@@ -22,7 +22,7 @@ const ResponseResults: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      const responseData = await responseService.getResponse(parseInt(responseId));
+      const responseData = await responseService.getResponse(responseId);
       setResponse(responseData);
       const assessmentData = await assessmentService.getAssessment(
         responseData.assessment_id

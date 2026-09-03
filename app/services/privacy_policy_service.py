@@ -2,8 +2,8 @@
 Privacy Policy Service with Versioning and Management
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
@@ -42,7 +42,9 @@ class UserConsent(Base):
     id = Column(UUID(as_uuid=True), primary_key=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     policy_version = Column(String(20), nullable=False)
-    consent_type = Column(String(50), nullable=False)  # data_processing, marketing, analytics
+    consent_type = Column(
+        String(50), nullable=False
+    )  # data_processing, marketing, analytics
     granted = Column(Boolean, nullable=False)
     granted_at = Column(DateTime, default=datetime.utcnow)
     ip_address = Column(String(45))
@@ -89,7 +91,9 @@ class PrivacyPolicyService:
         """
         try:
             # Check if version already exists
-            existing = db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
+            existing = (
+                db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
+            )
 
             if existing:
                 raise ValueError(f"Privacy policy version {version} already exists")
@@ -141,7 +145,9 @@ class PrivacyPolicyService:
             db.query(PrivacyPolicy).update({"is_active": False})
 
             # Activate specified version
-            policy = db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
+            policy = (
+                db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
+            )
 
             if not policy:
                 raise ValueError(f"Privacy policy version {version} not found")
@@ -179,10 +185,14 @@ class PrivacyPolicyService:
             "created_at": policy.created_at.isoformat(),
         }
 
-    async def get_policy_version(self, db: Session, version: str) -> dict[str, Any] | None:
+    async def get_policy_version(
+        self, db: Session, version: str
+    ) -> dict[str, Any] | None:
         """Get a specific privacy policy version"""
 
-        policy = db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
+        policy = (
+            db.query(PrivacyPolicy).filter(PrivacyPolicy.version == version).first()
+        )
 
         if not policy:
             return None
@@ -239,7 +249,10 @@ class PrivacyPolicyService:
 
             # Withdraw existing consent for this type
             db.query(UserConsent).filter(
-                and_(UserConsent.user_id == user_id, UserConsent.consent_type == consent_type)
+                and_(
+                    UserConsent.user_id == user_id,
+                    UserConsent.consent_type == consent_type,
+                )
             ).update({"withdrawn_at": datetime.utcnow()})
 
             # Create new consent record
@@ -288,12 +301,16 @@ class PrivacyPolicyService:
                 "policy_version": consent.policy_version,
                 "granted": consent.granted,
                 "granted_at": consent.granted_at.isoformat(),
-                "withdrawn_at": consent.withdrawn_at.isoformat() if consent.withdrawn_at else None,
+                "withdrawn_at": (
+                    consent.withdrawn_at.isoformat() if consent.withdrawn_at else None
+                ),
             }
             for consent in consents
         ]
 
-    async def check_user_consent(self, db: Session, user_id: str, consent_type: str) -> bool:
+    async def check_user_consent(
+        self, db: Session, user_id: str, consent_type: str
+    ) -> bool:
         """Check if user has granted specific consent"""
 
         consent = (
@@ -311,7 +328,9 @@ class PrivacyPolicyService:
 
         return consent is not None
 
-    async def get_consent_summary(self, db: Session, policy_version: str = None) -> dict[str, Any]:
+    async def get_consent_summary(
+        self, db: Session, policy_version: str = None
+    ) -> dict[str, Any]:
         """Get summary of user consents for analytics"""
 
         query = db.query(UserConsent)

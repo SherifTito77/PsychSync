@@ -4,22 +4,22 @@ LSAS (Social Anxiety), EAT-26 (Eating Disorders), Y-BOCS (OCD)
 
 These scorers extend the existing clinical screening infrastructure
 """
-from typing import Dict, List, Optional
+
 from dataclasses import dataclass
 from enum import Enum
-
+from typing import Dict, List, Optional
 
 # Import from existing module to maintain consistency
 from app.services.clinical.additional_scorers import (
-    ScoringResult,
     RiskLevel,
-    SeverityLevel
+    ScoringResult,
+    SeverityLevel,
 )
-
 
 # ============================================================================
 # LSAS - LIEBOWITZ SOCIAL ANXIETY SCALE
 # ============================================================================
+
 
 class LSASScorer:
     """
@@ -33,8 +33,21 @@ class LSASScorer:
     ITEMS = 24
 
     SUBSCALES = {
-        'performance': [1, 5, 6, 7, 9, 11, 13, 17, 19, 22, 23, 24],  # Speaking/performing
-        'social': [2, 3, 4, 8, 10, 12, 14, 15, 16, 18, 20, 21]  # Social interaction
+        "performance": [
+            1,
+            5,
+            6,
+            7,
+            9,
+            11,
+            13,
+            17,
+            19,
+            22,
+            23,
+            24,
+        ],  # Speaking/performing
+        "social": [2, 3, 4, 8, 10, 12, 14, 15, 16, 18, 20, 21],  # Social interaction
     }
 
     @staticmethod
@@ -56,15 +69,15 @@ class LSASScorer:
         social_score = 0
 
         for item_num in range(1, LSASScorer.ITEMS + 1):
-            item_key = f'item_{item_num}'
+            item_key = f"item_{item_num}"
             if item_key in responses:
-                fear = responses[item_key].get('fear', 0)
-                avoidance = responses[item_key].get('avoidance', 0)
+                fear = responses[item_key].get("fear", 0)
+                avoidance = responses[item_key].get("avoidance", 0)
 
                 total_fear += fear
                 total_avoidance += avoidance
 
-                if item_num in LSASScorer.SUBSCALES['performance']:
+                if item_num in LSASScorer.SUBSCALES["performance"]:
                     performance_score += fear + avoidance
                 else:
                     social_score += fear + avoidance
@@ -105,10 +118,10 @@ class LSASScorer:
             risk_flags.append("PERFORMANCE_ANXIETY_DOMINANT")
 
         subscales = {
-            'total_fear': total_fear,
-            'total_avoidance': total_avoidance,
-            'performance_anxiety': performance_score,
-            'social_interaction_anxiety': social_score
+            "total_fear": total_fear,
+            "total_avoidance": total_avoidance,
+            "performance_anxiety": performance_score,
+            "social_interaction_anxiety": social_score,
         }
 
         interpretation = (
@@ -117,7 +130,9 @@ class LSASScorer:
             f"Performance situations: {performance_score}, Social situations: {social_score}."
         )
 
-        recommendations = LSASScorer._get_recommendations(severity, total_score, subscales)
+        recommendations = LSASScorer._get_recommendations(
+            severity, total_score, subscales
+        )
 
         return ScoringResult(
             total_score=total_score,
@@ -127,7 +142,7 @@ class LSASScorer:
             interpretation=interpretation,
             recommendations=recommendations,
             crisis_alert=crisis_alert,
-            risk_flags=risk_flags
+            risk_flags=risk_flags,
         )
 
     @staticmethod
@@ -139,7 +154,7 @@ class LSASScorer:
                 "Consider medication evaluation (SSRI/SNRI)",
                 "Gradual exposure therapy to feared situations",
                 "Social skills training may be beneficial",
-                "Address isolation and avoidance patterns"
+                "Address isolation and avoidance patterns",
             ]
         elif score >= 80:
             return [
@@ -147,7 +162,7 @@ class LSASScorer:
                 "CBT with exposure therapy highly effective",
                 "Consider group therapy for social anxiety",
                 "Medication evaluation may be helpful",
-                "Practice relaxation techniques before social situations"
+                "Practice relaxation techniques before social situations",
             ]
         elif score >= 55:
             return [
@@ -155,20 +170,21 @@ class LSASScorer:
                 "CBT techniques for anxiety management",
                 "Gradual exposure to feared situations",
                 "Mindfulness and relaxation practices",
-                "Social skills development"
+                "Social skills development",
             ]
         else:
             return [
                 "Mild symptoms detected",
                 "Self-help resources for social confidence",
                 "Continue monitoring symptoms",
-                "Seek help if symptoms worsen"
+                "Seek help if symptoms worsen",
             ]
 
 
 # ============================================================================
 # EAT-26 - EATING ATTITUDES TEST
 # ============================================================================
+
 
 class EAT26Scorer:
     """
@@ -187,13 +203,15 @@ class EAT26Scorer:
 
     # Subscales
     SUBSCALES = {
-        'dieting': [1, 6, 7, 10, 11, 12, 14, 16, 17, 22, 23, 24, 26],
-        'bulimia': [3, 4, 9, 18, 21, 25],
-        'oral_control': [2, 5, 8, 13, 15, 19, 20]
+        "dieting": [1, 6, 7, 10, 11, 12, 14, 16, 17, 22, 23, 24, 26],
+        "bulimia": [3, 4, 9, 18, 21, 25],
+        "oral_control": [2, 5, 8, 13, 15, 19, 20],
     }
 
     @staticmethod
-    def score(responses: Dict[int, int], behavioral_questions: Optional[Dict[str, any]] = None) -> ScoringResult:
+    def score(
+        responses: Dict[int, int], behavioral_questions: Optional[Dict[str, any]] = None
+    ) -> ScoringResult:
         """
         Score EAT-26
 
@@ -211,11 +229,7 @@ class EAT26Scorer:
 
         # Score main items
         total_score = 0
-        subscale_scores = {
-            'dieting': 0,
-            'bulimia': 0,
-            'oral_control': 0
-        }
+        subscale_scores = {"dieting": 0, "bulimia": 0, "oral_control": 0}
 
         for item_num in range(1, EAT26Scorer.ITEMS + 1):
             if item_num in responses:
@@ -247,12 +261,14 @@ class EAT26Scorer:
         if behavioral_questions is None:
             behavioral_questions = {}
 
-        behavioral_risk = EAT26Scorer._evaluate_behavioral_questions(behavioral_questions)
+        behavioral_risk = EAT26Scorer._evaluate_behavioral_questions(
+            behavioral_questions
+        )
 
         # Determine referral need
         referral_indicated = (
-            total_score >= EAT26Scorer.REFERRAL_THRESHOLD or
-            behavioral_risk['high_risk']
+            total_score >= EAT26Scorer.REFERRAL_THRESHOLD
+            or behavioral_risk["high_risk"]
         )
 
         if referral_indicated:
@@ -271,17 +287,19 @@ class EAT26Scorer:
         risk_flags = []
         if total_score >= EAT26Scorer.REFERRAL_THRESHOLD:
             risk_flags.append("EATING_DISORDER_LIKELY")
-        if behavioral_risk['purging']:
+        if behavioral_risk["purging"]:
             risk_flags.append("PURGING_BEHAVIORS")
             crisis_alert = True
-        if behavioral_risk['severe_restriction']:
+        if behavioral_risk["severe_restriction"]:
             risk_flags.append("SEVERE_DIETARY_RESTRICTION")
 
         interpretation = EAT26Scorer._generate_interpretation(
             total_score, subscale_scores, behavioral_risk, referral_indicated
         )
 
-        recommendations = EAT26Scorer._get_recommendations(referral_indicated, behavioral_risk)
+        recommendations = EAT26Scorer._get_recommendations(
+            referral_indicated, behavioral_risk
+        )
 
         return ScoringResult(
             total_score=total_score,
@@ -291,7 +309,7 @@ class EAT26Scorer:
             interpretation=interpretation,
             recommendations=recommendations,
             crisis_alert=crisis_alert,
-            risk_flags=risk_flags
+            risk_flags=risk_flags,
         )
 
     @staticmethod
@@ -299,28 +317,37 @@ class EAT26Scorer:
         """Evaluate behavioral risk factors"""
 
         purging = (
-            behavioral.get('vomiting', 'never') != 'never' or
-            behavioral.get('laxatives', 'never') != 'never'
+            behavioral.get("vomiting", "never") != "never"
+            or behavioral.get("laxatives", "never") != "never"
         )
 
-        binge_eating = behavioral.get('binge_eating', 'never') not in ['never', 'less_than_once_month']
+        binge_eating = behavioral.get("binge_eating", "never") not in [
+            "never",
+            "less_than_once_month",
+        ]
 
-        excessive_exercise = behavioral.get('exercise', 'never') in ['2-6_times_week', 'daily', 'more_than_daily']
+        excessive_exercise = behavioral.get("exercise", "never") in [
+            "2-6_times_week",
+            "daily",
+            "more_than_daily",
+        ]
 
-        severe_restriction = behavioral.get('weight_loss_6months', False)
+        severe_restriction = behavioral.get("weight_loss_6months", False)
 
         high_risk = purging or (binge_eating and severe_restriction)
 
         return {
-            'purging': purging,
-            'binge_eating': binge_eating,
-            'excessive_exercise': excessive_exercise,
-            'severe_restriction': severe_restriction,
-            'high_risk': high_risk
+            "purging": purging,
+            "binge_eating": binge_eating,
+            "excessive_exercise": excessive_exercise,
+            "severe_restriction": severe_restriction,
+            "high_risk": high_risk,
         }
 
     @staticmethod
-    def _generate_interpretation(score: int, subscales: Dict, behavioral: Dict, referral: bool) -> str:
+    def _generate_interpretation(
+        score: int, subscales: Dict, behavioral: Dict, referral: bool
+    ) -> str:
         interpretation = f"EAT-26 Score: {score}. "
 
         if referral:
@@ -336,23 +363,25 @@ class EAT26Scorer:
         interpretation += f"Primary concerns: {dominant.replace('_', ' ')}. "
 
         # Behavioral flags
-        if behavioral.get('purging'):
-            interpretation += "⚠️ PURGING BEHAVIORS REPORTED - Medical evaluation urgent. "
-        if behavioral.get('binge_eating'):
+        if behavioral.get("purging"):
+            interpretation += (
+                "⚠️ PURGING BEHAVIORS REPORTED - Medical evaluation urgent. "
+            )
+        if behavioral.get("binge_eating"):
             interpretation += "Binge eating patterns detected. "
 
         return interpretation
 
     @staticmethod
     def _get_recommendations(referral: bool, behavioral: Dict) -> List[str]:
-        if referral or behavioral.get('high_risk'):
+        if referral or behavioral.get("high_risk"):
             return [
                 "URGENT: Eating disorder specialist evaluation required",
                 "Medical assessment recommended (complications screening)",
                 "Individual therapy focusing on eating behaviors",
                 "Nutritional counseling with registered dietitian",
                 "Consider family-based therapy if adolescent",
-                "If purging: Immediate medical evaluation for electrolyte imbalance"
+                "If purging: Immediate medical evaluation for electrolyte imbalance",
             ]
         else:
             return [
@@ -360,13 +389,14 @@ class EAT26Scorer:
                 "Consider preventive counseling if concerns develop",
                 "Maintain balanced approach to nutrition",
                 "Seek help if symptoms worsen",
-                "Body image work may be beneficial"
+                "Body image work may be beneficial",
             ]
 
 
 # ============================================================================
 # Y-BOCS - YALE-BROWN OBSESSIVE COMPULSIVE SCALE
 # ============================================================================
+
 
 class YBOCSScorer:
     """
@@ -419,7 +449,9 @@ class YBOCSScorer:
             category = "Extreme OCD"
 
         # Crisis alert if severe functional impairment
-        interference_score = responses.get(2, 0) + responses.get(7, 0)  # Interference items
+        interference_score = responses.get(2, 0) + responses.get(
+            7, 0
+        )  # Interference items
         crisis_alert = total_score >= 32 or interference_score >= 7
 
         risk_flags = []
@@ -433,13 +465,13 @@ class YBOCSScorer:
             risk_flags.append("COMPULSION_DOMINANT")
 
         subscales = {
-            'obsessions_severity': obsessions_score,
-            'compulsions_severity': compulsions_score,
-            'time_consumed': responses.get(1, 0) + responses.get(6, 0),
-            'interference': interference_score,
-            'distress': responses.get(3, 0) + responses.get(8, 0),
-            'resistance': responses.get(4, 0) + responses.get(9, 0),
-            'control': responses.get(5, 0) + responses.get(10, 0)
+            "obsessions_severity": obsessions_score,
+            "compulsions_severity": compulsions_score,
+            "time_consumed": responses.get(1, 0) + responses.get(6, 0),
+            "interference": interference_score,
+            "distress": responses.get(3, 0) + responses.get(8, 0),
+            "resistance": responses.get(4, 0) + responses.get(9, 0),
+            "control": responses.get(5, 0) + responses.get(10, 0),
         }
 
         interpretation = (
@@ -464,7 +496,7 @@ class YBOCSScorer:
             interpretation=interpretation,
             recommendations=recommendations,
             crisis_alert=crisis_alert,
-            risk_flags=risk_flags
+            risk_flags=risk_flags,
         )
 
     @staticmethod
@@ -477,7 +509,7 @@ class YBOCSScorer:
                 "Psychiatric medication evaluation (SSRI at high doses)",
                 "Consider intensive outpatient program (IOP)",
                 "Family involvement in treatment beneficial",
-                "Address functional impairment in daily activities"
+                "Address functional impairment in daily activities",
             ]
         elif score >= 24:
             return [
@@ -486,7 +518,7 @@ class YBOCSScorer:
                 "Medication evaluation (SSRI/clomipramine)",
                 "Weekly therapy sessions recommended",
                 "Cognitive therapy for obsessional thoughts",
-                "Address impact on work/school/relationships"
+                "Address impact on work/school/relationships",
             ]
         elif score >= 16:
             return [
@@ -494,21 +526,21 @@ class YBOCSScorer:
                 "ERP therapy effective for moderate symptoms",
                 "Consider medication if therapy alone insufficient",
                 "Self-help resources for OCD management",
-                "Monitor symptom progression"
+                "Monitor symptom progression",
             ]
         elif score >= 8:
             return [
                 "Consider evaluation if symptoms bothersome",
                 "Self-help strategies for intrusive thoughts",
                 "CBT techniques may be helpful",
-                "Monitor for symptom worsening"
+                "Monitor for symptom worsening",
             ]
         else:
             return [
                 "Subclinical symptoms",
                 "No treatment needed at this time",
                 "Practice stress management",
-                "Seek help if symptoms increase"
+                "Seek help if symptoms increase",
             ]
 
 
@@ -517,9 +549,9 @@ class YBOCSScorer:
 # ============================================================================
 
 ADVANCED_SCORER_REGISTRY = {
-    'LSAS': LSASScorer,
-    'EAT26': EAT26Scorer,
-    'YBOCS': YBOCSScorer,
+    "LSAS": LSASScorer,
+    "EAT26": EAT26Scorer,
+    "YBOCS": YBOCSScorer,
 }
 
 

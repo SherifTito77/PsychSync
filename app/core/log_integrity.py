@@ -3,17 +3,19 @@ Log Integrity Checker - Hash-based verification for log files
 Prevents log tampering by maintaining cryptographic hashes
 """
 
-from datetime import datetime
 import fcntl
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 
 
 class LogIntegrityChecker:
     """Verifies log file integrity using cryptographic hashes"""
 
-    def __init__(self, log_dir: str = "logs", integrity_file: str = "logs/integrity.json"):
+    def __init__(
+        self, log_dir: str = "logs", integrity_file: str = "logs/integrity.json"
+    ):
         self.log_dir = Path(log_dir)
         self.integrity_file = Path(integrity_file)
         self.lock_file = self.log_dir / ".integrity.lock"
@@ -41,7 +43,9 @@ class LogIntegrityChecker:
                 integrity_data["files"][log_file.name] = {
                     "sha256": file_hash,
                     "size": file_size,
-                    "last_modified": datetime.fromtimestamp(log_file.stat().st_mtime).isoformat(),
+                    "last_modified": datetime.fromtimestamp(
+                        log_file.stat().st_mtime
+                    ).isoformat(),
                 }
             except Exception as e:
                 print(f"Warning: Could not hash {log_file.name}: {e}")
@@ -139,15 +143,21 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Log Integrity Checker")
-    parser.add_argument("action", choices=["create", "verify", "check"], help="Action to perform")
+    parser.add_argument(
+        "action", choices=["create", "verify", "check"], help="Action to perform"
+    )
     parser.add_argument("--log-dir", default="logs", help="Log directory path")
     parser.add_argument(
-        "--integrity-file", default="logs/integrity.json", help="Integrity state file path"
+        "--integrity-file",
+        default="logs/integrity.json",
+        help="Integrity state file path",
     )
 
     args = parser.parse_args()
 
-    checker = LogIntegrityChecker(log_dir=args.log_dir, integrity_file=args.integrity_file)
+    checker = LogIntegrityChecker(
+        log_dir=args.log_dir, integrity_file=args.integrity_file
+    )
 
     if args.action == "create":
         success = checker.create_baseline()

@@ -1,0 +1,200 @@
+{
+  "config_files_found": 16,
+  "config_files": [
+    "nginx.conf",
+    "deployment/nginx.prod.conf",
+    "docker-compose/production/nginx/nginx.conf",
+    ".venv/lib/python3.14/site-packages/certifi/cacert.pem",
+    ".venv/lib/python3.14/site-packages/pip/_vendor/certifi/cacert.pem",
+    "app/.venv/lib/python3.12/site-packages/pip/_vendor/certifi/cacert.pem",
+    "certs/psychsync.crt",
+    "package.json.backup.key",
+    "psychsync_backup.sql.key",
+    "migrations/010_add_critical_performance_indexes.py.bak.key"
+  ],
+  "certificates": [
+    {
+      "file": ".venv/lib/python3.14/site-packages/certifi/cacert.pem",
+      "error": "startswith first arg must be bytes or a tuple of bytes, not str",
+      "risk_level": "HIGH"
+    },
+    {
+      "file": ".venv/lib/python3.14/site-packages/pip/_vendor/certifi/cacert.pem",
+      "error": "startswith first arg must be bytes or a tuple of bytes, not str",
+      "risk_level": "HIGH"
+    },
+    {
+      "file": "app/.venv/lib/python3.12/site-packages/pip/_vendor/certifi/cacert.pem",
+      "error": "startswith first arg must be bytes or a tuple of bytes, not str",
+      "risk_level": "HIGH"
+    },
+    {
+      "file": "certs/psychsync.crt",
+      "error": "startswith first arg must be bytes or a tuple of bytes, not str",
+      "risk_level": "HIGH"
+    }
+  ],
+  "certificates_with_issues": 4,
+  "application_tls": {
+    "tls_enabled": false,
+    "http_configured": true,
+    "https_configured": false,
+    "certificate_files": [],
+    "tls_versions": [
+      "https"
+    ],
+    "cipher_suites": [],
+    "security_issues": [
+      "Plain HTTP configuration detected",
+      "Plain HTTP configuration detected",
+      "Plain HTTP configuration detected",
+      "Plain HTTP configuration detected",
+      "TLS not configured"
+    ],
+    "risk_level": "CRITICAL"
+  },
+  "server_tests": [
+    {
+      "hostname": "localhost",
+      "port": 8000,
+      "tls_supported": false,
+      "certificate_info": null,
+      "tls_versions": [],
+      "cipher_suites": [],
+      "security_issues": [
+        "SSL/TLS Error: [SSL: RECORD_LAYER_FAILURE] record layer failure (_ssl.c:1081)"
+      ],
+      "test_timestamp": "2025-12-22T12:43:18.085604",
+      "risk_level": "HIGH"
+    },
+    {
+      "hostname": "localhost",
+      "port": 5174,
+      "tls_supported": false,
+      "certificate_info": null,
+      "tls_versions": [],
+      "cipher_suites": [],
+      "security_issues": [
+        "Connection refused"
+      ],
+      "test_timestamp": "2025-12-22T12:43:18.127916",
+      "risk_level": "HIGH"
+    },
+    {
+      "hostname": "localhost",
+      "port": 443,
+      "tls_supported": false,
+      "certificate_info": null,
+      "tls_versions": [],
+      "cipher_suites": [],
+      "security_issues": [
+        "Connection refused"
+      ],
+      "test_timestamp": "2025-12-22T12:43:18.131679",
+      "risk_level": "HIGH"
+    },
+    {
+      "hostname": "localhost",
+      "port": 8443,
+      "tls_supported": false,
+      "certificate_info": null,
+      "tls_versions": [],
+      "cipher_suites": [],
+      "security_issues": [
+        "Connection refused"
+      ],
+      "test_timestamp": "2025-12-22T12:43:18.132832",
+      "risk_level": "HIGH"
+    }
+  ],
+  "servers_with_tls_issues": 4,
+  "docker_tls": {
+    "docker_tls_configured": true,
+    "https_ports": [
+      "443"
+    ],
+    "certificate_volumes": [],
+    "security_issues": [
+      "Docker container exposes HTTP without HTTPS"
+    ],
+    "risk_level": "MEDIUM"
+  },
+  "nginx_ssl": {
+    "nginx_configured": true,
+    "ssl_directives": [
+      "ssl_protocols",
+      "ssl_ciphers",
+      "ssl_prefer_server_ciphers",
+      "ssl_session_cache",
+      "ssl_session_timeout",
+      "ssl_protocols",
+      "ssl_ciphers",
+      "ssl_prefer_server_ciphers",
+      "ssl_session_cache",
+      "ssl_session_timeout"
+    ],
+    "certificate_files": [
+      "/etc/letsencrypt/live/psychsync.com/fullchain.pem",
+      "_key /etc/letsencrypt/live/psychsync.com/privkey.pem",
+      "/etc/letsencrypt/live/psychsync.com/fullchain.pem",
+      "_key /etc/letsencrypt/live/psychsync.com/privkey.pem",
+      "/etc/ssl/certs/psychsync.com.crt",
+      "_key /etc/ssl/private/psychsync.com.key",
+      "/etc/ssl/certs/psychsync.com.crt",
+      "_key /etc/ssl/private/psychsync.com.key"
+    ],
+    "security_issues": [
+      "HTTP port 80 enabled without HTTPS redirect",
+      "HSTS header not configured",
+      "HTTP port 80 enabled without HTTPS redirect"
+    ],
+    "risk_level": "HIGH"
+  },
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "category": "Certificate Security",
+      "issue": "4 certificates have security issues",
+      "recommendation": "Update or replace vulnerable certificates, ensure proper key sizes (2048+ bits), and monitor expiry dates"
+    },
+    {
+      "priority": "HIGH",
+      "category": "Docker Security",
+      "issue": "Docker containers lack proper TLS configuration",
+      "recommendation": "Configure HTTPS ports, mount certificates properly, and implement security policies"
+    },
+    {
+      "priority": "CRITICAL",
+      "category": "Server TLS",
+      "issue": "4 servers have TLS issues",
+      "recommendation": "Configure TLS properly on all servers, ensure valid certificates, and disable insecure protocols"
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TLS Best Practices",
+      "issue": "HSTS not configured",
+      "recommendation": "Implement HTTP Strict Transport Security header with appropriate max-age"
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "TLS Best Practices",
+      "issue": "TLS 1.2/1.3 not enforced",
+      "recommendation": "Disable TLS 1.0/1.1 and enforce TLS 1.2 or higher"
+    },
+    {
+      "priority": "LOW",
+      "category": "Certificate Management",
+      "issue": "Certificate monitoring needed",
+      "recommendation": "Implement automated certificate expiry monitoring and renewal process"
+    }
+  ],
+  "summary": {
+    "total_config_files": 16,
+    "certificates_analyzed": 4,
+    "certificates_with_issues": 4,
+    "servers_tested": 4,
+    "servers_with_tls_issues": 4,
+    "recommendations_count": 6,
+    "overall_tls_security_score": 0
+  }
+}

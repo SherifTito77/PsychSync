@@ -7,8 +7,8 @@ import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 interface StreamlinedRegisterProps {
-  userRole: string;
-  challenge: string;
+  userRole?: string;
+  challenge?: string;
   onSkip?: () => void;
 }
 
@@ -65,8 +65,8 @@ const StreamlinedRegister: React.FC<StreamlinedRegisterProps> = ({
       const result = await register({
         ...formData,
         confirmPassword: formData.password, // Skip confirmation for speed
-        role: userRole,
-        primary_challenge: challenge
+        ...(userRole && { user_role: userRole }),
+        ...(challenge && { primary_challenge: challenge })
       });
 
       if (result.success) {
@@ -281,7 +281,7 @@ const StreamlinedRegister: React.FC<StreamlinedRegisterProps> = ({
           type="submit"
           disabled={isLoading}
           className="w-full flex items-center justify-center"
-          size="lg"
+          size="sm"
         >
           {isLoading ? (
             <>

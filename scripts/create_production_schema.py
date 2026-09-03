@@ -3,51 +3,53 @@
 Create production database schema from SQLAlchemy models.
 This script imports all models and creates the complete schema.
 """
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import asyncio
+
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.core.config import settings
+from app.core.database import Base
+
 # MUST import models before anything else so they register with Base.metadata
 from app.db.models import (
-    User,
-    Organization,
-    Team,
-    TeamMember,
-    Framework,
-    Assessment,
-    Question,
-    Response,
-    AssessmentResponse,
     Analytics,
     AnalyticsEvent,
-    SafetyIncident,
+    Assessment,
+    AssessmentResponse,
+    ComparativeEffectiveness,
+    Framework,
+    GrowthMilestone,
+    GrowthPotentialAnalysis,
+    GrowthTrajectory,
+    Intervention,
+    InterventionEffectiveness,
+    InterventionOutcomes,
+    InterventionParticipant,
+    Organization,
+    PostInterventionMeasurement,
+    PreInterventionMeasurement,
+    Question,
+    Response,
     SafetyFollowUpAction,
-    WellnessAssessment,
-    WellnessAlert,
+    SafetyIncident,
     SafetyResource,
     SafetyTraining,
     SafetyTrainingCompletion,
-    Intervention,
-    InterventionParticipant,
-    PreInterventionMeasurement,
-    PostInterventionMeasurement,
-    InterventionEffectiveness,
-    InterventionOutcomes,
-    ComparativeEffectiveness,
-    GrowthTrajectory,
-    TrajectoryPrediction,
-    GrowthMilestone,
-    GrowthPotentialAnalysis,
+    Team,
+    TeamMember,
     TrajectoryBenchmark,
+    TrajectoryPrediction,
     TrajectorySimulation,
+    User,
+    WellnessAlert,
+    WellnessAssessment,
 )
-
-from sqlalchemy.ext.asyncio import create_async_engine
-from app.core.database import Base
-from app.core.config import settings
-import asyncio
 
 
 async def create_schema():
@@ -63,6 +65,7 @@ async def create_schema():
     # Get table count before
     async with engine.begin() as conn:
         from sqlalchemy import text
+
         result = await conn.execute(
             text("SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public';")
         )
@@ -84,7 +87,9 @@ async def create_schema():
     # List created tables
     async with engine.begin() as conn:
         result = await conn.execute(
-            text("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN ('alembic_version', 'spatial_ref_sys') ORDER BY tablename;")
+            text(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN ('alembic_version', 'spatial_ref_sys') ORDER BY tablename;"
+            )
         )
         tables = [row[0] for row in result.fetchall()]
         print(f"Total tables created: {len(tables)}")

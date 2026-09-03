@@ -4,13 +4,14 @@ Intervention Services Revenue Expansion
 High-margin services that complement PsychSync behavioral intelligence platform
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
-from enum import Enum
 import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class ServiceType(Enum):
     COACHING = "coaching"
@@ -20,17 +21,20 @@ class ServiceType(Enum):
     ASSESSMENT_DEEP_DIVE = "assessment_deep_dive"
     TEAM_BUILDING = "team_building"
 
+
 class DeliveryMethod(Enum):
     VIRTUAL = "virtual"
     IN_PERSON = "in_person"
     HYBRID = "hybrid"
     SELF_PACED = "self_paced"
 
+
 class ServiceTier(Enum):
     FOUNDATION = "foundation"
     PROFESSIONAL = "professional"
     EXECUTIVE = "executive"
     ENTERPRISE = "enterprise"
+
 
 @dataclass
 class InterventionService:
@@ -48,6 +52,7 @@ class InterventionService:
     prerequisites: List[str]
     success_metrics: List[str]
 
+
 @dataclass
 class ServicePackage:
     id: str
@@ -59,6 +64,7 @@ class ServicePackage:
     time_commitment_weeks: int
     expected_outcomes: List[str]
 
+
 @dataclass
 class ServiceDelivery:
     service_id: str
@@ -69,6 +75,7 @@ class ServiceDelivery:
     participants: int
     customizations: Dict[str, Any]
     status: str
+
 
 class InterventionServicesEngine:
     """High-margin intervention services revenue engine"""
@@ -95,7 +102,7 @@ class InterventionServicesEngine:
                 "Improve leadership effectiveness by 30%",
                 "Reduce team conflicts under executive leadership by 40%",
                 "Enhance decision-making quality and speed",
-                "Increase team engagement scores by 20 points"
+                "Increase team engagement scores by 20 points",
             ],
             delivery_methods=[DeliveryMethod.VIRTUAL, DeliveryMethod.IN_PERSON],
             duration_hours=12,  # 12 hours total over 6 sessions
@@ -104,7 +111,11 @@ class InterventionServicesEngine:
             variable_costs=800,  # Executive coach fees
             margin_percentage=68,  # 68% margin
             prerequisites=["PsychSync Executive Assessment", "360-degree feedback"],
-            success_metrics=["Leadership effectiveness scores", "Team engagement metrics", "360-degree feedback improvement"]
+            success_metrics=[
+                "Leadership effectiveness scores",
+                "Team engagement metrics",
+                "360-degree feedback improvement",
+            ],
         )
 
         # Team Optimization Workshops
@@ -117,16 +128,24 @@ class InterventionServicesEngine:
                 "Improve team productivity by 25%",
                 "Reduce meeting time by 30%",
                 "Enhance cross-functional collaboration",
-                "Increase innovation output by 35%"
+                "Increase innovation output by 35%",
             ],
-            delivery_methods=[DeliveryMethod.IN_PERSON, DeliveryMethod.HYBRID, DeliveryMethod.VIRTUAL],
+            delivery_methods=[
+                DeliveryMethod.IN_PERSON,
+                DeliveryMethod.HYBRID,
+                DeliveryMethod.VIRTUAL,
+            ],
             duration_hours=16,  # 2-day intensive workshop
             pricing_model="per_program",
             base_price=8000,
             variable_costs=2500,  # Facilitator + materials
             margin_percentage=69,  # 69% margin
             prerequisites=["Team PsychSync Assessment", "Management buy-in"],
-            success_metrics=["Productivity metrics", "Meeting efficiency", "Innovation project completion rate"]
+            success_metrics=[
+                "Productivity metrics",
+                "Meeting efficiency",
+                "Innovation project completion rate",
+            ],
         )
 
         # Conflict Resolution Intervention
@@ -139,7 +158,7 @@ class InterventionServicesEngine:
                 "Resolve 90% of identified team conflicts",
                 "Improve team psychological safety by 40%",
                 "Reduce sick days related to stress by 25%",
-                "Enhance team communication effectiveness by 35%"
+                "Enhance team communication effectiveness by 35%",
             ],
             delivery_methods=[DeliveryMethod.IN_PERSON, DeliveryMethod.HYBRID],
             duration_hours=24,  # 3-day program + follow-up
@@ -148,7 +167,11 @@ class InterventionServicesEngine:
             variable_costs=4500,  # Senior facilitator + assessment tools
             margin_percentage=70,  # 70% margin
             prerequisites=["Conflict assessment", "Management commitment"],
-            success_metrics=["Conflict reduction metrics", "Psychological safety scores", "Employee feedback"]
+            success_metrics=[
+                "Conflict reduction metrics",
+                "Psychological safety scores",
+                "Employee feedback",
+            ],
         )
 
         # Custom Assessment Deep Dive
@@ -161,7 +184,7 @@ class InterventionServicesEngine:
                 "Industry-validated behavioral assessment framework",
                 "Role-specific success predictors",
                 "Custom talent matching algorithms",
-                "Industry benchmark database"
+                "Industry benchmark database",
             ],
             delivery_methods=[DeliveryMethod.VIRTUAL, DeliveryMethod.HYBRID],
             duration_hours=40,  # 5-week development process
@@ -170,7 +193,11 @@ class InterventionServicesEngine:
             variable_costs=8000,  # Assessment psychologist + validation study
             margin_percentage=77,  # 77% margin
             prerequisites=["Standard PsychSync implementation", "Industry data access"],
-            success_metrics=["Assessment validation scores", "Hiring prediction accuracy", "Client satisfaction"]
+            success_metrics=[
+                "Assessment validation scores",
+                "Hiring prediction accuracy",
+                "Client satisfaction",
+            ],
         )
 
         # Leadership Development Program
@@ -183,7 +210,7 @@ class InterventionServicesEngine:
                 "Develop behavioral intelligence competencies",
                 "Improve team management effectiveness by 40%",
                 "Reduce leadership-related turnover by 30%",
-                "Create internal behavioral intelligence capability"
+                "Create internal behavioral intelligence capability",
             ],
             delivery_methods=[DeliveryMethod.HYBRID, DeliveryMethod.VIRTUAL],
             duration_hours=48,  # 6 months of development
@@ -192,7 +219,11 @@ class InterventionServicesEngine:
             variable_costs=1200,  # Facilitator + materials
             margin_percentage=66,  # 66% margin
             prerequisites=["Management role", "PsychSync team assessment"],
-            success_metrics=["360-degree feedback improvement", "Team performance metrics", "Program completion rate"]
+            success_metrics=[
+                "360-degree feedback improvement",
+                "Team performance metrics",
+                "Program completion rate",
+            ],
         )
 
         # Succession Planning Service
@@ -205,7 +236,7 @@ class InterventionServicesEngine:
                 "Identify high-potential successors with 85% accuracy",
                 "Develop behavioral competency models",
                 "Create individual development plans",
-                "Reduce leadership gap risks by 60%"
+                "Reduce leadership gap risks by 60%",
             ],
             delivery_methods=[DeliveryMethod.HYBRID],
             duration_hours=32,  # 4-month consulting engagement
@@ -214,7 +245,11 @@ class InterventionServicesEngine:
             variable_costs=7500,  # Senior consultant + assessment tools
             margin_percentage=70,  # 70% margin
             prerequisites=["Executive assessment data", "Organizational structure"],
-            success_metrics=["Successor readiness scores", "Risk reduction metrics", "Executive satisfaction"]
+            success_metrics=[
+                "Successor readiness scores",
+                "Risk reduction metrics",
+                "Executive satisfaction",
+            ],
         )
 
         # Culture Transformation Program
@@ -227,7 +262,7 @@ class InterventionServicesEngine:
                 "Achieve target culture metrics in 12 months",
                 "Improve employee engagement by 30 points",
                 "Reduce cultural attrition by 40%",
-                "Enhance employer brand strength"
+                "Enhance employer brand strength",
             ],
             delivery_methods=[DeliveryMethod.HYBRID, DeliveryMethod.IN_PERSON],
             duration_hours=120,  # 12-month engagement
@@ -236,7 +271,11 @@ class InterventionServicesEngine:
             variable_costs=2500,  # Consulting team + tools
             margin_percentage=69,  # 69% margin
             prerequisites=["Executive sponsorship", "Culture assessment"],
-            success_metrics=["Culture assessment scores", "Engagement survey results", "Retention metrics"]
+            success_metrics=[
+                "Culture assessment scores",
+                "Engagement survey results",
+                "Retention metrics",
+            ],
         )
 
         return services
@@ -251,7 +290,7 @@ class InterventionServicesEngine:
                 services=[
                     self.services["team_optimization_workshop"],
                     self.services["conflict_resolution"],
-                    self.services["leadership_development"]
+                    self.services["leadership_development"],
                 ],
                 package_price=45000,
                 package_margin=68,
@@ -261,17 +300,16 @@ class InterventionServicesEngine:
                     "40% improvement in team productivity",
                     "60% reduction in team conflicts",
                     "Develop 3-5 behavioral intelligence leaders",
-                    "Sustainable team optimization capability"
-                ]
+                    "Sustainable team optimization capability",
+                ],
             ),
-
             "executive_leadership_package": ServicePackage(
                 id="executive_leadership_package",
                 name="Executive Leadership Acceleration Package",
                 services=[
                     self.services["executive_coaching"],
                     self.services["succession_planning"],
-                    self.services["assessment_deep_dive"]
+                    self.services["assessment_deep_dive"],
                 ],
                 package_price=75000,
                 package_margin=72,
@@ -281,10 +319,9 @@ class InterventionServicesEngine:
                     "Leadership effectiveness improvement of 35%",
                     "Succession pipeline for 80% of critical roles",
                     "Custom leadership assessment framework",
-                    "Reduced executive turnover by 50%"
-                ]
+                    "Reduced executive turnover by 50%",
+                ],
             ),
-
             "culture_transformation_package": ServicePackage(
                 id="culture_transformation_package",
                 name="Complete Culture Transformation Package",
@@ -292,7 +329,7 @@ class InterventionServicesEngine:
                     self.services["culture_transformation"],
                     self.services["assessment_deep_dive"],
                     self.services["leadership_development"],
-                    self.services["team_optimization_workshop"]
+                    self.services["team_optimization_workshop"],
                 ],
                 package_price=150000,
                 package_margin=70,
@@ -302,9 +339,9 @@ class InterventionServicesEngine:
                     "Complete culture transformation to target state",
                     "30-point improvement in employee engagement",
                     "40% reduction in cultural attrition",
-                    "Sustainable behavioral intelligence capability"
-                ]
-            )
+                    "Sustainable behavioral intelligence capability",
+                ],
+            ),
         }
 
     def _initialize_pricing_strategy(self) -> Dict[str, Any]:
@@ -315,19 +352,37 @@ class InterventionServicesEngine:
                 "value_based": "Price based on business outcomes delivered",
                 "tiered_premium": "Higher tiers for more strategic value",
                 "volume_discounts": "Discounts for multiple teams/departments",
-                "outcome_guarantees": "Money-back guarantees on specific outcomes"
+                "outcome_guarantees": "Money-back guarantees on specific outcomes",
             },
             "price_elasticity": {
-                "executive_coaching": {"elasticity": 0.3, "optimal_price_range": [2000, 3000]},
-                "team_workshops": {"elasticity": 0.5, "optimal_price_range": [6000, 10000]},
-                "consulting": {"elasticity": 0.2, "optimal_price_range": [15000, 35000]},
-                "training": {"elasticity": 0.7, "optimal_price_range": [2500, 5000]}
+                "executive_coaching": {
+                    "elasticity": 0.3,
+                    "optimal_price_range": [2000, 3000],
+                },
+                "team_workshops": {
+                    "elasticity": 0.5,
+                    "optimal_price_range": [6000, 10000],
+                },
+                "consulting": {
+                    "elasticity": 0.2,
+                    "optimal_price_range": [15000, 35000],
+                },
+                "training": {"elasticity": 0.7, "optimal_price_range": [2500, 5000]},
             },
             "competitive_positioning": {
-                "traditional_consulting": {"premium_percentage": 40, "value_differentiator": "Behavioral science expertise"},
-                "coaching_companies": {"premium_percentage": 20, "value_differentiator": "Data-driven approach"},
-                "training_providers": {"premium_percentage": 60, "value_differentiator": "Assessment-backed personalization"}
-            }
+                "traditional_consulting": {
+                    "premium_percentage": 40,
+                    "value_differentiator": "Behavioral science expertise",
+                },
+                "coaching_companies": {
+                    "premium_percentage": 20,
+                    "value_differentiator": "Data-driven approach",
+                },
+                "training_providers": {
+                    "premium_percentage": 60,
+                    "value_differentiator": "Assessment-backed personalization",
+                },
+            },
         }
 
     def _initialize_delivery_capabilities(self) -> Dict[str, Any]:
@@ -339,33 +394,41 @@ class InterventionServicesEngine:
                     "certifications": ["ICF", "Hogan", "MBTI"],
                     "experience_years": 10,
                     "industry_expertise": True,
-                    "hourly_rate": 300
+                    "hourly_rate": 300,
                 },
                 "workshop_facilitator": {
                     "certifications": ["Team Building", "Facilitation"],
                     "experience_years": 5,
                     "group_size_max": 25,
-                    "daily_rate": 2000
+                    "daily_rate": 2000,
                 },
                 "assessment_psychologist": {
                     "certifications": ["PhD Psychology", "Assessment Validation"],
                     "experience_years": 8,
                     "specialization": "Industrial Psychology",
-                    "project_rate": 5000
-                }
+                    "project_rate": 5000,
+                },
             },
             "delivery_infrastructure": {
                 "virtual_platforms": ["Zoom", "Microsoft Teams", "Miro"],
                 "assessment_tools": ["PsychSync Platform", "Custom Assessments"],
-                "materials_library": ["Workshop Templates", "Coaching Guides", "Assessment Reports"],
-                "quality_assurance": ["Session Recording", "Feedback Collection", "Outcome Tracking"]
+                "materials_library": [
+                    "Workshop Templates",
+                    "Coaching Guides",
+                    "Assessment Reports",
+                ],
+                "quality_assurance": [
+                    "Session Recording",
+                    "Feedback Collection",
+                    "Outcome Tracking",
+                ],
             },
             "scalability_factors": {
                 "facilitator_capacity": "20 concurrent programs per facilitator",
                 "virtual_scalability": "Unlimited with proper platform",
                 "geographic_coverage": "Global with timezone management",
-                "quality_control": "Standardized delivery templates and monitoring"
-            }
+                "quality_control": "Standardized delivery templates and monitoring",
+            },
         }
 
     def _initialize_expansion_roadmap(self) -> Dict[str, Any]:
@@ -377,50 +440,45 @@ class InterventionServicesEngine:
                 "services_to_launch": [
                     "executive_coaching",
                     "team_optimization_workshop",
-                    "conflict_resolution"
+                    "conflict_resolution",
                 ],
                 "target_revenue": 250000,
                 "investment_required": 50000,
                 "success_metrics": [
                     "10 pilot customers",
                     "85% customer satisfaction",
-                    "40% repeat business rate"
-                ]
+                    "40% repeat business rate",
+                ],
             },
             "phase_2_months_7_12": {
                 "focus": "Service package development",
                 "services_to_launch": [
                     "leadership_development",
-                    "assessment_deep_dive"
+                    "assessment_deep_dive",
                 ],
-                "packages_to_launch": [
-                    "team_excellence_package"
-                ],
+                "packages_to_launch": ["team_excellence_package"],
                 "target_revenue": 750000,
                 "investment_required": 100000,
                 "success_metrics": [
                     "25 active customers",
                     "60% margin achievement",
-                    "30% cross-sell rate"
-                ]
+                    "30% cross-sell rate",
+                ],
             },
             "phase_3_months_13_18": {
                 "focus": "Enterprise expansion",
-                "services_to_launch": [
-                    "succession_planning",
-                    "culture_transformation"
-                ],
+                "services_to_launch": ["succession_planning", "culture_transformation"],
                 "packages_to_launch": [
                     "executive_leadership_package",
-                    "culture_transformation_package"
+                    "culture_transformation_package",
                 ],
                 "target_revenue": 2000000,
                 "investment_required": 250000,
                 "success_metrics": [
                     "50 enterprise customers",
                     "70% margin achievement",
-                    "50% expansion revenue rate"
-                ]
+                    "50% expansion revenue rate",
+                ],
             },
             "phase_4_months_19_24": {
                 "focus": "Scale and optimize",
@@ -428,16 +486,16 @@ class InterventionServicesEngine:
                     "AI-powered service recommendations",
                     "Self-service workshop delivery",
                     "Partner delivery network",
-                    "International expansion"
+                    "International expansion",
                 ],
                 "target_revenue": 5000000,
                 "investment_required": 500000,
                 "success_metrics": [
                     "150 total customers",
                     "75% margin achievement",
-                    "40% partner-delivered services"
-                ]
-            }
+                    "40% partner-delivered services",
+                ],
+            },
         }
 
     def calculate_service_economics(self, service_id: str) -> Dict[str, Any]:
@@ -454,9 +512,11 @@ class InterventionServicesEngine:
         # Revenue potential
         revenue_potential = {
             "annual_max_revenue": annual_capacity["deliveries"] * service.base_price,
-            "breakeven_deliveries": service.variable_costs / (service.base_price - service.variable_costs),
+            "breakeven_deliveries": service.variable_costs
+            / (service.base_price - service.variable_costs),
             "margin_per_delivery": service.base_price - service.variable_costs,
-            "annual_margin_potential": annual_capacity["deliveries"] * (service.base_price - service.variable_costs)
+            "annual_margin_potential": annual_capacity["deliveries"]
+            * (service.base_price - service.variable_costs),
         }
 
         # Market opportunity
@@ -468,21 +528,23 @@ class InterventionServicesEngine:
                 "name": service.name,
                 "type": service.service_type.value,
                 "base_price": service.base_price,
-                "margin_percentage": service.margin_percentage
+                "margin_percentage": service.margin_percentage,
             },
             "economics": {
                 "annual_capacity": annual_capacity,
                 "revenue_potential": revenue_potential,
-                "market_opportunity": market_opportunity
+                "market_opportunity": market_opportunity,
             },
             "scalability_factors": {
                 "delivery_scalability": self._assess_delivery_scalability(service),
                 "quality_impact": self._assess_quality_impact_at_scale(service),
-                "resource_requirements": self._calculate_resource_requirements(service)
-            }
+                "resource_requirements": self._calculate_resource_requirements(service),
+            },
         }
 
-    def _calculate_annual_capacity(self, service: InterventionService) -> Dict[str, Any]:
+    def _calculate_annual_capacity(
+        self, service: InterventionService
+    ) -> Dict[str, Any]:
         """Calculate annual delivery capacity for a service"""
 
         # Assume 1 facilitator can handle certain workload
@@ -502,28 +564,38 @@ class InterventionServicesEngine:
 
         elif service.service_type == ServiceType.CONSULTING:
             # Consulting projects can be spread out
-            annual_consulting_projects = work_days_per_year * available_hours_per_day / service.duration_hours
+            annual_consulting_projects = (
+                work_days_per_year * available_hours_per_day / service.duration_hours
+            )
             annual_deliveries = annual_consulting_projects
 
         else:
             # Default calculation for other services
-            annual_deliveries = work_days_per_year * available_hours_per_day / service.duration_hours
+            annual_deliveries = (
+                work_days_per_year * available_hours_per_day / service.duration_hours
+            )
 
         return {
             "deliveries_per_facilitator": int(annual_deliveries),
             "total_available_hours": work_days_per_year * available_hours_per_day,
             "utilization_assumption": 0.8,  # 80% utilization rate
-            "effective_deliveries": int(annual_deliveries * 0.8)
+            "effective_deliveries": int(annual_deliveries * 0.8),
         }
 
-    def _calculate_market_opportunity(self, service: InterventionService) -> Dict[str, Any]:
+    def _calculate_market_opportunity(
+        self, service: InterventionService
+    ) -> Dict[str, Any]:
         """Calculate market opportunity for a specific service"""
 
         # Market size estimates (simplified)
-        total_addressable_companies = 50000  # Companies 100-5000 employees in North America
+        total_addressable_companies = (
+            50000  # Companies 100-5000 employees in North America
+        )
 
         if service.service_type == ServiceType.COACHING:
-            target_market_percentage = 0.15  # 15% of companies invest in executive coaching
+            target_market_percentage = (
+                0.15  # 15% of companies invest in executive coaching
+            )
             average_annual_spend_per_company = 30000
 
         elif service.service_type == ServiceType.WORKSHOP:
@@ -538,7 +610,9 @@ class InterventionServicesEngine:
             target_market_percentage = 0.05  # Conservative estimate
             average_annual_spend_per_company = 10000
 
-        serviceable_companies = int(total_addressable_companies * target_market_percentage)
+        serviceable_companies = int(
+            total_addressable_companies * target_market_percentage
+        )
         total_market_size = serviceable_companies * average_annual_spend_per_company
 
         # Assuming PsychSync can capture 2% initially, growing to 8%
@@ -550,7 +624,8 @@ class InterventionServicesEngine:
             "serviceable_companies": serviceable_companies,
             "current_capture_potential": total_market_size * current_capture_rate,
             "target_capture_potential": total_market_size * target_capture_rate,
-            "growth_opportunity": total_market_size * (target_capture_rate - current_capture_rate)
+            "growth_opportunity": total_market_size
+            * (target_capture_rate - current_capture_rate),
         }
 
     def _assess_delivery_scalability(self, service: InterventionService) -> str:
@@ -577,9 +652,13 @@ class InterventionServicesEngine:
         elif service.service_type == ServiceType.CONSULTING:
             return "High - Customized nature makes quality consistency challenging at scale"
         else:
-            return "Medium - Quality depends on standardization and facilitator expertise"
+            return (
+                "Medium - Quality depends on standardization and facilitator expertise"
+            )
 
-    def _calculate_resource_requirements(self, service: InterventionService) -> Dict[str, Any]:
+    def _calculate_resource_requirements(
+        self, service: InterventionService
+    ) -> Dict[str, Any]:
         """Calculate resource requirements for service delivery"""
 
         if service.service_type == ServiceType.COACHING:
@@ -588,7 +667,7 @@ class InterventionServicesEngine:
                 "support_staff_per_delivery": 0.25,
                 "preparation_hours_per_delivery": 2,
                 "follow_up_hours_per_delivery": 1,
-                "specialized_equipment": ["Video conferencing", "Assessment platform"]
+                "specialized_equipment": ["Video conferencing", "Assessment platform"],
             }
         elif service.service_type == ServiceType.WORKSHOP:
             return {
@@ -596,7 +675,11 @@ class InterventionServicesEngine:
                 "support_staff_per_delivery": 0.5,
                 "preparation_hours_per_delivery": 8,
                 "follow_up_hours_per_delivery": 4,
-                "specialized_equipment": ["Workshop materials", "Collaboration tools", "Assessment platform"]
+                "specialized_equipment": [
+                    "Workshop materials",
+                    "Collaboration tools",
+                    "Assessment platform",
+                ],
             }
         elif service.service_type == ServiceType.CONSULTING:
             return {
@@ -604,7 +687,11 @@ class InterventionServicesEngine:
                 "support_staff_per_delivery": 1,
                 "preparation_hours_per_delivery": 16,
                 "follow_up_hours_per_delivery": 8,
-                "specialized_equipment": ["Assessment tools", "Analytics platform", "Reporting systems"]
+                "specialized_equipment": [
+                    "Assessment tools",
+                    "Analytics platform",
+                    "Reporting systems",
+                ],
             }
         else:
             return {
@@ -612,7 +699,7 @@ class InterventionServicesEngine:
                 "support_staff_per_delivery": 0.5,
                 "preparation_hours_per_delivery": 4,
                 "follow_up_hours_per_delivery": 2,
-                "specialized_equipment": ["Standard delivery tools"]
+                "specialized_equipment": ["Standard delivery tools"],
             }
 
     def generate_revenue_forecast(self, months: int = 24) -> Dict[str, Any]:
@@ -627,8 +714,8 @@ class InterventionServicesEngine:
                 "monthly_growth_rate": 0.15,  # 15% month-over-month growth
                 "cross_sell_rate": 0.30,  # 30% of customers buy additional services
                 "repeat_business_rate": 0.60,  # 60% repeat business
-                "average_deal_size": 12000
-            }
+                "average_deal_size": 12000,
+            },
         }
 
         cumulative_revenue = 0
@@ -643,26 +730,36 @@ class InterventionServicesEngine:
             else:
                 growth_factor = 1.0
 
-            monthly_revenue *= forecast["growth_assumptions"]["monthly_growth_rate"] * growth_factor
+            monthly_revenue *= (
+                forecast["growth_assumptions"]["monthly_growth_rate"] * growth_factor
+            )
             cumulative_revenue += monthly_revenue
 
-            forecast["monthly_projections"].append({
-                "month": month,
-                "monthly_revenue": round(monthly_revenue, 2),
-                "cumulative_revenue": round(cumulative_revenue, 2),
-                "new_customers": int(monthly_revenue / forecast["growth_assumptions"]["average_deal_size"])
-            })
+            forecast["monthly_projections"].append(
+                {
+                    "month": month,
+                    "monthly_revenue": round(monthly_revenue, 2),
+                    "cumulative_revenue": round(cumulative_revenue, 2),
+                    "new_customers": int(
+                        monthly_revenue
+                        / forecast["growth_assumptions"]["average_deal_size"]
+                    ),
+                }
+            )
 
         # Calculate summary metrics
-        total_revenue = monthly_revenue * (1 + forecast["growth_assumptions"]["monthly_growth_rate"]) ** (months - 1)
+        total_revenue = monthly_revenue * (
+            1 + forecast["growth_assumptions"]["monthly_growth_rate"]
+        ) ** (months - 1)
         forecast["summary_metrics"] = {
             "final_monthly_revenue": round(total_revenue, 2),
             "total_cumulative_revenue": round(cumulative_revenue, 2),
             "average_monthly_revenue": round(cumulative_revenue / months, 2),
-            "projected_annual_run_rate": round(total_revenue * 12, 2)
+            "projected_annual_run_rate": round(total_revenue * 12, 2),
         }
 
         return forecast
+
 
 # Initialize intervention services engine
 intervention_services = InterventionServicesEngine()

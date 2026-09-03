@@ -1,10 +1,12 @@
 import sys
-sys.path.insert(0, '/Users/sheriftito/Downloads/psychsync')
 
-from app.db.session import SessionLocal
-from app.db.models.user import User
-from app.core.security import get_password_hash
+sys.path.insert(0, "/Users/sheriftito/Downloads/psychsync")
+
 import uuid
+
+from app.db.models.user import User
+from app.db.session import SessionLocal
+from app.services.security import get_password_hash
 
 db = SessionLocal()
 
@@ -21,7 +23,7 @@ new_user = User(
     email="test@example.com",
     password_hash=get_password_hash("Test1234!"),
     full_name="Test User",
-    is_active=True
+    is_active=True,
 )
 
 db.add(new_user)

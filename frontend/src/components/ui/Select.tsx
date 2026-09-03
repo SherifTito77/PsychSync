@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, ''> {
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   helperText?: string;

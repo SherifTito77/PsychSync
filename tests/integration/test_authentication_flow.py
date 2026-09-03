@@ -4,23 +4,28 @@ Comprehensive testing of all authentication scenarios including registration,
 login, token management, MFA, and security features
 """
 
-import pytest
 import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from jose import JWTError, jwt
 
-from app.main import app
+import pytest
+from httpx import AsyncClient
+from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
-from app.core.security import (
-    create_access_token, create_refresh_token, verify_password,
-    get_password_hash, verify_token, get_current_user
-)
 from app.db.models.user import User
+from app.main import app
+from app.services.security import (
+    create_access_token,
+    create_refresh_token,
+    get_current_user,
+    get_password_hash,
+    verify_password,
+    verify_token,
+)
 
 
 @pytest.mark.integration
@@ -46,7 +51,7 @@ class TestAuthenticationFlow:
             "email": "authtest@example.com",
             "full_name": "Auth Test User",
             "password": "SecurePassword123!",
-            "role": "user"
+            "role": "user",
         }
 
     @pytest.fixture
@@ -56,12 +61,14 @@ class TestAuthenticationFlow:
             "email": "admin@authtest.com",
             "full_name": "Admin Test User",
             "password": "AdminSecurePassword123!",
-            "role": "admin"
+            "role": "admin",
         }
 
     # User Registration Tests
     @pytest.mark.asyncio
-    async def test_complete_registration_flow(self, client: AsyncClient, test_user_data):
+    async def test_complete_registration_flow(
+        self, client: AsyncClient, test_user_data
+    ):
         """Test complete user registration flow"""
         # Step 1: Register new user
         response = await client.post("/api/v1/auth/register", json=test_user_data)
@@ -108,7 +115,7 @@ class TestAuthenticationFlow:
             "email": "invalid-email",
             "full_name": "Test User",
             "password": "SecurePassword123!",
-            "role": "user"
+            "role": "user",
         }
 
         response = await client.post("/api/v1/auth/register", json=invalid_email_data)
@@ -122,14 +129,16 @@ class TestAuthenticationFlow:
             "email": "test+special@example.co.uk",
             "full_name": "Test User",
             "password": "SecurePassword123!",
-            "role": "user"
+            "role": "user",
         }
 
         response = await client.post("/api/v1/auth/register", json=special_email_data)
         assert response.status_code == 201  # Should accept valid email format
 
     @pytest.mark.asyncio
-    async def test_registration_password_validation(self, client: AsyncClient, test_user_data):
+    async def test_registration_password_validation(
+        self, client: AsyncClient, test_user_data
+    ):
         """Test password validation during registration"""
         # Test password too short
         short_password_data = test_user_data.copy()
@@ -160,7 +169,9 @@ class TestAuthenticationFlow:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_registration_duplicate_email(self, client: AsyncClient, test_user_data):
+    async def test_registration_duplicate_email(
+        self, client: AsyncClient, test_user_data
+    ):
         """Test registration with duplicate email"""
         # First registration
         response1 = await client.post("/api/v1/auth/register", json=test_user_data)
@@ -174,7 +185,9 @@ class TestAuthenticationFlow:
 
     # Login Tests
     @pytest.mark.asyncio
-    async def test_successful_login_flow(self, client: AsyncClient, test_user_data, test_db: AsyncSession):
+    async def test_successful_login_flow(
+        self, client: AsyncClient, test_user_data, test_db: AsyncSession
+    ):
         """Test successful user login flow"""
         # First register the user
         await client.post("/api/v1/auth/register", json=test_user_data)
@@ -182,7 +195,7 @@ class TestAuthenticationFlow:
         # Step 1: Login with correct credentials
         login_data = {
             "email": test_user_data["email"],
-            "password": test_user_data["password"]
+            "password": test_user_data["password"],
         }
 
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -217,7 +230,7 @@ class TestAuthenticationFlow:
         # Test with wrong password
         wrong_password_data = {
             "email": test_user_data["email"],
-            "password": "WrongPassword123!"
+            "password": "WrongPassword123!",
         }
 
         response = await client.post("/api/v1/auth/login", json=wrong_password_data)
@@ -228,7 +241,7 @@ class TestAuthenticationFlow:
         # Test with non-existent email
         nonexistent_email_data = {
             "email": "nonexistent@example.com",
-            "password": "SomePassword123!"
+            "password": "SomePassword123!",
         }
 
         response = await client.post("/api/v1/auth/login", json=nonexistent_email_data)
@@ -244,7 +257,7 @@ class TestAuthenticationFlow:
 
         login_data = {
             "email": test_user_data["email"],
-            "password": "wrong_password"  # Wrong password to trigger failed attempts
+            "password": "wrong_password",  # Wrong password to trigger failed attempts
         }
 
         # Make multiple failed login attempts
@@ -263,14 +276,21 @@ class TestAuthenticationFlow:
 
     # Token Management Tests
     @pytest.mark.asyncio
-    async def test_token_refresh_flow(self, client: AsyncClient, test_user_data, test_db: AsyncSession):
+    async def test_token_refresh_flow(
+        self, client: AsyncClient, test_user_data, test_db: AsyncSession
+    ):
         """Test complete token refresh flow"""
         # Register and login user
-        register_response = await client.post("/api/v1/auth/register", json=test_user_data)
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
+        register_response = await client.post(
+            "/api/v1/auth/register", json=test_user_data
+        )
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
 
         original_tokens = login_response.json()["data"]
         original_access_token = original_tokens["access_token"]
@@ -299,7 +319,9 @@ class TestAuthenticationFlow:
 
         # Step 4: Verify old token is invalidated
         old_headers = {"Authorization": f"Bearer {original_access_token}"}
-        old_profile_response = await client.get("/api/v1/users/profile", headers=old_headers)
+        old_profile_response = await client.get(
+            "/api/v1/users/profile", headers=old_headers
+        )
         # Old token might still work if there's no blacklist, or it might be invalid
         # This depends on the token management strategy
 
@@ -318,7 +340,7 @@ class TestAuthenticationFlow:
         expired_payload = {
             "sub": "user_id",
             "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp()),
-            "type": "refresh"
+            "type": "refresh",
         }
         expired_token = jwt.encode(expired_payload, "secret", algorithm="HS256")
         expired_data = {"refresh_token": expired_token}
@@ -331,10 +353,13 @@ class TestAuthenticationFlow:
         """Test concurrent token refresh requests"""
         # Register and login user
         await client.post("/api/v1/auth/register", json=test_user_data)
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
 
         refresh_token = login_response.json()["data"]["refresh_token"]
         refresh_data = {"refresh_token": refresh_token}
@@ -363,10 +388,13 @@ class TestAuthenticationFlow:
         """Test complete logout flow"""
         # Register and login user
         await client.post("/api/v1/auth/register", json=test_user_data)
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
 
         access_token = login_response.json()["data"]["access_token"]
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -396,7 +424,9 @@ class TestAuthenticationFlow:
 
         # Step 1: Request password reset
         reset_request_data = {"email": test_user_data["email"]}
-        response = await client.post("/api/v1/auth/reset-password-request", json=reset_request_data)
+        response = await client.post(
+            "/api/v1/auth/reset-password-request", json=reset_request_data
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -424,7 +454,9 @@ class TestAuthenticationFlow:
     async def test_mfa_setup(self, client: AsyncClient, test_user_data):
         """Test MFA setup flow"""
         # Register user first
-        register_response = await client.post("/api/v1/auth/register", json=test_user_data)
+        register_response = await client.post(
+            "/api/v1/auth/register", json=test_user_data
+        )
         user_id = register_response.json()["data"]["user"]["id"]
 
         # This would typically involve:
@@ -450,10 +482,13 @@ class TestAuthenticationFlow:
         """Test session management features"""
         # Register and login user
         await client.post("/api/v1/auth/register", json=test_user_data)
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
 
         access_token = login_response.json()["data"]["access_token"]
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -476,10 +511,7 @@ class TestAuthenticationFlow:
         await client.post("/api/v1/auth/register", json=test_user_data)
 
         # Make multiple failed login attempts
-        login_data = {
-            "email": test_user_data["email"],
-            "password": "WrongPassword123!"
-        }
+        login_data = {"email": test_user_data["email"], "password": "WrongPassword123!"}
 
         failed_attempts = 0
         for i in range(20):
@@ -498,10 +530,7 @@ class TestAuthenticationFlow:
         # Register user first
         await client.post("/api/v1/auth/register", json=test_user_data)
 
-        login_data = {
-            "email": test_user_data["email"],
-            "password": "WrongPassword123!"
-        }
+        login_data = {"email": test_user_data["email"], "password": "WrongPassword123!"}
 
         # Make multiple failed attempts to trigger lockout
         for _ in range(10):
@@ -510,7 +539,7 @@ class TestAuthenticationFlow:
         # Try correct password after lockout
         correct_login_data = {
             "email": test_user_data["email"],
-            "password": test_user_data["password"]
+            "password": test_user_data["password"],
         }
 
         response = await client.post("/api/v1/auth/login", json=correct_login_data)
@@ -525,7 +554,7 @@ class TestAuthenticationFlow:
         expired_payload = {
             "sub": "user_id",
             "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp()),
-            "type": "access"
+            "type": "access",
         }
         expired_token = jwt.encode(expired_payload, "secret", algorithm="HS256")
 
@@ -534,7 +563,9 @@ class TestAuthenticationFlow:
 
         assert response.status_code == 401
         data = response.json()
-        assert "expired" in data["detail"].lower() or "invalid" in data["detail"].lower()
+        assert (
+            "expired" in data["detail"].lower() or "invalid" in data["detail"].lower()
+        )
 
     # Device Management Tests
     @pytest.mark.asyncio
@@ -553,22 +584,24 @@ class TestAuthenticationFlow:
             "device_info": {
                 "user_agent": "Test Browser",
                 "ip_address": "127.0.0.1",
-                "device_id": "test_device_123"
-            }
+                "device_id": "test_device_123",
+            },
         }
 
         response = await client.post("/api/v1/auth/login", json=login_data)
         # Should handle device information appropriately
 
     @pytest.mark.asyncio
-    async def test_concurrent_login_prevention(self, client: AsyncClient, test_user_data):
+    async def test_concurrent_login_prevention(
+        self, client: AsyncClient, test_user_data
+    ):
         """Test prevention of concurrent sessions for same user"""
         # Register user first
         await client.post("/api/v1/auth/register", json=test_user_data)
 
         login_data = {
             "email": test_user_data["email"],
-            "password": test_user_data["password"]
+            "password": test_user_data["password"],
         }
 
         # Make concurrent login requests
@@ -616,7 +649,7 @@ class TestAuthenticationSecurity:
             "'; DROP TABLE users; --",
             "' OR '1'='1",
             "admin'--",
-            "' UNION SELECT * FROM users --"
+            "' UNION SELECT * FROM users --",
         ]
 
         for payload in malicious_payloads:
@@ -624,7 +657,7 @@ class TestAuthenticationSecurity:
             register_data = {
                 "email": payload,
                 "full_name": "SQL Injection Test",
-                "password": "TestPassword123!"
+                "password": "TestPassword123!",
             }
 
             response = await client.post("/api/v1/auth/register", json=register_data)
@@ -632,10 +665,7 @@ class TestAuthenticationSecurity:
             assert response.status_code in [400, 422]
 
             # Test in login
-            login_data = {
-                "email": payload,
-                "password": "TestPassword123!"
-            }
+            login_data = {"email": payload, "password": "TestPassword123!"}
 
             response = await client.post("/api/v1/auth/login", json=login_data)
             # Should handle malicious input safely
@@ -648,7 +678,7 @@ class TestAuthenticationSecurity:
             "<script>alert('xss')</script>",
             "<img src=x onerror=alert('xss')>",
             "javascript:alert('xss')",
-            "<svg onload=alert('xss')>"
+            "<svg onload=alert('xss')>",
         ]
 
         for payload in xss_payloads:
@@ -656,7 +686,7 @@ class TestAuthenticationSecurity:
             register_data = {
                 "email": f"xss_test_{payload}@example.com",
                 "full_name": payload,
-                "password": "TestPassword123!"
+                "password": "TestPassword123!",
             }
 
             response = await client.post("/api/v1/auth/register", json=register_data)
@@ -679,7 +709,7 @@ class TestAuthenticationSecurity:
             "sub": "admin_user_id",  # Tampered user ID
             "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp()),
             "type": "access",
-            "role": "admin"  # Tampered role
+            "role": "admin",  # Tampered role
         }
 
         tampered_token = jwt.encode(tampered_payload, "secret", algorithm="HS256")
@@ -704,10 +734,7 @@ class TestAuthenticationSecurity:
     async def test_authentication_logging(self, client: AsyncClient):
         """Test that authentication attempts are properly logged"""
         # Test failed login logging
-        login_data = {
-            "email": "nonexistent@example.com",
-            "password": "wrongpassword"
-        }
+        login_data = {"email": "nonexistent@example.com", "password": "wrongpassword"}
 
         response = await client.post("/api/v1/auth/login", json=login_data)
         assert response.status_code == 401
@@ -720,10 +747,7 @@ class TestAuthenticationSecurity:
     @pytest.mark.asyncio
     async def test_rate_limiting_headers(self, client: AsyncClient):
         """Test rate limiting headers in authentication responses"""
-        login_data = {
-            "email": "ratelimit@example.com",
-            "password": "TestPassword123!"
-        }
+        login_data = {"email": "ratelimit@example.com", "password": "TestPassword123!"}
 
         response = await client.post("/api/v1/auth/login", json=login_data)
 

@@ -4,20 +4,29 @@ Validates the correctness and reliability of IRT model implementations
 through simulated data and known theoretical properties.
 """
 
-import unittest
 import asyncio
-import numpy as np
 import math
+import unittest
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
+import numpy as np
+
+from app.services.irt_calibration_service import (
+    CalibrationReport,
+    CalibrationStatus,
+    IRTCalibrationService,
+)
 
 # Import IRT services
 from app.services.irt_service import (
-    IRTService, IRTModel, EstimationMethod, IRTItem, IRTPerson,
-    IRTResponse, IRTCalibrationResult
-)
-from app.services.irt_calibration_service import (
-    IRTCalibrationService, CalibrationStatus, CalibrationReport
+    EstimationMethod,
+    IRTCalibrationResult,
+    IRTItem,
+    IRTModel,
+    IRTPerson,
+    IRTResponse,
+    IRTService,
 )
 
 
@@ -40,7 +49,7 @@ class IRTValidationTestCase(unittest.TestCase):
         model: IRTModel = IRTModel.TWO_PL,
         difficulty_range: tuple = (-2.0, 2.0),
         discrimination_range: tuple = (0.5, 2.0),
-        guessing_range: tuple = (0.1, 0.3)
+        guessing_range: tuple = (0.1, 0.3),
     ) -> tuple:
         """Generate simulated IRT data with known parameters"""
         np.random.seed(self.test_seed)
@@ -68,7 +77,7 @@ class IRTValidationTestCase(unittest.TestCase):
                 model=model,
                 difficulty=difficulty,
                 discrimination=discrimination,
-                guessing=guessing
+                guessing=guessing,
             )
             true_items.append(item)
 
@@ -77,15 +86,15 @@ class IRTValidationTestCase(unittest.TestCase):
         for p_idx, ability in enumerate(true_abilities):
             for i_idx, item in enumerate(true_items):
                 # Calculate true probability
-                p_correct = self.irt_service.probability_of_correct_response(ability, item)
+                p_correct = self.irt_service.probability_of_correct_response(
+                    ability, item
+                )
 
                 # Generate response (0 or 1)
                 response = 1 if np.random.random() < p_correct else 0
 
                 response_obj = IRTResponse(
-                    person_id=f"person_{p_idx}",
-                    item_id=item.item_id,
-                    response=response
+                    person_id=f"person_{p_idx}", item_id=item.item_id, response=response
                 )
                 responses.append(response_obj)
 
@@ -98,11 +107,7 @@ class TestIRTModelValidation(IRTValidationTestCase):
     def test_probability_calculation_1pl(self):
         """Test 1PL probability calculation"""
         # Test Rasch model properties
-        item = IRTItem(
-            item_id="test_item",
-            model=IRTModel.ONE_PL,
-            difficulty=0.0
-        )
+        item = IRTItem(item_id="test_item", model=IRTModel.ONE_PL, difficulty=0.0)
 
         # At ability = difficulty, probability should be 0.5
         prob = self.irt_service.probability_of_correct_response(0.0, item)
@@ -122,7 +127,7 @@ class TestIRTModelValidation(IRTValidationTestCase):
             item_id="test_item",
             model=IRTModel.TWO_PL,
             difficulty=0.0,
-            discrimination=1.5
+            discrimination=1.5,
         )
 
         # At ability = difficulty, probability should be 0.5 regardless of discrimination
@@ -134,10 +139,12 @@ class TestIRTModelValidation(IRTValidationTestCase):
             item_id="test_item_high",
             model=IRTModel.TWO_PL,
             difficulty=0.0,
-            discrimination=2.5
+            discrimination=2.5,
         )
 
-        prob_high_disc_high = self.irt_service.probability_of_correct_response(1.0, item_high_disc)
+        prob_high_disc_high = self.irt_service.probability_of_correct_response(
+            1.0, item_high_disc
+        )
         prob_regular_high = self.irt_service.probability_of_correct_response(1.0, item)
 
         # With same ability difference, higher discrimination should give higher probability
@@ -150,7 +157,7 @@ class TestIRTModelValidation(IRTValidationTestCase):
             model=IRTModel.THREE_PL,
             difficulty=0.0,
             discrimination=1.0,
-            guessing=0.2
+            guessing=0.2,
         )
 
         # At very low ability, probability should approach guessing parameter
@@ -168,7 +175,7 @@ class TestIRTModelValidation(IRTValidationTestCase):
             item_id="test_item",
             model=IRTModel.TWO_PL,
             difficulty=0.0,
-            discrimination=1.0
+            discrimination=1.0,
         )
 
         # Information should be maximum at ability = difficulty
@@ -187,26 +194,19 @@ class TestIRTModelValidation(IRTValidationTestCase):
 
     def test_test_information_function(self):
         """Test test information function"""
-        items = [
-            IRTItem(f"item_{i}", IRTModel.TWO_PL, 0.0, 1.0)
-            for i in range(5)
-        ]
+        items = [IRTItem(f"item_{i}", IRTModel.TWO_PL, 0.0, 1.0) for i in range(5)]
 
         # Test information should be sum of item informations
         test_info = self.irt_service.test_information_function(0.0, items)
         item_infos_sum = sum(
-            self.irt_service.information_function(0.0, item)
-            for item in items
+            self.irt_service.information_function(0.0, item) for item in items
         )
 
         self.assertAlmostEqual(test_info, item_infos_sum, places=6)
 
     def test_standard_error_calculation(self):
         """Test standard error of measurement calculation"""
-        items = [
-            IRTItem(f"item_{i}", IRTModel.TWO_PL, 0.0, 1.0)
-            for i in range(10)
-        ]
+        items = [IRTItem(f"item_{i}", IRTModel.TWO_PL, 0.0, 1.0) for i in range(10)]
 
         # Higher information should result in lower standard error
         se = self.irt_service.standard_error_of_measurement(0.0, items)
@@ -215,7 +215,7 @@ class TestIRTModelValidation(IRTValidationTestCase):
 
         # Standard error should be inversely related to information
         info = self.irt_service.test_information_function(0.0, items)
-        expected_se = 1.0 / math.sqrt(info) if info > 0 else float('inf')
+        expected_se = 1.0 / math.sqrt(info) if info > 0 else float("inf")
         self.assertAlmostEqual(se, expected_se, places=6)
 
 
@@ -233,12 +233,13 @@ class TestParameterRecovery(IRTValidationTestCase):
         # Calibrate model
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.ONE_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.ONE_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
-        self.assertTrue(calibration_result.convergence, "1PL calibration should converge")
+        self.assertTrue(
+            calibration_result.convergence, "1PL calibration should converge"
+        )
 
         # Check parameter recovery
         estimated_items = {item.item_id: item for item in calibration_result.items}
@@ -251,8 +252,10 @@ class TestParameterRecovery(IRTValidationTestCase):
                 recovery_errors.append(error)
 
         # Average recovery error should be small
-        avg_error = np.mean(recovery_errors) if recovery_errors else float('inf')
-        self.assertLess(avg_error, 0.3, f"1PL difficulty recovery error too high: {avg_error}")
+        avg_error = np.mean(recovery_errors) if recovery_errors else float("inf")
+        self.assertLess(
+            avg_error, 0.3, f"1PL difficulty recovery error too high: {avg_error}"
+        )
 
     def test_2pl_parameter_recovery(self):
         """Test 2PL parameter recovery with simulated data"""
@@ -263,12 +266,13 @@ class TestParameterRecovery(IRTValidationTestCase):
 
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
-        self.assertTrue(calibration_result.convergence, "2PL calibration should converge")
+        self.assertTrue(
+            calibration_result.convergence, "2PL calibration should converge"
+        )
 
         # Check parameter recovery
         estimated_items = {item.item_id: item for item in calibration_result.items}
@@ -280,17 +284,31 @@ class TestParameterRecovery(IRTValidationTestCase):
                 estimated_item = estimated_items[true_item.item_id]
 
                 diff_error = abs(true_item.difficulty - estimated_item.difficulty)
-                disc_error = abs(true_item.discrimination - estimated_item.discrimination)
+                disc_error = abs(
+                    true_item.discrimination - estimated_item.discrimination
+                )
 
                 difficulty_errors.append(diff_error)
                 discrimination_errors.append(disc_error)
 
         # Recovery errors should be reasonable
-        avg_diff_error = np.mean(difficulty_errors) if difficulty_errors else float('inf')
-        avg_disc_error = np.mean(discrimination_errors) if discrimination_errors else float('inf')
+        avg_diff_error = (
+            np.mean(difficulty_errors) if difficulty_errors else float("inf")
+        )
+        avg_disc_error = (
+            np.mean(discrimination_errors) if discrimination_errors else float("inf")
+        )
 
-        self.assertLess(avg_diff_error, 0.4, f"2PL difficulty recovery error too high: {avg_diff_error}")
-        self.assertLess(avg_disc_error, 0.3, f"2PL discrimination recovery error too high: {avg_disc_error}")
+        self.assertLess(
+            avg_diff_error,
+            0.4,
+            f"2PL difficulty recovery error too high: {avg_diff_error}",
+        )
+        self.assertLess(
+            avg_disc_error,
+            0.3,
+            f"2PL discrimination recovery error too high: {avg_disc_error}",
+        )
 
     def test_ability_estimation_accuracy(self):
         """Test ability estimation accuracy"""
@@ -301,13 +319,14 @@ class TestParameterRecovery(IRTValidationTestCase):
 
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
         # Check ability recovery
-        estimated_persons = {person.person_id: person for person in calibration_result.persons}
+        estimated_persons = {
+            person.person_id: person for person in calibration_result.persons
+        }
         ability_errors = []
 
         for i, true_ability in enumerate(true_abilities):
@@ -318,21 +337,38 @@ class TestParameterRecovery(IRTValidationTestCase):
                 ability_errors.append(error)
 
         # Average ability error should be reasonable
-        avg_ability_error = np.mean(ability_errors) if ability_errors else float('inf')
-        self.assertLess(avg_ability_error, 0.5, f"Ability estimation error too high: {avg_ability_error}")
+        avg_ability_error = np.mean(ability_errors) if ability_errors else float("inf")
+        self.assertLess(
+            avg_ability_error,
+            0.5,
+            f"Ability estimation error too high: {avg_ability_error}",
+        )
 
         # Correlation between true and estimated abilities should be high
         if len(ability_errors) > 10:
-            true_abilities_array = np.array([true_abilities[i] for i in range(len(true_abilities))
-                                                  if f"person_{i}" in estimated_persons])
-            estimated_abilities_array = np.array([
-                estimated_persons[f"person_{i}"].ability
-                for i in range(len(true_abilities))
-                if f"person_{i}" in estimated_persons
-            ])
+            true_abilities_array = np.array(
+                [
+                    true_abilities[i]
+                    for i in range(len(true_abilities))
+                    if f"person_{i}" in estimated_persons
+                ]
+            )
+            estimated_abilities_array = np.array(
+                [
+                    estimated_persons[f"person_{i}"].ability
+                    for i in range(len(true_abilities))
+                    if f"person_{i}" in estimated_persons
+                ]
+            )
 
-            correlation = np.corrcoef(true_abilities_array, estimated_abilities_array)[0, 1]
-            self.assertGreater(correlation, 0.8, f"Ability-estimated correlation too low: {correlation}")
+            correlation = np.corrcoef(true_abilities_array, estimated_abilities_array)[
+                0, 1
+            ]
+            self.assertGreater(
+                correlation,
+                0.8,
+                f"Ability-estimated correlation too low: {correlation}",
+            )
 
 
 class TestCalibrationValidation(IRTValidationTestCase):
@@ -348,22 +384,23 @@ class TestCalibrationValidation(IRTValidationTestCase):
 
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
         # Perform calibration validation
         report = asyncio.run(
             self.calibration_service.comprehensive_calibration(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
         # High-quality simulated data should produce good reliability
-        self.assertGreater(report.reliability_analysis.cronbach_alpha, 0.7,
-                          "Cronbach's alpha should be acceptable for good quality data")
+        self.assertGreater(
+            report.reliability_analysis.cronbach_alpha,
+            0.7,
+            "Cronbach's alpha should be acceptable for good quality data",
+        )
 
         # Check that reliability is within valid range
         self.assertGreaterEqual(report.reliability_analysis.cronbach_alpha, 0.0)
@@ -379,8 +416,7 @@ class TestCalibrationValidation(IRTValidationTestCase):
 
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
@@ -413,14 +449,15 @@ class TestCalibrationValidation(IRTValidationTestCase):
 
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
         # Perform dimensionality analysis
         dim_analysis = asyncio.run(
-            self.calibration_service.analyze_dimensionality(responses, calibration_result.persons)
+            self.calibration_service.analyze_dimensionality(
+                responses, calibration_result.persons
+            )
         )
 
         # Should have eigenvalues for analysis
@@ -444,8 +481,7 @@ class TestCalibrationValidation(IRTValidationTestCase):
         # Generate comprehensive calibration report
         report = asyncio.run(
             self.calibration_service.comprehensive_calibration(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
@@ -487,7 +523,7 @@ class TestModelComparison(IRTValidationTestCase):
         models_to_test = [
             (IRTModel.ONE_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD),
             (IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD),
-            (IRTModel.THREE_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD)
+            (IRTModel.THREE_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD),
         ]
 
         model_results = {}
@@ -512,8 +548,9 @@ class TestModelComparison(IRTValidationTestCase):
             # 3PL should not be much worse than 2PL for 3PL-generated data
             diff = abs(ll_3pl - ll_2pl)
             tolerance = abs(ll_2pl) * 0.1 if ll_2pl != 0 else 1.0
-            self.assertLess(diff, tolerance,
-                           "3PL should perform reasonably well on 3PL data")
+            self.assertLess(
+                diff, tolerance, "3PL should perform reasonably well on 3PL data"
+            )
 
     def test_model_selection_criteria(self):
         """Test information criteria for model selection"""
@@ -525,15 +562,13 @@ class TestModelComparison(IRTValidationTestCase):
         # Calibrate 1PL and 2PL models
         result_1pl = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.ONE_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.ONE_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
         result_2pl = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.TWO_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
@@ -548,8 +583,11 @@ class TestModelComparison(IRTValidationTestCase):
         # BIC penalizes complexity more heavily than AIC
         # Since data was generated with discrimination parameters, 2PL should be preferred
         bic_diff = result_2pl.bic - result_1pl.bic
-        self.assertLessEqual(bic_diff, 100,  # Allow some tolerance
-                               "2PL should have similar or better BIC for 2PL data")
+        self.assertLessEqual(
+            bic_diff,
+            100,  # Allow some tolerance
+            "2PL should have similar or better BIC for 2PL data",
+        )
 
 
 class TestAdaptiveTesting(IRTValidationTestCase):
@@ -566,7 +604,7 @@ class TestAdaptiveTesting(IRTValidationTestCase):
                 item_id=f"item_{i}",
                 model=IRTModel.TWO_PL,
                 difficulty=ability,
-                discrimination=1.0
+                discrimination=1.0,
             )
             items.append(item)
 
@@ -599,7 +637,7 @@ class TestAdaptiveTesting(IRTValidationTestCase):
             item_id="test_item",
             model=IRTModel.TWO_PL,
             difficulty=0.0,
-            discrimination=1.5
+            discrimination=1.5,
         )
 
         # Information should be symmetric around difficulty
@@ -607,15 +645,18 @@ class TestAdaptiveTesting(IRTValidationTestCase):
         info_minus = self.irt_service.information_function(-1.0, item)
 
         self.assertAlmostEqual(info_plus, info_minus, places=3)
-        self.assertTrue(abs(info_plus - info_minus) < 0.001,
-                        "Information should be symmetric around item difficulty")
+        self.assertTrue(
+            abs(info_plus - info_minus) < 0.001,
+            "Information should be symmetric around item difficulty",
+        )
 
         # Maximum information at difficulty
         info_max = self.irt_service.information_function(0.0, item)
         info_far = self.irt_service.information_function(3.0, item)
 
-        self.assertGreater(info_max, info_far,
-                           "Information should be highest at item difficulty")
+        self.assertGreater(
+            info_max, info_far, "Information should be highest at item difficulty"
+        )
 
 
 class TestBoundaryConditions(IRTValidationTestCase):
@@ -628,7 +669,7 @@ class TestBoundaryConditions(IRTValidationTestCase):
             item_id="high_disc",
             model=IRTModel.TWO_PL,
             difficulty=0.0,
-            discrimination=3.0
+            discrimination=3.0,
         )
 
         # Should handle high discrimination without errors
@@ -641,7 +682,7 @@ class TestBoundaryConditions(IRTValidationTestCase):
             item_id="very_hard",
             model=IRTModel.TWO_PL,
             difficulty=4.0,
-            discrimination=1.0
+            discrimination=1.0,
         )
 
         # Even very able person should have < 100% chance
@@ -654,11 +695,13 @@ class TestBoundaryConditions(IRTValidationTestCase):
             model=IRTModel.THREE_PL,
             difficulty=0.0,
             discrimination=1.0,
-            guessing=0.4
+            guessing=0.4,
         )
 
         # Minimum probability should be guessing parameter
-        prob_very_low = self.irt_service.probability_of_correct_response(-10.0, item_high_guess)
+        prob_very_low = self.irt_service.probability_of_correct_response(
+            -10.0, item_high_guess
+        )
         self.assertAlmostEqual(prob_very_low, 0.4, places=2)
 
     def test_small_sample_handling(self):
@@ -671,8 +714,7 @@ class TestBoundaryConditions(IRTValidationTestCase):
         # Should handle small samples without crashing
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses, IRTModel.ONE_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses, IRTModel.ONE_PL, EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
             )
         )
 
@@ -687,13 +729,14 @@ class TestBoundaryConditions(IRTValidationTestCase):
         )
 
         # Remove some responses to create missing data
-        responses_missing = responses[:int(len(responses) * 0.8)]  # Remove 20%
+        responses_missing = responses[: int(len(responses) * 0.8)]  # Remove 20%
 
         # Should handle missing data
         calibration_result = asyncio.run(
             self.irt_service.calibrate_irt_model(
-                responses_missing, IRTModel.TWO_PL,
-                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD
+                responses_missing,
+                IRTModel.TWO_PL,
+                EstimationMethod.MARGINAL_MAXIMUM_LIKELIHOOD,
             )
         )
 
@@ -716,7 +759,7 @@ def run_validation_tests():
         TestCalibrationValidation,
         TestModelComparison,
         TestAdaptiveTesting,
-        TestBoundaryConditions
+        TestBoundaryConditions,
     ]
 
     for test_class in test_classes:
@@ -734,7 +777,9 @@ def run_validation_tests():
     print(f"Tests run: {result.testsRun}")
     print(f"Failures: {len(result.failures)}")
     print(f"Errors: {len(result.errors)}")
-    print(f"Success rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%")
+    print(
+        f"Success rate: {((result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun * 100):.1f}%"
+    )
 
     if result.failures:
         print(f"\nFailures:")
@@ -747,14 +792,18 @@ def run_validation_tests():
             print(f"  - {test}: {str(test)}")
 
     # Overall assessment
-    success_rate = (result.testsRun - len(result.failures) - len(result.errors)) / result.testsRun
+    success_rate = (
+        result.testsRun - len(result.failures) - len(result.errors)
+    ) / result.testsRun
 
     if success_rate >= 0.95:
         print("\n✅ EXCELLENT: IRT implementation passes all critical validation tests")
     elif success_rate >= 0.90:
         print("\n✅ GOOD: IRT implementation passes most validation tests")
     elif success_rate >= 0.80:
-        print("\n⚠️  ACCEPTABLE: IRT implementation has some issues but is generally functional")
+        print(
+            "\n⚠️  ACCEPTABLE: IRT implementation has some issues but is generally functional"
+        )
     else:
         print("\n❌ NEEDS IMPROVEMENT: IRT implementation has significant issues")
 
@@ -765,7 +814,7 @@ def run_validation_tests():
         "failures": len(result.failures),
         "errors": len(result.errors),
         "success_rate": success_rate,
-        "result": result
+        "result": result,
     }
 
 

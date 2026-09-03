@@ -27,9 +27,9 @@ import {
   SelectValue,
 } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
-import { Input } from '@/components/ui/Input';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { AlertTriangle, Shield, Eye, EyeOff, Clock, CheckCircle, Info } from 'lucide-react';
 import { AnonymousFeedbackSubmission, AnonymousFeedbackCategoriesResponse } from '@/types/anonymousFeedback';
@@ -54,11 +54,35 @@ const feedbackFormSchema = z.object({
   organization_id: z.string().min(1, 'Organization ID is required'),
 });
 type FeedbackFormData = z.infer<typeof feedbackFormSchema>;
+
+// Define proper types for submission response
+interface PrivacyGuarantee {
+  anonymous: boolean;
+  untraceable: boolean;
+  no_logging: boolean;
+  protection: string;
+}
+
+interface SupportResource {
+  title: string;
+  name?: string; // Alternative to title
+  description: string;
+  contact: string;
+}
+
+interface FeedbackSubmissionResponse {
+  tracking_id: string;
+  privacy_guarantee?: PrivacyGuarantee;
+  next_steps?: string[];
+  support_resources?: SupportResource[];
+}
+
 interface AnonymousFeedbackFormProps {
-  onSubmit?: (trackingId: string, response: any) => void;
+  onSubmit?: (trackingId: string, response: FeedbackSubmissionResponse) => void;
   organizationId?: string;
   initialData?: Partial<FeedbackFormData>;
 }
+
 export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
   onSubmit,
   organizationId,
@@ -67,7 +91,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<AnonymousFeedbackCategoriesResponse | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [submissionResponse, setSubmissionResponse] = useState<any>(null);
+  const [submissionResponse, setSubmissionResponse] = useState<FeedbackSubmissionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evidenceUrls, setEvidenceUrls] = useState<string[]>(['']);
   const [showPrivacyInfo, setShowPrivacyInfo] = useState(true);
@@ -93,7 +117,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
       try {
         const response = await anonymousFeedbackService.getFeedbackCategories();
         setCategories(response);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Failed to load feedback categories:', err);
         setError('Unable to load feedback categories. Please refresh the page.');
       }
@@ -127,12 +151,14 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
       };
       const response = await anonymousFeedbackService.submitFeedback(submissionData);
       setSubmitSuccess(true);
-      setSubmissionResponse(response);
+      // Type assertion to match local interface
+      const typedResponse = response as unknown as FeedbackSubmissionResponse;
+      setSubmissionResponse(typedResponse);
       // Save tracking ID to localStorage for user convenience
-      if (response.tracking_id) {
+      if (typedResponse.tracking_id) {
         const savedTrackingIds = JSON.parse(localStorage.getItem('anonymous_feedback_tracking_ids') || '[]');
         savedTrackingIds.unshift({
-          tracking_id: response.tracking_id,
+          tracking_id: typedResponse.tracking_id,
           submitted_at: new Date().toISOString(),
           category: data.category,
           severity: data.severity,
@@ -140,8 +166,8 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
         // Keep only last 10 tracking IDs
         localStorage.setItem('anonymous_feedback_tracking_ids', JSON.stringify(savedTrackingIds.slice(0, 10)));
       }
-      onSubmit?.(response.tracking_id, response);
-    } catch (err: any) {
+      onSubmit?.(typedResponse.tracking_id, typedResponse);
+    } catch (err) {
       setError(err.message || 'Failed to submit feedback');
     } finally {
       setIsSubmitting(false);
@@ -271,7 +297,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {submissionResponse.support_resources.map((resource: any, index: number) => (
+                  {submissionResponse.support_resources.map((resource: SupportResource, index: number) => (
                     <div key={index} className="border-l-4 border-blue-200 pl-4">
                       <h5 className="font-medium">{resource.name}</h5>
                       <p className="text-sm text-gray-600">{resource.description}</p>
@@ -348,7 +374,9 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
                   <FormControl>
                     <Input
                       placeholder="Enter organization ID"
-                      {...field}
+                      value={field.value as string}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
                       disabled={!!organizationId}
                     />
                   </FormControl>
@@ -363,7 +391,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Feedback Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value as string}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select the type of feedback" />
@@ -396,7 +424,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value as string}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select specific category" />
@@ -424,7 +452,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Severity Level</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value as string}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select severity level" />
@@ -463,7 +491,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
                     <Textarea
                       placeholder="Please provide a detailed description of the issue. Be as specific as possible while maintaining your privacy."
                       className="min-h-32"
-                      {...field}
+                      {...field as any}
                     />
                   </FormControl>
                   <FormDescription>
@@ -483,7 +511,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Target Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value as string}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Is this about a person, team, or policy?" />
@@ -517,7 +545,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
                     <FormControl>
                       <Input
                         placeholder="Any identifier that helps identify the target (will be hashed for privacy)"
-                        {...field}
+                        {...field as any}
                       />
                     </FormControl>
                     <FormDescription>
@@ -539,7 +567,7 @@ export const AnonymousFeedbackForm: React.FC<AnonymousFeedbackFormProps> = ({
                     <Input
                       type="date"
                       max={new Date().toISOString().split('T')[0]}
-                      {...field}
+                      {...field as any}
                     />
                   </FormControl>
                   <FormDescription>

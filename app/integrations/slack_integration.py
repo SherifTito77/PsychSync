@@ -6,11 +6,11 @@ PRIVACY-FOCUSED: Analyzes patterns, not message content
 """
 
 import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from collections import defaultdict
 import re
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -442,17 +442,20 @@ class SlackAPIIntegration:
         self.base_url = 'https://slack.com/api'
 
     async def fetch_conversations(self) -> List[Dict[str, Any]]:
-        """Fetch list of conversations (channels, DMs, etc.)"""
-        import httpx
+        """Fetch list of conversations (channels, DMs, etc.)
 
-        async with httpx.AsyncClient() as client:
-            # Fetch public channels
-            response = await client.get(
-                f'{self.base_url}/conversations.list',
-                headers={'Authorization': f'Bearer {self.bot_token}'},
-                params={'types': 'public_channel,private_channel,mpim,im'}
-            )
-            response.raise_for_status()
+        Uses resilient HTTP client with automatic retries, timeouts, and circuit breaker.
+        """
+        from app.core.resilient_client import resilient_http_client
+
+        # Resilient client provides: 30s timeout, 3 retries with exponential backoff,
+        # circuit breaker to prevent cascading failures, connection pooling
+        response = await resilient_http_client.get(
+            f'{self.base_url}/conversations.list',
+            headers={'Authorization': f'Bearer {self.bot_token}'},
+            params={'types': 'public_channel,private_channel,mpim,im'}
+        )
+        response.raise_for_status()
 
             data = response.json()
             if not data.get('ok'):
@@ -467,24 +470,31 @@ class SlackAPIIntegration:
         days: int = 30,
         limit: int = 1000
     ) -> List[Dict[str, Any]]:
-        """Fetch messages from a specific conversation"""
-        import httpx
+        """Fetch messages from a specific conversation
 
+        Uses resilient HTTP client for improved reliability.
+        """
         from datetime import datetime, timedelta
+
+        from app.core.resilient_client import resilient_http_client
         oldest_ts = (datetime.utcnow() - timedelta(days=days)).timestamp()
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f'{self.base_url}/conversations.history',
-                headers={'Authorization': f'Bearer {self.bot_token}'},
-                params={
-                    'channel': conversation_id,
-                    'oldest': oldest_ts,
-                    'limit': limit,
-                    'inclusive': 'true'
-                }
-            )
-            response.raise_for_status()
+        # TODO(human): If you want to add custom error handling for Slack-specific errors,
+        # add it here. For example, you might want to handle 'rate_limited' errors
+        # by implementing a custom retry delay based on the Retry-After header.
+        # See app/core/resilient_client.py for available exception types.
+
+        response = await resilient_http_client.get(
+            f'{self.base_url}/conversations.history',
+            headers={'Authorization': f'Bearer {self.bot_token}'},
+            params={
+                'channel': conversation_id,
+                'oldest': oldest_ts,
+                'limit': limit,
+                'inclusive': 'true'
+            }
+        )
+        response.raise_for_status()
 
             data = response.json()
             if not data.get('ok'):
@@ -513,16 +523,18 @@ class SlackAPIIntegration:
         return all_messages
 
     async def fetch_user_info(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Fetch user information"""
-        import httpx
+        """Fetch user information
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f'{self.base_url}/users.info',
-                headers={'Authorization': f'Bearer {self.bot_token}'},
-                params={'user': user_id}
-            )
-            response.raise_for_status()
+        Uses resilient HTTP client for improved reliability.
+        """
+        from app.core.resilient_client import resilient_http_client
+
+        response = await resilient_http_client.get(
+            f'{self.base_url}/users.info',
+            headers={'Authorization': f'Bearer {self.bot_token}'},
+            params={'user': user_id}
+        )
+        response.raise_for_status()
 
             data = response.json()
             if not data.get('ok'):

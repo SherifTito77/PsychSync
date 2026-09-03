@@ -1,31 +1,34 @@
-
 # ============================================================================
 # FILE 8: app/api/routes/psychometrics_routes.py
 # FastAPI routes for psychometric services
 # ============================================================================
 
-from fastapi import APIRouter, HTTPException, Depends, status, BackgroundTasks
-
-from app.middleware.rate_limiter import check_rate_limit
-from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Dict
 from datetime import datetime
-from ai.psychometrics.sentiment_analysis import PsychometricSentimentAnalyzer
-from ai.psychometrics.emotion_detection import EmotionDetector
-from ai.psychometrics.personality_insights import PersonalityInsightEngine
-from ai.psychometrics.psychometric_scorer import PsychometricScorer
-from ai.pattern_recognition import PatternDetector, AnomalyDetector
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from pydantic import BaseModel, Field, validator
+
+from app.ai.pattern_recognition import AnomalyDetector, PatternDetector
+from app.ai.psychometrics.emotion_detection import EmotionDetector
+from app.ai.psychometrics.personality_insights import PersonalityInsightEngine
+from app.ai.psychometrics.psychometric_scorer import PsychometricScorer
+from app.ai.psychometrics.sentiment_analysis import PsychometricSentimentAnalyzer
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 
 router = APIRouter(prefix="/psychometrics", tags=["Psychometrics"])
+
 
 # Pydantic models
 class TextSampleRequest(BaseModel):
     texts: List[str] = Field(..., min_items=1, max_items=50)
     user_id: Optional[str] = None
 
+
 class EmotionHistoryRequest(BaseModel):
     emotion_history: List[Dict] = Field(..., min_items=1)
     user_id: Optional[str] = None
+
 
 class ComprehensiveProfileRequest(BaseModel):
     texts: List[str] = Field(..., min_items=3, max_items=50)
@@ -33,19 +36,23 @@ class ComprehensiveProfileRequest(BaseModel):
     linguistic_data: Optional[Dict] = None
     user_id: Optional[str] = None
 
+
 class AssessmentScoreRequest(BaseModel):
     assessment_type: str = Field(..., regex="^(big_five|mbti|enneagram|disc)$")
     responses: List[Dict] = Field(..., min_items=1)
     framework_config: Dict
+
 
 class PatternAnalysisRequest(BaseModel):
     data: List[float] = Field(..., min_items=5)
     timestamps: List[datetime]
     user_id: Optional[str] = None
 
+
 class AnomalyDetectionRequest(BaseModel):
     data_points: List[Dict] = Field(..., min_items=10)
     feature_keys: List[str]
+
 
 class InterventionAnalysisRequest(BaseModel):
     pre_intervention: List[float] = Field(..., min_items=3)
@@ -53,32 +60,40 @@ class InterventionAnalysisRequest(BaseModel):
     intervention_date: datetime
     intervention_type: str
 
+
 # Dependencies
 def get_sentiment_analyzer() -> PsychometricSentimentAnalyzer:
     return PsychometricSentimentAnalyzer()
 
+
 def get_emotion_detector() -> EmotionDetector:
     return EmotionDetector()
+
 
 def get_personality_engine() -> PersonalityInsightEngine:
     return PersonalityInsightEngine()
 
+
 def get_psychometric_scorer() -> PsychometricScorer:
     return PsychometricScorer()
+
 
 def get_pattern_detector() -> PatternDetector:
     return PatternDetector()
 
+
 def get_anomaly_detector() -> AnomalyDetector:
     return AnomalyDetector()
 
+
 # Routes
 
-@check_rate_limit(identifier="public", limit_name="public")
+
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/personality/from-text")
 async def analyze_personality_from_text(
     request: TextSampleRequest,
-    analyzer: PsychometricSentimentAnalyzer = Depends(get_sentiment_analyzer)
+    analyzer: PsychometricSentimentAnalyzer = Depends(get_sentiment_analyzer),
 ):
     """
     Analyze personality traits from text samples
@@ -95,14 +110,16 @@ async def analyze_personality_from_text(
 
         return result
     except Exception as e:
-        raise HTTPException(            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Personality analysis failed: {str(e)}"
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Personality analysis failed: {str(e)}",
         ) from e
+
 
 @router.post("/emotion/analyze-state")
 async def analyze_emotional_state(
     request: EmotionHistoryRequest,
-    detector: EmotionDetector = Depends(get_emotion_detector)
+    detector: EmotionDetector = Depends(get_emotion_detector),
 ):
     """
     Analyze emotional state from emotion history
@@ -119,17 +136,17 @@ async def analyze_emotional_state(
         return result
     except Exception as e:
         raise HTTPException(
-
-status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Emotional state analysis failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Emotional state analysis failed: {str(e)}",
         ) from e
+
 
 @router.post("/profile/comprehensive")
 async def generate_comprehensive_profile(
     request: ComprehensiveProfileRequest,
     sentiment_analyzer: PsychometricSentimentAnalyzer = Depends(get_sentiment_analyzer),
     emotion_detector: EmotionDetector = Depends(get_emotion_detector),
-    personality_engine: PersonalityInsightEngine = Depends(get_personality_engine)
+    personality_engine: PersonalityInsightEngine = Depends(get_personality_engine),
 ):
     """
     Generate comprehensive psychological profile
@@ -149,9 +166,7 @@ async def generate_comprehensive_profile(
 
         # Generate comprehensive profile
         profile = personality_engine.generate_comprehensive_profile(
-            sentiment_data,
-            emotion_data,
-            linguistic_data
+            sentiment_data, emotion_data, linguistic_data
         )
 
         if request.user_id:
@@ -162,13 +177,14 @@ async def generate_comprehensive_profile(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Profile generation failed: {str(e)}"
+            detail=f"Profile generation failed: {str(e)}",
         ) from e
+
 
 @router.post("/assessment/score")
 async def score_assessment(
     request: AssessmentScoreRequest,
-    scorer: PsychometricScorer = Depends(get_psychometric_scorer)
+    scorer: PsychometricScorer = Depends(get_psychometric_scorer),
 ):
     """
     Score a psychometric assessment
@@ -177,27 +193,25 @@ async def score_assessment(
     """
     try:
         result = scorer.score_assessment(
-            request.assessment_type,
-            request.responses,
-            request.framework_config
+            request.assessment_type, request.responses, request.framework_config
         )
 
         return result
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Assessment scoring failed: {str(e)}"
+            detail=f"Assessment scoring failed: {str(e)}",
         ) from e
+
 
 @router.post("/patterns/detect-cycles")
 async def detect_cyclical_patterns(
     request: PatternAnalysisRequest,
-    detector: PatternDetector = Depends(get_pattern_detector)
+    detector: PatternDetector = Depends(get_pattern_detector),
 ):
     """
     Detect cyclical patterns in behavioral data
@@ -206,10 +220,7 @@ async def detect_cyclical_patterns(
     Useful for detecting bipolar patterns or seasonal variations.
     """
     try:
-        result = detector.detect_cyclical_patterns(
-            request.data,
-            request.timestamps
-        )
+        result = detector.detect_cyclical_patterns(request.data, request.timestamps)
 
         if request.user_id:
             result["user_id"] = request.user_id
@@ -218,13 +229,14 @@ async def detect_cyclical_patterns(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Pattern detection failed: {str(e)}"
+            detail=f"Pattern detection failed: {str(e)}",
         ) from e
+
 
 @router.post("/patterns/analyze-trend")
 async def analyze_behavioral_trend(
     request: PatternAnalysisRequest,
-    detector: PatternDetector = Depends(get_pattern_detector)
+    detector: PatternDetector = Depends(get_pattern_detector),
 ):
     """
     Analyze trend in behavioral data
@@ -233,10 +245,7 @@ async def analyze_behavioral_trend(
     Useful for tracking treatment progress.
     """
     try:
-        result = detector.analyze_trend(
-            request.data,
-            request.timestamps
-        )
+        result = detector.analyze_trend(request.data, request.timestamps)
 
         if request.user_id:
             result["user_id"] = request.user_id
@@ -245,13 +254,14 @@ async def analyze_behavioral_trend(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Trend analysis failed: {str(e)}"
+            detail=f"Trend analysis failed: {str(e)}",
         ) from e
+
 
 @router.post("/intervention/analyze-effect")
 async def analyze_intervention_effect(
     request: InterventionAnalysisRequest,
-    detector: PatternDetector = Depends(get_pattern_detector)
+    detector: PatternDetector = Depends(get_pattern_detector),
 ):
     """
     Analyze effect of an intervention
@@ -261,8 +271,7 @@ async def analyze_intervention_effect(
     """
     try:
         result = detector.detect_intervention_effect(
-            request.pre_intervention,
-            request.post_intervention
+            request.pre_intervention, request.post_intervention
         )
 
         result["intervention_date"] = request.intervention_date.isoformat()
@@ -272,13 +281,14 @@ async def analyze_intervention_effect(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Intervention analysis failed: {str(e)}"
+            detail=f"Intervention analysis failed: {str(e)}",
         ) from e
+
 
 @router.post("/anomaly/detect")
 async def detect_anomalies(
     request: AnomalyDetectionRequest,
-    detector: AnomalyDetector = Depends(get_anomaly_detector)
+    detector: AnomalyDetector = Depends(get_anomaly_detector),
 ):
     """
     Detect anomalies in behavioral data
@@ -287,22 +297,20 @@ async def detect_anomalies(
     significant changes in condition, or data quality issues.
     """
     try:
-        result = detector.detect_anomalies(
-            request.data_points,
-            request.feature_keys
-        )
+        result = detector.detect_anomalies(request.data_points, request.feature_keys)
 
         return result
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Anomaly detection failed: {str(e)}"
+            detail=f"Anomaly detection failed: {str(e)}",
         ) from e
+
 
 @router.post("/anomaly/detect-sudden-changes")
 async def detect_sudden_changes(
     request: PatternAnalysisRequest,
-    detector: AnomalyDetector = Depends(get_anomaly_detector)
+    detector: AnomalyDetector = Depends(get_anomaly_detector),
 ):
     """
     Detect sudden changes in time-series data
@@ -310,10 +318,7 @@ async def detect_sudden_changes(
     Identifies abrupt shifts that may require immediate attention.
     """
     try:
-        result = detector.detect_sudden_changes(
-            request.data,
-            request.timestamps
-        )
+        result = detector.detect_sudden_changes(request.data, request.timestamps)
 
         if request.user_id:
             result["user_id"] = request.user_id
@@ -322,8 +327,9 @@ async def detect_sudden_changes(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Change detection failed: {str(e)}"
+            detail=f"Change detection failed: {str(e)}",
         ) from e
+
 
 @router.get("/health")
 async def psychometrics_health():
@@ -336,19 +342,20 @@ async def psychometrics_health():
             "personality_engine": PersonalityInsightEngine(),
             "psychometric_scorer": PsychometricScorer(),
             "pattern_detector": PatternDetector(),
-            "anomaly_detector": AnomalyDetector()
+            "anomaly_detector": AnomalyDetector(),
         }
 
         return {
             "status": "healthy",
             "services": {name: "operational" for name in services.keys()},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Service unhealthy: {str(e)}"
+            detail=f"Service unhealthy: {str(e)}",
         ) from e
+
 
 @router.get("/supported-assessments")
 async def get_supported_assessments():
@@ -360,7 +367,7 @@ async def get_supported_assessments():
                 "name": "Big Five Personality Test",
                 "dimensions": 5,
                 "typical_questions": 44,
-                "time_estimate_minutes": 10
+                "time_estimate_minutes": 10,
             },
             {
                 "type": "mbti",
@@ -368,21 +375,21 @@ async def get_supported_assessments():
                 "dimensions": 4,
                 "types": 16,
                 "typical_questions": 60,
-                "time_estimate_minutes": 15
+                "time_estimate_minutes": 15,
             },
             {
                 "type": "enneagram",
                 "name": "Enneagram Personality Test",
                 "types": 9,
                 "typical_questions": 36,
-                "time_estimate_minutes": 12
+                "time_estimate_minutes": 12,
             },
             {
                 "type": "disc",
                 "name": "DISC Personality Assessment",
                 "dimensions": 4,
                 "typical_questions": 24,
-                "time_estimate_minutes": 8
-            }
+                "time_estimate_minutes": 8,
+            },
         ]
     }

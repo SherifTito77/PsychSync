@@ -87,7 +87,6 @@ import {
   Lightbulb,
   Handshake,
   Mountain,
-  Flags,
   Shield,
   Sword,
   Crown as CrownIcon,
@@ -309,25 +308,25 @@ const GamificationSystem: React.FC = () => {
 
   const categoryChartData = Object.entries(categoryData).map(([category, count]) => ({
     name: category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' '),
-    value: count,
+    value: count as number,
     fill: COLORS[Object.keys(categoryData).indexOf(category) % COLORS.length]
   }));
 
   const tierData = [
-    { tier: 'Bronze', count: achievements.filter(a => a.badge_tier === 'bronze' && a.earned).length, color: '#CD7F32' },
-    { tier: 'Silver', count: achievements.filter(a => a.badge_tier === 'silver' && a.earned).length, color: '#C0C0C0' },
-    { tier: 'Gold', count: achievements.filter(a => a.badge_tier === 'gold' && a.earned).length, color: '#FFD700' },
-    { tier: 'Platinum', count: achievements.filter(a => a.badge_tier === 'platinum' && a.earned).length, color: '#E5E4E2' },
-    { tier: 'Diamond', count: achievements.filter(a => a.badge_tier === 'diamond' && a.earned).length, color: '#B9F2FF' }
+    { tier: 'Bronze', count: achievements.filter(a => a.badge_tier === 'bronze' && a.earned).length, color: 'var(--color-tier-bronze)' },
+    { tier: 'Silver', count: achievements.filter(a => a.badge_tier === 'silver' && a.earned).length, color: 'var(--color-tier-silver)' },
+    { tier: 'Gold', count: achievements.filter(a => a.badge_tier === 'gold' && a.earned).length, color: 'var(--color-tier-gold)' },
+    { tier: 'Platinum', count: achievements.filter(a => a.badge_tier === 'platinum' && a.earned).length, color: 'var(--color-tier-platinum)' },
+    { tier: 'Diamond', count: achievements.filter(a => a.badge_tier === 'diamond' && a.earned).length, color: 'var(--color-tier-diamond)' }
   ];
 
   const getTierIcon = (tier: string) => {
     switch (tier) {
-      case 'bronze': return <Medal className="h-4 w-4" style={{ color: '#CD7F32' }} />;
-      case 'silver': return <Award className="h-4 w-4" style={{ color: '#C0C0C0' }} />;
-      case 'gold': return <Trophy className="h-4 w-4" style={{ color: '#FFD700' }} />;
-      case 'platinum': return <Crown className="h-4 w-4" style={{ color: '#E5E4E2' }} />;
-      case 'diamond': return <Diamond className="h-4 w-4" style={{ color: '#B9F2FF' }} />;
+      case 'bronze': return <Medal className="h-4 w-4" style={{ color: 'var(--color-tier-bronze)' }} />;
+      case 'silver': return <Award className="h-4 w-4" style={{ color: 'var(--color-tier-silver)' }} />;
+      case 'gold': return <Trophy className="h-4 w-4" style={{ color: 'var(--color-tier-gold)' }} />;
+      case 'platinum': return <Crown className="h-4 w-4" style={{ color: 'var(--color-tier-platinum)' }} />;
+      case 'diamond': return <Diamond className="h-4 w-4" style={{ color: 'var(--color-tier-diamond)' }} />;
       default: return <Star className="h-4 w-4" />;
     }
   };

@@ -4,20 +4,45 @@ Advanced database optimizations for PsychSync
 Includes connection pooling, query optimization, and performance monitoring
 """
 
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 import logging
 import time
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 
-from sqlalchemy import event, text
+from sqlalchemy import Table, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.sql import quoted_name
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_table_name(table_name: str) -> str:
+    """
+    Validate and safely quote table name to prevent SQL injection.
+
+    Args:
+        table_name: The table name to validate
+
+    Returns:
+        Safely quoted table identifier
+
+    Raises:
+        ValueError: If table_name contains invalid characters
+    """
+    # Allow only alphanumeric characters and underscores
+    if not table_name.replace("_", "").isalnum():
+        raise ValueError(
+            f"Invalid table name '{table_name}'. "
+            "Table names must contain only alphanumeric characters and underscores."
+        )
+
+    # Use SQLAlchemy's quoted_name to safely quote the identifier
+    return str(quoted_name(table_name, quote=True))
 
 
 class Base(DeclarativeBase):
@@ -130,8 +155,12 @@ class DatabaseMonitor:
         return {
             **self.query_stats,
             "avg_query_time": avg_time,
-            "slow_query_percentage": (self.query_stats["slow_queries"] / total_queries) * 100,
-            "error_query_percentage": (self.query_stats["error_queries"] / total_queries) * 100,
+            "slow_query_percentage": (self.query_stats["slow_queries"] / total_queries)
+            * 100,
+            "error_query_percentage": (
+                self.query_stats["error_queries"] / total_queries
+            )
+            * 100,
         }
 
 
@@ -202,8 +231,12 @@ class QueryOptimizer:
     async def analyze_table(db: AsyncSession, table_name: str) -> dict[str, Any]:
         """Analyze table statistics and suggest optimizations"""
         try:
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
             result = await db.execute(
-                text(f"""
+                text(
+                    """
                 SELECT
                     schemaname,
                     tablename,
@@ -217,15 +250,18 @@ class QueryOptimizer:
                     last_analyze,
                     last_autoanalyze
                 FROM pg_stat_user_tables
-                WHERE tablename = '{table_name}'
-            """)
+                WHERE tablename = :table_name
+            """
+                ),
+                {"table_name": table_name},  # Parameterized query
             )
 
             stats = result.mappings().first()
 
             # Get index usage statistics
             index_result = await db.execute(
-                text(f"""
+                text(
+                    """
                 SELECT
                     schemaname,
                     tablename,
@@ -234,9 +270,11 @@ class QueryOptimizer:
                     idx_tup_read as tuples_read,
                     idx_tup_fetch as tuples_fetched
                 FROM pg_stat_user_indexes
-                WHERE tablename = '{table_name}'
+                WHERE tablename = :table_name
                 ORDER BY idx_scan DESC
-            """)
+            """
+                ),
+                {"table_name": table_name},  # Parameterized query
             )
 
             index_stats = index_result.mappings().all()
@@ -244,7 +282,9 @@ class QueryOptimizer:
             return {
                 "table_stats": dict(stats) if stats else {},
                 "index_stats": [dict(row) for row in index_stats],
-                "optimization_suggestions": QueryOptimizer._get_suggestions(stats, index_stats),
+                "optimization_suggestions": QueryOptimizer._get_suggestions(
+                    stats, index_stats
+                ),
             }
 
         except Exception as e:
@@ -266,11 +306,15 @@ class QueryOptimizer:
 
             # Check for unused indexes
             unused_indexes = [
-                idx["indexname"] for idx in index_stats if idx.get("index_scans", 0) == 0
+                idx["indexname"]
+                for idx in index_stats
+                if idx.get("index_scans", 0) == 0
             ]
 
             if unused_indexes:
-                suggestions.append(f"Unused indexes detected: {', '.join(unused_indexes[:3])}")
+                suggestions.append(
+                    f"Unused indexes detected: {', '.join(unused_indexes[:3])}"
+                )
 
         return suggestions
 
@@ -293,14 +337,16 @@ async def get_database_health() -> dict[str, Any]:
         async with AsyncSessionLocal() as session:
             # Connection statistics
             result = await session.execute(
-                text("""
+                text(
+                    """
                 SELECT
                     count(*) as total_connections,
                     count(*) FILTER (WHERE state = 'active') as active_connections,
                     count(*) FILTER (WHERE state = 'idle') as idle_connections
                 FROM pg_stat_activity
                 WHERE datname = current_database()
-            """)
+            """
+                )
             )
 
             conn_stats = result.mappings().first()
@@ -316,9 +362,11 @@ async def get_database_health() -> dict[str, Any]:
 
             # Database size
             result = await session.execute(
-                text("""
+                text(
+                    """
                 SELECT pg_size_pretty(pg_database_size(current_database())) as size
-            """)
+            """
+                )
             )
 
             size_result = result.scalar()
@@ -326,12 +374,14 @@ async def get_database_health() -> dict[str, Any]:
 
             # Cache hit ratio
             result = await session.execute(
-                text("""
+                text(
+                    """
                 SELECT
                     sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) as cache_hit_ratio
                 FROM pg_statio_user_tables
                 WHERE (sum(heap_blks_hit) + sum(heap_blks_read)) > 0
-            """)
+            """
+                )
             )
 
             cache_ratio = result.scalar()
@@ -340,11 +390,13 @@ async def get_database_health() -> dict[str, Any]:
             # Slow queries (pg_stat_statements extension)
             try:
                 result = await session.execute(
-                    text("""
+                    text(
+                        """
                     SELECT count(*) as slow_queries
                     FROM pg_stat_statements
                     WHERE mean_time > 1000  -- queries taking more than 1 second
-                """)
+                """
+                    )
                 )
 
                 slow_queries = result.scalar()
@@ -370,7 +422,11 @@ class DatabaseMaintenance:
     async def vacuum_analyze_table(db: AsyncSession, table_name: str) -> bool:
         """Run VACUUM ANALYZE on a specific table"""
         try:
-            await db.execute(text(f"VACUUM ANALYZE {table_name}"))
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
+            # Use text() with validated table name (VACUUM doesn't support parameters)
+            await db.execute(text(f"VACUUM ANALYZE {safe_table_name}"))
             await db.commit()
             logger.info(f"VACUUM ANALYZE completed for table: {table_name}")
             return True
@@ -382,7 +438,11 @@ class DatabaseMaintenance:
     async def update_table_statistics(db: AsyncSession, table_name: str) -> bool:
         """Update table statistics"""
         try:
-            await db.execute(text(f"ANALYZE {table_name}"))
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
+            # Use text() with validated table name (ANALYZE doesn't support parameters)
+            await db.execute(text(f"ANALYZE {safe_table_name}"))
             await db.commit()
             logger.info(f"Statistics updated for table: {table_name}")
             return True
@@ -394,7 +454,11 @@ class DatabaseMaintenance:
     async def reindex_table(db: AsyncSession, table_name: str) -> bool:
         """Rebuild indexes on a table"""
         try:
-            await db.execute(text(f"REINDEX TABLE {table_name}"))
+            # Validate and safely quote table name
+            safe_table_name = _validate_table_name(table_name)
+
+            # Use text() with validated table name (REINDEX doesn't support parameters)
+            await db.execute(text(f"REINDEX TABLE {safe_table_name}"))
             await db.commit()
             logger.info(f"Indexes rebuilt for table: {table_name}")
             return True
@@ -437,19 +501,23 @@ async def init_advanced_db():
 
             # Create performance monitoring extensions
             await conn.execute(
-                text("""
+                text(
+                    """
                 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-            """)
+            """
+                )
             )
 
             # Set performance optimizations
             await conn.execute(
-                text("""
+                text(
+                    """
                 -- Improve performance for large tables
                 ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';
                 ALTER SYSTEM SET track_activity_query_size = 2048;
                 ALTER SYSTEM SET log_min_duration_statement = 1000;  -- Log queries > 1s
-            """)
+            """
+                )
             )
 
         logger.info("Advanced database initialization completed successfully")

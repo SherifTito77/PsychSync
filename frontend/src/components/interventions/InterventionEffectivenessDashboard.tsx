@@ -36,10 +36,8 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  BoxPlot,
-  Box,
-  ViolinPlot,
-  Violin,
+  // BoxPlot, Box, ViolinPlot, Violin are not available in recharts
+  // These chart types are not currently supported
 } from 'recharts';
 import {
   TrendingUp,
@@ -106,11 +104,20 @@ interface StatisticalSummary {
   };
 }
 
+// Define proper type for dashboard filters
+interface DashboardFilters {
+  timeRange?: string;
+  selectedMetrics?: string[];
+  selectedTab?: string;
+  participantGroups?: string[];
+  outcomeCategories?: string[];
+}
+
 interface InterventionEffectivenessDashboardProps {
   interventionId: string;
   data?: InterventionData;
   onExport?: (format: 'pdf' | 'excel' | 'csv') => void;
-  onFilterChange?: (filters: any) => void;
+  onFilterChange?: (filters: DashboardFilters) => void;
 }
 
 const InterventionEffectivenessDashboard: React.FC<InterventionEffectivenessDashboardProps> = ({
@@ -399,7 +406,7 @@ const InterventionEffectivenessDashboard: React.FC<InterventionEffectivenessDash
               <Tooltip />
               <Bar
                 dataKey="effectSize"
-                fill={(entry: any) => getEffectSizeColor(entry.effectSize)}
+                fill="#3b82f6"
                 name="Effect Size"
               />
             </BarChart>

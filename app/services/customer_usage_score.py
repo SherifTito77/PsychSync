@@ -12,35 +12,37 @@ Created: 2025-01-12
 Author: Architecture Team
 """
 
-from datetime import datetime, timedelta, date
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
-from enum import Enum
 import logging
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, case
 from sqlalchemy.sql import text
 
-from app.db.models.organization import Organization
-from app.db.models.user import User
-from app.db.models.team import Team
 from app.db.models.analytics import FactAssessmentCompletion
+from app.db.models.organization import Organization
+from app.db.models.team import Team
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
 
 class ScoreTier(str, Enum):
     """Customer health tiers based on usage score"""
+
     CRITICAL = "critical"  # 0-39: High churn risk
-    AT_RISK = "at_risk"    # 40-59: Moderate churn risk
-    HEALTHY = "healthy"    # 60-79: Good engagement
+    AT_RISK = "at_risk"  # 40-59: Moderate churn risk
+    HEALTHY = "healthy"  # 60-79: Good engagement
     THRIVING = "thriving"  # 80-100: Excellent engagement
 
 
 @dataclass
 class ComponentScore:
     """Individual component score details"""
+
     component_name: str
     score: float  # 0-100
     weight: float  # 0-1
@@ -52,6 +54,7 @@ class ComponentScore:
 @dataclass
 class CustomerUsageScore:
     """Complete customer usage score breakdown"""
+
     tenant_id: str
     organization_id: str
     score: float  # 0-100
@@ -95,7 +98,7 @@ class CustomerUsageScoreService:
         self,
         organization_id: str,
         lookback_days: int = 30,
-        previous_period_days: int = 30
+        previous_period_days: int = 30,
     ) -> CustomerUsageScore:
         """
         Calculate Customer Usage Score for organization.
@@ -152,7 +155,11 @@ class CustomerUsageScoreService:
 
         # Get previous score for trend
         previous_score = await self._get_previous_score(organization_id)
-        trend = self._calculate_trend(previous_score, total_score) if previous_score else None
+        trend = (
+            self._calculate_trend(previous_score, total_score)
+            if previous_score
+            else None
+        )
 
         return CustomerUsageScore(
             tenant_id=organization_id,  # For multi-tenant, org_id = tenant_id
@@ -169,10 +176,7 @@ class CustomerUsageScoreService:
         )
 
     async def _calculate_engagement(
-        self,
-        organization_id: str,
-        lookback_days: int,
-        previous_period_days: int
+        self, organization_id: str, lookback_days: int, previous_period_days: int
     ) -> ComponentScore:
         """
         Calculate Engagement Score (30% weight).
@@ -196,7 +200,7 @@ class CustomerUsageScoreService:
                 weight=0.30,
                 weighted_score=0.0,
                 metrics={},
-                trend="stable"
+                trend="stable",
             )
 
         # DAU calculation
@@ -219,9 +223,9 @@ class CustomerUsageScoreService:
         # Calculate component score (0-100)
         # DAU/MAU: 40%, Session Frequency: 30%, Feature Breadth: 30%
         score = (
-            (dau_mau_ratio * 40) +
-            (min(session_frequency / 4, 1.0) * 30) +  # 4 assessments/user = 100%
-            (feature_breadth * 30)
+            (dau_mau_ratio * 40)
+            + (min(session_frequency / 4, 1.0) * 30)
+            + (feature_breadth * 30)  # 4 assessments/user = 100%
         )
 
         # Get previous period score for trend
@@ -229,7 +233,9 @@ class CustomerUsageScoreService:
             organization_id, prev_start, start_date
         )
         prev_session_frequency = prev_assessments / user_count if user_count > 0 else 0
-        trend = self._calculate_component_trend(session_frequency, prev_session_frequency)
+        trend = self._calculate_component_trend(
+            session_frequency, prev_session_frequency
+        )
 
         return ComponentScore(
             component_name="engagement",
@@ -241,14 +247,11 @@ class CustomerUsageScoreService:
                 "session_frequency": round(session_frequency, 2),
                 "feature_breadth": round(feature_breadth, 2),
             },
-            trend=trend
+            trend=trend,
         )
 
     async def _calculate_adoption(
-        self,
-        organization_id: str,
-        lookback_days: int,
-        previous_period_days: int
+        self, organization_id: str, lookback_days: int, previous_period_days: int
     ) -> ComponentScore:
         """
         Calculate Adoption Score (25% weight).
@@ -272,7 +275,7 @@ class CustomerUsageScoreService:
                 weight=0.25,
                 weighted_score=0.0,
                 metrics={},
-                trend="stable"
+                trend="stable",
             )
 
         # User activation rate (users who completed ≥1 assessment)
@@ -294,9 +297,7 @@ class CustomerUsageScoreService:
         # Calculate component score
         # Activation: 40%, Team Adoption: 30%, Seat Utilization: 30%
         score = (
-            (activation_rate * 40) +
-            (team_adoption_rate * 30) +
-            (seat_utilization * 30)
+            (activation_rate * 40) + (team_adoption_rate * 30) + (seat_utilization * 30)
         )
 
         return ComponentScore(
@@ -309,14 +310,11 @@ class CustomerUsageScoreService:
                 "team_adoption_rate": round(team_adoption_rate, 3),
                 "seat_utilization": round(seat_utilization, 3),
             },
-            trend="stable"
+            trend="stable",
         )
 
     async def _calculate_integration(
-        self,
-        organization_id: str,
-        lookback_days: int,
-        previous_period_days: int
+        self, organization_id: str, lookback_days: int, previous_period_days: int
     ) -> ComponentScore:
         """
         Calculate Integration Score (20% weight).
@@ -353,14 +351,11 @@ class CustomerUsageScoreService:
                 "api_calls": api_calls,
                 "sync_completeness": sync_score,
             },
-            trend="stable"
+            trend="stable",
         )
 
     async def _calculate_growth(
-        self,
-        organization_id: str,
-        lookback_days: int,
-        previous_period_days: int
+        self, organization_id: str, lookback_days: int, previous_period_days: int
     ) -> ComponentScore:
         """
         Calculate Growth Score (15% weight).
@@ -397,12 +392,15 @@ class CustomerUsageScoreService:
 
         # Calculate component score
         # Positive growth = good, negative = declining
-        score = min(max(
-            (user_growth_rate * 40) +
-            (min(assessment_growth_rate, 100) * 35) +
-            (team_growth_rate * 25),
-            0
-        ), 100)
+        score = min(
+            max(
+                (user_growth_rate * 40)
+                + (min(assessment_growth_rate, 100) * 35)
+                + (team_growth_rate * 25),
+                0,
+            ),
+            100,
+        )
 
         # Determine trend based on overall growth direction
         avg_growth = (user_growth_rate + assessment_growth_rate + team_growth_rate) / 3
@@ -423,14 +421,11 @@ class CustomerUsageScoreService:
                 "assessment_growth_rate": round(assessment_growth_rate, 2),
                 "team_growth_rate": round(team_growth_rate, 2),
             },
-            trend=trend
+            trend=trend,
         )
 
     async def _calculate_retention(
-        self,
-        organization_id: str,
-        lookback_days: int,
-        previous_period_days: int
+        self, organization_id: str, lookback_days: int, previous_period_days: int
     ) -> ComponentScore:
         """
         Calculate Retention Score (10% weight).
@@ -445,13 +440,17 @@ class CustomerUsageScoreService:
         prev_start = start_date - timedelta(days=previous_period_days)
 
         # User retention
-        current_users = set(await self._get_active_user_ids(organization_id, start_date, end_date))
-        previous_users = set(await self._get_active_user_ids(
-            organization_id, prev_start, start_date
-        ))
+        current_users = set(
+            await self._get_active_user_ids(organization_id, start_date, end_date)
+        )
+        previous_users = set(
+            await self._get_active_user_ids(organization_id, prev_start, start_date)
+        )
 
         retained_users = len(current_users & previous_users)
-        retention_rate = (retained_users / len(previous_users)) if previous_users else 1.0
+        retention_rate = (
+            (retained_users / len(previous_users)) if previous_users else 1.0
+        )
 
         # Assessment repeat rate
         repeat_assessments = await self._get_repeat_assessment_rate(
@@ -470,7 +469,7 @@ class CustomerUsageScoreService:
                 "retention_rate": round(retention_rate, 3),
                 "repeat_assessment_rate": round(repeat_assessments, 3),
             },
-            trend="stable"
+            trend="stable",
         )
 
     # ==================== HELPER METHODS ====================
@@ -495,79 +494,75 @@ class CustomerUsageScoreService:
         """Get active user count in last N days."""
         since = datetime.utcnow() - timedelta(days=days)
 
-        query = select(func.count(func.distinct(FactAssessmentCompletion.user_id))).where(
+        query = select(
+            func.count(func.distinct(FactAssessmentCompletion.user_id))
+        ).where(
             and_(
                 FactAssessmentCompletion.tenant_id == organization_id,
-                FactAssessmentCompletion.completed_at >= since
+                FactAssessmentCompletion.completed_at >= since,
             )
         )
         result = await self.db.execute(query)
         return result.scalar_one() or 0
 
     async def _get_assessment_count(
-        self,
-        organization_id: str,
-        start_date: datetime,
-        end_date: datetime
+        self, organization_id: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Get assessment count in date range."""
         query = select(func.count(FactAssessmentCompletion.completion_key)).where(
             and_(
                 FactAssessmentCompletion.tenant_id == organization_id,
                 FactAssessmentCompletion.completed_at >= start_date,
-                FactAssessmentCompletion.completed_at < end_date
+                FactAssessmentCompletion.completed_at < end_date,
             )
         )
         result = await self.db.execute(query)
         return result.scalar_one() or 0
 
     async def _get_frameworks_used(
-        self,
-        organization_id: str,
-        start_date: datetime,
-        end_date: datetime
+        self, organization_id: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Get number of different frameworks used."""
-        query = select(func.count(func.distinct(FactAssessmentCompletion.framework_key))).where(
+        query = select(
+            func.count(func.distinct(FactAssessmentCompletion.framework_key))
+        ).where(
             and_(
                 FactAssessmentCompletion.tenant_id == organization_id,
                 FactAssessmentCompletion.completed_at >= start_date,
-                FactAssessmentCompletion.completed_at < end_date
+                FactAssessmentCompletion.completed_at < end_date,
             )
         )
         result = await self.db.execute(query)
         return result.scalar_one() or 0
 
     async def _get_activated_user_count(
-        self,
-        organization_id: str,
-        start_date: datetime,
-        end_date: datetime
+        self, organization_id: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Get count of users who completed ≥1 assessment."""
-        query = select(func.count(func.distinct(FactAssessmentCompletion.user_id))).where(
+        query = select(
+            func.count(func.distinct(FactAssessmentCompletion.user_id))
+        ).where(
             and_(
                 FactAssessmentCompletion.tenant_id == organization_id,
                 FactAssessmentCompletion.completed_at >= start_date,
-                FactAssessmentCompletion.completed_at < end_date
+                FactAssessmentCompletion.completed_at < end_date,
             )
         )
         result = await self.db.execute(query)
         return result.scalar_one() or 0
 
     async def _get_adopted_team_count(
-        self,
-        organization_id: str,
-        start_date: datetime,
-        end_date: datetime
+        self, organization_id: str, start_date: datetime, end_date: datetime
     ) -> int:
         """Get count of teams with ≥1 assessment completed."""
-        query = select(func.count(func.distinct(FactAssessmentCompletion.team_id))).where(
+        query = select(
+            func.count(func.distinct(FactAssessmentCompletion.team_id))
+        ).where(
             and_(
                 FactAssessmentCompletion.tenant_id == organization_id,
                 FactAssessmentCompletion.completed_at >= start_date,
                 FactAssessmentCompletion.completed_at < end_date,
-                FactAssessmentCompletion.team_id.isnot(None)
+                FactAssessmentCompletion.team_id.isnot(None),
             )
         )
         result = await self.db.execute(query)
@@ -584,45 +579,39 @@ class CustomerUsageScoreService:
         return 0
 
     async def _get_user_count_at_date(
-        self,
-        organization_id: str,
-        at_date: datetime
+        self, organization_id: str, at_date: datetime
     ) -> int:
         """Get user count at specific date."""
         # Simplified - using current count
         return await self._get_user_count(organization_id)
 
     async def _get_team_count_at_date(
-        self,
-        organization_id: str,
-        at_date: datetime
+        self, organization_id: str, at_date: datetime
     ) -> int:
         """Get team count at specific date."""
         # Simplified - using current count
         return await self._get_team_count(organization_id)
 
     async def _get_active_user_ids(
-        self,
-        organization_id: str,
-        start_date: datetime,
-        end_date: datetime
+        self, organization_id: str, start_date: datetime, end_date: datetime
     ) -> List[str]:
         """Get list of active user IDs in date range."""
-        query = select(FactAssessmentCompletion.user_id).where(
-            and_(
-                FactAssessmentCompletion.tenant_id == organization_id,
-                FactAssessmentCompletion.completed_at >= start_date,
-                FactAssessmentCompletion.completed_at < end_date
+        query = (
+            select(FactAssessmentCompletion.user_id)
+            .where(
+                and_(
+                    FactAssessmentCompletion.tenant_id == organization_id,
+                    FactAssessmentCompletion.completed_at >= start_date,
+                    FactAssessmentCompletion.completed_at < end_date,
+                )
             )
-        ).distinct()
+            .distinct()
+        )
         result = await self.db.execute(query)
         return [str(row[0]) for row in result.all()]
 
     async def _get_repeat_assessment_rate(
-        self,
-        organization_id: str,
-        start_date: datetime,
-        end_date: datetime
+        self, organization_id: str, start_date: datetime, end_date: datetime
     ) -> float:
         """Calculate assessment repeat rate."""
         # Simplified - return 0 for now
@@ -669,9 +658,7 @@ class CustomerUsageScoreService:
             return ScoreTier.CRITICAL
 
     def _calculate_churn_probability(
-        self,
-        score: float,
-        components: Dict[str, ComponentScore]
+        self, score: float, components: Dict[str, ComponentScore]
     ) -> float:
         """
         Calculate churn probability based on score and components.
@@ -697,9 +684,7 @@ class CustomerUsageScoreService:
         return max(0.0, min(1.0, base_churn))
 
     def _generate_insights(
-        self,
-        components: Dict[str, ComponentScore],
-        total_score: float
+        self, components: Dict[str, ComponentScore], total_score: float
     ) -> List[str]:
         """Generate human-readable insights from scores."""
         insights = []
@@ -710,18 +695,26 @@ class CustomerUsageScoreService:
         elif total_score >= 60:
             insights.append("Customer shows healthy engagement levels.")
         elif total_score >= 40:
-            insights.append("Customer shows moderate engagement with improvement opportunities.")
+            insights.append(
+                "Customer shows moderate engagement with improvement opportunities."
+            )
         else:
-            insights.append("Customer is at high risk of churn - immediate attention needed.")
+            insights.append(
+                "Customer is at high risk of churn - immediate attention needed."
+            )
 
         # Component-specific insights
         eng = components["engagement"]
         if eng.score < 50:
-            insights.append(f"Low engagement ({eng.score:.0f}/100) - users not actively using platform.")
+            insights.append(
+                f"Low engagement ({eng.score:.0f}/100) - users not actively using platform."
+            )
 
         ado = components["adoption"]
         if ado.score < 50:
-            insights.append(f"Poor adoption ({ado.score:.0f}/100) - low team activation rate.")
+            insights.append(
+                f"Poor adoption ({ado.score:.0f}/100) - low team activation rate."
+            )
 
         growth = components["growth"]
         if growth.trend == "declining":
@@ -730,9 +723,7 @@ class CustomerUsageScoreService:
         return insights
 
     def _generate_recommendations(
-        self,
-        components: Dict[str, ComponentScore],
-        tier: ScoreTier
+        self, components: Dict[str, ComponentScore], tier: ScoreTier
     ) -> List[str]:
         """Generate actionable recommendations."""
         recommendations = []
@@ -759,9 +750,7 @@ class CustomerUsageScoreService:
         return recommendations
 
     async def get_at_risk_customers(
-        self,
-        score_threshold: float = 40.0,
-        limit: int = 50
+        self, score_threshold: float = 40.0, limit: int = 50
     ) -> List[CustomerUsageScore]:
         """
         Get all customers at or below score threshold.

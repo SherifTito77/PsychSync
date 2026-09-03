@@ -8,7 +8,9 @@ class Framework(Base):
     __tablename__ = "frameworks"
 
     id = sa.Column(
-        UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
     )
     name = sa.Column(sa.String, nullable=False, unique=True)
     description = sa.Column(sa.String, nullable=True)

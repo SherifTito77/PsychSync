@@ -38,13 +38,13 @@ if git diff --name-only origin/main...HEAD | grep -q "requirements.txt"; then
     if [ -f "requirements.txt" ]; then
         # Extract package names (before == or >)
         CURRENT_PACKAGES=$(grep -E '^[a-zA-Z0-9_-]+' requirements.txt | sed 's/[\[=<].*//' | sort)
-        
+
         # Extract allowed packages from allow-list
         ALLOWED_PACKAGES=$(grep -E '^[a-zA-Z0-9_-]+' allowed-dependencies.txt | sed 's/[\[=<].*//' | sort)
-        
+
         # Find packages in current but not in allowed
         NEW_PACKAGES=$(comm -23 <(echo "$CURRENT_PACKAGES") <(echo "$ALLOWED_PACKAGES") || true)
-        
+
         if [ -n "$NEW_PACKAGES" ]; then
             echo -e "${RED}✗ BLOCKING: New dependencies not in allow-list:${NC}"
             echo ""
@@ -79,7 +79,7 @@ if git diff --name-only origin/main...HEAD | grep -q "frontend/package.json"; th
 
     if [ -f "frontend/package.json" ]; then
         cd frontend
-        
+
         # Get list of dependencies from package.json
         CURRENT_DEPS=$(node -e "
             const pkg = require('./package.json');
@@ -89,19 +89,19 @@ if git diff --name-only origin/main...HEAD | grep -q "frontend/package.json"; th
             };
             console.log(Object.keys(allDeps).join('\n'));
         " | sort)
-        
+
         # Extract allowed packages from allow-list JSON
         ALLOWED_DEPS=$(node -e "
             const allowlist = require('./allowed-dependencies.json');
             const allowed = new Set();
-            
+
             // Recursively extract all package names from allowlist
             function extractPackages(obj) {
                 if (typeof obj === 'object' && obj !== null) {
                     Object.keys(obj).forEach(key => {
                         if (key.includes('@') || key === 'react' || key === 'axios' || key === 'vitest') {
                             // These are package names
-                            if (!key.startsWith('min') && !key.startsWith('max') && 
+                            if (!key.startsWith('min') && !key.startsWith('max') &&
                                 !key.startsWith('reason') && !key.startsWith('security')) {
                                 allowed.add(key);
                             }
@@ -110,14 +110,14 @@ if git diff --name-only origin/main...HEAD | grep -q "frontend/package.json"; th
                     });
                 }
             }
-            
+
             extractPackages(allowlist.allowedDependencies || {});
             console.log(Array.from(allowed).join('\n'));
         " | sort)
-        
+
         # Find packages in current but not in allowed
         NEW_DEPS=$(comm -23 <(echo "$CURRENT_DEPS") <(echo "$ALLOWED_DEPS") || true)
-        
+
         if [ -n "$NEW_DEPS" ]; then
             echo -e "${RED}✗ BLOCKING: New dependencies not in allow-list:${NC}"
             echo ""
@@ -134,7 +134,7 @@ if git diff --name-only origin/main...HEAD | grep -q "frontend/package.json"; th
         else
             echo -e "${GREEN}✓${NC}  All JavaScript dependencies are in the allow-list"
         fi
-        
+
         cd ..
     fi
 else

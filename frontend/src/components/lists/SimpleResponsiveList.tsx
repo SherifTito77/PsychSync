@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import styles from './SimpleResponsiveList.module.css';
+import { tokens } from '@/utils/designTokens';
 
 interface SimpleResponsiveListProps {
   items: string[];
@@ -107,7 +108,7 @@ export const SimpleListExample: React.FC = () => {
   return (
     <div style={{ padding: '20px' }}>
       <h1>PsychSync Team Directory</h1>
-      <p style={{ marginBottom: '2rem', color: '#718096' }}>
+      <p style={{ marginBottom: '2rem', color: tokens.color.gray(600) }}>
         Click any team member to view their profile. This list is fully responsive
         and accessible across all devices.
       </p>

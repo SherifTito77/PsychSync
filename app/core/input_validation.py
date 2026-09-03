@@ -5,8 +5,8 @@ Comprehensive input validation utilities for PsychSync API
 
 import logging
 import re
-from typing import Any
 import uuid
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,8 @@ class InputValidator:
 
     # Pre-compiled regex patterns for performance
     UUID_PATTERN = re.compile(
-        r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$", re.IGNORECASE
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        re.IGNORECASE,
     )
     EMAIL_PATTERN = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
     SAFE_STRING_PATTERN = re.compile(r"^[a-zA-Z0-9\s\-_.,!?@#$%^&*()+=\[\]{}|;:<>]+$")
@@ -75,7 +76,11 @@ class InputValidator:
 
     @classmethod
     def validate_safe_string(
-        cls, value: str, field_name: str = "Input", min_length: int = 1, max_length: int = 1000
+        cls,
+        value: str,
+        field_name: str = "Input",
+        min_length: int = 1,
+        max_length: int = 1000,
     ) -> str:
         """Validate string for safe usage"""
         if not isinstance(value, str):
@@ -125,7 +130,9 @@ class InputValidator:
         clean_sort = re.sub(r"[^a-zA-Z0-9_\-]", "", sort_by)
 
         if clean_sort not in allowed_fields:
-            raise ValueError(f"Invalid sort field. Allowed fields: {', '.join(allowed_fields)}")
+            raise ValueError(
+                f"Invalid sort field. Allowed fields: {', '.join(allowed_fields)}"
+            )
 
         return clean_sort
 
@@ -146,7 +153,9 @@ class InputValidator:
 
         # Size check
         if len(str(data)) > max_size:
-            raise ValueError(f"JSON data too large. Maximum size: {max_size} characters")
+            raise ValueError(
+                f"JSON data too large. Maximum size: {max_size} characters"
+            )
 
         return data
 

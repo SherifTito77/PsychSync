@@ -182,9 +182,12 @@ const AUDITScreening: React.FC = () => {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/audit', finalResponses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'audit',
+        responses: responses
+      });
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening. Please try again.');
       console.error('AUDIT submission error:', err);
     } finally {
@@ -267,7 +270,7 @@ const AUDITScreening: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -284,7 +287,8 @@ const AUDITScreening: React.FC = () => {
               </div>
 
               <RadioGroup
-                onValueChange={(value) => handleResponse(parseInt(value))}
+                value={(responses[currentQuestion.id as keyof AUDITResponse] || 0).toString()}
+                onChange={(value) => handleResponse(parseInt(value))}
                 className="space-y-3"
               >
                 {currentQuestion.options.map((option) => (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { useAsyncEffect } from '../../hooks/useAsyncEffect';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
 import { InfrastructureSecurityDashboard } from './InfrastructureSecurityDashboard';
 import { SecurityDashboard } from './SecurityDashboard';
 import { Shield, Activity, AlertTriangle, CheckCircle, Clock, TrendingUp, TrendingDown } from 'lucide-react';
@@ -190,26 +191,36 @@ export const UnifiedSecurityDashboard: React.FC = () => {
     }
   };
 
+  // ✅ FIXED: Memory leak prevention - separate initialization and interval
   useEffect(() => {
-    const initializeDashboard = async () => {
-      await Promise.all([
-        fetchUnifiedSecurityStatus(),
-        fetchRecentAlerts(),
-        fetchSecurityTrends()
-      ]);
-      setLoading(false);
+    const initialize = async () => {
+      try {
+        await Promise.all([
+          fetchUnifiedSecurityStatus(),
+          fetchRecentAlerts(),
+          fetchSecurityTrends()
+        ]);
+        setLoading(false);
+      } catch (error: any) {
+        console.error('Error initializing dashboard:', error);
+        setLoading(false);
+      }
     };
+    initialize();
+  }, [fetchUnifiedSecurityStatus, fetchRecentAlerts, fetchSecurityTrends]);
 
-    initializeDashboard();
-
+  useEffect(() => {
+    // Set up interval for auto-refresh
     if (autoRefresh) {
       const interval = setInterval(() => {
         fetchUnifiedSecurityStatus();
         fetchRecentAlerts();
       }, 60000); // Refresh every minute
+
+      // Return cleanup for the interval
       return () => clearInterval(interval);
     }
-  }, [fetchUnifiedSecurityStatus, fetchRecentAlerts, fetchSecurityTrends, autoRefresh]);
+  }, [autoRefresh]);
 
   if (loading || !unifiedMetrics) {
     return (
@@ -385,8 +396,8 @@ export const UnifiedSecurityDashboard: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {latestMetrics && Object.entries(latestMetrics.compliance_scores).map(([standard, score]) => (
                   <div key={standard} className="text-center">
-                    <div className={`text-lg font-semibold ${getScoreColor(score)}`}>
-                      {score}%
+                    <div className={`text-lg font-semibold ${getScoreColor(score as number)}`}>
+                      {score as number}%
                     </div>
                     <p className="text-xs text-gray-600 uppercase mt-1">
                       {standard.replace('_', ' ')}

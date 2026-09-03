@@ -3,10 +3,10 @@ Usability Testing Service
 Provides comprehensive usability testing frameworks, user feedback collection, and UX analysis tools
 """
 
-from datetime import datetime
-from enum import Enum
 import json
 import logging
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -154,17 +154,25 @@ class UsabilityTestSession:
             return {}
 
         total_tasks = len(self.task_results)
-        successful_tasks = sum(1 for result in self.task_results if result.get("success", False))
+        successful_tasks = sum(
+            1 for result in self.task_results if result.get("success", False)
+        )
 
-        time_on_tasks = [result.get("completion_time", 0) for result in self.task_results]
-        avg_time_on_task = sum(time_on_tasks) / len(time_on_tasks) if time_on_tasks else 0
+        time_on_tasks = [
+            result.get("completion_time", 0) for result in self.task_results
+        ]
+        avg_time_on_task = (
+            sum(time_on_tasks) / len(time_on_tasks) if time_on_tasks else 0
+        )
 
         errors = sum(result.get("errors", 0) for result in self.task_results)
 
         return {
             "total_tasks": total_tasks,
             "successful_tasks": successful_tasks,
-            "success_rate": (successful_tasks / total_tasks) * 100 if total_tasks > 0 else 0,
+            "success_rate": (
+                (successful_tasks / total_tasks) * 100 if total_tasks > 0 else 0
+            ),
             "avg_time_on_task": avg_time_on_task,
             "total_errors": errors,
             "error_rate": (errors / total_tasks) * 100 if total_tasks > 0 else 0,
@@ -187,7 +195,9 @@ class UsabilityTestSession:
             "session_notes": self.session_notes,
             "session_duration": self.session_duration,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
             "metrics": self.calculate_session_metrics(),
         }
 
@@ -207,7 +217,17 @@ class SUS量表:
             "I found the system very cumbersome to use.",
             "I felt very confident using the system.",
         ]
-        self.scoring = [1, 5, 1, 5, 1, 5, 1, 5, 1]  # Odd-numbered questions positive, even negative
+        self.scoring = [
+            1,
+            5,
+            1,
+            5,
+            1,
+            5,
+            1,
+            5,
+            1,
+        ]  # Odd-numbered questions positive, even negative
 
     def calculate_score(self, responses: list[int]) -> float:
         """Calculate SUS score from questionnaire responses"""
@@ -262,10 +282,14 @@ class SUS量表:
         if score >= 80:
             return "Users are satisfied with the system. Minor UX improvements may be beneficial."
         if score >= 70:
-            return "Users are moderately satisfied. Some UX improvements are recommended."
+            return (
+                "Users are moderately satisfied. Some UX improvements are recommended."
+            )
         if score >= 60:
             return "Users have significant usability concerns. Major UX improvements needed."
-        return "Users have serious usability problems. Complete UX overhaul recommended."
+        return (
+            "Users have serious usability problems. Complete UX overhaul recommended."
+        )
 
 
 class UsabilityTestingService:
@@ -465,7 +489,9 @@ class UsabilityTestingService:
 
         return mobile_tasks
 
-    def conduct_sus_evaluation(self, participant_id: str, session_context: dict) -> dict[str, Any]:
+    def conduct_sus_evaluation(
+        self, participant_id: str, session_context: dict
+    ) -> dict[str, Any]:
         """Conduct System Usability Scale evaluation"""
 
         evaluation = {
@@ -628,7 +654,9 @@ class UsabilityTestingService:
 
         return heuristics
 
-    def conduct_first_click_test(self, task_description: str, target_page: str) -> dict[str, Any]:
+    def conduct_first_click_test(
+        self, task_description: str, target_page: str
+    ) -> dict[str, Any]:
         """Setup first click usability test"""
 
         first_click_test = {
@@ -655,12 +683,16 @@ class UsabilityTestingService:
 
         return first_click_test
 
-    def generate_usability_report(self, session_id: str = None, include_sus: bool = True) -> str:
+    def generate_usability_report(
+        self, session_id: str = None, include_sus: bool = True
+    ) -> str:
         """Generate comprehensive usability testing report"""
 
         if session_id:
             # Generate report for specific session
-            session = next((s for s in self.test_sessions if s.session_id == session_id), None)
+            session = next(
+                (s for s in self.test_sessions if s.session_id == session_id), None
+            )
             if not session:
                 return "Session not found"
         else:
@@ -694,17 +726,21 @@ class UsabilityTestingService:
             return {"message": "No test sessions available"}
 
         total_sessions = len(self.test_sessions)
-        all_metrics = [session.calculate_session_metrics() for session in self.test_sessions]
+        all_metrics = [
+            session.calculate_session_metrics() for session in self.test_sessions
+        ]
 
         total_tasks = sum(metrics.get("total_tasks", 0) for metrics in all_metrics)
-        total_successful = sum(metrics.get("successful_tasks", 0) for metrics in all_metrics)
+        total_successful = sum(
+            metrics.get("successful_tasks", 0) for metrics in all_metrics
+        )
 
-        avg_success_rate = sum(metrics.get("success_rate", 0) for metrics in all_metrics) / len(
-            all_metrics
-        )
-        avg_time_on_task = sum(metrics.get("avg_time_on_task", 0) for metrics in all_metrics) / len(
-            all_metrics
-        )
+        avg_success_rate = sum(
+            metrics.get("success_rate", 0) for metrics in all_metrics
+        ) / len(all_metrics)
+        avg_time_on_task = sum(
+            metrics.get("avg_time_on_task", 0) for metrics in all_metrics
+        ) / len(all_metrics)
 
         return {
             "total_sessions": total_sessions,

@@ -98,7 +98,7 @@ const KPIDashboard: React.FC = () => {
       setLoading(true);
       const data = await kpiService.getCurrentKPIs();
       setKpis(data);
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Failed to load KPIs');
     } finally {
       setLoading(false);

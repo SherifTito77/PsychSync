@@ -3,12 +3,12 @@ Advanced Growth Analytics Service
 Comprehensive analytics for conversion optimization, user behavior analysis, and growth forecasting
 """
 
+import logging
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
-import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,11 @@ class GrowthAnalyticsService:
                     "feature_adoption": "> 0.7",
                     "session_duration": "> 30 minutes",
                 },
-                "characteristics": ["High engagement", "Feature explorers", "Low churn risk"],
+                "characteristics": [
+                    "High engagement",
+                    "Feature explorers",
+                    "Low churn risk",
+                ],
                 "strategies": [
                     "Advanced features upsell",
                     "Referral program enrollment",
@@ -145,7 +149,11 @@ class GrowthAnalyticsService:
                     "team_size": "> 50",
                     "subscription_tier": "enterprise",
                 },
-                "characteristics": ["Large organizations", "Multiple teams", "Complex workflows"],
+                "characteristics": [
+                    "Large organizations",
+                    "Multiple teams",
+                    "Complex workflows",
+                ],
                 "strategies": [
                     "Enterprise support",
                     "Custom integrations",
@@ -163,7 +171,11 @@ class GrowthAnalyticsService:
                     "Workflow coordinators",
                     "Decision makers",
                 ],
-                "strategies": ["Team optimization tools", "Management analytics", "Team training"],
+                "strategies": [
+                    "Team optimization tools",
+                    "Management analytics",
+                    "Team training",
+                ],
             },
             UserSegment.HIGH_CHURN_RISK: {
                 "criteria": {
@@ -171,7 +183,11 @@ class GrowthAnalyticsService:
                     "support_tickets": "> 3",
                     "login_frequency": "< 0.2",
                 },
-                "characteristics": ["Declining usage", "Support issues", "Low engagement"],
+                "characteristics": [
+                    "Declining usage",
+                    "Support issues",
+                    "Low engagement",
+                ],
                 "strategies": [
                     "Re-engagement campaigns",
                     "Support intervention",
@@ -184,8 +200,16 @@ class GrowthAnalyticsService:
                     "feature_requests": "> 5",
                     "team_growth": "> 20%",
                 },
-                "characteristics": ["High capacity usage", "Growth signals", "Feature requests"],
-                "strategies": ["License expansion", "Feature upgrades", "Tier upgrades"],
+                "characteristics": [
+                    "High capacity usage",
+                    "Growth signals",
+                    "Feature requests",
+                ],
+                "strategies": [
+                    "License expansion",
+                    "Feature upgrades",
+                    "Tier upgrades",
+                ],
             },
         }
 
@@ -341,29 +365,41 @@ class GrowthAnalyticsService:
         """Analyze comprehensive user behavior patterns"""
         try:
             # Get user behavior data
-            behavior_data = await self._collect_behavior_data(user_id, segment, date_range_days)
+            behavior_data = await self._collect_behavior_data(
+                user_id, segment, date_range_days
+            )
 
             # Pattern analysis
             pattern_analysis = {
                 "usage_patterns": await self._analyze_usage_patterns(behavior_data),
-                "temporal_patterns": await self._analyze_temporal_patterns(behavior_data),
+                "temporal_patterns": await self._analyze_temporal_patterns(
+                    behavior_data
+                ),
                 "feature_patterns": await self._analyze_feature_patterns(behavior_data),
-                "conversion_patterns": await self._analyze_conversion_patterns(behavior_data),
-                "retention_patterns": await self._analyze_retention_patterns(behavior_data),
+                "conversion_patterns": await self._analyze_conversion_patterns(
+                    behavior_data
+                ),
+                "retention_patterns": await self._analyze_retention_patterns(
+                    behavior_data
+                ),
             }
 
             # Generate user segments
             user_segments = await self._segment_users(behavior_data)
 
             # Identify behavioral insights
-            behavioral_insights = await self._generate_behavioral_insights(pattern_analysis)
+            behavioral_insights = await self._generate_behavioral_insights(
+                pattern_analysis
+            )
 
             # Predict future behavior
             behavior_predictions = await self._predict_user_behavior(behavior_data)
 
             return {
                 "analysis_period": {
-                    "start": (datetime.utcnow() - timedelta(days=date_range_days)).isoformat(),
+                    "start": (
+                        datetime.utcnow() - timedelta(days=date_range_days)
+                    ).isoformat(),
                     "end": datetime.utcnow().isoformat(),
                     "user_count": len(behavior_data.get("users", [])),
                     "segment_filter": segment.value if segment else "all_users",
@@ -394,8 +430,10 @@ class GrowthAnalyticsService:
             current_performance = await self._calculate_funnel_performance(funnel_name)
 
             # Identify optimization opportunities
-            optimization_opportunities = await self._identify_optimization_opportunities(
-                funnel_name, current_performance
+            optimization_opportunities = (
+                await self._identify_optimization_opportunities(
+                    funnel_name, current_performance
+                )
             )
 
             # Generate A/B test recommendations
@@ -478,7 +516,9 @@ class GrowthAnalyticsService:
             segmented_clv = {}
             if segmentation:
                 for segment in UserSegment:
-                    segmented_clv[segment.value] = await self._calculate_segment_clv(segment)
+                    segmented_clv[segment.value] = await self._calculate_segment_clv(
+                        segment
+                    )
 
             # Predictive CLV modeling
             predictive_clv = {}
@@ -486,8 +526,10 @@ class GrowthAnalyticsService:
                 predictive_clv = await self._calculate_predictive_clv()
 
             # CLV optimization opportunities
-            optimization_opportunities = await self._identify_clv_optimization_opportunities(
-                historical_clv, segmented_clv
+            optimization_opportunities = (
+                await self._identify_clv_optimization_opportunities(
+                    historical_clv, segmented_clv
+                )
             )
 
             # Benchmark comparisons
@@ -518,16 +560,24 @@ class GrowthAnalyticsService:
         """Generate comprehensive growth analytics dashboard"""
         try:
             # Core metrics
-            acquisition_metrics = await self._calculate_acquisition_metrics(date_range_days)
-            engagement_metrics = await self._calculate_engagement_metrics(date_range_days)
-            conversion_metrics = await self._calculate_conversion_metrics(date_range_days)
+            acquisition_metrics = await self._calculate_acquisition_metrics(
+                date_range_days
+            )
+            engagement_metrics = await self._calculate_engagement_metrics(
+                date_range_days
+            )
+            conversion_metrics = await self._calculate_conversion_metrics(
+                date_range_days
+            )
             retention_metrics = await self._calculate_retention_metrics(date_range_days)
             revenue_metrics = await self._calculate_revenue_metrics(date_range_days)
 
             # Funnel performance
             funnel_analysis = {}
             for funnel_name in self.funnel_definitions.keys():
-                funnel_analysis[funnel_name] = await self._calculate_funnel_performance(funnel_name)
+                funnel_analysis[funnel_name] = await self._calculate_funnel_performance(
+                    funnel_name
+                )
 
             # User behavior insights
             behavior_insights = await self.analyze_user_behavior_patterns(
@@ -540,8 +590,13 @@ class GrowthAnalyticsService:
                 forecasts = await self.forecast_growth(forecast_period_days=90)
 
             # Optimization opportunities
-            optimization_opportunities = await self._identify_cross_functional_opportunities(
-                acquisition_metrics, engagement_metrics, conversion_metrics, retention_metrics
+            optimization_opportunities = (
+                await self._identify_cross_functional_opportunities(
+                    acquisition_metrics,
+                    engagement_metrics,
+                    conversion_metrics,
+                    retention_metrics,
+                )
             )
 
             dashboard = {
@@ -553,7 +608,9 @@ class GrowthAnalyticsService:
                 "executive_summary": {
                     "total_users": acquisition_metrics.get("total_users", 0),
                     "new_users": acquisition_metrics.get("new_users", 0),
-                    "overall_conversion_rate": conversion_metrics.get("overall_rate", 0),
+                    "overall_conversion_rate": conversion_metrics.get(
+                        "overall_rate", 0
+                    ),
                     "monthly_recurring_revenue": revenue_metrics.get("mrr", 0),
                     "customer_lifetime_value": revenue_metrics.get("average_clv", 0),
                     "monthly_churn_rate": retention_metrics.get("churn_rate", 0),
@@ -625,7 +682,9 @@ class GrowthAnalyticsService:
         """Analyze feature usage patterns"""
         return {"popular_features": ["assessments", "reports"], "adoption_rates": {}}
 
-    async def _analyze_conversion_patterns(self, data: dict[str, Any]) -> dict[str, Any]:
+    async def _analyze_conversion_patterns(
+        self, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Analyze conversion patterns"""
         return {"conversion_funnel": "standard", "time_to_convert": 48}
 
@@ -637,7 +696,9 @@ class GrowthAnalyticsService:
         """Segment users based on behavior"""
         return {"segments": {}, "segment_sizes": {}}
 
-    async def _generate_behavioral_insights(self, patterns: dict[str, Any]) -> list[str]:
+    async def _generate_behavioral_insights(
+        self, patterns: dict[str, Any]
+    ) -> list[str]:
         """Generate behavioral insights"""
         return ["High engagement during business hours", "Mobile usage increasing"]
 

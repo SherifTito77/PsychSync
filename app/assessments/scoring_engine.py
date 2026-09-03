@@ -56,7 +56,10 @@ class ScoringEngine:
         }
 
     def score_assessment(
-        self, assessment_id: str, responses: dict[int, int], demographics: dict | None = None
+        self,
+        assessment_id: str,
+        responses: dict[int, int],
+        demographics: dict | None = None,
     ) -> AssessmentScore:
         """
         Score any assessment.
@@ -133,7 +136,9 @@ class ScoringEngine:
 
         # Add suicide risk recommendations
         if suicide_risk_score > 0:
-            recommendations.insert(0, "⚠️ SUICIDE RISK DETECTED - Conduct thorough risk assessment")
+            recommendations.insert(
+                0, "⚠️ SUICIDE RISK DETECTED - Conduct thorough risk assessment"
+            )
 
         interpretation = f"""
         PHQ-9 Score: {total_score}/27 - {severity}
@@ -142,9 +147,7 @@ class ScoringEngine:
         """
 
         if suicide_risk_score > 0:
-            interpretation += (
-                f"\n\n⚠️ ALERT: Client endorsed suicidal thoughts (Item 9 = {suicide_risk_score}). "
-            )
+            interpretation += f"\n\n⚠️ ALERT: Client endorsed suicidal thoughts (Item 9 = {suicide_risk_score}). "
             interpretation += "Immediate safety assessment required."
 
         return AssessmentScore(
@@ -219,7 +222,9 @@ class ScoringEngine:
             scored_at=datetime.utcnow().isoformat(),
         )
 
-    def score_dass21(self, responses: dict, demographics: dict = None) -> AssessmentScore:
+    def score_dass21(
+        self, responses: dict, demographics: dict = None
+    ) -> AssessmentScore:
         """
         Score DASS-21 (Depression, Anxiety, Stress Scale).
 
@@ -327,7 +332,9 @@ class ScoringEngine:
             scored_at=datetime.utcnow().isoformat(),
         )
 
-    def score_audit(self, responses: dict, demographics: dict = None) -> AssessmentScore:
+    def score_audit(
+        self, responses: dict, demographics: dict = None
+    ) -> AssessmentScore:
         """
         Score AUDIT (Alcohol Use Disorders Identification Test).
 
@@ -346,7 +353,10 @@ class ScoringEngine:
         if total_score < 8:
             severity = "Low Risk"
             clinical_sig = "none"
-            recommendations = ["No intervention needed", "Provide alcohol education materials"]
+            recommendations = [
+                "No intervention needed",
+                "Provide alcohol education materials",
+            ]
         elif total_score < 16:
             severity = "Hazardous Drinking"
             clinical_sig = "moderate"
@@ -744,7 +754,9 @@ class ScoringEngine:
         )
 
     # Placeholder methods for complex assessments
-    def score_mmpi2(self, responses: dict, demographics: dict = None) -> AssessmentScore:
+    def score_mmpi2(
+        self, responses: dict, demographics: dict = None
+    ) -> AssessmentScore:
         """MMPI-2 scoring (complex, requires specialized software)."""
         return AssessmentScore(
             assessment_id="mmpi2",
@@ -754,7 +766,9 @@ class ScoringEngine:
             severity_level="Requires Professional Scoring",
             interpretation="MMPI-2 requires specialized scoring software and professional interpretation.",
             clinical_significance="unknown",
-            recommendations=["Refer to qualified psychologist for MMPI-2 interpretation"],
+            recommendations=[
+                "Refer to qualified psychologist for MMPI-2 interpretation"
+            ],
             scored_at=datetime.utcnow().isoformat(),
         )
 

@@ -15,8 +15,8 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, delete, func, or_, select, update
@@ -70,7 +70,9 @@ class SQLAlchemyUserRepository(IUserRepository):
     async def find_by_id(self, user_id: str) -> User | None:
         """Find user by ID"""
         try:
-            result = await self.db.execute(select(UserModel).where(UserModel.id == user_id))
+            result = await self.db.execute(
+                select(UserModel).where(UserModel.id == user_id)
+            )
             user_model = result.scalar_one_or_none()
 
             if user_model:
@@ -86,7 +88,9 @@ class SQLAlchemyUserRepository(IUserRepository):
         """Find user by email"""
         try:
             result = await self.db.execute(
-                select(UserModel).where(func.lower(UserModel.email) == func.lower(email))
+                select(UserModel).where(
+                    func.lower(UserModel.email) == func.lower(email)
+                )
             )
             user_model = result.scalar_one_or_none()
 
@@ -113,7 +117,9 @@ class SQLAlchemyUserRepository(IUserRepository):
                 if "status" in filters:
                     query = query.where(UserModel.status == filters["status"])
                 if "organization_id" in filters:
-                    query = query.where(UserModel.organization_id == filters["organization_id"])
+                    query = query.where(
+                        UserModel.organization_id == filters["organization_id"]
+                    )
                 if "is_active" in filters:
                     query = query.where(UserModel.is_active == filters["is_active"])
 
@@ -139,7 +145,9 @@ class SQLAlchemyUserRepository(IUserRepository):
         """Update existing user"""
         try:
             # Find existing user model
-            result = await self.db.execute(select(UserModel).where(UserModel.id == user.id))
+            result = await self.db.execute(
+                select(UserModel).where(UserModel.id == user.id)
+            )
             user_model = result.scalar_one_or_none()
 
             if not user_model:
@@ -159,7 +167,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             if user.security_metadata:
                 user_model.last_login_at = user.security_metadata.last_login_at
                 user_model.last_login_ip = user.security_metadata.last_login_ip
-                user_model.failed_login_attempts = user.security_metadata.failed_login_attempts
+                user_model.failed_login_attempts = (
+                    user.security_metadata.failed_login_attempts
+                )
                 user_model.mfa_enabled = user.security_metadata.mfa_enabled
                 user_model.device_trusted = user.security_metadata.device_trusted
 
@@ -167,7 +177,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             if user.preferences:
                 user_model.timezone = user.preferences.timezone
                 user_model.language = user.preferences.language
-                user_model.notifications_enabled = user.preferences.notifications_enabled
+                user_model.notifications_enabled = (
+                    user.preferences.notifications_enabled
+                )
 
             # Update audit fields
             user_model.updated_at = datetime.utcnow()
@@ -188,7 +200,9 @@ class SQLAlchemyUserRepository(IUserRepository):
     async def delete(self, user_id: str) -> bool:
         """Delete user"""
         try:
-            result = await self.db.execute(delete(UserModel).where(UserModel.id == user_id))
+            result = await self.db.execute(
+                delete(UserModel).where(UserModel.id == user_id)
+            )
 
             success = result.rowcount > 0
             if success:
@@ -215,7 +229,9 @@ class SQLAlchemyUserRepository(IUserRepository):
                 if "status" in filters:
                     query = query.where(UserModel.status == filters["status"])
                 if "organization_id" in filters:
-                    query = query.where(UserModel.organization_id == filters["organization_id"])
+                    query = query.where(
+                        UserModel.organization_id == filters["organization_id"]
+                    )
 
             result = await self.db.execute(query)
             count = result.scalar()
@@ -225,7 +241,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             infra_logger.error(f"Failed to count users: {e}")
             raise
 
-    async def email_exists(self, email: str, exclude_user_id: str | None = None) -> bool:
+    async def email_exists(
+        self, email: str, exclude_user_id: str | None = None
+    ) -> bool:
         """Check if email already exists"""
         try:
             query = select(func.count(UserModel.id)).where(
@@ -255,7 +273,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             return result.scalar() > 0
 
         except Exception as e:
-            infra_logger.error(f"Failed to check organization existence {organization_id}: {e}")
+            infra_logger.error(
+                f"Failed to check organization existence {organization_id}: {e}"
+            )
             raise
 
     async def find_by_organization(
@@ -280,7 +300,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             return users
 
         except Exception as e:
-            infra_logger.error(f"Failed to find users by organization {organization_id}: {e}")
+            infra_logger.error(
+                f"Failed to find users by organization {organization_id}: {e}"
+            )
             raise
 
     async def update_last_login(self, user_id: str, ip_address: str, user_agent: str):
@@ -324,7 +346,9 @@ class SQLAlchemyUserRepository(IUserRepository):
                 .values(
                     failed_login_attempts=new_attempts,
                     updated_at=datetime.utcnow(),
-                    status="suspended" if new_attempts >= suspension_threshold else None,
+                    status=(
+                        "suspended" if new_attempts >= suspension_threshold else None
+                    ),
                 )
             )
 
@@ -336,7 +360,9 @@ class SQLAlchemyUserRepository(IUserRepository):
             return new_attempts
 
         except Exception as e:
-            infra_logger.error(f"Failed to increment failed login for user {user_id}: {e}")
+            infra_logger.error(
+                f"Failed to increment failed login for user {user_id}: {e}"
+            )
             raise
 
     async def find_active_users_by_role(
@@ -394,6 +420,8 @@ class SQLAlchemyUserRepository(IUserRepository):
 
 
 # Factory function for creating repository
-def create_sqlalchemy_user_repository(db_session: AsyncSession) -> SQLAlchemyUserRepository:
+def create_sqlalchemy_user_repository(
+    db_session: AsyncSession,
+) -> SQLAlchemyUserRepository:
     """Factory function to create SQLAlchemyUserRepository"""
     return SQLAlchemyUserRepository(db_session)

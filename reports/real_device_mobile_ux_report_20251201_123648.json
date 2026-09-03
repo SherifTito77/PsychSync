@@ -1,0 +1,1067 @@
+{
+  "execution_metadata": {
+    "timestamp": "2025-12-01T12:36:48.596592",
+    "total_execution_time": 3739.5600000000004,
+    "test_environment": "real_device_testing",
+    "total_devices_tested": 5,
+    "total_network_conditions": 5,
+    "total_test_scenarios": 20
+  },
+  "summary": {
+    "total_scenarios": 20,
+    "passed_scenarios": 2,
+    "failed_scenarios": 18,
+    "success_rate_percent": 10.0,
+    "device_readiness_status": "\ud83d\udea8 NOT READY FOR PRODUCTION",
+    "avg_battery_consumption_percent": 12.841409532955776,
+    "avg_cpu_usage_percent": 68.90240811833694,
+    "avg_memory_usage_mb": 236.52959781371692,
+    "avg_touch_response_accuracy": 0.897261303166489,
+    "avg_interaction_delay_ms": 221.77990937073366,
+    "total_app_crashes": 0,
+    "thermal_throttling_incidents": 5
+  },
+  "device_performance_analysis": {
+    "iPhone 14 Pro Max": {
+      "total_tests": 15,
+      "success_rate": 6.666666666666667,
+      "avg_battery_consumption": 12.980020951043056,
+      "avg_cpu_usage": 68.1535835123442,
+      "avg_memory_usage": 223.73529305845338,
+      "avg_touch_response": 0.8947660924918707
+    },
+    "Google Pixel 7a": {
+      "total_tests": 3,
+      "success_rate": 33.33333333333333,
+      "avg_battery_consumption": 9.910256528100074,
+      "avg_cpu_usage": 65.62731229791109,
+      "avg_memory_usage": 288.5432957793993,
+      "avg_touch_response": 0.9470266425827201
+    },
+    "iPad Air (5th Gen)": {
+      "total_tests": 1,
+      "success_rate": 0.0,
+      "avg_battery_consumption": 14.374174607267644,
+      "avg_cpu_usage": 78.98137271802591,
+      "avg_memory_usage": 181.53402607075023,
+      "avg_touch_response": 0.8690636486878806
+    },
+    "Samsung Galaxy S23": {
+      "total_tests": 1,
+      "success_rate": 0.0,
+      "avg_battery_consumption": 18.022932201901842,
+      "avg_cpu_usage": 79.8811000698166,
+      "avg_memory_usage": 327.39864698858986,
+      "avg_touch_response": 0.8135910995156794
+    }
+  },
+  "network_condition_analysis": {},
+  "battery_level_analysis": {
+    "full": {
+      "total_tests": 6,
+      "success_rate": 16.666666666666664,
+      "avg_performance_impact": 127.6,
+      "thermal_throttling_rate": 0.0
+    },
+    "medium": {
+      "total_tests": 3,
+      "success_rate": 33.33333333333333,
+      "avg_performance_impact": 234.52000000000004,
+      "thermal_throttling_rate": 66.66666666666666
+    },
+    "low": {
+      "total_tests": 5,
+      "success_rate": 0.0,
+      "avg_performance_impact": 177.216,
+      "thermal_throttling_rate": 20.0
+    },
+    "critical": {
+      "total_tests": 6,
+      "success_rate": 0.0,
+      "avg_performance_impact": 230.72000000000003,
+      "thermal_throttling_rate": 33.33333333333333
+    }
+  },
+  "performance_benchmarks": {
+    "best_performing_device": [
+      "Google Pixel 7a",
+      {
+        "total_tests": 3,
+        "success_rate": 33.33333333333333,
+        "avg_battery_consumption": 9.910256528100074,
+        "avg_cpu_usage": 65.62731229791109,
+        "avg_memory_usage": 288.5432957793993,
+        "avg_touch_response": 0.9470266425827201
+      }
+    ],
+    "worst_performing_device": [
+      "iPad Air (5th Gen)",
+      {
+        "total_tests": 1,
+        "success_rate": 0.0,
+        "avg_battery_consumption": 14.374174607267644,
+        "avg_cpu_usage": 78.98137271802591,
+        "avg_memory_usage": 181.53402607075023,
+        "avg_touch_response": 0.8690636486878806
+      }
+    ],
+    "most_reliable_network": null,
+    "most_battery_efficient_device": [
+      "Google Pixel 7a",
+      {
+        "total_tests": 3,
+        "success_rate": 33.33333333333333,
+        "avg_battery_consumption": 9.910256528100074,
+        "avg_cpu_usage": 65.62731229791109,
+        "avg_memory_usage": 288.5432957793993,
+        "avg_touch_response": 0.9470266425827201
+      }
+    ]
+  },
+  "failed_test_analysis": [
+    {
+      "test_id": "REAL-IPHONE-14PM-EXCELLENT-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "excellent",
+      "battery_level": "low",
+      "error_messages": [
+        "Slow user interaction response"
+      ],
+      "performance_impact": {
+        "completion_time": 124.80000000000001,
+        "battery_consumption": 13.993166914013173,
+        "cpu_usage": 69.63116767915616,
+        "touch_response": 0.9222787809215995
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-EXCELLENT-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "excellent",
+      "battery_level": "critical",
+      "error_messages": [
+        "Excessive battery consumption",
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 153.60000000000002,
+        "battery_consumption": 23.69343562135434,
+        "cpu_usage": 54.88661399819962,
+        "touch_response": 0.8729219691461356
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-GOOD-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "good",
+      "battery_level": "full",
+      "error_messages": [
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 105.60000000000001,
+        "battery_consumption": 14.99204519657954,
+        "cpu_usage": 67.60483851986683,
+        "touch_response": 0.8595662681535958
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-GOOD-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "good",
+      "battery_level": "low",
+      "error_messages": [
+        "Slow user interaction response"
+      ],
+      "performance_impact": {
+        "completion_time": 137.28000000000003,
+        "battery_consumption": 14.096805073213748,
+        "cpu_usage": 26.187022957516422,
+        "touch_response": 0.9726638377062051
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-GOOD-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "good",
+      "battery_level": "critical",
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 168.96000000000004,
+        "battery_consumption": 17.355033314726004,
+        "cpu_usage": 84.72231768167893,
+        "touch_response": 0.8704694219524366
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-FAIR-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "fair",
+      "battery_level": "full",
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 124.80000000000001,
+        "battery_consumption": 9.245390073425561,
+        "cpu_usage": 71.00052960068126,
+        "touch_response": 0.8679607643624887
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-FAIR-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "fair",
+      "battery_level": "low",
+      "error_messages": [
+        "Excessive battery consumption",
+        "Slow user interaction response"
+      ],
+      "performance_impact": {
+        "completion_time": 162.24,
+        "battery_consumption": 21.48483534235238,
+        "cpu_usage": 68.8229564526596,
+        "touch_response": 0.9621213970689195
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-FAIR-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "fair",
+      "battery_level": "critical",
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 199.68000000000004,
+        "battery_consumption": 12.135772582613615,
+        "cpu_usage": 59.679310807572435,
+        "touch_response": 0.8366072458513408
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-POOR-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "poor",
+      "battery_level": "full",
+      "error_messages": [
+        "Slow user interaction response"
+      ],
+      "performance_impact": {
+        "completion_time": 163.2,
+        "battery_consumption": 7.756323340924355,
+        "cpu_usage": 98.92177716009851,
+        "touch_response": 0.9087947653976748
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-POOR-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "poor",
+      "battery_level": "low",
+      "error_messages": [
+        "Slow user interaction response",
+        "Thermal throttling detected"
+      ],
+      "performance_impact": {
+        "completion_time": 212.16,
+        "battery_consumption": 14.228063573570902,
+        "cpu_usage": 36.4270701951207,
+        "touch_response": 0.920056188977685
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-POOR-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "poor",
+      "battery_level": "critical",
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy",
+        "Thermal throttling detected"
+      ],
+      "performance_impact": {
+        "completion_time": 261.12,
+        "battery_consumption": 15.821504265483203,
+        "cpu_usage": 95.46100134654029,
+        "touch_response": 0.8662797772250546
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-OFFLINE-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "offline",
+      "battery_level": "full",
+      "error_messages": [
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 192.0,
+        "battery_consumption": 4.955355110690809,
+        "cpu_usage": 87.657198546844,
+        "touch_response": 0.8563511460816408
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-OFFLINE-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "offline",
+      "battery_level": "low",
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 249.60000000000002,
+        "battery_consumption": 12.452491301329411,
+        "cpu_usage": 46.536321529591554,
+        "touch_response": 0.8853649620387669
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-OFFLINE-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "network_condition": "offline",
+      "battery_level": "critical",
+      "error_messages": [
+        "Test exceeded time limit",
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 307.20000000000005,
+        "battery_consumption": 6.083441380023318,
+        "cpu_usage": 130.04909670269404,
+        "touch_response": 0.831805067941674
+      }
+    },
+    {
+      "test_id": "REAL-PIXEL-7A-FAIR",
+      "device_name": "Google Pixel 7a",
+      "network_condition": "fair",
+      "battery_level": "medium",
+      "error_messages": [
+        "Slow user interaction response",
+        "Thermal throttling detected"
+      ],
+      "performance_impact": {
+        "completion_time": 223.08000000000004,
+        "battery_consumption": 10.176392275773036,
+        "cpu_usage": 93.42008358579695,
+        "touch_response": 0.9886535393267986
+      }
+    },
+    {
+      "test_id": "REAL-PIXEL-7A-POOR",
+      "device_name": "Google Pixel 7a",
+      "network_condition": "poor",
+      "battery_level": "medium",
+      "error_messages": [
+        "Test exceeded time limit",
+        "Slow user interaction response",
+        "Poor touch response accuracy",
+        "Thermal throttling detected"
+      ],
+      "performance_impact": {
+        "completion_time": 291.72,
+        "battery_consumption": 14.248104579733296,
+        "cpu_usage": 76.22337676861574,
+        "touch_response": 0.8741958825428314
+      }
+    },
+    {
+      "test_id": "REAL-IPAD-AIR-EXCELLENT",
+      "device_name": "iPad Air (5th Gen)",
+      "network_condition": "excellent",
+      "battery_level": "full",
+      "error_messages": [
+        "Poor touch response accuracy"
+      ],
+      "performance_impact": {
+        "completion_time": 84.0,
+        "battery_consumption": 14.374174607267644,
+        "cpu_usage": 78.98137271802591,
+        "touch_response": 0.8690636486878806
+      }
+    },
+    {
+      "test_id": "REAL-STRESS-CRITICAL-CONDITIONS",
+      "device_name": "Samsung Galaxy S23",
+      "network_condition": "poor",
+      "battery_level": "critical",
+      "error_messages": [
+        "Test exceeded time limit",
+        "Slow user interaction response",
+        "Poor touch response accuracy",
+        "Thermal throttling detected"
+      ],
+      "performance_impact": {
+        "completion_time": 293.76,
+        "battery_consumption": 18.022932201901842,
+        "cpu_usage": 79.8811000698166,
+        "touch_response": 0.8135910995156794
+      }
+    }
+  ],
+  "optimization_priorities": [
+    "\ud83d\udea8 CRITICAL: Address failing device scenarios",
+    "\ud83d\udc46 RESPONSIVENESS: Improve touch response accuracy",
+    "\u26a1 PERFORMANCE: Reduce user interaction delays",
+    "\ud83c\udf21\ufe0f THERMAL: Address thermal throttling issues"
+  ],
+  "recommendations": [
+    "\ud83d\udd27 Implement device-specific performance optimizations",
+    "\ud83d\udcf1 Create responsive design optimizations for different screen sizes",
+    "\ud83c\udf10 Add network-aware loading strategies",
+    "\ud83d\udd0b Implement battery-efficient rendering cycles",
+    "\ud83d\udc46 Optimize touch response for varying device capabilities",
+    "\ud83c\udf21\ufe0f Add thermal management and performance scaling",
+    "\ud83d\udcca Implement comprehensive device performance monitoring",
+    "\ud83d\udd04 Add progressive enhancement for lower-end devices",
+    "\u26a1 Optimize network requests and data usage",
+    "\ud83d\udd12 Ensure consistent behavior across all device types and conditions"
+  ],
+  "detailed_results": [
+    {
+      "test_id": "REAL-IPHONE-14PM-EXCELLENT-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "excellent",
+      "network_bandwidth": 100.0,
+      "network_latency": 15.0,
+      "battery_level": "full",
+      "environment": "real_world",
+      "passed": true,
+      "completion_time": 96.0,
+      "battery_consumption_percent": 6.406651175345464,
+      "cpu_usage_percent": 24.716529506942653,
+      "memory_usage_mb": 223.38287819107418,
+      "network_usage_mb": 12.842399152196514,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 132.01176264749418,
+      "touch_response_accuracy": 0.9882497945528427,
+      "error_messages": [],
+      "performance_metrics": {
+        "frames_per_second": 31.87047238247779,
+        "rendering_time_ms": 36.312571480240706,
+        "network_latency_actual": 15.0,
+        "startup_time_seconds": 6.595292274942681,
+        "memory_efficiency": 0.9422985740860312,
+        "cpu_efficiency": 0.7074481943041033
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-EXCELLENT-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "excellent",
+      "network_bandwidth": 100.0,
+      "network_latency": 15.0,
+      "battery_level": "low",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 124.80000000000001,
+      "battery_consumption_percent": 13.993166914013173,
+      "cpu_usage_percent": 69.63116767915616,
+      "memory_usage_mb": 297.9360042391627,
+      "network_usage_mb": 7.917385511467449,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 159.99848880477086,
+      "touch_response_accuracy": 0.9222787809215995,
+      "error_messages": [
+        "Slow user interaction response"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 41.959031123594,
+        "rendering_time_ms": 52.6200474304167,
+        "network_latency_actual": 15.0,
+        "startup_time_seconds": 6.140606250199022,
+        "memory_efficiency": 0.9548027326102227,
+        "cpu_efficiency": 0.8096606941200482
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-EXCELLENT-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "excellent",
+      "network_bandwidth": 100.0,
+      "network_latency": 15.0,
+      "battery_level": "critical",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 153.60000000000002,
+      "battery_consumption_percent": 23.69343562135434,
+      "cpu_usage_percent": 54.88661399819962,
+      "memory_usage_mb": 292.13551292374734,
+      "network_usage_mb": 5.7091612437876895,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 270.26115301462187,
+      "touch_response_accuracy": 0.8729219691461356,
+      "error_messages": [
+        "Excessive battery consumption",
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 31.91041753002174,
+        "rendering_time_ms": 46.38486238404532,
+        "network_latency_actual": 15.0,
+        "startup_time_seconds": 6.918740760721089,
+        "memory_efficiency": 1.0600701189738557,
+        "cpu_efficiency": 0.7722083678952351
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-GOOD-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "good",
+      "network_bandwidth": 25.0,
+      "network_latency": 35.0,
+      "battery_level": "full",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 105.60000000000001,
+      "battery_consumption_percent": 14.99204519657954,
+      "cpu_usage_percent": 67.60483851986683,
+      "memory_usage_mb": 313.38850607468504,
+      "network_usage_mb": 15.042136320595334,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 133.7117399090862,
+      "touch_response_accuracy": 0.8595662681535958,
+      "error_messages": [
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 43.84258113306964,
+        "rendering_time_ms": 46.930022701721064,
+        "network_latency_actual": 38.5,
+        "startup_time_seconds": 6.992588312204597,
+        "memory_efficiency": 1.129633598521621,
+        "cpu_efficiency": 0.7371056465517102
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-GOOD-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "good",
+      "network_bandwidth": 25.0,
+      "network_latency": 35.0,
+      "battery_level": "low",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 137.28000000000003,
+      "battery_consumption_percent": 14.096805073213748,
+      "cpu_usage_percent": 26.187022957516422,
+      "memory_usage_mb": 124.57916741167806,
+      "network_usage_mb": 4.43964402092217,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 160.02572934374749,
+      "touch_response_accuracy": 0.9726638377062051,
+      "error_messages": [
+        "Slow user interaction response"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 39.236830363680355,
+        "rendering_time_ms": 29.400610985819213,
+        "network_latency_actual": 38.5,
+        "startup_time_seconds": 3.345971822384386,
+        "memory_efficiency": 0.9216646662755474,
+        "cpu_efficiency": 0.6292571315639485
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-GOOD-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "good",
+      "network_bandwidth": 25.0,
+      "network_latency": 35.0,
+      "battery_level": "critical",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 168.96000000000004,
+      "battery_consumption_percent": 17.355033314726004,
+      "cpu_usage_percent": 84.72231768167893,
+      "memory_usage_mb": 113.21442831193094,
+      "network_usage_mb": 8.503542571114293,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 198.67809930775798,
+      "touch_response_accuracy": 0.8704694219524366,
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 24.478464671446165,
+        "rendering_time_ms": 53.12862929877075,
+        "network_latency_actual": 38.5,
+        "startup_time_seconds": 7.695536556901456,
+        "memory_efficiency": 0.9182951773884903,
+        "cpu_efficiency": 0.6877087735430654
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-FAIR-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "fair",
+      "network_bandwidth": 3.0,
+      "network_latency": 75.0,
+      "battery_level": "full",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 124.80000000000001,
+      "battery_consumption_percent": 9.245390073425561,
+      "cpu_usage_percent": 71.00052960068126,
+      "memory_usage_mb": 173.10762887057209,
+      "network_usage_mb": 1.324038510703579,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 202.79401023976206,
+      "touch_response_accuracy": 0.8679607643624887,
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 42.85687318581479,
+        "rendering_time_ms": 25.039892004034357,
+        "network_latency_actual": 97.5,
+        "startup_time_seconds": 9.277449049155296,
+        "memory_efficiency": 1.1234224422472505,
+        "cpu_efficiency": 0.6239323956010794
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-FAIR-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "fair",
+      "network_bandwidth": 3.0,
+      "network_latency": 75.0,
+      "battery_level": "low",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 162.24,
+      "battery_consumption_percent": 21.48483534235238,
+      "cpu_usage_percent": 68.8229564526596,
+      "memory_usage_mb": 293.16308842175675,
+      "network_usage_mb": 10.916397472383823,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 252.74034683047248,
+      "touch_response_accuracy": 0.9621213970689195,
+      "error_messages": [
+        "Excessive battery consumption",
+        "Slow user interaction response"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 46.20160617764124,
+        "rendering_time_ms": 36.15720363816508,
+        "network_latency_actual": 97.5,
+        "startup_time_seconds": 3.317345426757472,
+        "memory_efficiency": 0.9676343601926699,
+        "cpu_efficiency": 0.5449009153267459
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-FAIR-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "fair",
+      "network_bandwidth": 3.0,
+      "network_latency": 75.0,
+      "battery_level": "critical",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 199.68000000000004,
+      "battery_consumption_percent": 12.135772582613615,
+      "cpu_usage_percent": 59.679310807572435,
+      "memory_usage_mb": 194.44275975248343,
+      "network_usage_mb": 19.012533855939918,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 400.29074861984384,
+      "touch_response_accuracy": 0.8366072458513408,
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 35.495661836645404,
+        "rendering_time_ms": 32.00680753785114,
+        "network_latency_actual": 97.5,
+        "startup_time_seconds": 8.005557091912506,
+        "memory_efficiency": 0.9686926906480131,
+        "cpu_efficiency": 0.5485734825664232
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-POOR-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "poor",
+      "network_bandwidth": 0.5,
+      "network_latency": 200.0,
+      "battery_level": "full",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 163.2,
+      "battery_consumption_percent": 7.756323340924355,
+      "cpu_usage_percent": 98.92177716009851,
+      "memory_usage_mb": 259.0985697392595,
+      "network_usage_mb": 2.022113302177015,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 186.6243613710337,
+      "touch_response_accuracy": 0.9087947653976748,
+      "error_messages": [
+        "Slow user interaction response"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 44.79031455432806,
+        "rendering_time_ms": 61.95231537718517,
+        "network_latency_actual": 340.0,
+        "startup_time_seconds": 7.707264333469998,
+        "memory_efficiency": 1.0579400825664909,
+        "cpu_efficiency": 0.47886951947455314
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-POOR-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "poor",
+      "network_bandwidth": 0.5,
+      "network_latency": 200.0,
+      "battery_level": "low",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 212.16,
+      "battery_consumption_percent": 14.228063573570902,
+      "cpu_usage_percent": 36.4270701951207,
+      "memory_usage_mb": 314.8454212877022,
+      "network_usage_mb": 4.073788823367796,
+      "thermal_throttling": true,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 374.00645144411794,
+      "touch_response_accuracy": 0.920056188977685,
+      "error_messages": [
+        "Slow user interaction response",
+        "Thermal throttling detected"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 40.7555510433784,
+        "rendering_time_ms": 46.75234221594,
+        "network_latency_actual": 340.0,
+        "startup_time_seconds": 8.61542692506004,
+        "memory_efficiency": 0.8858727039050973,
+        "cpu_efficiency": 0.3713099147402417
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-POOR-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "poor",
+      "network_bandwidth": 0.5,
+      "network_latency": 200.0,
+      "battery_level": "critical",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 261.12,
+      "battery_consumption_percent": 15.821504265483203,
+      "cpu_usage_percent": 95.46100134654029,
+      "memory_usage_mb": 110.49798296768327,
+      "network_usage_mb": 4.659098830753175,
+      "thermal_throttling": true,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 492.34084203379564,
+      "touch_response_accuracy": 0.8662797772250546,
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy",
+        "Thermal throttling detected"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 33.96242230373419,
+        "rendering_time_ms": 29.582408046975576,
+        "network_latency_actual": 340.0,
+        "startup_time_seconds": 7.4908129776001875,
+        "memory_efficiency": 1.1173838747309957,
+        "cpu_efficiency": 0.38137116771570445
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-OFFLINE-FULL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "offline",
+      "network_bandwidth": 0.0,
+      "network_latency": 0.0,
+      "battery_level": "full",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 192.0,
+      "battery_consumption_percent": 4.955355110690809,
+      "cpu_usage_percent": 87.657198546844,
+      "memory_usage_mb": 279.20504879158017,
+      "network_usage_mb": 0.140559528147907,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 138.54108870873748,
+      "touch_response_accuracy": 0.8563511460816408,
+      "error_messages": [
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 34.042506043470716,
+        "rendering_time_ms": 57.217654034807346,
+        "network_latency_actual": 0.0,
+        "startup_time_seconds": 12.989546146504107,
+        "memory_efficiency": 0.8981239361952204,
+        "cpu_efficiency": 0.3330711935599399
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-OFFLINE-LOW",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "offline",
+      "network_bandwidth": 0.0,
+      "network_latency": 0.0,
+      "battery_level": "low",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 249.60000000000002,
+      "battery_consumption_percent": 12.452491301329411,
+      "cpu_usage_percent": 46.536321529591554,
+      "memory_usage_mb": 233.75372168716504,
+      "network_usage_mb": 0.8233801387301821,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 259.78553149221295,
+      "touch_response_accuracy": 0.8853649620387669,
+      "error_messages": [
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 45.495285586047004,
+        "rendering_time_ms": 45.175407113042795,
+        "network_latency_actual": 0.0,
+        "startup_time_seconds": 12.113686926022623,
+        "memory_efficiency": 1.1786989312854634,
+        "cpu_efficiency": 0.3705003512178986
+      }
+    },
+    {
+      "test_id": "REAL-IPHONE-14PM-OFFLINE-CRITICAL",
+      "device_name": "iPhone 14 Pro Max",
+      "device_type": "high_end_iphone",
+      "network_condition": "offline",
+      "network_bandwidth": 0.0,
+      "network_latency": 0.0,
+      "battery_level": "critical",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 307.20000000000005,
+      "battery_consumption_percent": 6.083441380023318,
+      "cpu_usage_percent": 130.04909670269404,
+      "memory_usage_mb": 133.27867720631977,
+      "network_usage_mb": 1.3222091389289186,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 182.61028750579277,
+      "touch_response_accuracy": 0.831805067941674,
+      "error_messages": [
+        "Test exceeded time limit",
+        "Slow user interaction response",
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 29.33478869783433,
+        "rendering_time_ms": 37.99054365217347,
+        "network_latency_actual": 0.0,
+        "startup_time_seconds": 13.194369850035589,
+        "memory_efficiency": 1.0337929894477995,
+        "cpu_efficiency": 0.43156896497561903
+      }
+    },
+    {
+      "test_id": "REAL-PIXEL-7A-GOOD",
+      "device_name": "Google Pixel 7a",
+      "device_type": "budget_android",
+      "network_condition": "good",
+      "network_bandwidth": 25.0,
+      "network_latency": 35.0,
+      "battery_level": "medium",
+      "environment": "real_world",
+      "passed": true,
+      "completion_time": 188.76000000000005,
+      "battery_consumption_percent": 5.306272728793893,
+      "cpu_usage_percent": 27.238476539320583,
+      "memory_usage_mb": 456.61610201783066,
+      "network_usage_mb": 6.052258594422834,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 90.78716525015936,
+      "touch_response_accuracy": 0.9782305058785302,
+      "error_messages": [],
+      "performance_metrics": {
+        "frames_per_second": 60.22864849473022,
+        "rendering_time_ms": 33.504946158114485,
+        "network_latency_actual": 38.5,
+        "startup_time_seconds": 3.9752770636315806,
+        "memory_efficiency": 0.6212009516914284,
+        "cpu_efficiency": 0.7945587291414243
+      }
+    },
+    {
+      "test_id": "REAL-PIXEL-7A-FAIR",
+      "device_name": "Google Pixel 7a",
+      "device_type": "budget_android",
+      "network_condition": "fair",
+      "network_bandwidth": 3.0,
+      "network_latency": 75.0,
+      "battery_level": "medium",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 223.08000000000004,
+      "battery_consumption_percent": 10.176392275773036,
+      "cpu_usage_percent": 93.42008358579695,
+      "memory_usage_mb": 224.8248862622088,
+      "network_usage_mb": 18.806345695908917,
+      "thermal_throttling": true,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 246.0797574276657,
+      "touch_response_accuracy": 0.9886535393267986,
+      "error_messages": [
+        "Slow user interaction response",
+        "Thermal throttling detected"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 40.92132174740712,
+        "rendering_time_ms": 36.89336874560722,
+        "network_latency_actual": 97.5,
+        "startup_time_seconds": 7.144774876745649,
+        "memory_efficiency": 0.6431324673663114,
+        "cpu_efficiency": 0.6401797629965071
+      }
+    },
+    {
+      "test_id": "REAL-PIXEL-7A-POOR",
+      "device_name": "Google Pixel 7a",
+      "device_type": "budget_android",
+      "network_condition": "poor",
+      "network_bandwidth": 0.5,
+      "network_latency": 200.0,
+      "battery_level": "medium",
+      "environment": "real_world",
+      "passed": false,
+      "completion_time": 291.72,
+      "battery_consumption_percent": 14.248104579733296,
+      "cpu_usage_percent": 76.22337676861574,
+      "memory_usage_mb": 184.18889905815846,
+      "network_usage_mb": 24.35903254104758,
+      "thermal_throttling": true,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 294.66908420838615,
+      "touch_response_accuracy": 0.8741958825428314,
+      "error_messages": [
+        "Test exceeded time limit",
+        "Slow user interaction response",
+        "Poor touch response accuracy",
+        "Thermal throttling detected"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 43.07746124673553,
+        "rendering_time_ms": 17.216228564822543,
+        "network_latency_actual": 340.0,
+        "startup_time_seconds": 12.310410369685407,
+        "memory_efficiency": 0.6388462928788016,
+        "cpu_efficiency": 0.3978927460371114
+      }
+    },
+    {
+      "test_id": "REAL-IPAD-AIR-EXCELLENT",
+      "device_name": "iPad Air (5th Gen)",
+      "device_type": "tablet_ipad",
+      "network_condition": "excellent",
+      "network_bandwidth": 100.0,
+      "network_latency": 15.0,
+      "battery_level": "full",
+      "environment": "controlled",
+      "passed": false,
+      "completion_time": 84.0,
+      "battery_consumption_percent": 14.374174607267644,
+      "cpu_usage_percent": 78.98137271802591,
+      "memory_usage_mb": 181.53402607075023,
+      "network_usage_mb": 3.5799144649358867,
+      "thermal_throttling": false,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 63.80795020436986,
+      "touch_response_accuracy": 0.8690636486878806,
+      "error_messages": [
+        "Poor touch response accuracy"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 32.39572856301983,
+        "rendering_time_ms": 65.92155802142821,
+        "network_latency_actual": 15.0,
+        "startup_time_seconds": 4.399743836518362,
+        "memory_efficiency": 1.1736806638949393,
+        "cpu_efficiency": 0.7865258575128908
+      }
+    },
+    {
+      "test_id": "REAL-STRESS-CRITICAL-CONDITIONS",
+      "device_name": "Samsung Galaxy S23",
+      "device_type": "large_android",
+      "network_condition": "poor",
+      "network_bandwidth": 0.5,
+      "network_latency": 200.0,
+      "battery_level": "critical",
+      "environment": "stress",
+      "passed": false,
+      "completion_time": 293.76,
+      "battery_consumption_percent": 18.022932201901842,
+      "cpu_usage_percent": 79.8811000698166,
+      "memory_usage_mb": 327.39864698858986,
+      "network_usage_mb": 19.282639956354277,
+      "thermal_throttling": true,
+      "app_crashes": 0,
+      "user_interaction_delay_ms": 195.83358905084455,
+      "touch_response_accuracy": 0.8135910995156794,
+      "error_messages": [
+        "Test exceeded time limit",
+        "Slow user interaction response",
+        "Poor touch response accuracy",
+        "Thermal throttling detected"
+      ],
+      "performance_metrics": {
+        "frames_per_second": 36.263958314443116,
+        "rendering_time_ms": 51.64801101105992,
+        "network_latency_actual": 340.0,
+        "startup_time_seconds": 6.095321464399255,
+        "memory_efficiency": 0.9268543415385356,
+        "cpu_efficiency": 0.40521983001573947
+      }
+    }
+  ]
+}

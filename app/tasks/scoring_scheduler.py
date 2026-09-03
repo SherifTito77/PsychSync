@@ -4,8 +4,8 @@ Celery tasks for scheduled background processing
 Handles assessment scoring, report generation, and notifications
 """
 
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 from celery import Task
@@ -76,7 +76,10 @@ def calculate_assessment_scores(
 
         if not assessment:
             logger.error(f"Assessment {assessment_id} not found")
-            return {"status": "error", "message": f"Assessment {assessment_id} not found"}
+            return {
+                "status": "error",
+                "message": f"Assessment {assessment_id} not found",
+            }
 
         # Get responses to score
         query = db.query(AssessmentResponse).filter(
@@ -129,10 +132,16 @@ def calculate_assessment_scores(
         try:
             raise self.retry(exc=e)
         except Exception:
-            return {"status": "error", "message": str(e), "assessment_id": assessment_id}
+            return {
+                "status": "error",
+                "message": str(e),
+                "assessment_id": assessment_id,
+            }
 
 
-@celery_app.task(base=DatabaseTask, bind=True, name="tasks.process_assessment_batch", max_retries=3)
+@celery_app.task(
+    base=DatabaseTask, bind=True, name="tasks.process_assessment_batch", max_retries=3
+)
 def process_assessment_batch(self, assessment_ids: list[int]) -> dict[str, Any]:
     """
     Process multiple assessments in batch
@@ -151,7 +160,11 @@ def process_assessment_batch(self, assessment_ids: list[int]) -> dict[str, Any]:
             result = calculate_assessment_scores.delay(assessment_id)
             results.append({"assessment_id": assessment_id, "task_id": result.id})
 
-        return {"status": "success", "batch_size": len(assessment_ids), "tasks_started": results}
+        return {
+            "status": "success",
+            "batch_size": len(assessment_ids),
+            "tasks_started": results,
+        }
 
     except Exception as e:
         logger.error(f"Error in process_assessment_batch: {e!s}")
@@ -183,13 +196,19 @@ def generate_assessment_report(
         logger.info(f"Generating {report_format} report for response {response_id}")
 
         db = self.db
-        response = db.query(AssessmentResponse).filter(AssessmentResponse.id == response_id).first()
+        response = (
+            db.query(AssessmentResponse)
+            .filter(AssessmentResponse.id == response_id)
+            .first()
+        )
 
         if not response:
             return {"status": "error", "message": f"Response {response_id} not found"}
 
         # Generate report using assessment service
-        report_data = AssessmentService.generate_report(db, response_id, format=report_format)
+        report_data = AssessmentService.generate_report(
+            db, response_id, format=report_format
+        )
 
         # Store report metadata
         response.report_generated_at = datetime.utcnow()
@@ -220,7 +239,10 @@ def generate_assessment_report(
 
 
 @celery_app.task(
-    base=DatabaseTask, bind=True, name="tasks.send_assessment_notification", max_retries=3
+    base=DatabaseTask,
+    bind=True,
+    name="tasks.send_assessment_notification",
+    max_retries=3,
 )
 def send_assessment_notification(
     self, user_id: int, notification_type: str, data: dict[str, Any]
@@ -288,7 +310,9 @@ def cleanup_expired_assessments(self) -> dict[str, Any]:
         logger.info("Starting cleanup of expired assessments")
 
         db = self.db
-        cutoff_date = datetime.utcnow() - timedelta(days=settings.ASSESSMENT_EXPIRY_DAYS)
+        cutoff_date = datetime.utcnow() - timedelta(
+            days=settings.ASSESSMENT_EXPIRY_DAYS
+        )
 
         # Find expired incomplete responses
         expired_responses = (
@@ -348,7 +372,9 @@ def generate_daily_reports(self) -> dict[str, Any]:
         # Generate reports for each organization
         # This is a placeholder - implement actual report generation
 
-        logger.info(f"Daily reports generated: {completed_assessments} assessments completed")
+        logger.info(
+            f"Daily reports generated: {completed_assessments} assessments completed"
+        )
 
         return {
             "status": "success",
@@ -374,7 +400,11 @@ def health_check() -> dict[str, Any]:
     Returns:
         Health status
     """
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat(), "worker": "celery"}
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "worker": "celery",
+    }
 
 
 @celery_app.task(base=DatabaseTask, bind=True, name="tasks.database_health_check")

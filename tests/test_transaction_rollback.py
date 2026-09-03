@@ -9,24 +9,25 @@ This test suite verifies:
 5. Multi-step operation integrity
 """
 
+import asyncio
+import json
+from datetime import datetime, timedelta
+from typing import Any, AsyncGenerator, Dict, List
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 import pytest_asyncio
-import asyncio
-from typing import AsyncGenerator, Dict, Any, List
-from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, delete
+from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-import json
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import Base
-from app.db.models.user import User, UserRole
-from app.db.models.team import Team, TeamMember, TeamRole
-from app.db.models.organization import Organization
-from app.db.models.response import Response, AssessmentResponse
 from app.db.models.assessment import Assessment
-from app.core.security import get_password_hash
+from app.db.models.organization import Organization
+from app.db.models.response import AssessmentResponse, Response
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User, UserRole
+from app.services.security import get_password_hash
 
 
 @pytest.mark.asyncio
@@ -40,8 +41,7 @@ class TestTransactionRollback:
         """
         # Create initial data
         org = Organization(
-            name="Rollback Test Org",
-            description="Organization for rollback testing"
+            name="Rollback Test Org", description="Organization for rollback testing"
         )
         db_session.add(org)
         await db_session.flush()
@@ -55,7 +55,7 @@ class TestTransactionRollback:
                 password_hash=get_password_hash("password123"),
                 full_name="Rollback Test User",
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             db_session.add(user)
             await db_session.flush()
@@ -65,7 +65,7 @@ class TestTransactionRollback:
             team = Team(
                 name="Rollback Test Team",
                 description="Team for rollback testing",
-                organization_id=org_id
+                organization_id=org_id,
             )
             db_session.add(team)
             await db_session.flush()
@@ -80,8 +80,12 @@ class TestTransactionRollback:
             await db_session.rollback()
 
         # Verify rollback was successful
-        user_after = await db_session.get(User, user_id) if 'user_id' in locals() else None
-        team_after = await db_session.get(Team, team_id) if 'team_id' in locals() else None
+        user_after = (
+            await db_session.get(User, user_id) if "user_id" in locals() else None
+        )
+        team_after = (
+            await db_session.get(Team, team_id) if "team_id" in locals() else None
+        )
 
         assert user_after is None, "User should not exist after rollback"
         assert team_after is None, "Team should not exist after rollback"
@@ -97,7 +101,7 @@ class TestTransactionRollback:
         # Create initial organization
         org = Organization(
             name="Nested Rollback Org",
-            description="Organization for nested rollback testing"
+            description="Organization for nested rollback testing",
         )
         db_session.add(org)
         await db_session.commit()
@@ -120,7 +124,7 @@ class TestTransactionRollback:
                     password_hash=get_password_hash("password123"),
                     full_name=full_name,
                     role=UserRole.USER,
-                    is_active=True
+                    is_active=True,
                 )
                 db_session.add(user)
                 await db_session.flush()
@@ -135,11 +139,7 @@ class TestTransactionRollback:
 
             created_teams = []
             for name, description in teams_data:
-                team = Team(
-                    name=name,
-                    description=description,
-                    organization_id=org.id
-                )
+                team = Team(name=name, description=description, organization_id=org.id)
                 db_session.add(team)
                 await db_session.flush()
                 created_teams.append(team)
@@ -152,18 +152,22 @@ class TestTransactionRollback:
                     for team in created_teams:
                         # Simulate some business logic that might fail
                         if len(assignments) >= 3:  # Artificial limit for testing
-                            raise ValueError("Too many assignments - business rule violation")
+                            raise ValueError(
+                                "Too many assignments - business rule violation"
+                            )
 
                         team_member = TeamMember(
                             team_id=team.id,
                             user_id=user.id,
                             role=TeamRole.MEMBER,
-                            joined_at=datetime.utcnow()
+                            joined_at=datetime.utcnow(),
                         )
                         db_session.add(team_member)
                         await db_session.flush()
                         assignments.append(f"{user.email} -> {team.name}")
-                        operation_results.append(f"Created assignment: {user.email} -> {team.name}")
+                        operation_results.append(
+                            f"Created assignment: {user.email} -> {team.name}"
+                        )
 
                 operation_results.append(f"Created {len(assignments)} assignments")
 
@@ -200,8 +204,7 @@ class TestTransactionRollback:
         """
         # Create initial organization
         org = Organization(
-            name="Savepoint Test Org",
-            description="Organization for savepoint testing"
+            name="Savepoint Test Org", description="Organization for savepoint testing"
         )
         db_session.add(org)
         await db_session.commit()
@@ -217,7 +220,7 @@ class TestTransactionRollback:
                     password_hash=get_password_hash("password123"),
                     full_name=f"Savepoint User {i}",
                     role=UserRole.USER,
-                    is_active=True
+                    is_active=True,
                 )
                 db_session.add(user)
                 await db_session.flush()
@@ -235,7 +238,7 @@ class TestTransactionRollback:
                 team = Team(
                     name=f"Savepoint Team {i+1}",
                     description=f"Team created in savepoint {i+1}",
-                    organization_id=org.id
+                    organization_id=org.id,
                 )
                 db_session.add(team)
                 await db_session.flush()
@@ -253,7 +256,7 @@ class TestTransactionRollback:
                 team_id=teams_created[0].id,
                 user_id="invalid-uuid",  # Invalid UUID
                 role=TeamRole.MEMBER,
-                joined_at=datetime.utcnow()
+                joined_at=datetime.utcnow(),
             )
             db_session.add(invalid_member)
 
@@ -284,7 +287,7 @@ class TestTransactionRollback:
         # Create initial organization
         org = Organization(
             name="Long Transaction Org",
-            description="Organization for long transaction testing"
+            description="Organization for long transaction testing",
         )
         db_session.add(org)
         await db_session.flush()
@@ -302,7 +305,7 @@ class TestTransactionRollback:
                     password_hash=get_password_hash("password123"),
                     full_name=f"Long Transaction User {i}",
                     role=UserRole.USER,
-                    is_active=i % 2 == 0  # Alternating active status
+                    is_active=i % 2 == 0,  # Alternating active status
                 )
                 db_session.add(user)
                 await db_session.flush()
@@ -317,7 +320,7 @@ class TestTransactionRollback:
                 assessment = Assessment(
                     title=f"Assessment {i}",
                     description=f"Long transaction assessment {i}",
-                    organization_id=org.id
+                    organization_id=org.id,
                 )
                 db_session.add(assessment)
                 await db_session.flush()
@@ -327,13 +330,13 @@ class TestTransactionRollback:
             for i in range(30):
                 response = Response(
                     assessment_id=(i % 20) + 1,  # Reuse assessment IDs
-                    user_id=(i % 50) + 1,   # Reuse user IDs
+                    user_id=(i % 50) + 1,  # Reuse user IDs
                     responses={
                         "question_1": f"answer_{i}_1",
-                        "question_2": f"answer_{i}_2"
+                        "question_2": f"answer_{i}_2",
                     },
                     score=50 + (i % 50),
-                    completed_at=transaction_start_time + timedelta(minutes=i)
+                    completed_at=transaction_start_time + timedelta(minutes=i),
                 )
                 db_session.add(response)
                 await db_session.flush()
@@ -341,7 +344,9 @@ class TestTransactionRollback:
 
             # Phase 4: Simulate failure condition
             if len(created_items) >= 100:
-                raise ValueError(f"Transaction failed after creating {len(created_items)} items")
+                raise ValueError(
+                    f"Transaction failed after creating {len(created_items)} items"
+                )
 
             await db_session.commit()
 
@@ -358,9 +363,7 @@ class TestTransactionRollback:
         assessment_count = await db_session.execute(
             select(Assessment).where(Assessment.organization_id == org.id)
         )
-        response_count = await db_session.execute(
-            select(Response)
-        )
+        response_count = await db_session.execute(select(Response))
 
         assert user_count.rowcount == 0, "All users should be rolled back"
         assert assessment_count.rowcount == 0, "All assessments should be rolled back"
@@ -372,8 +375,7 @@ class TestTransactionRollback:
         """
         # Create initial data
         org = Organization(
-            name="Isolation Test Org",
-            description="Organization for isolation testing"
+            name="Isolation Test Org", description="Organization for isolation testing"
         )
         db_session.add(org)
         await db_session.commit()
@@ -388,7 +390,7 @@ class TestTransactionRollback:
                     password_hash=get_password_hash("password123"),
                     full_name="Isolation Test User",
                     role=UserRole.USER,
-                    is_active=False  # Start as inactive
+                    is_active=False,  # Start as inactive
                 )
                 db_session.add(user)
                 await db_session.flush()
@@ -415,8 +417,7 @@ class TestTransactionRollback:
         """
         # Create initial stable data
         org = Organization(
-            name="Recovery Test Org",
-            description="Organization for recovery testing"
+            name="Recovery Test Org", description="Organization for recovery testing"
         )
         db_session.add(org)
         await db_session.commit()
@@ -426,7 +427,7 @@ class TestTransactionRollback:
             password_hash=get_password_hash("password123"),
             full_name="Stable Test User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(stable_user)
         await db_session.commit()
@@ -446,7 +447,7 @@ class TestTransactionRollback:
                         password_hash=get_password_hash("password123"),
                         full_name=f"Temporary User {attempt}",
                         role=UserRole.USER,
-                        is_active=True
+                        is_active=True,
                     )
                     db_session.add(temp_user)
                     await db_session.flush()
@@ -463,14 +464,22 @@ class TestTransactionRollback:
                     else:
                         raise Exception("Simulated general error")
 
-            except (IntegrityError, ValueError, RuntimeError, SQLAlchemyError, Exception):
+            except (
+                IntegrityError,
+                ValueError,
+                RuntimeError,
+                SQLAlchemyError,
+                Exception,
+            ):
                 # Expected errors
                 failure_count += 1
                 continue
 
         # Verify system is stable after multiple failures
         final_stable_user = await db_session.get(User, stable_user.id)
-        assert final_stable_user is not None, "Stable user should still exist after failures"
+        assert (
+            final_stable_user is not None
+        ), "Stable user should still exist after failures"
         assert final_stable_user.email == "stable@test.com"
 
         # Verify no temporary users exist
@@ -479,4 +488,6 @@ class TestTransactionRollback:
         )
         assert temp_users_count.rowcount == 0, "Temporary users should be rolled back"
 
-        print(f"System stability test: {failure_count}/5 failed transactions handled correctly")
+        print(
+            f"System stability test: {failure_count}/5 failed transactions handled correctly"
+        )

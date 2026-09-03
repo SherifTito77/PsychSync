@@ -1,4 +1,5 @@
 """Create a test user for development"""
+
 import asyncio
 import sys
 from pathlib import Path
@@ -7,11 +8,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from datetime import datetime
+
 from sqlalchemy import select
 
 from app.core.database import AsyncSessionLocal
-from app.db.models.user import User
 from app.core.security_fixes import hash_password
+from app.db.models.user import User
 
 
 async def create_test_user():
@@ -39,7 +41,7 @@ async def create_test_user():
             full_name="Admin User",
             is_active=True,
             is_superuser=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
 
         db.add(user)

@@ -3,15 +3,15 @@ AI Monitoring API Endpoints
 Provides access to AI engine performance metrics, health status, and alerts
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_db
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.middleware.rate_limiter import check_rate_limit
 from app.services.ai_monitoring_service import AIMonitoringService, MetricType
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,8 @@ def get_ai_monitoring_service(db: AsyncSession) -> AIMonitoringService:
 
 @router.get("/health")
 async def get_ai_health_status(
-    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get comprehensive AI engine health status
@@ -42,7 +43,8 @@ async def get_ai_health_status(
         # Validate permissions (admin or team lead)
         if not (current_user.is_admin or current_user.is_team_lead):
             raise HTTPException(
-                status_code=403, detail="AI monitoring requires admin or team lead privileges"
+                status_code=403,
+                detail="AI monitoring requires admin or team lead privileges",
             )
 
         monitoring_service = get_ai_monitoring_service(db)
@@ -78,14 +80,18 @@ async def get_ai_health_status(
         raise
     except Exception as e:
         logger.error(f"Error getting AI health status: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get AI health status: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get AI health status: {e!s}"
+        ) from e
 
 
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/metrics")
 async def get_performance_metrics(
     hours: int = Query(24, ge=1, le=168, description="Time period in hours (1-168)"),
-    metric_types: str | None = Query(None, description="Comma-separated metric types to filter"),
+    metric_types: str | None = Query(
+        None, description="Comma-separated metric types to filter"
+    ),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -99,7 +105,8 @@ async def get_performance_metrics(
         # Validate permissions
         if not (current_user.is_admin or current_user.is_team_lead):
             raise HTTPException(
-                status_code=403, detail="Performance metrics require admin or team lead privileges"
+                status_code=403,
+                detail="Performance metrics require admin or team lead privileges",
             )
 
         monitoring_service = get_ai_monitoring_service(db)
@@ -110,7 +117,9 @@ async def get_performance_metrics(
             try:
                 type_names = [name.strip() for name in metric_types.split(",")]
                 metric_type_filter = [
-                    MetricType(name) for name in type_names if name in [t.value for t in MetricType]
+                    MetricType(name)
+                    for name in type_names
+                    if name in [t.value for t in MetricType]
                 ]
             except ValueError as err:
                 raise HTTPException(
@@ -149,7 +158,8 @@ async def get_ai_alerts(
         # Validate permissions
         if not (current_user.is_admin or current_user.is_team_lead):
             raise HTTPException(
-                status_code=403, detail="Alert viewing requires admin or team lead privileges"
+                status_code=403,
+                detail="Alert viewing requires admin or team lead privileges",
             )
 
         monitoring_service = get_ai_monitoring_service(db)
@@ -187,12 +197,15 @@ async def get_ai_alerts(
         raise
     except Exception as e:
         logger.error(f"Error getting AI alerts: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get AI alerts: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get AI alerts: {e!s}"
+        ) from e
 
 
 @router.post("/start-monitoring")
 async def start_ai_monitoring(
-    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Start AI engine monitoring (admin only)
@@ -203,7 +216,8 @@ async def start_ai_monitoring(
         # Validate admin permissions
         if not current_user.is_admin:
             raise HTTPException(
-                status_code=403, detail="Starting AI monitoring requires admin privileges"
+                status_code=403,
+                detail="Starting AI monitoring requires admin privileges",
             )
 
         monitoring_service = get_ai_monitoring_service(db)
@@ -219,12 +233,15 @@ async def start_ai_monitoring(
         raise
     except Exception as e:
         logger.error(f"Error starting AI monitoring: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start AI monitoring: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start AI monitoring: {e!s}"
+        ) from e
 
 
 @router.post("/stop-monitoring")
 async def stop_ai_monitoring(
-    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Stop AI engine monitoring (admin only)
@@ -235,7 +252,8 @@ async def stop_ai_monitoring(
         # Validate admin permissions
         if not current_user.is_admin:
             raise HTTPException(
-                status_code=403, detail="Stopping AI monitoring requires admin privileges"
+                status_code=403,
+                detail="Stopping AI monitoring requires admin privileges",
             )
 
         monitoring_service = get_ai_monitoring_service(db)
@@ -251,12 +269,15 @@ async def stop_ai_monitoring(
         raise
     except Exception as e:
         logger.error(f"Error stopping AI monitoring: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to stop AI monitoring: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to stop AI monitoring: {e!s}"
+        ) from e
 
 
 @router.get("/dashboard")
 async def get_ai_monitoring_dashboard(
-    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get comprehensive AI monitoring dashboard data
@@ -278,13 +299,25 @@ async def get_ai_monitoring_dashboard(
         # Calculate alert statistics
         alert_stats = {
             "critical": len(
-                [a for a in health_status.active_alerts if a.severity.value == "critical"]
+                [
+                    a
+                    for a in health_status.active_alerts
+                    if a.severity.value == "critical"
+                ]
             ),
-            "error": len([a for a in health_status.active_alerts if a.severity.value == "error"]),
+            "error": len(
+                [a for a in health_status.active_alerts if a.severity.value == "error"]
+            ),
             "warning": len(
-                [a for a in health_status.active_alerts if a.severity.value == "warning"]
+                [
+                    a
+                    for a in health_status.active_alerts
+                    if a.severity.value == "warning"
+                ]
             ),
-            "info": len([a for a in health_status.active_alerts if a.severity.value == "info"]),
+            "info": len(
+                [a for a in health_status.active_alerts if a.severity.value == "info"]
+            ),
         }
 
         # Get metric summaries
@@ -294,9 +327,11 @@ async def get_ai_monitoring_dashboard(
                 "current": trend_data.get("current", 0),
                 "average": trend_data.get("average", 0),
                 "trend": trend_data.get("trend", "stable"),
-                "status": "good"
-                if trend_data.get("current", 0) > trend_data.get("average", 0)
-                else "warning",
+                "status": (
+                    "good"
+                    if trend_data.get("current", 0) > trend_data.get("average", 0)
+                    else "warning"
+                ),
             }
 
         return {
@@ -311,11 +346,15 @@ async def get_ai_monitoring_dashboard(
                     "overall_status": health_status.overall_status,
                     "health_score": health_status.health_score,
                     "uptime_percentage": health_status.uptime_percentage,
-                    "status_color": "green"
-                    if health_status.overall_status == "healthy"
-                    else "orange"
-                    if health_status.overall_status == "degraded"
-                    else "red",
+                    "status_color": (
+                        "green"
+                        if health_status.overall_status == "healthy"
+                        else (
+                            "orange"
+                            if health_status.overall_status == "degraded"
+                            else "red"
+                        )
+                    ),
                 },
                 "alert_summary": alert_stats,
                 "active_alerts": [
@@ -347,7 +386,9 @@ async def get_ai_monitoring_dashboard(
 
 
 @router.get("/metric-types")
-async def get_available_metric_types(current_user: User = Depends(get_current_active_user)):
+async def get_available_metric_types(
+    current_user: User = Depends(get_current_active_user),
+):
     """
     Get list of available AI metric types for filtering and analysis
     """
@@ -355,7 +396,8 @@ async def get_available_metric_types(current_user: User = Depends(get_current_ac
         # Validate permissions
         if not (current_user.is_admin or current_user.is_team_lead):
             raise HTTPException(
-                status_code=403, detail="Metric type listing requires admin or team lead privileges"
+                status_code=403,
+                detail="Metric type listing requires admin or team lead privileges",
             )
 
         metric_types = [
@@ -376,7 +418,9 @@ async def get_available_metric_types(current_user: User = Depends(get_current_ac
         raise
     except Exception as e:
         logger.error(f"Error getting metric types: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get metric types: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get metric types: {e!s}"
+        ) from e
 
 
 def _get_metric_description(metric_type: MetricType) -> str:

@@ -3,10 +3,10 @@ Performance-Optimized Middleware Configuration
 Conditional middleware loading based on environment and load
 """
 
-from collections.abc import Callable
 import gzip
 import logging
 import time
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import Request, Response
@@ -33,7 +33,9 @@ class OptimizedCompressionMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Only compress if response meets criteria
-        if self.should_compress(response) and not isinstance(response, StreamingResponse):
+        if self.should_compress(response) and not isinstance(
+            response, StreamingResponse
+        ):
             response = await self.compress_response(response)
 
         return response
@@ -113,7 +115,10 @@ class SmartLoggingMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(
-        self, app, log_slow_requests_only: bool = True, slow_request_threshold: float = 1.0
+        self,
+        app,
+        log_slow_requests_only: bool = True,
+        slow_request_threshold: float = 1.0,
     ):
         super().__init__(app)
         self.log_slow_requests_only = log_slow_requests_only
@@ -180,9 +185,13 @@ def setup_optimized_middleware(app) -> None:
 
     if settings.ENVIRONMENT == "production":
         # Production: Enable optimized compression and smart logging
-        app.add_middleware(OptimizedCompressionMiddleware, min_size=1024, compresslevel=3)
         app.add_middleware(
-            SmartLoggingMiddleware, log_slow_requests_only=True, slow_request_threshold=1.0
+            OptimizedCompressionMiddleware, min_size=1024, compresslevel=3
+        )
+        app.add_middleware(
+            SmartLoggingMiddleware,
+            log_slow_requests_only=True,
+            slow_request_threshold=1.0,
         )
 
         logger.info("✅ Optimized middleware enabled for production")
@@ -199,7 +208,9 @@ def setup_optimized_middleware(app) -> None:
 
     else:
         # Testing/Other: Minimal middleware
-        app.add_middleware(OptimizedCompressionMiddleware, min_size=2048, compresslevel=1)
+        app.add_middleware(
+            OptimizedCompressionMiddleware, min_size=2048, compresslevel=1
+        )
         logger.info("⚡ Minimal middleware enabled for optimal performance")
 
 
@@ -215,7 +226,9 @@ def get_middleware_performance_info() -> dict[str, Any]:
         "logging_middleware": {
             "enabled": settings.ENVIRONMENT != "development",
             "slow_request_only": settings.ENVIRONMENT == "production",
-            "slow_request_threshold": 1.0 if settings.ENVIRONMENT == "production" else 0.5,
+            "slow_request_threshold": (
+                1.0 if settings.ENVIRONMENT == "production" else 0.5
+            ),
         },
         "environment": settings.ENVIRONMENT,
         "optimizations_applied": [

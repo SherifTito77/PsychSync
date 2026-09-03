@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import create_engine, text
+
 from app.core.config import settings
 
 
@@ -26,21 +27,29 @@ def stamp_alembic(version="001_base_tables"):
     try:
         with engine.connect() as conn:
             # Check if alembic_version table exists
-            result = conn.execute(text("""
+            result = conn.execute(
+                text(
+                    """
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
                     WHERE table_name = 'alembic_version'
                 );
-            """))
+            """
+                )
+            )
             exists = result.scalar()
 
             if not exists:
                 print("Creating alembic_version table...")
-                conn.execute(text("""
+                conn.execute(
+                    text(
+                        """
                     CREATE TABLE alembic_version (
                         version_num VARCHAR(255) NOT NULL PRIMARY KEY
                     );
-                """))
+                """
+                    )
+                )
                 conn.commit()
                 print("✅ Table created")
             else:
@@ -60,12 +69,17 @@ def stamp_alembic(version="001_base_tables"):
                 print("No current version")
 
             # Update version
-            conn.execute(text("""
+            conn.execute(
+                text(
+                    """
                 INSERT INTO alembic_version (version_num)
                 VALUES (:version)
                 ON CONFLICT (version_num) DO UPDATE
                 SET version_num = EXCLUDED.version_num;
-            """), {"version": version})
+            """
+                ),
+                {"version": version},
+            )
             conn.commit()
 
             print(f"✅ Stamped as: {version}")
@@ -87,6 +101,7 @@ def stamp_alembic(version="001_base_tables"):
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:
@@ -97,9 +112,13 @@ def stamp_alembic(version="001_base_tables"):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Stamp Alembic version")
-    parser.add_argument("--version", default="001_base_tables",
-                       help="Version to stamp (default: 001_base_tables)")
+    parser.add_argument(
+        "--version",
+        default="001_base_tables",
+        help="Version to stamp (default: 001_base_tables)",
+    )
     args = parser.parse_args()
 
     sys.exit(stamp_alembic(args.version))

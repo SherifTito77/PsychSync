@@ -22,11 +22,11 @@ Usage:
 """
 
 import re
-import sys
 import shutil
+import sys
+from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
-from datetime import datetime
 
 
 class SyntaxCorruptionFixer:
@@ -36,10 +36,10 @@ class SyntaxCorruptionFixer:
         self.dry_run = dry_run
         self.verbose = verbose
         self.stats = {
-            'files_processed': 0,
-            'decorator_removals': 0,
-            'syntax_fixes': 0,
-            'errors': 0
+            "files_processed": 0,
+            "decorator_removals": 0,
+            "syntax_fixes": 0,
+            "errors": 0,
         }
 
     def log(self, message: str):
@@ -72,25 +72,27 @@ class SyntaxCorruptionFixer:
 
             # Pattern 1: Decorator inserted in middle of raise statement
             # Match: raise Exception(...\n@decorator\n, ...)
-            pattern1 = r'(raise\s+\w+\([^)]+)\n(@\w+\([^)]*\))\n(,\s*[^)]+\))'
+            pattern1 = r"(raise\s+\w+\([^)]+)\n(@\w+\([^)]*\))\n(,\s*[^)]+\))"
+
             def replacer1(match):
                 nonlocal fixes_count
                 fixes_count += 1
-                self.stats['decorator_removals'] += 1
+                self.stats["decorator_removals"] += 1
                 # Remove the decorator line
-                return match.group(1) + '\n' + match.group(3)
+                return match.group(1) + "\n" + match.group(3)
 
             content = re.sub(pattern1, replacer1, content, flags=re.MULTILINE)
 
             # Pattern 2: Fix incomplete raise statements
             # Match: raise Exception(status_code=number\n
             # Replace with: raise Exception(\n        status_code=number
-            pattern2 = r'(raise\s+\w+)\(([^)]+)(\n)'
+            pattern2 = r"(raise\s+\w+)\(([^)]+)(\n)"
+
             def replacer2(match):
                 # Only fix if it looks like a multi-line statement
-                if len(match.group(2)) > 0 and match.group(2)[-1] != ',':
+                if len(match.group(2)) > 0 and match.group(2)[-1] != ",":
                     fixes_count += 1
-                    self.stats['syntax_fixes'] += 1
+                    self.stats["syntax_fixes"] += 1
                     return f"{match.group(1)}(\n{match.group(2)},\n"
                 return match.group(0)
 
@@ -99,46 +101,47 @@ class SyntaxCorruptionFixer:
             # Pattern 3: Fix lines that start with comma after decorator removal
             # Match: \n, detail
             # Replace with proper indentation
-            pattern3 = r'\n(,)\s*'
+            pattern3 = r"\n(,)\s*"
+
             def replacer3(match):
                 # Check if this comma appears after removed decorator
                 fixes_count += 1
-                self.stats['syntax_fixes'] += 1
-                return '\n                '
+                self.stats["syntax_fixes"] += 1
+                return "\n                "
 
             # Apply pattern more carefully to avoid false positives
-            lines = content.split('\n')
+            lines = content.split("\n")
             fixed_lines = []
             i = 0
             while i < len(lines):
                 line = lines[i]
 
                 # Skip decorator lines (they should have been removed by pattern1)
-                if line.strip().startswith('@') and 'check_rate_limit' in line:
+                if line.strip().startswith("@") and "check_rate_limit" in line:
                     # This decorator should be removed
                     self.log(f"  ⚠️  Unexpected decorator found: {line.strip()}")
                     fixes_count += 1
-                    self.stats['decorator_removals'] += 1
+                    self.stats["decorator_removals"] += 1
                     i += 1
                     continue
 
                 # Fix lines starting with comma (after decorator removal)
-                if line.strip().startswith(',') and i > 0:
+                if line.strip().startswith(",") and i > 0:
                     # Indent properly and remove leading comma
-                    fixed_lines.append('                ' + line.strip()[1:])
+                    fixed_lines.append("                " + line.strip()[1:])
                     fixes_count += 1
-                    self.stats['syntax_fixes'] += 1
+                    self.stats["syntax_fixes"] += 1
                 else:
                     fixed_lines.append(line)
 
                 i += 1
 
-            content = '\n'.join(fixed_lines)
+            content = "\n".join(fixed_lines)
 
             # Check if any changes were made
             if content != original_content:
                 if fixes_count > 0:
-                    self.stats['files_processed'] += 1
+                    self.stats["files_processed"] += 1
 
                     if self.dry_run:
                         self.log(f"  🧪 Dry run - Would make {fixes_count} fixes")
@@ -157,14 +160,19 @@ class SyntaxCorruptionFixer:
                         # Verify the fix
                         try:
                             import subprocess
+
                             result = subprocess.run(
-                                ['ruff', 'check', str(file_path), '--select', 'B904'],
+                                ["ruff", "check", str(file_path), "--select", "B904"],
                                 capture_output=True,
-                                text=True
+                                text=True,
                             )
-                            remaining = result.stdout.count('B904') if 'B904' in result.stdout else 0
+                            remaining = (
+                                result.stdout.count("B904")
+                                if "B904" in result.stdout
+                                else 0
+                            )
                             self.log(f"  📊 Remaining B904 errors: {remaining}")
-                        except:
+                        except Exception as e:
                             self.log(f"  ⚠️  Could not verify with ruff")
 
                         return True, fixes_count
@@ -177,7 +185,7 @@ class SyntaxCorruptionFixer:
 
         except Exception as e:
             self.log(f"  ❌ Error processing {file_path}: {e}")
-            self.stats['errors'] += 1
+            self.stats["errors"] += 1
             return False, 0
 
     def fix_directory(self, directory: Path, pattern: str = "*.py") -> int:
@@ -202,9 +210,9 @@ class SyntaxCorruptionFixer:
 
     def print_summary(self):
         """Print summary of all fixes"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("📊 SUMMARY")
-        print("="*80)
+        print("=" * 80)
         print(f"Files processed: {self.stats['files_processed']}")
         print(f"Decorators removed: {self.stats['decorator_removals']}")
         print(f"Syntax fixes: {self.stats['syntax_fixes']}")
@@ -213,16 +221,18 @@ class SyntaxCorruptionFixer:
         if self.dry_run:
             print("\n🧪 DRY RUN MODE - No files were modified")
         else:
-            print("\n✅ Files were modified - backups created with .backup_<timestamp> suffix")
+            print(
+                "\n✅ Files were modified - backups created with .backup_<timestamp> suffix"
+            )
 
-        print("="*80)
+        print("=" * 80)
 
 
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='Fix syntax corruption in Python files (decorator insertion pattern)',
+        description="Fix syntax corruption in Python files (decorator insertion pattern)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -240,24 +250,36 @@ Examples:
 
   # Fix all corrupted files in the codebase
   python scripts/fix_syntax_corruption.py --all
-        """
+        """,
     )
 
-    parser.add_argument('--file', type=str, help='Specific file to fix')
-    parser.add_argument('--dir', type=str, help='Directory to fix all files in')
-    parser.add_argument('--pattern', type=str, default='*.py', help='File pattern to match (default: *.py)')
-    parser.add_argument('--all', action='store_true', help='Fix all known corrupted files')
-    parser.add_argument('--dry-run', action='store_true', help='Show changes without writing files')
-    parser.add_argument('--verbose', action='store_true', default=True, help='Verbose output')
-    parser.add_argument('--quiet', action='store_true', help='Suppress output')
+    parser.add_argument("--file", type=str, help="Specific file to fix")
+    parser.add_argument("--dir", type=str, help="Directory to fix all files in")
+    parser.add_argument(
+        "--pattern",
+        type=str,
+        default="*.py",
+        help="File pattern to match (default: *.py)",
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="Fix all known corrupted files"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show changes without writing files"
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", default=True, help="Verbose output"
+    )
+    parser.add_argument("--quiet", action="store_true", help="Suppress output")
 
     args = parser.parse_args()
 
     # Check for ruff installation
     try:
         import subprocess
-        subprocess.run(['ruff', '--version'], capture_output=True, check=True)
-    except:
+
+        subprocess.run(["ruff", "--version"], capture_output=True, check=True)
+    except Exception as e:
         print("⚠️  Warning: ruff not found. Install with: pip install ruff")
 
     # Create fixer
@@ -318,5 +340,5 @@ Examples:
         fixer.print_summary()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

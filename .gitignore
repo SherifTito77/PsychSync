@@ -1,5 +1,8 @@
 # PsychSync AI Enterprise - Comprehensive Git Ignore File
 
+# ===== NON-ESSENTIAL ARCHIVED FILES =====
+_non_essential/
+
 # ===== PYTHON DEPENDENCIES =====
 node_modules/
 __pycache__/
@@ -32,15 +35,27 @@ coverage.xml
 *.save
 .DS_Store
 Thumbs.db
+# Additional backup patterns
+env.*.backup
+*.env.backup
+*env*.bak
 
 # ===== SECURITY AND SENSITIVE DATA =====
-# Environment variables and secrets
+# Environment variables and secrets - Comprehensive patterns
 .env
+.env.*
 .env.local
 .env.development
 .env.staging
 .env.test
 .env.production
+.env.dev
+.env.prod
+.env.localhost
+.env.bak
+.env.*.local
+!env.example  # Allow example files
+!*.example  # Allow all example files
 secrets/
 .ansible_vault
 
@@ -351,3 +366,50 @@ semgrep-results/
 
 # Prettier
 .prettierignore
+
+# Sensitive file types
+*.sql.password
+
+# Backup/junk dirs — never track
+api_sec_fix_backups/
+prometheus-*/
+isolated_artifacts/
+alembic/versions_backup/
+
+# Generated/temp files — never track
+screenshots/
+debug-screenshots/
+metrics_history/
+temp_commented.txt
+lifespan_original.txt
+commented_lifespan.txt
+commented_lifespan_final.txt
+ai_quality_dashboard_*.txt
+ai_testing/latest_report.txt
+all_models.txt
+new_imports.txt
+imported_models.txt
+workflow_scripts.txt
+
+# Runtime/debug scripts at root
+ddtrace_mock.py
+dependency_mock.py
+check_permission.py
+
+# Claude Code session files
+.claude/
+
+# Infra env files (use .env.example templates instead)
+deploy/production-config.env
+
+# Frontend generated reports
+frontend/MEMORY_LEAK_DASHBOARD_*.html
+frontend/MEMORY_LEAK_DETECTION_REPORT.html
+frontend/src/components/security/*.bak2
+
+# Large generated reports
+docs/archive/reports/database_security_test_suite_report.json
+reports/test_coverage_audit.json
+.!*
+backups_data/
+reports/postman_rate_limiting_collection.json

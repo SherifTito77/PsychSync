@@ -6,13 +6,13 @@ Builds upon existing query optimization infrastructure
 """
 
 import asyncio
+import hashlib
+import re
+import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import hashlib
-import re
-import time
 from typing import Any
 
 from sqlalchemy import text
@@ -129,14 +129,21 @@ class EnhancedQueryOptimizer:
             QueryPattern.ASSESSMENT_RESULTS: {
                 "regex": r"(?i)SELECT.*FROM\s+(assessment_responses?).*WHERE\s+assessment_id",
                 "common_columns": ["assessment_id", "user_id", "created_at"],
-                "suggested_indexes": [["assessment_id", "user_id"], ["user_id", "created_at"]],
+                "suggested_indexes": [
+                    ["assessment_id", "user_id"],
+                    ["user_id", "created_at"],
+                ],
                 "eager_load": ["user", "assessment"],
                 "optimization_potential": "VERY_HIGH",
             },
             QueryPattern.DATETIME_RANGE: {
                 "regex": r"(?i)WHERE\s+.*created_at\s*(>=|<=|BETWEEN)",
                 "common_columns": ["created_at", "updated_at"],
-                "suggested_indexes": [["created_at"], ["updated_at"], ["created_at", "user_id"]],
+                "suggested_indexes": [
+                    ["created_at"],
+                    ["updated_at"],
+                    ["created_at", "user_id"],
+                ],
                 "eager_load": [],
                 "optimization_potential": "HIGH",
             },
@@ -188,9 +195,11 @@ class EnhancedQueryOptimizer:
             query_hash=query_hash[:8],
             execution_time_ms=execution_time_ms,
             avg_time_ms=stats.avg_time_ms,
-            cache_hit=f"{stats.cache_hits / (stats.cache_hits + stats.cache_misses) * 100:.1f}%"
-            if stats.cache_hits + stats.cache_misses > 0
-            else "0%",
+            cache_hit=(
+                f"{stats.cache_hits / (stats.cache_hits + stats.cache_misses) * 100:.1f}%"
+                if stats.cache_hits + stats.cache_misses > 0
+                else "0%"
+            ),
         )
 
         return stats
@@ -227,7 +236,9 @@ class EnhancedQueryOptimizer:
             reverse=True,
         )
 
-    async def generate_index_recommendations(self, db: AsyncSession) -> list[IndexSuggestion]:
+    async def generate_index_recommendations(
+        self, db: AsyncSession
+    ) -> list[IndexSuggestion]:
         """Generate database index recommendations based on query patterns"""
         recommendations = []
 
@@ -294,7 +305,9 @@ class EnhancedQueryOptimizer:
             raise
 
     @asynccontextmanager
-    async def query_execution_context(self, db: AsyncSession, query_description: str = ""):
+    async def query_execution_context(
+        self, db: AsyncSession, query_description: str = ""
+    ):
         """Context manager for monitoring query execution"""
         start_time = time.time()
         query_hash = None
@@ -353,14 +366,23 @@ class EnhancedQueryOptimizer:
             ],
             "cache_hit_rate": (
                 sum(stats.cache_hits for stats in recent_stats.values())
-                / sum(stats.cache_hits + stats.cache_misses for stats in recent_stats.values())
-                if sum(stats.cache_hits + stats.cache_misses for stats in recent_stats.values()) > 0
+                / sum(
+                    stats.cache_hits + stats.cache_misses
+                    for stats in recent_stats.values()
+                )
+                if sum(
+                    stats.cache_hits + stats.cache_misses
+                    for stats in recent_stats.values()
+                )
+                > 0
                 else 0
             )
             * 100,
             "top_optimization_opportunities": await self.get_query_optimization_recommendations(
                 min_priority=OptimizationPriority.HIGH
-            )[:5],
+            )[
+                :5
+            ],
         }
 
     async def _generate_optimization_recommendations(self, query_hash: str, query: str):
@@ -434,7 +456,9 @@ class EnhancedQueryOptimizer:
             return OptimizationPriority.MEDIUM
         return OptimizationPriority.LOW
 
-    async def _apply_pattern_optimizations(self, query: Select, pattern: QueryPattern) -> Select:
+    async def _apply_pattern_optimizations(
+        self, query: Select, pattern: QueryPattern
+    ) -> Select:
         """Apply pattern-specific optimizations to a query"""
         if pattern == QueryPattern.TEAM_ANALYTICS:
             # Add eager loading for team analytics
@@ -448,11 +472,13 @@ class EnhancedQueryOptimizer:
     async def _get_current_indexes(self, db: AsyncSession) -> dict[str, list[str]]:
         """Get current database indexes"""
         result = await db.execute(
-            text("""
+            text(
+                """
             SELECT schemaname, tablename, indexname, indexdef
             FROM pg_indexes
             WHERE schemaname = 'public'
-        """)
+        """
+            )
         )
 
         indexes = {}
@@ -464,7 +490,9 @@ class EnhancedQueryOptimizer:
 
         return indexes
 
-    def _index_exists(self, index_name: str, current_indexes: dict[str, list[str]]) -> bool:
+    def _index_exists(
+        self, index_name: str, current_indexes: dict[str, list[str]]
+    ) -> bool:
         """Check if an index already exists"""
         for table_indexes in current_indexes.values():
             if index_name in table_indexes:

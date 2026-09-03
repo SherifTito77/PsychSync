@@ -33,7 +33,9 @@ class UserPreferencesService:
             "general": True,
         }
 
-    def is_notification_enabled(self, user_id: str | int, notification_type: str) -> bool:
+    def is_notification_enabled(
+        self, user_id: str | int, notification_type: str
+    ) -> bool:
         """
         Check if a notification type is enabled for a user.
 
@@ -59,7 +61,8 @@ class UserPreferencesService:
                         profile = UserProfile.objects.get(user=user)
                         preferences = profile.notification_preferences or {}
                         return preferences.get(
-                            notification_type, self.default_preferences.get(notification_type, True)
+                            notification_type,
+                            self.default_preferences.get(notification_type, True),
                         )
                     except ImportError:
                         # Fallback for when the model doesn't exist
@@ -74,7 +77,9 @@ class UserPreferencesService:
             logger.error(f"Error checking notification preferences: {e!s}")
             return self.default_preferences.get(notification_type, True)
 
-    def update_notification_preferences(self, user_id: str | int, preferences: dict) -> bool:
+    def update_notification_preferences(
+        self, user_id: str | int, preferences: dict
+    ) -> bool:
         """
         Update a user's notification preferences.
 
@@ -121,7 +126,9 @@ class UserPreferencesService:
                     return False
             else:
                 # Fallback for non-Django environments
-                logger.warning("Django not available. Cannot update notification preferences.")
+                logger.warning(
+                    "Django not available. Cannot update notification preferences."
+                )
                 return False
         except Exception as e:
             logger.error(f"Error updating notification preferences: {e!s}")

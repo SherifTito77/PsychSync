@@ -10,9 +10,9 @@ Features:
 - Comprehensive strength assessment
 """
 
-from dataclasses import dataclass
 import math
 import string
+from dataclasses import dataclass
 
 
 @dataclass

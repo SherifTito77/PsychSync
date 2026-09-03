@@ -54,7 +54,7 @@ log_warn() {
 check_file() {
     local file="$1"
     local description="$2"
-    
+
     if [ -f "$file" ]; then
         log_success "$description exists: $file"
         return 0
@@ -67,7 +67,7 @@ check_file() {
 check_executable() {
     local cmd="$1"
     local description="$2"
-    
+
     if command -v "$cmd" &> /dev/null; then
         log_success "$description installed: $cmd"
         return 0
@@ -183,12 +183,12 @@ echo ""
 # Check if pytest is available
 if command -v pytest &> /dev/null; then
     log_success "pytest installed"
-    
+
     # Run unit tests for spotlighting middleware
     log_info "Running spotlighting middleware tests..."
     if pytest tests/unit/test_spotlighting_middleware.py -v --tb=short 2>&1 | tee /tmp/test-output.txt; then
         log_success "All spotlighting tests passed"
-        
+
         # Count tests
         test_count=$(grep -oP '\d+ passed' /tmp/test-output.txt | grep -oP '\d+')
         log_info "Executed $test_count tests"
@@ -244,10 +244,10 @@ if [ "$1" == "--skip-image-verify" ]; then
 else
     # Check if there's a local image to verify
     log_info "Checking for local Docker images..."
-    
+
     if docker images | grep -q "psychsync"; then
         log_info "Found psychsync Docker image locally"
-        
+
         # This would normally verify the image signature
         # For demo purposes, we just note that the capability exists
         log_info "To verify image signature, run:"
@@ -276,7 +276,7 @@ if [ $TOTAL_CHECKS -gt 0 ]; then
     PASS_RATE=$((PASSED_CHECKS * 100 / TOTAL_CHECKS))
     echo "Pass Rate: $PASS_RATE%"
     echo ""
-    
+
     if [ $FAILED_CHECKS -eq 0 ] && [ $PASS_RATE -ge 80 ]; then
         echo -e "${GREEN}🎉 System is PRODUCTION READY!${NC}"
         exit 0

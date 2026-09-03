@@ -141,14 +141,15 @@ const ASSESSMENT_CONFIGS: Record<AssessmentType, AssessmentConfig> = {
     icon: Zap,
     color: 'yellow',
     estimatedTime: 4,
-    questions: Array.from({ length: 13 }, (_, i) => ({
-      id: `q${i + 1}`,
-      text: `Has there ever been a period when you were not your usual self and... ${getMDQQuestionText(i)}`,
-      type: 'boolean' as const
-    })).concat([
+    questions: [
+      ...Array.from({ length: 13 }, (_, i) => ({
+        id: `q${i + 1}`,
+        text: `Has there ever been a period when you were not your usual self and... ${getMDQQuestionText(i)}`,
+        type: 'boolean' as const
+      })),
       { id: 'q14_clustered', text: 'Do these symptoms cluster together during the same period?', type: 'boolean' as const },
       { id: 'q15_impairment', text: 'How much of a problem did these symptoms cause?', type: 'scale' as const, min: 0, max: 3 }
-    ])
+    ] as Question[]
   },
   DAST10: {
     id: 'DAST10',
@@ -432,7 +433,7 @@ const AssessmentSelection: React.FC<{
       other: ['AQ10', 'ACE']
     };
 
-    return Object.values(configs).filter(config =>
+    return Object.values(configs).filter((config: any) =>
       filterMap[filter].includes(config.id)
     );
   }, [filter, configs]);
@@ -467,7 +468,7 @@ const AssessmentSelection: React.FC<{
 
       {/* Assessment cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredConfigs.map((config) => {
+        {filteredConfigs.map((config: any) => {
           const Icon = config.icon;
           return (
             <motion.div

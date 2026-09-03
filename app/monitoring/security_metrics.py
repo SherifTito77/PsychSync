@@ -18,10 +18,10 @@ Usage:
     print(f"Total Vulnerabilities: {summary['total_vulnerabilities']}")
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 logger = logging.getLogger("app.security.metrics")
@@ -110,7 +110,9 @@ class SecurityMetrics:
         )
 
         # Calculate security score
-        security_score = self.calculate_security_score(total_all, critical, high, medium)
+        security_score = self.calculate_security_score(
+            total_all, critical, high, medium
+        )
 
         return {
             "scan_date": self.scan_date.isoformat(),
@@ -126,7 +128,9 @@ class SecurityMetrics:
             "security_grade": self.get_grade_from_score(security_score),
         }
 
-    def calculate_security_score(self, total: int, critical: int, high: int, medium: int) -> int:
+    def calculate_security_score(
+        self, total: int, critical: int, high: int, medium: int
+    ) -> int:
         """
         Calculate security score (0-100)
 
@@ -188,7 +192,10 @@ class SecurityMetrics:
 
         sorted_findings = sorted(
             all_findings,
-            key=lambda f: (severity_order.get(f.severity, 99), f.detected_at or datetime.min),
+            key=lambda f: (
+                severity_order.get(f.severity, 99),
+                f.detected_at or datetime.min,
+            ),
         )
 
         return [f.to_dict() for f in sorted_findings[:limit]]
@@ -277,9 +284,7 @@ class SecurityMetricsCollector:
                         phys_loc = locations[0].get("physicalLocation", {})
                         artifact_loc = phys_loc.get("artifactLocation", {})
                         region = phys_loc.get("region", {})
-                        location_str = (
-                            f"{artifact_loc.get('uri', 'unknown')}:{region.get('startLine', '?')}"
-                        )
+                        location_str = f"{artifact_loc.get('uri', 'unknown')}:{region.get('startLine', '?')}"
 
                     finding = VulnerabilityFinding(
                         source="SAST",
@@ -481,11 +486,15 @@ class SecurityMetricsCollector:
         compliance = {
             "owasp_asvs_1_4_1": True,  # Static analysis (SAST)
             "owasp_asvs_5_2_1": summary["dast_findings"] == 0,  # Dynamic testing (DAST)
-            "owasp_asvs_7_1_1": summary["sca_findings"] == 0,  # Vulnerability scanning (SCA)
-            "owasp_a08_2021": summary["critical_severity"] == 0,  # Software verification
-            "nist_800_53_cm": summary["critical_severity"] == 0,  # Vulnerability management
+            "owasp_asvs_7_1_1": summary["sca_findings"]
+            == 0,  # Vulnerability scanning (SCA)
+            "owasp_a08_2021": summary["critical_severity"]
+            == 0,  # Software verification
+            "nist_800_53_cm": summary["critical_severity"]
+            == 0,  # Vulnerability management
             "soc_2_cc7_2": summary["critical_severity"] == 0,  # Monitoring
-            "hipaa_security": summary["critical_severity"] == 0 and summary["high_severity"] == 0,
+            "hipaa_security": summary["critical_severity"] == 0
+            and summary["high_severity"] == 0,
         }
 
         return compliance
@@ -585,7 +594,9 @@ if __name__ == "__main__":
         print("🔒 PSYCHSYNC SECURITY METRICS")
         print("=" * 60)
         print(f"\n📅 Scan Date: {summary['scan_date']}")
-        print(f"📊 Security Score: {summary['security_score']}/100 ({summary['security_grade']})")
+        print(
+            f"📊 Security Score: {summary['security_score']}/100 ({summary['security_grade']})"
+        )
         print(f"\n📈 Total Findings: {summary['total_findings']}")
         print(f"   🔴 Critical: {summary['critical_severity']}")
         print(f"   🟠 High:     {summary['high_severity']}")

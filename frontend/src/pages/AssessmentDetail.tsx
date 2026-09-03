@@ -1,5 +1,5 @@
 // frontend/src/pages/AssessmentDetail.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   assessmentService,
@@ -22,22 +22,25 @@ const AssessmentDetail: React.FC = () => {
   const [error, setError] = useState('');
   const isOwner = String(assessment?.created_by_id) === String(user?.id);
   const canEdit = isOwner; // Add team admin check later
-  useEffect(() => {
-    loadAssessment();
-  }, [assessmentId]);
-  const loadAssessment = async () => {
+
+  // ✅ FIXED: Wrapped in useCallback with proper dependencies
+  const loadAssessment = useCallback(async () => {
     if (!assessmentId) return;
     setIsLoading(true);
     setError('');
     try {
-      const data = await assessmentService.getAssessment(parseInt(assessmentId));
+      const data = await assessmentService.getAssessment(assessmentId);
       setAssessment(data);
     } catch (error: any) {
       setError(error.response?.data?.detail || 'Failed to load assessment');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [assessmentId]); // ✅ Depends on assessmentId
+
+  useEffect(() => {
+    loadAssessment();
+  }, [loadAssessment]); // ✅ Now includes loadAssessment in deps
   const handlePublish = async () => {
     if (!assessmentId || !assessment) return;
     if (assessment.sections.length === 0) {
@@ -53,7 +56,7 @@ const AssessmentDetail: React.FC = () => {
       return;
     }
     try {
-      await assessmentService.publishAssessment(parseInt(assessmentId));
+      await assessmentService.publishAssessment(assessmentId);
       loadAssessment();
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to publish assessment');
@@ -65,7 +68,7 @@ const AssessmentDetail: React.FC = () => {
       return;
     }
     try {
-      await assessmentService.archiveAssessment(parseInt(assessmentId));
+      await assessmentService.archiveAssessment(assessmentId);
       loadAssessment();
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to archive assessment');
@@ -75,7 +78,7 @@ const AssessmentDetail: React.FC = () => {
     if (!assessmentId) return;
     try {
       const duplicated = await assessmentService.duplicateAssessment(
-        parseInt(assessmentId)
+        assessmentId
       );
       navigate(`/assessments/${duplicated.id}`);
     } catch (error: any) {
@@ -92,31 +95,31 @@ const AssessmentDetail: React.FC = () => {
       return;
     }
     try {
-      await assessmentService.deleteAssessment(parseInt(assessmentId));
+      await assessmentService.deleteAssessment(assessmentId);
       navigate('/assessments');
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to delete assessment');
     }
   };
-  const handleDeleteSection = async (sectionId: number) => {
+  const handleDeleteSection = async (sectionId: string | number) => {
     if (!assessmentId) return;
     if (!confirm('Are you sure you want to delete this section?')) {
       return;
     }
     try {
-      await assessmentService.deleteSection(parseInt(assessmentId), sectionId);
+      await assessmentService.deleteSection(assessmentId, sectionId);
       loadAssessment();
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to delete section');
     }
   };
-  const handleDeleteQuestion = async (questionId: number) => {
+  const handleDeleteQuestion = async (questionId: string | number) => {
     if (!assessmentId) return;
     if (!confirm('Are you sure you want to delete this question?')) {
       return;
     }
     try {
-      await assessmentService.deleteQuestion(parseInt(assessmentId), questionId);
+      await assessmentService.deleteQuestion(assessmentId, questionId);
       loadAssessment();
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to delete question');
@@ -197,7 +200,7 @@ const AssessmentDetail: React.FC = () => {
           >``
             Take Assessment
           </Link>
-        )}  
+        )}
         {canEdit && assessment.status === 'active' && (
           <Link
             to={`/assessments/${assessment.id}/analytics`}
@@ -205,7 +208,7 @@ const AssessmentDetail: React.FC = () => {
           >
             View Analytics
           </Link>
-        )}      
+        )}
         {canEdit && (
           <div className="flex space-x-2">
             <button
@@ -504,14 +507,14 @@ const AssessmentDetail: React.FC = () => {
       )}
       {showAddSection && assessmentId && (
         <AddSectionModal
-          assessmentId={parseInt(assessmentId)}
+          assessmentId={assessmentId}
           onClose={() => setShowAddSection(false)}
           onSuccess={loadAssessment}
         />
       )}
       {showAddQuestion && assessmentId && (
         <AddQuestionModal
-          assessmentId={parseInt(assessmentId)}
+          assessmentId={assessmentId}
           sectionId={showAddQuestion}
           onClose={() => setShowAddQuestion(null)}
           onSuccess={loadAssessment}

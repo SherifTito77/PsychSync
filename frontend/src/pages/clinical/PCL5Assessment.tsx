@@ -101,7 +101,7 @@ const PCL5Assessment: React.FC = () => {
     const clusterDScore = [8, 9, 10, 11, 12, 13, 14].reduce((sum, id) => sum + (responses[id] || 0), 0);
     const clusterEScore = [15, 16, 17, 18, 19, 20].reduce((sum, id) => sum + (responses[id] || 0), 0);
 
-    const totalScore = Object.values(responses).reduce((sum, val) => sum + val, 0);
+    const totalScore = Object.values(responses).reduce((sum, val) => sum + (val as number), 0);
 
     const results = {
       score: totalScore,

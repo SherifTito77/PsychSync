@@ -18,11 +18,11 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 import logging
 import ssl
 import time
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import HTTPException
@@ -32,6 +32,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import get_database_url, settings
+from app.core.pool_monitor import init_pool_monitor
 
 # Initialize database security logger
 db_security_logger = logging.getLogger("app.security.database")
@@ -117,26 +118,55 @@ if settings.TESTING:
         echo=settings.DEBUG,
     )
 else:
-    # Production PostgreSQL configuration
+    # Production PostgreSQL configuration with performance optimizations
     async_engine = create_async_engine(
         get_database_url(async_driver=True, test_mode=False),
-        # Async-compatible pool settings
-        pool_size=20,
-        max_overflow=30,
-        pool_timeout=30,
+        # ============================================================================
+        # PERFORMANCE-OPTIMIZED POOL SETTINGS
+        # ============================================================================
+        # Base pool size: Number of persistent connections to maintain
+        # Optimal for: (number_of_app_instances * pool_size) <= database_max_connections
+        pool_size=20,  # Increased from default 5 for better concurrency
+        # Max overflow: Additional connections allowed under load
+        # Total max connections = pool_size + max_overflow = 20 + 40 = 60
+        max_overflow=40,  # Increased to handle traffic spikes
+        # Pool timeout: How long to wait for a connection before erroring
+        pool_timeout=30,  # Keep at 30s - reasonable for production
+        # Pool recycle: Recycle connections after N seconds to prevent stale connections
+        # PostgreSQL recommends 3600s (1 hour) to avoid connection bloat
         pool_recycle=3600,
+        # Pool pre-ping: Test connections before use (prevents stale connection errors)
+        # Small performance cost (~1ms) but significantly improves reliability
         pool_pre_ping=True,
-        # Settings
-        echo=settings.DB_ECHO and settings.DEBUG,
-        future=True,
-        # PostgreSQL-specific connect_args
+        # Use LIFO (Last-In-First-Out) instead of FIFO for connection selection
+        # LIFO reduces stale connections by using most-recently-used connections first
+        pool_use_lifo=True,  # PERFORMANCE: Minimizes stale connection overhead
+        # ============================================================================
+        # QUERY SETTINGS
+        # ============================================================================
+        echo=settings.DB_ECHO
+        and settings.DEBUG,  # SQL query logging (disable in prod!)
+        future=True,  # Use SQLAlchemy 2.0 style
+        # ============================================================================
+        # POSTGRESQL-SPECIFIC CONNECTION SETTINGS
+        # ============================================================================
         connect_args={
             "server_settings": {
                 "application_name": "psychsync",
                 "timezone": "UTC",
-            }
+                # Query timeout (30s) - prevents runaway queries
+                "statement_timeout": "30000",
+                # Enable parallel query planning for complex analytics
+                "max_parallel_workers_per_gather": "2",
+            },
+            # Connection timeout (10s)
+            "timeout": 10,
         },
     )
+
+# Initialize pool monitor for non-test environments
+if not settings.TESTING:
+    init_pool_monitor(async_engine)
 
 # Create async session factory with enhanced security
 AsyncSessionLocal = async_sessionmaker(
@@ -150,7 +180,9 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 @asynccontextmanager
-async def get_async_db_with_retry(max_attempts: int = 3) -> AsyncGenerator[AsyncSession, None]:
+async def get_async_db_with_retry(
+    max_attempts: int = 3,
+) -> AsyncGenerator[AsyncSession, None]:
     """
     Simplified database connection with basic error handling
     """
@@ -166,15 +198,21 @@ async def get_async_db_with_retry(max_attempts: int = 3) -> AsyncGenerator[Async
         if session:
             try:
                 await session.close()
-            except:
-                pass
+            except Exception as close_err:
+                db_security_logger.warning(
+                    "Failed to close DB session after error",
+                    extra={"close_error": str(close_err)},
+                )
         raise RuntimeError(f"Database connection failed: {e}") from e
     finally:
         if session:
             try:
                 await session.close()
-            except:
-                pass
+            except Exception as close_err:
+                db_security_logger.warning(
+                    "Failed to close DB session in finally block",
+                    extra={"close_error": str(close_err)},
+                )
 
 
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
@@ -188,7 +226,10 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception as e:
             db_security_logger.error(
                 f"Database session error: {type(e).__name__}",
-                extra={"error_type": type(e).__name__, "event_type": "db_session_error"},
+                extra={
+                    "error_type": type(e).__name__,
+                    "event_type": "db_session_error",
+                },
             )
             await session.rollback()
             raise

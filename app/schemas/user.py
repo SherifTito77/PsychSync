@@ -38,9 +38,14 @@ class UserUpdate(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {'full_name': 'John Smith', 'phone': '+1234567890', 'bio': 'Software engineer passionate about psychology'}
+            "example": {
+                "full_name": "John Smith",
+                "phone": "+1234567890",
+                "bio": "Software engineer passionate about psychology",
+            }
         }
     )
+
 
 class UserRead(UserBase):
     """Schema for reading user data"""

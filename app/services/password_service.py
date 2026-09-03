@@ -29,12 +29,12 @@ Usage:
     secure_pwd = service.generate_password()
 """
 
-from dataclasses import dataclass
-from enum import Enum
 import logging
 import re
 import secrets
 import string
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 try:
@@ -188,15 +188,21 @@ class PasswordService:
             self.logger.warning("Argon2 not available, using bcrypt")
 
         # Initialize bcrypt as backup
-        self.bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+        self.bcrypt_context = CryptContext(
+            schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12
+        )
 
     def _get_policy_config(self, policy: PasswordPolicy) -> PasswordPolicyConfig:
         """Get policy configuration for level"""
         configs = {
             PasswordPolicy.BASIC: PasswordPolicyConfig(min_length=8),
             PasswordPolicy.STANDARD: PasswordPolicyConfig(min_length=12),
-            PasswordPolicy.STRONG: PasswordPolicyConfig(min_length=14, min_entropy_bits=70),
-            PasswordPolicy.PARANOID: PasswordPolicyConfig(min_length=16, min_entropy_bits=80),
+            PasswordPolicy.STRONG: PasswordPolicyConfig(
+                min_length=14, min_entropy_bits=70
+            ),
+            PasswordPolicy.PARANOID: PasswordPolicyConfig(
+                min_length=16, min_entropy_bits=80
+            ),
         }
         return configs.get(policy, PasswordPolicyConfig())
 
@@ -307,10 +313,14 @@ class PasswordService:
 
         # Check length
         if len(password) < self.config.min_length:
-            errors.append(f"Password must be at least {self.config.min_length} characters")
+            errors.append(
+                f"Password must be at least {self.config.min_length} characters"
+            )
 
         if len(password) > self.config.max_length:
-            errors.append(f"Password must not exceed {self.config.max_length} characters")
+            errors.append(
+                f"Password must not exceed {self.config.max_length} characters"
+            )
 
         # Check character requirements
         if self.config.require_uppercase and not re.search(r"[A-Z]", password):
@@ -322,7 +332,9 @@ class PasswordService:
         if self.config.require_digits and not re.search(r"\d", password):
             errors.append("Password must contain at least one digit")
 
-        if self.config.require_special_chars and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        if self.config.require_special_chars and not re.search(
+            r'[!@#$%^&*(),.?":{}|<>]', password
+        ):
             errors.append("Password must contain at least one special character")
 
         # Check for common passwords

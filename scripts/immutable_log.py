@@ -33,14 +33,14 @@ Usage:
         print("Log has been tampered with!")
 """
 
-import json
 import hashlib
 import hmac
+import json
 import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ImmutableLog:
@@ -52,7 +52,7 @@ class ImmutableLog:
         self,
         log_type: str,
         log_dir: str = "build/logs",
-        sign_key: Optional[bytes] = None
+        sign_key: Optional[bytes] = None,
     ):
         """
         Initialize immutable log
@@ -71,7 +71,7 @@ class ImmutableLog:
         self.lock = threading.Lock()
 
         # HMAC key for signing (use env var if not provided)
-        self.sign_key = sign_key or os.getenv('IMMUTABLE_LOG_KEY', '').encode() or None
+        self.sign_key = sign_key or os.getenv("IMMUTABLE_LOG_KEY", "").encode() or None
 
         # Load or initialize index
         self.index = self._load_index()
@@ -79,7 +79,7 @@ class ImmutableLog:
     def _load_index(self) -> Dict[str, Any]:
         """Load log index metadata"""
         if self.index_file.exists():
-            with open(self.index_file, 'r') as f:
+            with open(self.index_file, "r") as f:
                 return json.load(f)
         else:
             # Initialize new index
@@ -88,12 +88,12 @@ class ImmutableLog:
                 "created_at": datetime.now(timezone.utc).isoformat(),
                 "entry_count": 0,
                 "last_hash": "",
-                "last_entry_id": 0
+                "last_entry_id": 0,
             }
 
     def _save_index(self):
         """Save log index metadata"""
-        with open(self.index_file, 'w') as f:
+        with open(self.index_file, "w") as f:
             json.dump(self.index, f, indent=2)
 
     def _hash_entry(self, entry: Dict[str, Any], prev_hash: str) -> str:
@@ -108,7 +108,7 @@ class ImmutableLog:
             SHA256 hash as hex string
         """
         # Create canonical JSON representation
-        entry_str = json.dumps(entry, sort_keys=True, separators=(',', ':'))
+        entry_str = json.dumps(entry, sort_keys=True, separators=(",", ":"))
 
         # Include previous hash in hash calculation
         hash_input = f"{prev_hash}{entry_str}".encode()
@@ -126,7 +126,7 @@ class ImmutableLog:
             HMAC signature as hex string, or None if no key
         """
         if self.sign_key:
-            entry_str = json.dumps(entry, sort_keys=True, separators=(',', ':'))
+            entry_str = json.dumps(entry, sort_keys=True, separators=(",", ":"))
             signature = hmac.new(self.sign_key, entry_str.encode(), hashlib.sha256)
             return signature.hexdigest()
         return None
@@ -151,7 +151,7 @@ class ImmutableLog:
                 "timestamp": timestamp,
                 "type": self.log_type,
                 "data": data,
-                "prev_hash": self.index["last_hash"]
+                "prev_hash": self.index["last_hash"],
             }
 
             # Calculate hash
@@ -164,8 +164,8 @@ class ImmutableLog:
                 entry["signature"] = signature
 
             # Append to log file
-            with open(self.log_file, 'a') as f:
-                f.write(json.dumps(entry) + '\n')
+            with open(self.log_file, "a") as f:
+                f.write(json.dumps(entry) + "\n")
 
             # Update index
             self.index["last_entry_id"] = entry_id
@@ -189,7 +189,7 @@ class ImmutableLog:
         expected_prev_hash = ""
         line_number = 0
 
-        with open(self.log_file, 'r') as f:
+        with open(self.log_file, "r") as f:
             for line in f:
                 line_number += 1
 
@@ -257,7 +257,7 @@ class ImmutableLog:
         entries = []
 
         if self.log_file.exists():
-            with open(self.log_file, 'r') as f:
+            with open(self.log_file, "r") as f:
                 for line in f:
                     try:
                         entry = json.loads(line)
@@ -319,7 +319,7 @@ class ImmutableLog:
         entries = self.read_all()
 
         if format == "json":
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 json.dump(entries, f, indent=2)
 
         elif format == "csv":
@@ -335,7 +335,7 @@ class ImmutableLog:
                 for data_field in entry.get("data", {}).keys():
                     fieldnames.add(f"data.{data_field}")
 
-            with open(output_file, 'w', newline='') as f:
+            with open(output_file, "w", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=sorted(fieldnames))
                 writer.writeheader()
 
@@ -362,7 +362,7 @@ class ImmutableLog:
             "snapshot_at": datetime.now(timezone.utc).isoformat(),
             "entry_count": self.index["entry_count"],
             "last_hash": self.index["last_hash"],
-            "index": self.index.copy()
+            "index": self.index.copy(),
         }
 
         # Sign snapshot
@@ -372,8 +372,11 @@ class ImmutableLog:
             snapshot["signature"] = signature.hexdigest()
 
         # Save snapshot
-        snapshot_file = self.log_dir / f"{self.log_type}-snapshot-{snapshot['snapshot_at'].replace(':', '-')}.json"
-        with open(snapshot_file, 'w') as f:
+        snapshot_file = (
+            self.log_dir
+            / f"{self.log_type}-snapshot-{snapshot['snapshot_at'].replace(':', '-')}.json"
+        )
+        with open(snapshot_file, "w") as f:
             json.dump(snapshot, f, indent=2)
 
         # Calculate snapshot hash
@@ -392,7 +395,7 @@ class ImmutableLog:
         Returns:
             True if snapshot is valid
         """
-        with open(snapshot_file, 'r') as f:
+        with open(snapshot_file, "r") as f:
             snapshot = json.load(f)
 
         # Verify signature if present
@@ -401,7 +404,9 @@ class ImmutableLog:
             signature = snapshot_copy.pop("signature")
 
             snapshot_str = json.dumps(snapshot_copy, sort_keys=True)
-            calculated_signature = hmac.new(self.sign_key, snapshot_str.encode(), hashlib.sha256).hexdigest()
+            calculated_signature = hmac.new(
+                self.sign_key, snapshot_str.encode(), hashlib.sha256
+            ).hexdigest()
 
             if calculated_signature != signature:
                 return False
@@ -420,10 +425,12 @@ class ImmutableLog:
         stats = {
             "log_type": self.log_type,
             "total_entries": len(entries),
-            "file_size_bytes": self.log_file.stat().st_size if self.log_file.exists() else 0,
+            "file_size_bytes": (
+                self.log_file.stat().st_size if self.log_file.exists() else 0
+            ),
             "created_at": self.index.get("created_at"),
             "last_updated": self.index.get("updated_at"),
-            "verified": self.verify()
+            "verified": self.verify(),
         }
 
         return stats
@@ -445,51 +452,47 @@ class BuildLogger:
 
     def log_build_start(self, build_id: str, environment: str):
         """Log build start event"""
-        self.build_log.append({
-            "event": "build_start",
-            "build_id": build_id,
-            "environment": environment
-        })
+        self.build_log.append(
+            {"event": "build_start", "build_id": build_id, "environment": environment}
+        )
 
     def log_build_complete(self, build_id: str, artifacts: List[str]):
         """Log build completion event"""
-        self.build_log.append({
-            "event": "build_complete",
-            "build_id": build_id,
-            "artifacts": artifacts
-        })
+        self.build_log.append(
+            {"event": "build_complete", "build_id": build_id, "artifacts": artifacts}
+        )
 
     def log_build_failure(self, build_id: str, error: str):
         """Log build failure event"""
-        self.build_log.append({
-            "event": "build_failure",
-            "build_id": build_id,
-            "error": error
-        })
+        self.build_log.append(
+            {"event": "build_failure", "build_id": build_id, "error": error}
+        )
 
-    def log_security_event(self, event_type: str, severity: str, details: Dict[str, Any]):
+    def log_security_event(
+        self, event_type: str, severity: str, details: Dict[str, Any]
+    ):
         """Log security event"""
-        self.security_log.append({
-            "event_type": event_type,
-            "severity": severity,
-            "details": details
-        })
+        self.security_log.append(
+            {"event_type": event_type, "severity": severity, "details": details}
+        )
 
     def log_deployment(self, build_id: str, environment: str, status: str):
         """Log deployment event"""
-        self.deployment_log.append({
-            "event": "deployment",
-            "build_id": build_id,
-            "environment": environment,
-            "status": status
-        })
+        self.deployment_log.append(
+            {
+                "event": "deployment",
+                "build_id": build_id,
+                "environment": environment,
+                "status": status,
+            }
+        )
 
     def verify_all_logs(self) -> Dict[str, bool]:
         """Verify all logs for tampering"""
         return {
             "build": self.build_log.verify(),
             "security": self.security_log.verify(),
-            "deployment": self.deployment_log.verify()
+            "deployment": self.deployment_log.verify(),
         }
 
     def export_all_logs(self, output_dir: str):
@@ -522,10 +525,9 @@ if __name__ == "__main__":
 
     # Log security event
     print("2. Logging security event...")
-    logger.log_security_event("vulnerability_scan", "INFO", {
-        "scanner": "trivy",
-        "vulnerabilities_found": 0
-    })
+    logger.log_security_event(
+        "vulnerability_scan", "INFO", {"scanner": "trivy", "vulnerabilities_found": 0}
+    )
 
     # Verify logs
     print("3. Verifying logs...")

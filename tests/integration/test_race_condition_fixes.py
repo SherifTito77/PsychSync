@@ -12,19 +12,18 @@ Each test simulates high concurrency to ensure thread-safety.
 """
 
 import asyncio
-import pytest
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from httpx import AsyncClient, ASGITransport
+import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.async_cache import cached_async
+from app.core.config import settings
 from app.main import app
 from app.services.auth_service import blacklist_token, is_token_blacklisted
 from app.services.session_service import SessionService
-from app.core.async_cache import cached_async
-from app.core.config import settings
-
 
 # ============================================================================
 # Test 1: Token Blacklist Race Condition
@@ -92,9 +91,10 @@ async async def test_user_creation_email_uniqueness(db_session: AsyncSession):
 
     Fix: Rely on database UNIQUE constraint + handle IntegrityError.
     """
-    from app.services.user_service import create_user
-    from app.schemas.user import UserCreate
     from sqlalchemy.exc import IntegrityError
+
+    from app.schemas.user import UserCreate
+    from app.services.user_service import create_user
 
     test_email = "concurrent_test@example.com"
     user_data = UserCreate(
@@ -135,8 +135,9 @@ async def test_session_creation_thread_safety():
 
     Fix: Use Redis transactions (pipeline) to ensure atomicity.
     """
-    from app.db.models.user import User
     from unittest.mock import Mock
+
+    from app.db.models.user import User
 
     # Create mock user
     user = Mock(spec=User)
@@ -179,8 +180,9 @@ async def test_session_validation_thread_safety():
     """
     Test that session validation is thread-safe.
     """
-    from app.db.models.user import User
     from unittest.mock import Mock
+
+    from app.db.models.user import User
 
     # Create mock user
     user = Mock(spec=User)
@@ -287,6 +289,7 @@ async def test_rate_limiter_thread_safety():
     Fix: Use atomic INCR operation in Redis, increment first then check.
     """
     import redis.asyncio as aioredis
+
     from app.services.rate_limiter_service import RateLimiterService
 
     rate_limiter = RateLimiterService()
@@ -335,8 +338,9 @@ async async def test_concurrent_race_conditions():
     """
     Integration test simulating multiple race conditions simultaneously.
     """
-    from app.db.models.user import User
     from unittest.mock import Mock
+
+    from app.db.models.user import User
 
     # Create mock user
     user = Mock(spec=User)
@@ -404,8 +408,9 @@ async async def test_load_concurrent_users():
 
     This test is skipped by default. Run manually when needed.
     """
-    from app.db.models.user import User
     from unittest.mock import Mock
+
+    from app.db.models.user import User
 
     # Simulate 1000 concurrent users
     async def simulate_user(user_id: int):

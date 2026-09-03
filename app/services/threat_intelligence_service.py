@@ -15,8 +15,8 @@ Date: 2025-12-24
 import asyncio
 from datetime import datetime
 
-from fastapi import HTTPException, status
 import redis.asyncio as redis
+from fastapi import HTTPException, status
 
 from app.core.config import settings
 
@@ -24,8 +24,10 @@ from app.core.config import settings
 # Threat Intelligence Models
 # =============================================================================
 
+
 class ThreatIntel:
     """Threat intelligence data"""
+
     source: str
     type: str  # ip, domain, email, hash
     value: str
@@ -39,6 +41,7 @@ class ThreatIntel:
 
 class IPReputation:
     """IP reputation score"""
+
     ip_address: str
     reputation_score: float  # 0.0 (bad) to 100.0 (good)
     threat_level: str
@@ -58,6 +61,7 @@ class IPReputation:
 # =============================================================================
 # Threat Intelligence Service
 # =============================================================================
+
 
 class ThreatIntelligenceService:
     """
@@ -87,9 +91,7 @@ class ThreatIntelligenceService:
         # Connect to Redis for caching
         if settings.REDIS_URL:
             self.redis_client = await redis.from_url(
-                settings.REDIS_URL,
-                encoding="utf-8",
-                decode_responses=True
+                settings.REDIS_URL, encoding="utf-8", decode_responses=True
             )
 
         # Load initial threat feeds
@@ -163,13 +165,11 @@ class ThreatIntelligenceService:
             reputation_score=reputation_score,
             threat_level=threat_level,
             last_updated=datetime.utcnow(),
-            factors=factors
+            factors=factors,
         )
 
     async def check_compromised_credentials(
-        self,
-        email: str,
-        password_hash: str
+        self, email: str, password_hash: str
     ) -> dict:
         """
         Check if credentials have been compromised in data breaches
@@ -193,24 +193,40 @@ class ThreatIntelligenceService:
         password_compromised = await self._check_password_compromised(password_hash)
         if password_compromised:
             compromised = True
-            breaches.append({
-                "type": "password_leak",
-                "severity": "high",
-                "description": "Password found in leaked data breaches"
-            })
+            breaches.append(
+                {
+                    "type": "password_leak",
+                    "severity": "high",
+                    "description": "Password found in leaked data breaches",
+                }
+            )
 
         return {
             "compromised": compromised,
             "breaches": breaches,
-            "recommendation": "Force password change immediately" if compromised else "No action needed"
+            "recommendation": (
+                "Force password change immediately"
+                if compromised
+                else "No action needed"
+            ),
         }
 
     async def is_malicious_user_agent(self, user_agent: str) -> bool:
         """Check if user agent matches known malicious patterns"""
         malicious_patterns = [
-            "sqlmap", "nikto", "dirbuster", "nmap", "masscan",
-            "python-requests", "curl", "wget", "apachebench",
-            "bot", "spider", "crawler", "scraper"
+            "sqlmap",
+            "nikto",
+            "dirbuster",
+            "nmap",
+            "masscan",
+            "python-requests",
+            "curl",
+            "wget",
+            "apachebench",
+            "bot",
+            "spider",
+            "crawler",
+            "scraper",
         ]
 
         user_agent_lower = user_agent.lower()
@@ -230,27 +246,51 @@ class ThreatIntelligenceService:
 
         # SQL injection patterns
         sqli_patterns = [
-            "union select", "or 1=1", "drop table", "exec(",
-            "' or '1'='1", "admin'--", "1' or '1'='1",
-            "concat(", "version(", "database(", "user("
+            "union select",
+            "or 1=1",
+            "drop table",
+            "exec(",
+            "' or '1'='1",
+            "admin'--",
+            "1' or '1'='1",
+            "concat(",
+            "version(",
+            "database(",
+            "user(",
         ]
 
         # XSS patterns
         xss_patterns = [
-            "<script>", "javascript:", "onerror=", "onload=",
-            "alert(", "document.cookie", "fromCharCode"
+            "<script>",
+            "javascript:",
+            "onerror=",
+            "onload=",
+            "alert(",
+            "document.cookie",
+            "fromCharCode",
         ]
 
         # Path traversal patterns
         path_traversal = [
-            "../../", "..\\", "%2e%2e", "%252e",
-            "etc/passwd", "windows/system32"
+            "../../",
+            "..\\",
+            "%2e%2e",
+            "%252e",
+            "etc/passwd",
+            "windows/system32",
         ]
 
         # Command injection
         cmd_injection = [
-            "; ls", "| ls", "&& ls", "`ls`", "$(",
-            "eval(", "system(", "exec(", "passthru("
+            "; ls",
+            "| ls",
+            "&& ls",
+            "`ls`",
+            "$(",
+            "eval(",
+            "system(",
+            "exec(",
+            "passthru(",
         ]
 
         # Check request path
@@ -263,11 +303,7 @@ class ThreatIntelligenceService:
         return False
 
     async def should_block_request(
-        self,
-        ip_address: str,
-        user_agent: str,
-        request_path: str,
-        request_method: str
+        self, ip_address: str, user_agent: str, request_path: str, request_method: str
     ) -> tuple[bool, str]:
         """
         Comprehensive request blocking decision
@@ -279,7 +315,10 @@ class ThreatIntelligenceService:
         ip_reputation = await self.check_ip_reputation(ip_address)
 
         if ip_reputation.threat_level == "critical":
-            return True, f"Critical threat IP: {ip_address} (reputation: {ip_reputation.reputation_score})"
+            return (
+                True,
+                f"Critical threat IP: {ip_address} (reputation: {ip_reputation.reputation_score})",
+            )
 
         # Check 2: Malicious user agent
         if await self.is_malicious_user_agent(user_agent):
@@ -368,11 +407,7 @@ class ThreatIntelligenceService:
         #                        headers={"Key": settings.ABUSEIPDB_API_KEY})
 
         # For now, return no adjustment
-        return {
-            "score_adjustment": score_adjustment,
-            "factors": factors,
-            "tags": tags
-        }
+        return {"score_adjustment": score_adjustment, "factors": factors, "tags": tags}
 
     async def _check_email_breaches(self, email: str) -> list[dict]:
         """Check if email has been in data breaches"""
@@ -439,7 +474,7 @@ async def threat_intel_middleware(request: Request, call_next):
         ip_address=ip_address,
         user_agent=user_agent,
         request_path=request_path,
-        request_method=request_method
+        request_method=request_method,
     )
 
     if should_block:
@@ -449,7 +484,7 @@ async def threat_intel_middleware(request: Request, call_next):
         # Return 403 Forbidden
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
-            content={"detail": "Request blocked by security policy"}
+            content={"detail": "Request blocked by security policy"},
         )
 
     # Allow request to proceed
@@ -469,7 +504,9 @@ async def threat_intel_middleware(request: Request, call_next):
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
-admin_router = APIRouter(prefix="/api/v1/admin/security/threat-intel", tags=["Threat Intelligence Admin"])
+admin_router = APIRouter(
+    prefix="/api/v1/admin/security/threat-intel", tags=["Threat Intelligence Admin"]
+)
 
 
 @admin_router.get("/stats")
@@ -481,7 +518,7 @@ async def get_threat_intel_stats():
             name: len(ips) for name, ips in threat_intel_service.blocklists.items()
         },
         "last_refreshed": datetime.utcnow().isoformat(),
-        "status": "active"
+        "status": "active",
     }
 
 
@@ -493,10 +530,7 @@ async def refresh_threat_feeds():
 
 
 @admin_router.post("/blocklist/add")
-async def add_to_blocklist(
-    blocklist_type: str,
-    ip_address: str
-):
+async def add_to_blocklist(blocklist_type: str, ip_address: str):
     """Add IP to blocklist"""
 
     if blocklist_type not in threat_intel_service.blocklists:
@@ -507,15 +541,12 @@ async def add_to_blocklist(
     return {
         "message": f"Added {ip_address} to {blocklist_type}",
         "blocklist_type": blocklist_type,
-        "ip_address": ip_address
+        "ip_address": ip_address,
     }
 
 
 @admin_router.delete("/blocklist/remove")
-async def remove_from_blocklist(
-    blocklist_type: str,
-    ip_address: str
-):
+async def remove_from_blocklist(blocklist_type: str, ip_address: str):
     """Remove IP from blocklist"""
 
     if blocklist_type not in threat_intel_service.blocklists:
@@ -527,7 +558,7 @@ async def remove_from_blocklist(
     return {
         "message": f"Removed {ip_address} from {blocklist_type}",
         "blocklist_type": blocklist_type,
-        "ip_address": ip_address
+        "ip_address": ip_address,
     }
 
 
@@ -542,5 +573,5 @@ async def check_ip(ip_address: str):
         "reputation_score": reputation.reputation_score,
         "threat_level": reputation.threat_level,
         "factors": reputation.factors,
-        "last_updated": reputation.last_updated.isoformat()
+        "last_updated": reputation.last_updated.isoformat(),
     }

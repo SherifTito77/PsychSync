@@ -15,7 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import {
   Tabs,
   TabsContent,
@@ -87,6 +87,7 @@ import {
   Square,
   Eye,
   Download,
+  DollarSign,
   Upload,
   RefreshCw,
   CheckCircle,
@@ -341,7 +342,7 @@ const ExperimentalFeaturesLab: React.FC = () => {
 
   const emotionData = Object.entries(voiceAnalysisResults[0]?.emotions || {}).map(([emotion, score]) => ({
     name: emotion.charAt(0).toUpperCase() + emotion.slice(1),
-    value: score * 100,
+    value: (score as number) * 100,
     fill: COLORS[Object.keys(voiceAnalysisResults[0]?.emotions || {}).indexOf(emotion) % COLORS.length]
   }));
 
@@ -519,9 +520,9 @@ const ExperimentalFeaturesLab: React.FC = () => {
                         <span className="capitalize font-medium">{status}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">{count}</span>
+                        <span className="text-2xl font-bold">{count as number}</span>
                         <span className="text-sm text-muted-foreground">
-                          ({((count / experimentMetrics.total) * 100).toFixed(0)}%)
+                          ({(((count as number) / experimentMetrics.total) * 100).toFixed(0)}%)
                         </span>
                       </div>
                     </div>

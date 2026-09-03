@@ -4,21 +4,22 @@ Comprehensive Infrastructure Security Scanner
 Scans for open ports, services, SSH protections, server banners, firewall rules, and CVEs
 """
 
-import os
-import sys
-import socket
-import subprocess
-import requests
-import json
-import time
-import hashlib
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Any, Optional
-from dataclasses import dataclass
-import logging
 import concurrent.futures
+import hashlib
+import json
+import logging
+import os
 import platform
 import re
+import socket
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+
+import requests
 
 # Third-party imports (install with: pip install python-nmap python-ssh-cve-checker)
 try:
@@ -33,14 +34,15 @@ except ImportError:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class PortScanResult:
     """Port scan result data class"""
+
     port: int
     protocol: str
     state: str
@@ -50,9 +52,11 @@ class PortScanResult:
     risk_level: str
     recommendation: str
 
+
 @dataclass
 class ServiceInfo:
     """Service information data class"""
+
     name: str
     port: int
     protocol: str
@@ -60,9 +64,11 @@ class ServiceInfo:
     configuration_issues: List[str]
     security_recommendations: List[str]
 
+
 @dataclass
 class SSHSecurityResult:
     """SSH security test result"""
+
     ssh_host: str
     ssh_port: int
     password_auth_enabled: bool
@@ -72,9 +78,11 @@ class SSHSecurityResult:
     security_score: int
     vulnerabilities: List[Dict[str, Any]]
 
+
 @dataclass
 class CVEInfo:
     """CVE information data class"""
+
     cve_id: str
     severity: str
     cvss_score: float
@@ -83,9 +91,11 @@ class CVEInfo:
     fixed_version: str
     references: List[str]
 
+
 @dataclass
 class FirewallRule:
     """Firewall rule data class"""
+
     rule_number: int
     action: str
     protocol: str
@@ -94,6 +104,7 @@ class FirewallRule:
     port: str
     risk_level: str
     recommendation: str
+
 
 class InfrastructureSecurityScanner:
     """Comprehensive infrastructure security scanner"""
@@ -112,7 +123,7 @@ class InfrastructureSecurityScanner:
             "firewall_rules": {},
             "cve_vulnerabilities": [],
             "risk_summary": {},
-            "recommendations": []
+            "recommendations": [],
         }
 
     def run_comprehensive_scan(self) -> Dict[str, Any]:
@@ -126,7 +137,7 @@ class InfrastructureSecurityScanner:
             ("SSH Security", self.test_ssh_security),
             ("Server Banners", self.check_server_banners),
             ("Firewall Rules", self.test_firewall_rules),
-            ("CVE Vulnerabilities", self.scan_for_cves)
+            ("CVE Vulnerabilities", self.scan_for_cves),
         ]
 
         for scan_name, scan_function in scans:
@@ -152,16 +163,16 @@ class InfrastructureSecurityScanner:
                 nm = nmap.PortScanner()
 
                 # Basic port scan
-                scan_result = nm.scan(self.target_host, self.ports, arguments='-sV -O')
+                scan_result = nm.scan(self.target_host, self.ports, arguments="-sV -O")
 
-                for host in scan_result['scan']:
-                    for protocol in scan_result['scan'][host]:
-                        for port in scan_result['scan'][host][protocol]:
-                            port_info = scan_result['scan'][host][protocol][port]
+                for host in scan_result["scan"]:
+                    for protocol in scan_result["scan"][host]:
+                        for port in scan_result["scan"][host][protocol]:
+                            port_info = scan_result["scan"][host][protocol][port]
 
-                            service = port_info.get('name', 'unknown')
-                            version = port_info.get('version', '')
-                            product = port_info.get('product', '')
+                            service = port_info.get("name", "unknown")
+                            version = port_info.get("version", "")
+                            product = port_info.get("product", "")
                             banner = f"{product} {version}".strip()
 
                             # Assess risk level
@@ -170,19 +181,41 @@ class InfrastructureSecurityScanner:
                             result = PortScanResult(
                                 port=port,
                                 protocol=protocol,
-                                state=port_info['state'],
+                                state=port_info["state"],
                                 service=service,
                                 version=version,
                                 banner=banner,
                                 risk_level=risk_level,
-                                recommendation=self._get_port_recommendation(port, service, risk_level)
+                                recommendation=self._get_port_recommendation(
+                                    port, service, risk_level
+                                ),
                             )
 
                             port_results.append(result)
-                            print(f"  Port {port}/{protocol}: {service} ({port_info['state']}) - Risk: {risk_level}")
+                            print(
+                                f"  Port {port}/{protocol}: {service} ({port_info['state']}) - Risk: {risk_level}"
+                            )
             else:
                 # Fallback to basic socket scanning
-                common_ports = [21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995, 3306, 5432, 6379, 8000, 8080, 8443]
+                common_ports = [
+                    21,
+                    22,
+                    23,
+                    25,
+                    53,
+                    80,
+                    110,
+                    143,
+                    443,
+                    993,
+                    995,
+                    3306,
+                    5432,
+                    6379,
+                    8000,
+                    8080,
+                    8443,
+                ]
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
                     future_to_port = {
@@ -196,7 +229,9 @@ class InfrastructureSecurityScanner:
                             result = future.result()
                             if result:
                                 port_results.append(result)
-                                print(f"  Port {result.port}/{result.protocol}: {result.service} ({result.state}) - Risk: {result.risk_level}")
+                                print(
+                                    f"  Port {result.port}/{result.protocol}: {result.service} ({result.state}) - Risk: {result.risk_level}"
+                                )
                         except Exception as e:
                             logger.error(f"Error scanning port {port}: {str(e)}")
 
@@ -212,14 +247,16 @@ class InfrastructureSecurityScanner:
                 "version": r.version,
                 "banner": r.banner,
                 "risk_level": r.risk_level,
-                "recommendation": r.recommendation
+                "recommendation": r.recommendation,
             }
             for r in port_results
         ]
 
         return port_results
 
-    def _scan_single_port(self, port: int, timeout: int = 3) -> Optional[PortScanResult]:
+    def _scan_single_port(
+        self, port: int, timeout: int = 3
+    ) -> Optional[PortScanResult]:
         """Scan a single port"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -230,8 +267,8 @@ class InfrastructureSecurityScanner:
                 # Port is open, try to get banner
                 try:
                     sock.send(b"GET / HTTP/1.0\r\n\r\n")
-                    banner = sock.recv(1024).decode('utf-8', errors='ignore')
-                except:
+                    banner = sock.recv(1024).decode("utf-8", errors="ignore")
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     banner = ""
 
                 service = self._guess_service(port)
@@ -245,7 +282,9 @@ class InfrastructureSecurityScanner:
                     version="",
                     banner=banner,
                     risk_level=risk_level,
-                    recommendation=self._get_port_recommendation(port, service, risk_level)
+                    recommendation=self._get_port_recommendation(
+                        port, service, risk_level
+                    ),
                 )
 
             sock.close()
@@ -273,7 +312,7 @@ class InfrastructureSecurityScanner:
             6379: "redis",
             8000: "http-alt",
             8080: "http-proxy",
-            8443: "https-alt"
+            8443: "https-alt",
         }
         return service_map.get(port, "unknown")
 
@@ -300,7 +339,7 @@ class InfrastructureSecurityScanner:
             25: "Configure SMTP authentication and encryption",
             3389: "Restrict RDP access, use VPN gateway",
             5432: "Restrict database access to local networks only",
-            3306: "Configure MySQL for secure remote access"
+            3306: "Configure MySQL for secure remote access",
         }
 
         if port in recommendations:
@@ -350,7 +389,7 @@ class InfrastructureSecurityScanner:
                 "protocol": info.protocol,
                 "version": info.version,
                 "configuration_issues": info.configuration_issues,
-                "security_recommendations": info.security_recommendations
+                "security_recommendations": info.security_recommendations,
             }
             for name, info in services.items()
         }
@@ -366,7 +405,7 @@ class InfrastructureSecurityScanner:
 
             if result == 0:
                 sock.send(b"SSH-2.0-Scanner\r\n")
-                banner = sock.recv(1024).decode('utf-8', errors='ignore')
+                banner = sock.recv(1024).decode("utf-8", errors="ignore")
                 sock.close()
 
                 issues = []
@@ -378,7 +417,7 @@ class InfrastructureSecurityScanner:
                     recommendations.append("Upgrade to SSH protocol version 2")
 
                 # Parse SSH version
-                version_match = re.search(r'OpenSSH[_\s]+([\d.]+)', banner)
+                version_match = re.search(r"OpenSSH[_\s]+([\d.]+)", banner)
                 version = version_match.group(1) if version_match else "Unknown"
 
                 # Check for known vulnerable versions
@@ -393,7 +432,7 @@ class InfrastructureSecurityScanner:
                     protocol="tcp",
                     version=version,
                     configuration_issues=issues,
-                    security_recommendations=recommendations
+                    security_recommendations=recommendations,
                 )
 
         except Exception:
@@ -408,25 +447,33 @@ class InfrastructureSecurityScanner:
         # Check HTTP (port 80)
         try:
             response = requests.get(f"http://{self.target_host}", timeout=5)
-            server_header = response.headers.get('Server', '')
+            server_header = response.headers.get("Server", "")
 
             issues = []
             recommendations = []
 
             # Check for server information disclosure
             if server_header:
-                version_info = re.search(r'Apache/([\d.]+)', server_header)
+                version_info = re.search(r"Apache/([\d.]+)", server_header)
                 if version_info:
                     apache_version = version_info.group(1)
                     issues.append(f"Server version disclosed: Apache {apache_version}")
-                    recommendations.append("Configure ServerTokens to Prod or ServerTokens Off")
+                    recommendations.append(
+                        "Configure ServerTokens to Prod or ServerTokens Off"
+                    )
 
             # Check for security headers
-            security_headers = ['X-Frame-Options', 'X-Content-Type-Options', 'X-XSS-Protection']
+            security_headers = [
+                "X-Frame-Options",
+                "X-Content-Type-Options",
+                "X-XSS-Protection",
+            ]
             missing_headers = [h for h in security_headers if h not in response.headers]
             if missing_headers:
                 issues.append(f"Missing security headers: {', '.join(missing_headers)}")
-                recommendations.append("Add security headers to web server configuration")
+                recommendations.append(
+                    "Add security headers to web server configuration"
+                )
 
             services["http"] = ServiceInfo(
                 name="http",
@@ -434,7 +481,7 @@ class InfrastructureSecurityScanner:
                 protocol="tcp",
                 version=server_header,
                 configuration_issues=issues,
-                security_recommendations=recommendations
+                security_recommendations=recommendations,
             )
 
         except Exception:
@@ -442,8 +489,10 @@ class InfrastructureSecurityScanner:
 
         # Check HTTPS (port 443)
         try:
-            response = requests.get(f"https://{self.target_host}", timeout=5, verify=False)
-            server_header = response.headers.get('Server', '')
+            response = requests.get(
+                f"https://{self.target_host}", timeout=5, verify=False
+            )
+            server_header = response.headers.get("Server", "")
 
             services["https"] = ServiceInfo(
                 name="https",
@@ -451,7 +500,7 @@ class InfrastructureSecurityScanner:
                 protocol="tcp",
                 version=server_header,
                 configuration_issues=[],
-                security_recommendations=["Ensure SSL/TLS configuration is secure"]
+                security_recommendations=["Ensure SSL/TLS configuration is secure"],
             )
 
         except Exception:
@@ -474,7 +523,7 @@ class InfrastructureSecurityScanner:
                 recommendations = [
                     "Restrict MySQL access to local networks only",
                     "Configure MySQL bind-address to 127.0.0.1",
-                    "Use firewall to restrict database access"
+                    "Use firewall to restrict database access",
                 ]
 
                 services["mysql"] = ServiceInfo(
@@ -483,7 +532,7 @@ class InfrastructureSecurityScanner:
                     protocol="tcp",
                     version="Unknown",
                     configuration_issues=issues,
-                    security_recommendations=recommendations
+                    security_recommendations=recommendations,
                 )
 
         except Exception:
@@ -500,7 +549,7 @@ class InfrastructureSecurityScanner:
                 recommendations = [
                     "Restrict PostgreSQL access to local networks only",
                     "Configure pg_hba.conf for secure access control",
-                    "Use SSL/TLS for database connections"
+                    "Use SSL/TLS for database connections",
                 ]
 
                 services["postgresql"] = ServiceInfo(
@@ -509,7 +558,7 @@ class InfrastructureSecurityScanner:
                     protocol="tcp",
                     version="Unknown",
                     configuration_issues=issues,
-                    security_recommendations=recommendations
+                    security_recommendations=recommendations,
                 )
 
         except Exception:
@@ -531,7 +580,7 @@ class InfrastructureSecurityScanner:
                 weak_algorithms=[],
                 banner_info={},
                 security_score=0,
-                vulnerabilities=[]
+                vulnerabilities=[],
             )
 
         try:
@@ -554,12 +603,14 @@ class InfrastructureSecurityScanner:
 
                 # Check for weak SSH versions
                 if "SSH-1." in remote_version:
-                    vulnerabilities.append({
-                        "type": "protocol_version",
-                        "severity": "HIGH",
-                        "description": "SSH protocol version 1 is insecure",
-                        "recommendation": "Upgrade to SSH protocol version 2"
-                    })
+                    vulnerabilities.append(
+                        {
+                            "type": "protocol_version",
+                            "severity": "HIGH",
+                            "description": "SSH protocol version 1 is insecure",
+                            "recommendation": "Upgrade to SSH protocol version 2",
+                        }
+                    )
                     security_score -= 30
 
                 transport.close()
@@ -574,12 +625,14 @@ class InfrastructureSecurityScanner:
                     weak_algorithms=[],
                     banner_info=banner_info,
                     security_score=0,
-                    vulnerabilities=[{
-                        "type": "connection",
-                        "severity": "ERROR",
-                        "description": f"SSH connection failed: {str(e)}",
-                        "recommendation": "Check SSH service status and firewall rules"
-                    }]
+                    vulnerabilities=[
+                        {
+                            "type": "connection",
+                            "severity": "ERROR",
+                            "description": f"SSH connection failed: {str(e)}",
+                            "recommendation": "Check SSH service status and firewall rules",
+                        }
+                    ],
                 )
 
             # Test SSH configurations (these would require authentication in production)
@@ -588,34 +641,40 @@ class InfrastructureSecurityScanner:
             # Simulate password authentication check
             password_auth_enabled = self._check_ssh_password_auth()
             if password_auth_enabled:
-                vulnerabilities.append({
-                    "type": "authentication",
-                    "severity": "MEDIUM",
-                    "description": "Password authentication is enabled",
-                    "recommendation": "Disable password authentication, use key-based auth only"
-                })
+                vulnerabilities.append(
+                    {
+                        "type": "authentication",
+                        "severity": "MEDIUM",
+                        "description": "Password authentication is enabled",
+                        "recommendation": "Disable password authentication, use key-based auth only",
+                    }
+                )
                 security_score -= 20
 
             # Simulate root login check
             root_login_allowed = self._check_root_ssh_access()
             if root_login_allowed:
-                vulnerabilities.append({
-                    "type": "privilege_escalation",
-                    "severity": "HIGH",
-                    "description": "Root login may be permitted",
-                    "recommendation": "Disable root login, use sudo for administrative tasks"
-                })
+                vulnerabilities.append(
+                    {
+                        "type": "privilege_escalation",
+                        "severity": "HIGH",
+                        "description": "Root login may be permitted",
+                        "recommendation": "Disable root login, use sudo for administrative tasks",
+                    }
+                )
                 security_score -= 25
 
             # Check for weak algorithms
             weak_algos = self._check_weak_ssh_algorithms()
             if weak_algos:
-                vulnerabilities.append({
-                    "type": "cryptography",
-                    "severity": "MEDIUM",
-                    "description": f"Weak algorithms detected: {', '.join(weak_algos)}",
-                    "recommendation": "Update SSH configuration to use strong algorithms only"
-                })
+                vulnerabilities.append(
+                    {
+                        "type": "cryptography",
+                        "severity": "MEDIUM",
+                        "description": f"Weak algorithms detected: {', '.join(weak_algos)}",
+                        "recommendation": "Update SSH configuration to use strong algorithms only",
+                    }
+                )
                 security_score -= 15
 
             self.results["ssh_security"] = {
@@ -626,7 +685,7 @@ class InfrastructureSecurityScanner:
                 "weak_algorithms": weak_algos,
                 "banner_info": banner_info,
                 "security_score": security_score,
-                "vulnerabilities": vulnerabilities
+                "vulnerabilities": vulnerabilities,
             }
 
             return SSHSecurityResult(
@@ -637,7 +696,7 @@ class InfrastructureSecurityScanner:
                 weak_algorithms=weak_algos,
                 banner_info=banner_info,
                 security_score=security_score,
-                vulnerabilities=vulnerabilities
+                vulnerabilities=vulnerabilities,
             )
 
         except Exception as e:
@@ -650,12 +709,14 @@ class InfrastructureSecurityScanner:
                 weak_algorithms=[],
                 banner_info={},
                 security_score=0,
-                vulnerabilities=[{
-                    "type": "test_error",
-                    "severity": "ERROR",
-                    "description": f"SSH security test failed: {str(e)}",
-                    "recommendation": "Check SSH service status and network connectivity"
-                }]
+                vulnerabilities=[
+                    {
+                        "type": "test_error",
+                        "severity": "ERROR",
+                        "description": f"SSH security test failed: {str(e)}",
+                        "recommendation": "Check SSH service status and network connectivity",
+                    }
+                ],
             )
 
     def _check_ssh_password_auth(self) -> bool:
@@ -682,34 +743,34 @@ class InfrastructureSecurityScanner:
 
         banners = {}
         sensitive_patterns = [
-            r'version\s*[\d.]+',
-            r'build\s*\d+',
-            r'release\s*[\d.]+',
-            r'apache[/\s][\d.]+',
-            r'nginx[/\s][\d.]+',
-            r'openssh[_\s][\d.]+',
-            r'mysql\s*[\d.]+',
-            r'postgresql\s*[\d.]+',
-            r'php\s*[\d.]+',
-            r'python\s*[\d.]+',
-            r'docker\s*[\d.]+',
-            r'ubuntu[/\s][\d.]+',
-            r'centos[/\s][\d.]+',
-            r'kernel\s*[\d.]+',
-            r'openssl\s*[\d.]+'
+            r"version\s*[\d.]+",
+            r"build\s*\d+",
+            r"release\s*[\d.]+",
+            r"apache[/\s][\d.]+",
+            r"nginx[/\s][\d.]+",
+            r"openssh[_\s][\d.]+",
+            r"mysql\s*[\d.]+",
+            r"postgresql\s*[\d.]+",
+            r"php\s*[\d.]+",
+            r"python\s*[\d.]+",
+            r"docker\s*[\d.]+",
+            r"ubuntu[/\s][\d.]+",
+            r"centos[/\s][\d.]+",
+            r"kernel\s*[\d.]+",
+            r"openssl\s*[\d.]+",
         ]
 
         # Check HTTP banners
         try:
             response = requests.get(f"http://{self.target_host}", timeout=5)
-            server_header = response.headers.get('Server', '')
-            powered_by = response.headers.get('X-Powered-By', '')
+            server_header = response.headers.get("Server", "")
+            powered_by = response.headers.get("X-Powered-By", "")
 
             banner_info = {
                 "server_header": server_header,
                 "powered_by": powered_by,
                 "sensitive_info": [],
-                "recommendations": []
+                "recommendations": [],
             }
 
             # Check for sensitive information in headers
@@ -741,13 +802,13 @@ class InfrastructureSecurityScanner:
 
             if result == 0:
                 sock.send(b"SSH-2.0-Scanner\r\n")
-                ssh_banner = sock.recv(1024).decode('utf-8', errors='ignore')
+                ssh_banner = sock.recv(1024).decode("utf-8", errors="ignore")
                 sock.close()
 
                 ssh_info = {
                     "ssh_banner": ssh_banner,
                     "sensitive_info": [],
-                    "recommendations": []
+                    "recommendations": [],
                 }
 
                 for pattern in sensitive_patterns:
@@ -773,14 +834,14 @@ class InfrastructureSecurityScanner:
                 result = sock.connect_ex((self.target_host, port))
 
                 if result == 0:
-                    service_banner = sock.recv(1024).decode('utf-8', errors='ignore')
+                    service_banner = sock.recv(1024).decode("utf-8", errors="ignore")
                     sock.close()
 
                     if service_banner:
                         service_info = {
                             "banner": service_banner,
                             "sensitive_info": [],
-                            "recommendations": []
+                            "recommendations": [],
                         }
 
                         for pattern in sensitive_patterns:
@@ -822,7 +883,7 @@ class InfrastructureSecurityScanner:
             (3306, "mysql"),
             (3389, "rdp"),
             (5432, "postgresql"),
-            (6379, "redis")
+            (6379, "redis"),
         ]
 
         for port, service_name in test_ports:
@@ -834,7 +895,9 @@ class InfrastructureSecurityScanner:
                 if result == 0:
                     # Port is open - assess risk
                     risk_level = self._assess_port_firewall_risk(port, service_name)
-                    recommendation = self._get_firewall_recommendation(port, service_name, risk_level)
+                    recommendation = self._get_firewall_recommendation(
+                        port, service_name, risk_level
+                    )
 
                     rule = FirewallRule(
                         rule_number=len(rules) + 1,
@@ -844,7 +907,7 @@ class InfrastructureSecurityScanner:
                         destination="ANY",
                         port=str(port),
                         risk_level=risk_level,
-                        recommendation=recommendation
+                        recommendation=recommendation,
                     )
 
                     rules.append(rule)
@@ -862,7 +925,7 @@ class InfrastructureSecurityScanner:
             (161, "snmp"),
             (162, "snmp-trap"),
             (500, "ipsec"),
-            (4500, "ipsec-nat-t")
+            (4500, "ipsec-nat-t"),
         ]
 
         for port, service_name in udp_services:
@@ -881,7 +944,7 @@ class InfrastructureSecurityScanner:
                     destination="ANY",
                     port=str(port),
                     risk_level="MEDIUM",
-                    recommendation=f"Review UDP service {service_name} on port {port}"
+                    recommendation=f"Review UDP service {service_name} on port {port}",
                 )
 
                 rules.append(rule)
@@ -900,7 +963,7 @@ class InfrastructureSecurityScanner:
                 "destination": r.destination,
                 "port": r.port,
                 "risk_level": r.risk_level,
-                "recommendation": r.recommendation
+                "recommendation": r.recommendation,
             }
             for r in rules
         ]
@@ -921,7 +984,9 @@ class InfrastructureSecurityScanner:
         else:
             return "LOW"
 
-    def _get_firewall_recommendation(self, port: int, service_name: str, risk_level: str) -> str:
+    def _get_firewall_recommendation(
+        self, port: int, service_name: str, risk_level: str
+    ) -> str:
         """Get firewall recommendation for port"""
         recommendations = {
             "telnet": "Block telnet (port 23) - use SSH instead",
@@ -929,7 +994,7 @@ class InfrastructureSecurityScanner:
             "rdp": "Restrict RDP (port 3389) to specific IPs, use VPN",
             "mssql": "Restrict SQL Server (port 1433) to local networks",
             "mysql": "Restrict MySQL (port 3306) to local networks",
-            "postgresql": "Restrict PostgreSQL (port 5432) to local networks"
+            "postgresql": "Restrict PostgreSQL (port 5432) to local networks",
         }
 
         if service_name in recommendations:
@@ -958,42 +1023,51 @@ class InfrastructureSecurityScanner:
             cve_database = self._load_cve_database()
 
             # Check Python CVEs
-            python_cves = [cve for cve in cve_database if "python" in cve["affected_software"].lower()]
+            python_cves = [
+                cve
+                for cve in cve_database
+                if "python" in cve["affected_software"].lower()
+            ]
             major_python_version = ".".join(python_version.split(".")[:2])
 
             for cve in python_cves:
                 if cve["affected_software"] in f"Python {major_python_version}":
-                    cves.append(CVEInfo(
-                        cve_id=cve["cve_id"],
-                        severity=cve["severity"],
-                        cvss_score=cve["cvss_score"],
-                        description=cve["description"],
-                        affected_software=cve["affected_software"],
-                        fixed_version=cve["fixed_version"],
-                        references=cve["references"]
-                    ))
-
-            # Check common software CVEs
-            software_versions = self._get_software_versions()
-
-            for software, version in software_versions.items():
-                matching_cves = [
-                    cve for cve in cve_database
-                    if cve["affected_software"].lower() == software.lower()
-                ]
-
-                for cve in matching_cves:
-                    # Simple version comparison (would need more sophisticated logic in production)
-                    if self._is_version_vulnerable(version, cve):
-                        cves.append(CVEInfo(
+                    cves.append(
+                        CVEInfo(
                             cve_id=cve["cve_id"],
                             severity=cve["severity"],
                             cvss_score=cve["cvss_score"],
                             description=cve["description"],
                             affected_software=cve["affected_software"],
                             fixed_version=cve["fixed_version"],
-                            references=cve["references"]
-                        ))
+                            references=cve["references"],
+                        )
+                    )
+
+            # Check common software CVEs
+            software_versions = self._get_software_versions()
+
+            for software, version in software_versions.items():
+                matching_cves = [
+                    cve
+                    for cve in cve_database
+                    if cve["affected_software"].lower() == software.lower()
+                ]
+
+                for cve in matching_cves:
+                    # Simple version comparison (would need more sophisticated logic in production)
+                    if self._is_version_vulnerable(version, cve):
+                        cves.append(
+                            CVEInfo(
+                                cve_id=cve["cve_id"],
+                                severity=cve["severity"],
+                                cvss_score=cve["cvss_score"],
+                                description=cve["description"],
+                                affected_software=cve["affected_software"],
+                                fixed_version=cve["fixed_version"],
+                                references=cve["references"],
+                            )
+                        )
 
             # Add some example CVEs for demonstration
             example_cves = [
@@ -1004,7 +1078,7 @@ class InfrastructureSecurityScanner:
                     "description": "Example vulnerability in example software",
                     "affected_software": "Example Software",
                     "fixed_version": "2.0.1",
-                    "references": ["https://example.com/cve-2023-1234"]
+                    "references": ["https://example.com/cve-2023-1234"],
                 },
                 {
                     "cve_id": "CVE-2023-5678",
@@ -1013,8 +1087,8 @@ class InfrastructureSecurityScanner:
                     "description": "Critical vulnerability in critical component",
                     "affected_software": "Critical Component",
                     "fixed_version": "3.1.0",
-                    "references": ["https://example.com/cve-2023-5678"]
-                }
+                    "references": ["https://example.com/cve-2023-5678"],
+                },
             ]
 
             for cve_data in example_cves:
@@ -1031,7 +1105,7 @@ class InfrastructureSecurityScanner:
                 "description": cve.description,
                 "affected_software": cve.affected_software,
                 "fixed_version": cve.fixed_version,
-                "references": cve.references
+                "references": cve.references,
             }
             for cve in cves
         ]
@@ -1049,7 +1123,7 @@ class InfrastructureSecurityScanner:
                 "description": "Microsoft Outlook Privilege Escalation Vulnerability",
                 "affected_software": "Microsoft Outlook",
                 "fixed_version": "March 2023 updates",
-                "references": ["https://msrc.microsoft.com/advisory/CVE-2023-23397"]
+                "references": ["https://msrc.microsoft.com/advisory/CVE-2023-23397"],
             },
             {
                 "cve_id": "CVE-2023-36874",
@@ -1058,7 +1132,7 @@ class InfrastructureSecurityScanner:
                 "description": "Windows Error Handling Privilege Escalation Vulnerability",
                 "affected_software": "Windows",
                 "fixed_version": "July 2023 updates",
-                "references": ["https://msrc.microsoft.com/advisory/CVE-2023-36874"]
+                "references": ["https://msrc.microsoft.com/advisory/CVE-2023-36874"],
             },
             {
                 "cve_id": "CVE-2023-38831",
@@ -1067,8 +1141,8 @@ class InfrastructureSecurityScanner:
                 "description": "WinRAR Remote Code Execution Vulnerability",
                 "affected_software": "WinRAR",
                 "fixed_version": "6.24",
-                "references": ["https://www.win-rar.com/newsecurity.html"]
-            }
+                "references": ["https://www.win-rar.com/newsecurity.html"],
+            },
         ]
 
     def _get_software_versions(self) -> Dict[str, str]:
@@ -1083,16 +1157,16 @@ class InfrastructureSecurityScanner:
             if platform.system() == "Linux":
                 # Try to get Linux distribution info
                 try:
-                    with open('/etc/os-release') as f:
+                    with open("/etc/os-release") as f:
                         for line in f:
-                            if line.startswith('ID='):
-                                distro = line.split('=')[1].strip().strip('"')
+                            if line.startswith("ID="):
+                                distro = line.split("=")[1].strip().strip('"')
                                 versions["linux"] = distro
-                            elif line.startswith('VERSION_ID='):
-                                version = line.split('=')[1].strip().strip('"')
+                            elif line.startswith("VERSION_ID="):
+                                version = line.split("=")[1].strip().strip('"')
                                 if "linux" in versions:
                                     versions["linux"] += f" {version}"
-                except:
+                except (OSError, IOError, ValueError) as e:
                     pass
 
             # Add common software
@@ -1121,19 +1195,39 @@ class InfrastructureSecurityScanner:
 
         # Calculate risk metrics
         open_ports_count = len(self.results["open_ports"])
-        high_risk_ports = len([p for p in self.results["open_ports"] if p["risk_level"] == "HIGH"])
-        critical_cves = len([cve for cve in self.results["cve_vulnerabilities"] if cve["severity"] == "CRITICAL"])
-        high_cves = len([cve for cve in self.results["cve_vulnerabilities"] if cve["severity"] == "HIGH"])
+        high_risk_ports = len(
+            [p for p in self.results["open_ports"] if p["risk_level"] == "HIGH"]
+        )
+        critical_cves = len(
+            [
+                cve
+                for cve in self.results["cve_vulnerabilities"]
+                if cve["severity"] == "CRITICAL"
+            ]
+        )
+        high_cves = len(
+            [
+                cve
+                for cve in self.results["cve_vulnerabilities"]
+                if cve["severity"] == "HIGH"
+            ]
+        )
 
         # Calculate overall risk score
         risk_score = 0
         risk_score += min(30, high_risk_ports * 5)  # Port risk
-        risk_score += min(20, critical_cves * 10)    # Critical CVE risk
-        risk_score += min(20, high_cves * 5)         # High CVE risk
-        risk_score += min(10, len(self.results["server_banners"]) * 2)  # Banner disclosure risk
+        risk_score += min(20, critical_cves * 10)  # Critical CVE risk
+        risk_score += min(20, high_cves * 5)  # High CVE risk
+        risk_score += min(
+            10, len(self.results["server_banners"]) * 2
+        )  # Banner disclosure risk
         risk_score += min(20, len(self.results["firewall_rules"]) * 2)  # Firewall risk
 
-        overall_status = "CRITICAL" if risk_score >= 70 else "HIGH" if risk_score >= 50 else "MEDIUM" if risk_score >= 30 else "LOW"
+        overall_status = (
+            "CRITICAL"
+            if risk_score >= 70
+            else "HIGH" if risk_score >= 50 else "MEDIUM" if risk_score >= 30 else "LOW"
+        )
 
         # Generate recommendations
         recommendations = []
@@ -1162,7 +1256,7 @@ class InfrastructureSecurityScanner:
             "Implement intrusion detection and prevention systems",
             "Regular backup and disaster recovery testing",
             "Security monitoring and alerting",
-            "Regular security audits and penetration testing"
+            "Regular security audits and penetration testing",
         ]
 
         recommendations.extend(general_recommendations)
@@ -1176,8 +1270,16 @@ class InfrastructureSecurityScanner:
             "total_cves": len(self.results["cve_vulnerabilities"]),
             "critical_cves": critical_cves,
             "high_cves": high_cves,
-            "ssh_security_score": self.results.get("ssh_security", {}).get("security_score", 0),
-            "services_with_issues": len([s for s in self.results["service_security"].values() if s["configuration_issues"]])
+            "ssh_security_score": self.results.get("ssh_security", {}).get(
+                "security_score", 0
+            ),
+            "services_with_issues": len(
+                [
+                    s
+                    for s in self.results["service_security"].values()
+                    if s["configuration_issues"]
+                ]
+            ),
         }
 
         self.results["recommendations"] = recommendations
@@ -1185,8 +1287,12 @@ class InfrastructureSecurityScanner:
         # Print summary
         print(f"🎯 Overall Risk Level: {overall_status} (Score: {risk_score}/100)")
         print(f"📡 Open Ports: {open_ports_count} (High Risk: {high_risk_ports})")
-        print(f"🔍 CVE Vulnerabilities: {len(self.results['cve_vulnerabilities'])} (Critical: {critical_cves}, High: {high_cves})")
-        print(f"🔐 SSH Security Score: {self.results.get('ssh_security', {}).get('security_score', 'N/A')}/100")
+        print(
+            f"🔍 CVE Vulnerabilities: {len(self.results['cve_vulnerabilities'])} (Critical: {critical_cves}, High: {high_cves})"
+        )
+        print(
+            f"🔐 SSH Security Score: {self.results.get('ssh_security', {}).get('security_score', 'N/A')}/100"
+        )
         print(f"📋 Total Recommendations: {len(recommendations)}")
 
         if critical_cves > 0:
@@ -1199,12 +1305,13 @@ class InfrastructureSecurityScanner:
 
         # Save report to file
         report_path = f"infrastructure_security_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(report_path, 'w') as f:
+        with open(report_path, "w") as f:
             json.dump(self.results, f, indent=2)
 
         print(f"\n📄 Detailed report saved: {report_path}")
 
         return self.results
+
 
 def main():
     """Main execution function"""
@@ -1223,7 +1330,7 @@ def main():
         report = scanner.run_comprehensive_scan()
 
         if args.output:
-            with open(args.output, 'w') as f:
+            with open(args.output, "w") as f:
                 json.dump(report, f, indent=2)
             print(f"Report saved to: {args.output}")
 
@@ -1243,6 +1350,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Scan failed: {str(e)}")
         sys.exit(3)
+
 
 if __name__ == "__main__":
     main()

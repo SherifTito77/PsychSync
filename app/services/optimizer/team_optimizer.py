@@ -4,8 +4,8 @@ Team composition optimizer for organizational assessments
 Optimizes team member selection based on personality traits, skills, and compatibility
 """
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -160,13 +160,17 @@ class TeamOptimizationEngine:
         Returns:
             Optimized team composition
         """
-        logger.info(f"Optimizing team '{requirements.team_name}' from {len(candidates)} candidates")
+        logger.info(
+            f"Optimizing team '{requirements.team_name}' from {len(candidates)} candidates"
+        )
 
         if existing_members is None:
             existing_members = []
 
         # Filter eligible candidates
-        eligible = self._filter_eligible_candidates(candidates, requirements, existing_members)
+        eligible = self._filter_eligible_candidates(
+            candidates, requirements, existing_members
+        )
 
         if len(eligible) < requirements.min_size - len(existing_members):
             raise ValueError(
@@ -175,7 +179,9 @@ class TeamOptimizationEngine:
             )
 
         # Calculate compatibility matrix
-        compatibility_matrix = self._calculate_compatibility_matrix(eligible, existing_members)
+        compatibility_matrix = self._calculate_compatibility_matrix(
+            eligible, existing_members
+        )
 
         # Calculate skill coverage scores
         skill_scores = self._calculate_skill_scores(eligible, requirements)
@@ -192,7 +198,9 @@ class TeamOptimizationEngine:
 
         # Select optimal team members
         selected_indices = self._select_team_members(
-            overall_scores, requirements.target_size - len(existing_members), requirements
+            overall_scores,
+            requirements.target_size - len(existing_members),
+            requirements,
         )
 
         selected_members = [eligible[i] for i in selected_indices]
@@ -245,7 +253,9 @@ class TeamOptimizationEngine:
         return eligible
 
     def _calculate_compatibility_matrix(
-        self, candidates: list[TeamMemberProfile], existing_members: list[TeamMemberProfile]
+        self,
+        candidates: list[TeamMemberProfile],
+        existing_members: list[TeamMemberProfile],
     ) -> np.ndarray:
         """Calculate personality compatibility between candidates"""
         n = len(candidates)
@@ -253,7 +263,9 @@ class TeamOptimizationEngine:
 
         for i in range(n):
             for j in range(i + 1, n):
-                score = self._calculate_personality_compatibility(candidates[i], candidates[j])
+                score = self._calculate_personality_compatibility(
+                    candidates[i], candidates[j]
+                )
                 compatibility[i, j] = score
                 compatibility[j, i] = score
 
@@ -286,12 +298,16 @@ class TeamOptimizationEngine:
         # Similar traits (should be aligned)
         similar_score = (
             100 - abs(member1.conscientiousness - member2.conscientiousness)
-        ) / 100 * 0.3 + (100 - abs(member1.agreeableness - member2.agreeableness)) / 100 * 0.2
+        ) / 100 * 0.3 + (
+            100 - abs(member1.agreeableness - member2.agreeableness)
+        ) / 100 * 0.2
 
         # Low neuroticism is generally better
         neuroticism_penalty = (member1.neuroticism + member2.neuroticism) / 200 * 0.1
 
-        compatibility = (complementary_score + similar_score - neuroticism_penalty) * 100
+        compatibility = (
+            complementary_score + similar_score - neuroticism_penalty
+        ) * 100
 
         return max(0, min(100, compatibility))
 
@@ -361,7 +377,8 @@ class TeamOptimizationEngine:
             # Personality diversity
             if existing_members:
                 personality_distances = [
-                    self._personality_distance(candidate, existing) for existing in existing_members
+                    self._personality_distance(candidate, existing)
+                    for existing in existing_members
                 ]
                 avg_distance = np.mean(personality_distances)
                 diversity_score += (avg_distance / 100) * 0.4
@@ -424,7 +441,8 @@ class TeamOptimizationEngine:
 
             # Balance (collaboration + availability)
             balance_score = (
-                candidates[i].collaboration_score * 0.6 + candidates[i].availability * 0.4
+                candidates[i].collaboration_score * 0.6
+                + candidates[i].availability * 0.4
             )
 
             # Weighted combination
@@ -451,7 +469,10 @@ class TeamOptimizationEngine:
         return selected
 
     def _create_team_result(
-        self, members: list[TeamMemberProfile], requirements: TeamRequirements, overall_score: float
+        self,
+        members: list[TeamMemberProfile],
+        requirements: TeamRequirements,
+        overall_score: float,
     ) -> OptimizedTeam:
         """Create final optimized team result with analysis"""
         # Calculate team statistics
@@ -482,7 +503,9 @@ class TeamOptimizationEngine:
 
         # Calculate component scores
         compatibility_score = self._calculate_team_compatibility(members)
-        skill_coverage_score = self._calculate_skill_coverage_score(members, requirements)
+        skill_coverage_score = self._calculate_skill_coverage_score(
+            members, requirements
+        )
         diversity_score = self._calculate_team_diversity(members)
         balance_score = self._calculate_team_balance(members)
 
@@ -519,7 +542,9 @@ class TeamOptimizationEngine:
         compatibilities = []
         for i in range(len(members)):
             for j in range(i + 1, len(members)):
-                compat = self._calculate_personality_compatibility(members[i], members[j])
+                compat = self._calculate_personality_compatibility(
+                    members[i], members[j]
+                )
                 compatibilities.append(compat)
 
         return np.mean(compatibilities) if compatibilities else 100.0
@@ -555,7 +580,13 @@ class TeamOptimizationEngine:
         # Personality diversity (variance in traits)
         trait_arrays = np.array(
             [
-                [m.openness, m.conscientiousness, m.extraversion, m.agreeableness, m.neuroticism]
+                [
+                    m.openness,
+                    m.conscientiousness,
+                    m.extraversion,
+                    m.agreeableness,
+                    m.neuroticism,
+                ]
                 for m in members
             ]
         )
@@ -563,7 +594,9 @@ class TeamOptimizationEngine:
         personality_diversity = min(personality_variance / 500, 1.0)  # Normalize
 
         diversity_score = (
-            dept_diversity * 0.3 + seniority_diversity * 0.3 + personality_diversity * 0.4
+            dept_diversity * 0.3
+            + seniority_diversity * 0.3
+            + personality_diversity * 0.4
         ) * 100
 
         return diversity_score
@@ -609,7 +642,9 @@ class TeamOptimizationEngine:
             if actual_count >= required_count:
                 strengths.append(f"Good {role} coverage: {actual_count} members")
             else:
-                gaps.append(f"Insufficient {role} coverage: {actual_count}/{required_count}")
+                gaps.append(
+                    f"Insufficient {role} coverage: {actual_count}/{required_count}"
+                )
                 recommendations.append(f"Consider adding more {role} members")
 
         # Analyze skill coverage
@@ -638,6 +673,8 @@ class TeamOptimizationEngine:
             recommendations.append("Consider adding introverted members for balance")
         elif avg_extraversion < 30:
             gaps.append("Team may be too introverted")
-            recommendations.append("Consider adding extraverted members for external engagement")
+            recommendations.append(
+                "Consider adding extraverted members for external engagement"
+            )
 
         return strengths, gaps, recommendations

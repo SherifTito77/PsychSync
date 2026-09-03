@@ -141,7 +141,7 @@ spec:
       # Main application container
       containers:
       - name: psychsync
-        image: psychsync/backend:latest
+        image: ghcr.io/sheriftito77/psychsync-backend:latest  # Update via CI/CD or kustomize overlay
         imagePullPolicy: Always
         ports:
         - name: http

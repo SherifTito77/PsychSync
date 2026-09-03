@@ -17,13 +17,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 import api from '@/services/api';
 
-interface CSSRSResponse {
-  wish_dead: number;
-  suicidal_ideation: number;
-  ideation_frequency: number;
-  ideation_duration: number;
-  ideation_controll: number;
-  suicide_attempts: number;
+interface CSSRSPayload {
+  q1_wish_dead: boolean;
+  q2_nonspecific_thoughts: boolean;
+  q3_active_ideation: boolean;
+  q4_intent: boolean;
+  q5_plan: boolean;
+  q11_actual_attempt: boolean;
+  q12_preparatory_acts: boolean;
+  q13_aborted_attempt: boolean;
 }
 
 interface ScreeningResult {
@@ -35,79 +37,98 @@ interface ScreeningResult {
   recommendations: string[];
   crisis_alert: boolean;
   risk_flags: string[];
+  subscale_scores?: Record<string, any>; // Added based on backend return type
 }
 
 const QUESTIONS = [
   {
-    id: 'wish_dead',
+    id: 'q1_wish_dead',
     text: 'Have you wished you were dead or wished you could go to sleep and not wake up?',
     options: [
-      { value: 0, label: 'No' },
-      { value: 1, label: 'Yes' },
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
     ],
     warning: true,
   },
   {
-    id: 'suicidal_ideation',
-    text: 'Have you actually had any thoughts about killing yourself?',
+    id: 'q2_nonspecific_thoughts',
+    text: 'Have you actually had any thoughts of killing yourself?',
     options: [
-      { value: 0, label: 'No' },
-      { value: 1, label: 'Yes' },
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
     ],
     warning: true,
   },
   {
-    id: 'ideation_frequency',
-    text: 'Have you had these thoughts about killing yourself more than once?',
+    id: 'q3_active_ideation',
+    text: 'Have you been thinking about how you might do this? (e.g., "I thought about taking an overdose but I never made a specific plan...")',
     options: [
-      { value: 0, label: 'No' },
-      { value: 1, label: 'Yes - Once' },
-      { value: 2, label: 'Yes - Multiple times' },
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
     ],
+    warning: true,
   },
   {
-    id: 'ideation_duration',
-    text: 'How long have you had these thoughts about killing yourself?',
+    id: 'q4_intent',
+    text: 'Have you had these thoughts and had some intention of acting on them? (As opposed to "I have the thoughts but I definitely will not do anything about them.")',
     options: [
-      { value: 0, label: 'Briefly' },
-      { value: 1, label: 'Several hours' },
-      { value: 2, label: 'One or more days' },
-      { value: 3, label: 'One week or more' },
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
     ],
+    warning: true,
   },
   {
-    id: 'ideation_controll',
-    text: 'Have you done anything to try to stop these thoughts or make them less frequent?',
+    id: 'q5_plan',
+    text: 'Have you started to work out or worked out the details of how to kill yourself? Do you intend to carry out this plan?',
     options: [
-      { value: 0, label: 'Yes, I can control them' },
-      { value: 1, label: 'I try but cannot stop them' },
-      { value: 2, label: 'No, I cannot control them' },
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
     ],
+    warning: true,
   },
   {
-    id: 'suicide_attempts',
-    text: 'Have you ever tried to kill yourself or made a suicide attempt?',
+    id: 'q11_actual_attempt',
+    text: 'Did you do anything to end your life? Did you want to die (even a little bit) when you did this?',
     options: [
-      { value: 0, label: 'No' },
-      { value: 1, label: 'Yes, once' },
-      { value: 2, label: 'Yes, multiple times' },
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
+    ],
+    warning: true,
+  },
+  {
+    id: 'q12_preparatory_acts',
+    text: 'Have you made preparations to act on thoughts of killing yourself? (e.g., collecting pills, obtaining a gun, giving away valuables, writing a will or suicide note)',
+    options: [
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
+    ],
+    warning: true,
+  },
+  {
+    id: 'q13_aborted_attempt',
+    text: 'Have you begun to make an attempt but stopped yourself? (e.g., held a gun but changed your mind)',
+    options: [
+      { value: false, label: 'No' },
+      { value: true, label: 'Yes' },
     ],
     warning: true,
   },
 ];
 
 export function CSSRSScreening() {
-  const [responses, setResponses] = useState<Partial<CSSRSResponse>>({});
+  // Change the type of responses state to directly store booleans
+  const [responses, setResponses] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScreeningResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
 
   const allQuestionsAnswered = QUESTIONS.every((q) =>
-    responses[q.id as keyof CSSRSResponse] !== undefined
+    responses[q.id] !== undefined
   );
 
-  const handleResponse = (questionId: string, value: number) => {
+  // Modify handleResponse to accept boolean values
+  const handleResponse = (questionId: string, value: boolean) => {
     setResponses((prev) => ({
       ...prev,
       [questionId]: value,
@@ -129,9 +150,11 @@ export function CSSRSScreening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/cssrs', responses);
+      // The `responses` object now directly matches the CSSRSPayload interface
+      // and thus CSSRSRequest Pydantic model on the backend.
+      const response = await api.post<ScreeningResult>('/screening/cssrs', responses as CSSRSPayload);
       setResult(response.data);
-    } catch (err: any) {
+    } catch (err: any) { // Use 'any' for err for broader type compatibility
       console.error('Screening submission error:', err);
       const errorMessage = err?.response?.data?.detail || err?.response?.data?.message || 'Failed to submit screening. Please try again.';
       setError(errorMessage);
@@ -160,7 +183,7 @@ export function CSSRSScreening() {
         <CardContent className="space-y-6">
           {/* Crisis Alert */}
           {result.crisis_alert && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertDescription>
                 <div className="space-y-4">
                   <div className="font-semibold text-lg">
@@ -210,7 +233,7 @@ export function CSSRSScreening() {
           </div>
 
           {/* Immediate Crisis Resources */}
-          <Alert variant="destructive">
+          <Alert variant="error">
             <AlertDescription>
               <div className="space-y-2">
                 <div className="font-semibold">If you're in crisis right now:</div>
@@ -280,7 +303,7 @@ export function CSSRSScreening() {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Crisis Banner */}
-        <Alert variant="destructive">
+        <Alert variant="error">
           <AlertDescription className="text-sm">
             <strong>Need immediate help?</strong> Call 988 or 911, or text "HOME" to 741741.
             Help is available 24/7.
@@ -288,7 +311,7 @@ export function CSSRSScreening() {
         </Alert>
 
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="error">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -299,7 +322,7 @@ export function CSSRSScreening() {
             <div
               key={idx}
               className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
-                responses[QUESTIONS[idx].id as keyof CSSRSResponse] !== undefined
+                responses[QUESTIONS[idx].id] !== undefined
                   ? 'bg-primary text-primary-foreground'
                   : idx === currentQuestion
                   ? 'bg-secondary border-2 border-primary'
@@ -329,16 +352,17 @@ export function CSSRSScreening() {
 
           {/* Response options */}
           <RadioGroup
-            value={responses[QUESTIONS[currentQuestion].id as keyof CSSRSResponse]}
-            onValueChange={(value) =>
-              handleResponse(QUESTIONS[currentQuestion].id, parseInt(value))
+            // Convert boolean state value to string 'true' or 'false' for RadioGroup
+            value={String(responses[QUESTIONS[currentQuestion].id] || false)}
+            onChange={(value) => // Changed to onChange
+              handleResponse(QUESTIONS[currentQuestion].id, value === 'true')
             }
           >
             {QUESTIONS[currentQuestion].options.map((option) => (
-              <div key={option.value} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-secondary">
-                <RadioGroupItem value={option.value.toString()} id={`${QUESTIONS[currentQuestion].id}-${option.value}`} />
+              <div key={String(option.value)} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-secondary">
+                <RadioGroupItem value={String(option.value)} id={`${QUESTIONS[currentQuestion].id}-${String(option.value)}`} />
                 <Label
-                  htmlFor={`${QUESTIONS[currentQuestion].id}-${option.value}`}
+                  htmlFor={`${QUESTIONS[currentQuestion].id}-${String(option.value)}`}
                   className="flex-1 cursor-pointer"
                 >
                   {option.label}
@@ -361,7 +385,7 @@ export function CSSRSScreening() {
           {currentQuestion < QUESTIONS.length - 1 ? (
             <Button
               onClick={() => setCurrentQuestion((prev) => Math.min(QUESTIONS.length - 1, prev + 1))}
-              disabled={responses[QUESTIONS[currentQuestion].id as keyof CSSRSResponse] === undefined}
+              disabled={responses[QUESTIONS[currentQuestion].id] === undefined}
             >
               Next
             </Button>

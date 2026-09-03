@@ -1,0 +1,156 @@
+name: Memory Leak Prevention
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  memory-leak-check:
+    name: Check for Memory Leaks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run ESLint Memory Leak Check
+        working-directory: ./frontend
+        id: memory-leak-check
+        run: |
+          echo "🔍 Running memory leak detection..."
+          npm run lint 2>&1 | tee eslint-output.txt
+
+          # Count memory leak errors
+          MEM_LEAK_COUNT=$(grep -c "memory-leak" eslint-output.txt || echo "0")
+
+          echo "Memory leaks found: $MEM_LEAK_COUNT"
+
+          if [ "$MEM_LEAK_COUNT" -gt "0" ]; then
+            echo "❌ MEMORY LEAKS DETECTED!"
+            echo ""
+            echo "Memory leak errors:"
+            grep "memory-leak" eslint-output.txt || true
+            echo ""
+            echo "Please fix these issues before merging."
+            echo "Use hooks from @/hooks/cleanupHooks"
+            exit 1
+          else
+            echo "✅ No memory leaks detected!"
+          fi
+
+      - name: Upload ESLint Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: eslint-results
+          path: frontend/eslint-output.txt
+          retention-days: 30
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('frontend/eslint-output.txt', 'utf8');
+            const memLeaks = output.match(/memory-leak/g) || [];
+
+            if (memLeaks.length > 0) {
+              const comment = `## 🔴 Memory Leak Detected\n\n` +
+                `**${memLeaks.length} memory leak(s) found in this PR.**\n\n` +
+                `Please fix these issues before merging.\n\n` +
+                `### Quick Fix:\n` +
+                `Use hooks from \`@/hooks/cleanupHooks\`:\n` +
+                `- \`useTimeout()\` instead of \`setTimeout\`\n` +
+                `- \`useInterval()\` instead of \`setInterval\`\n` +
+                `- \`useEventListener()\` instead of \`addEventListener\`\n` +
+                `- \`useWebSocket()\` instead of \`new WebSocket()\`\n\n` +
+                `### Errors:\n` +
+                `\`\`\`\n` +
+                output.match(/.*memory-leak.*$/gm)?.join('\n') || 'See ESLint output'\n` +
+                `\`\`\`\n`;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } else {
+              const comment = `## ✅ Memory Leak Check Passed\n\n` +
+                `No memory leaks detected in this PR.\n\n` +
+                `Great job keeping the codebase clean! 🎉`;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+
+  type-check:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run TypeScript Check
+        working-directory: ./frontend
+        run: npm run type-check
+
+  build-check:
+    name: Production Build Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build Production Bundle
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Check Build Size
+        working-directory: ./frontend
+        run: |
+          BUILD_SIZE=$(du -sh dist | cut -f1)
+          echo "Build size: $BUILD_SIZE"
+          echo "BUILD_SIZE=$BUILD_SIZE" >> $GITHUB_ENV

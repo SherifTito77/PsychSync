@@ -25,10 +25,10 @@ Usage:
         await middleware.execute_tool(result)
 """
 
+import json
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-import json
 from typing import Any
 
 from fastapi import HTTPException
@@ -310,7 +310,9 @@ class AgentToolMiddleware:
 
         # 4. Validate parameters against schema
         if tool_def.parameter_schema:
-            validation_error = self._validate_parameters(parameters, tool_def.parameter_schema)
+            validation_error = self._validate_parameters(
+                parameters, tool_def.parameter_schema
+            )
             if validation_error:
                 return ToolAccessResult(
                     allowed=False,
@@ -321,7 +323,9 @@ class AgentToolMiddleware:
                 )
 
         # 5. Check rate limits
-        rate_limit_ok = await self._check_rate_limit(user_id, tool_name, tool_def.rate_limit)
+        rate_limit_ok = await self._check_rate_limit(
+            user_id, tool_name, tool_def.rate_limit
+        )
         if not rate_limit_ok:
             return ToolAccessResult(
                 allowed=False,
@@ -335,7 +339,9 @@ class AgentToolMiddleware:
         if tool_def.requires_consent:
             # For now, we'll request consent
             # In production, this would prompt the user via WebSocket
-            consent_request_id = f"consent_{user_id}_{tool_name}_{datetime.utcnow().timestamp()}"
+            consent_request_id = (
+                f"consent_{user_id}_{tool_name}_{datetime.utcnow().timestamp()}"
+            )
 
             return ToolAccessResult(
                 allowed=False,  # Not allowed until consent granted
@@ -353,7 +359,10 @@ class AgentToolMiddleware:
         )
 
     async def execute_tool(
-        self, access_result: ToolAccessResult, parameters: dict[str, Any], context: dict[str, Any]
+        self,
+        access_result: ToolAccessResult,
+        parameters: dict[str, Any],
+        context: dict[str, Any],
     ) -> dict[str, Any]:
         """
         Execute tool with logging and monitoring
@@ -375,7 +384,10 @@ class AgentToolMiddleware:
 
             # Execute the tool
             result = await self._execute_tool_impl(
-                access_result.tool_name, parameters, access_result.user_id, access_result.user_role
+                access_result.tool_name,
+                parameters,
+                access_result.user_id,
+                access_result.user_role,
             )
 
             # Calculate execution time
@@ -386,7 +398,11 @@ class AgentToolMiddleware:
                 access_result, parameters, result, execution_time, None
             )
 
-            return {"success": True, "result": result, "execution_time_ms": execution_time}
+            return {
+                "success": True,
+                "result": result,
+                "execution_time_ms": execution_time,
+            }
 
         except Exception as e:
             execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
@@ -396,7 +412,11 @@ class AgentToolMiddleware:
                 access_result, parameters, None, execution_time, str(e)
             )
 
-            return {"success": False, "error": str(e), "execution_time_ms": execution_time}
+            return {
+                "success": False,
+                "error": str(e),
+                "execution_time_ms": execution_time,
+            }
 
     async def grant_consent(self, consent_request_id: str, granted: bool) -> bool:
         """
@@ -416,7 +436,9 @@ class AgentToolMiddleware:
         await self.redis.setex(
             key,
             300,  # 5 minutes
-            json.dumps({"granted": granted, "timestamp": datetime.utcnow().isoformat()}),
+            json.dumps(
+                {"granted": granted, "timestamp": datetime.utcnow().isoformat()}
+            ),
         )
 
         return True
@@ -460,14 +482,20 @@ class AgentToolMiddleware:
             # Type validation
             if field_name in parameters:
                 expected_type = field_schema.get("type")
-                if expected_type == "string" and not isinstance(parameters[field_name], str):
+                if expected_type == "string" and not isinstance(
+                    parameters[field_name], str
+                ):
                     return f"Parameter '{field_name}' must be a string"
-                if expected_type == "integer" and not isinstance(parameters[field_name], int):
+                if expected_type == "integer" and not isinstance(
+                    parameters[field_name], int
+                ):
                     return f"Parameter '{field_name}' must be an integer"
 
         return None  # Validation passed
 
-    async def _check_rate_limit(self, user_id: str, tool_name: str, rate_limit: int | None) -> bool:
+    async def _check_rate_limit(
+        self, user_id: str, tool_name: str, rate_limit: int | None
+    ) -> bool:
         """Check if user is within rate limit"""
 
         if rate_limit is None:
@@ -531,7 +559,10 @@ class AgentToolMiddleware:
         return result
 
     async def _log_invocation_start(
-        self, access_result: ToolAccessResult, parameters: dict[str, Any], context: dict[str, Any]
+        self,
+        access_result: ToolAccessResult,
+        parameters: dict[str, Any],
+        context: dict[str, Any],
     ):
         """Log tool invocation start"""
 
@@ -577,7 +608,9 @@ class AgentToolMiddleware:
             failure_reason=error,
         )
 
-    def _log_denied_access(self, user_id: str, user_role: str, tool_name: str, reason: str):
+    def _log_denied_access(
+        self, user_id: str, user_role: str, tool_name: str, reason: str
+    ):
         """Log denied tool access"""
 
         # This would use the audit logger in production
@@ -610,7 +643,10 @@ def require_tool_access(middleware: AgentToolMiddleware):
 
             # Check access
             access_result = await middleware.check_tool_access(
-                user_id=user_id, user_role=user_role, tool_name=tool_name, parameters=parameters
+                user_id=user_id,
+                user_role=user_role,
+                tool_name=tool_name,
+                parameters=parameters,
             )
 
             if not access_result.allowed:

@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -41,10 +45,7 @@ def get_personality_frameworks(client):
     Get available personality assessment frameworks
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/frameworks"
-        
-    )
+    response = client.get("/frameworks")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -52,16 +53,16 @@ def get_personality_frameworks(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -69,12 +70,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -88,8 +90,13 @@ def get_user_personality_assessments(client, auth_headers):
     Get user's personality assessment history
     """
     # TODO: Implement test logic
-    response = client.get("/user-assessments/{user_id}",
-        params={'user_id': 'test_value', 'include_completed': 'test_value', 'framework_filter': 'test_value'}
+    response = client.get(
+        "/user-assessments/{user_id}",
+        params={
+            "user_id": "test_value",
+            "include_completed": "test_value",
+            "framework_filter": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -98,16 +105,16 @@ def get_user_personality_assessments(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -115,12 +122,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -137,22 +145,22 @@ def create_personality_assessment(client, auth_headers):
     response = client.post(
         "/take-assessment",
         json={},
-        params={'framework_code': 'test_value', 'team_id': 'test_value'}
+        params={"framework_code": "test_value", "team_id": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -160,12 +168,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -182,22 +191,26 @@ def submit_personality_assessment(client, auth_headers):
     response = client.post(
         "/submit-response/{assessment_id}",
         json={},
-        params={'assessment_id': 'test_value', 'responses': 'test_value', 'completion_data': 'test_value'}
+        params={
+            "assessment_id": "test_value",
+            "responses": "test_value",
+            "completion_data": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -205,12 +218,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -224,8 +238,9 @@ def compare_personality_results(client, auth_headers):
     Compare results across different personality frameworks
     """
     # TODO: Implement test logic
-    response = client.get("/compare-results/{user_id}",
-        params={'user_id': 'test_value', 'frameworks': 'test_value'}
+    response = client.get(
+        "/compare-results/{user_id}",
+        params={"user_id": "test_value", "frameworks": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -234,16 +249,16 @@ def compare_personality_results(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -251,12 +266,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -270,8 +286,9 @@ def get_team_personality_profile(client, auth_headers):
     Get aggregated personality profile for a team
     """
     # TODO: Implement test logic
-    response = client.get("/team-personality-profile/{team_id}",
-        params={'team_id': 'test_value', 'include_individuals': 'test_value'}
+    response = client.get(
+        "/team-personality-profile/{team_id}",
+        params={"team_id": "test_value", "include_individuals": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -280,16 +297,16 @@ def get_team_personality_profile(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -297,12 +314,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -316,9 +334,6 @@ def process_personality_assessment(client, auth_headers):
     Process personality assessment data using AI engine
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/process",
-        json={}
-    )
+    response = client.post("/process", json={})
 
     assert response.status_code in [200, 201, 202]

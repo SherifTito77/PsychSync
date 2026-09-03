@@ -11,28 +11,29 @@ Version: 1.0
 
 import functools
 import logging
-from typing import Any, Callable, Dict, Optional, Tuple
 from contextlib import contextmanager
+from typing import Any, Callable, Dict, Optional, Tuple
 
-from ai.security.ai_input_validator import validate_ai_input, ValidationSeverity
-from ai.security.pii_redaction import redact_pii, assess_privacy_risk
-from ai.security.ai_output_sanitizer import sanitize_ai_output, OutputType
+from ai.security.ai_input_validator import ValidationSeverity, validate_ai_input
+from ai.security.ai_output_sanitizer import OutputType, sanitize_ai_output
 from ai.security.ai_security_monitoring import (
-    log_ai_security_event,
+    SecurityEventSeverity,
     SecurityEventType,
-    SecurityEventSeverity
+    log_ai_security_event,
 )
+from ai.security.pii_redaction import assess_privacy_risk, redact_pii
 
 logger = logging.getLogger("app.ai.security.wrapper")
 
 
 class AISecurityError(Exception):
     """Raised when AI security check fails"""
+
     pass
 
 
 def secure_ai_processing(
-    input_type: str = 'text_input',
+    input_type: str = "text_input",
     output_type: OutputType = OutputType.TEXT,
     redact_pii: bool = True,
     sanitize_output: bool = True,
@@ -74,9 +75,7 @@ def secure_ai_processing(
 
                 # Step 1: Validate input
                 validation_result = validate_ai_input(
-                    user_input,
-                    input_type=input_type,
-                    sanitize=True
+                    user_input, input_type=input_type, sanitize=True
                 )
 
                 if not validation_result.is_valid:
@@ -86,11 +85,11 @@ def secure_ai_processing(
                         severity=SecurityEventSeverity.HIGH,
                         details={
                             "issues": validation_result.issues,
-                            "severity": validation_result.severity.value
+                            "severity": validation_result.severity.value,
                         },
                         user_id=user_id,
                         session_id=session_id,
-                        ip_address=ip_address
+                        ip_address=ip_address,
                     )
 
                     if validation_result.severity == ValidationSeverity.CRITICAL:
@@ -110,11 +109,11 @@ def secure_ai_processing(
                             severity=SecurityEventSeverity.MEDIUM,
                             details={
                                 "num_findings": len(redaction_result.findings),
-                                "risk_score": redaction_result.risk_score
+                                "risk_score": redaction_result.risk_score,
                             },
                             user_id=user_id,
                             session_id=session_id,
-                            ip_address=ip_address
+                            ip_address=ip_address,
                         )
 
                     validated_input = redaction_result.redacted_text
@@ -128,7 +127,7 @@ def secure_ai_processing(
                         result,
                         output_type=output_type,
                         allow_html=allow_html_output,
-                        strip_html=True
+                        strip_html=True,
                     )
 
                     if sanitization_result.blocked:
@@ -138,7 +137,7 @@ def secure_ai_processing(
                             details={"reason": sanitization_result.reason},
                             user_id=user_id,
                             session_id=session_id,
-                            ip_address=ip_address
+                            ip_address=ip_address,
                         )
                         raise AISecurityError(
                             f"Output blocked: {sanitization_result.reason}"
@@ -151,7 +150,7 @@ def secure_ai_processing(
                             details={"warnings": sanitization_result.warnings},
                             user_id=user_id,
                             session_id=session_id,
-                            ip_address=ip_address
+                            ip_address=ip_address,
                         )
 
                     result = sanitization_result.sanitized_output
@@ -164,23 +163,24 @@ def secure_ai_processing(
                 logger.error(
                     f"Error in secure AI processing wrapper: {str(e)}",
                     extra={"event_type": "ai_wrapper_error"},
-                    exc_info=True
+                    exc_info=True,
                 )
                 raise
 
         return wrapper
+
     return decorator
 
 
 @contextmanager
 def secure_ai_context(
-    input_type: str = 'text_input',
+    input_type: str = "text_input",
     output_type: OutputType = OutputType.TEXT,
     redact_pii: bool = True,
     sanitize_output: bool = True,
     user_id: Optional[str] = None,
     session_id: Optional[str] = None,
-    ip_address: Optional[str] = None
+    ip_address: Optional[str] = None,
 ):
     """
     Context manager for securing AI processing
@@ -210,9 +210,7 @@ def secure_ai_context(
         def validate_input(self, user_input: Any) -> Any:
             """Validate and sanitize user input"""
             self.validation_result = validate_ai_input(
-                user_input,
-                input_type=input_type,
-                sanitize=True
+                user_input, input_type=input_type, sanitize=True
             )
 
             if not self.validation_result.is_valid:
@@ -221,11 +219,11 @@ def secure_ai_context(
                     severity=SecurityEventSeverity.HIGH,
                     details={
                         "issues": self.validation_result.issues,
-                        "severity": self.validation_result.severity.value
+                        "severity": self.validation_result.severity.value,
                     },
                     user_id=user_id,
                     session_id=session_id,
-                    ip_address=ip_address
+                    ip_address=ip_address,
                 )
 
             return self.validation_result.sanitized_input
@@ -240,11 +238,11 @@ def secure_ai_context(
                     severity=SecurityEventSeverity.MEDIUM,
                     details={
                         "num_findings": len(self.redaction_result.findings),
-                        "risk_score": self.redaction_result.risk_score
+                        "risk_score": self.redaction_result.risk_score,
                     },
                     user_id=user_id,
                     session_id=session_id,
-                    ip_address=ip_address
+                    ip_address=ip_address,
                 )
 
             return self.redaction_result.redacted_text
@@ -252,9 +250,7 @@ def secure_ai_context(
         def sanitize_output(self, output: Any) -> Any:
             """Sanitize AI output"""
             self.sanitization_result = sanitize_ai_output(
-                output,
-                output_type=output_type,
-                strip_html=True
+                output, output_type=output_type, strip_html=True
             )
 
             if self.sanitization_result.blocked:
@@ -264,7 +260,7 @@ def secure_ai_context(
                     details={"reason": self.sanitization_result.reason},
                     user_id=user_id,
                     session_id=session_id,
-                    ip_address=ip_address
+                    ip_address=ip_address,
                 )
                 raise AISecurityError(
                     f"Output blocked: {self.sanitization_result.reason}"
@@ -280,12 +276,14 @@ def secure_ai_context(
         logger.error(
             f"Error in secure AI context: {str(e)}",
             extra={"event_type": "ai_context_error"},
-            exc_info=True
+            exc_info=True,
         )
         raise
 
 
-def assess_input_security(input_data: Any, input_type: str = 'text_input') -> Dict[str, Any]:
+def assess_input_security(
+    input_data: Any, input_type: str = "text_input"
+) -> Dict[str, Any]:
     """
     Assess the security posture of input data
 
@@ -318,19 +316,27 @@ def assess_input_security(input_data: Any, input_type: str = 'text_input') -> Di
         # Generate recommendations
         recommendations = []
         if not validation_result.is_valid:
-            recommendations.append("Input contains invalid or potentially malicious content")
+            recommendations.append(
+                "Input contains invalid or potentially malicious content"
+            )
             recommendations.extend(validation_result.issues)
 
         if privacy_risk.get("num_findings", 0) > 0:
-            recommendations.append("Input contains PII/PHI - should be redacted before processing")
+            recommendations.append(
+                "Input contains PII/PHI - should be redacted before processing"
+            )
             recommendations.append(privacy_risk.get("recommendation", ""))
 
         if overall_risk < 0.2:
             recommendations.append("Input appears safe for processing")
         elif overall_risk < 0.5:
-            recommendations.append("Input has moderate risk - consider additional validation")
+            recommendations.append(
+                "Input has moderate risk - consider additional validation"
+            )
         else:
-            recommendations.append("Input has high risk - additional safeguards required")
+            recommendations.append(
+                "Input has high risk - additional safeguards required"
+            )
 
         return {
             "overall_risk_score": overall_risk,
@@ -338,27 +344,24 @@ def assess_input_security(input_data: Any, input_type: str = 'text_input') -> Di
             "privacy_risk_score": privacy_risk_score,
             "pii_findings": privacy_risk.get("num_findings", 0),
             "recommendations": recommendations,
-            "safe_to_process": overall_risk < 0.5
+            "safe_to_process": overall_risk < 0.5,
         }
 
     except Exception as e:
-        logger.error(
-            f"Error assessing input security: {str(e)}",
-            exc_info=True
-        )
+        logger.error(f"Error assessing input security: {str(e)}", exc_info=True)
         return {
             "overall_risk_score": 1.0,  # Assume high risk on error
             "validation_passed": False,
             "privacy_risk_score": 0.0,
             "pii_findings": 0,
             "recommendations": [f"Error assessing security: {str(e)}"],
-            "safe_to_process": False
+            "safe_to_process": False,
         }
 
 
 __all__ = [
-    'AISecurityError',
-    'secure_ai_processing',
-    'secure_ai_context',
-    'assess_input_security'
+    "AISecurityError",
+    "secure_ai_processing",
+    "secure_ai_context",
+    "assess_input_security",
 ]

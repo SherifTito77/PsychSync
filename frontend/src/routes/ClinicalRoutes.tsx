@@ -6,6 +6,7 @@ import ClinicalAssessment from '../pages/ClinicalAssessment';
 import ClinicalResults from '../pages/ClinicalResults';
 import ClinicalEmergency from '../pages/ClinicalEmergency';
 import ClinicalDashboard from '../pages/ClinicalDashboard';
+import ClinicalResources from '../components/clinical/ClinicalResources';
 import DASS21Assessment from '../pages/clinical/DASS21Assessment';
 import PCL5Assessment from '../pages/clinical/PCL5Assessment';
 import AUDITAssessment from '../pages/clinical/AUDITAssessment';
@@ -41,7 +42,7 @@ const ClinicalRoutes: React.FC = () => {
       <Route path="/clinical/referrals" element={<div className="p-8"><h1>Referral Management - Coming Soon</h1></div>} />
       <Route path="/clinical/providers" element={<div className="p-8"><h1>Provider Directory - Coming Soon</h1></div>} />
       <Route path="/clinical/safety-plan" element={<div className="p-8"><h1>Safety Plan Creator - Coming Soon</h1></div>} />
-      <Route path="/clinical/resources" element={<div className="p-8"><h1>Self-Help Resources - Coming Soon</h1></div>} />
+      <Route path="/clinical/resources" element={<ClinicalResources />} />
       <Route path="/admin/clinical-analytics" element={<div className="p-8"><h1>Clinical Analytics - Coming Soon</h1></div>} />
     </Routes>
   );

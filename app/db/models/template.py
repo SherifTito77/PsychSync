@@ -9,11 +9,15 @@ from app.core.database import Base
 class Template(Base):
     __tablename__ = "templates"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
 
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    template_type = Column(String(50), nullable=False, index=True)  # 'assessment', 'survey', etc.
+    template_type = Column(
+        String(50), nullable=False, index=True
+    )  # 'assessment', 'survey', etc.
 
     # Template content and configuration
     content = Column(JSONB, nullable=True)
@@ -26,14 +30,19 @@ class Template(Base):
 
     # Foreign keys
     created_by_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Timestamps
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     # Relationships with proper lazy loading
     # created_by_user = relationship(  # TEMPORARILY DISABLED

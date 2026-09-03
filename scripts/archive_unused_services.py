@@ -11,26 +11,27 @@ This script:
 
 import os
 import subprocess
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 
 def check_service_usage(service_name):
     """Check if a service is used anywhere in the codebase."""
 
     # Exclude the service file itself
     exclude_patterns = [
-        f'app/services/{service_name}.py',
-        f'.pyc',
-        f'__pycache__',
+        f"app/services/{service_name}.py",
+        f".pyc",
+        f"__pycache__",
     ]
 
     try:
         # Count references to this service
         result = subprocess.run(
-            ['grep', '-r', '--include=*.py', service_name, 'app/'],
+            ["grep", "-r", "--include=*.py", service_name, "app/"],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
 
         if result.returncode != 0:
@@ -38,19 +39,19 @@ def check_service_usage(service_name):
 
         # Count unique files that reference this service
         referenced_files = set()
-        for line in result.stdout.strip().split('\n'):
+        for line in result.stdout.strip().split("\n"):
             if not line:
                 continue
 
             # Extract file path
-            filepath = line.split(':')[0]
+            filepath = line.split(":")[0]
 
             # Skip if it's the service file itself
-            if f'services/{service_name}.py' in filepath:
+            if f"services/{service_name}.py" in filepath:
                 continue
 
             # Skip if it's just a comment or string
-            if '#' in line and line.index('#') < line.index(service_name):
+            if "#" in line and line.index("#") < line.index(service_name):
                 continue
 
             referenced_files.add(filepath)
@@ -61,57 +62,62 @@ def check_service_usage(service_name):
         print(f"    ⚠️  Error checking {service_name}: {e}")
         return -1
 
+
 def get_all_services():
     """Get all service files."""
     services = {}
-    services_dir = Path('app/services')
+    services_dir = Path("app/services")
 
-    for file in services_dir.glob('*.py'):
-        if file.name == '__init__.py':
+    for file in services_dir.glob("*.py"):
+        if file.name == "__init__.py":
             continue
-        if file.name.startswith('.!'):
+        if file.name.startswith(".!"):
             continue
 
         services[file.stem] = file
 
     return services
 
+
 def archive_service(service_name, service_path, manifest_file):
     """Archive a single service file."""
 
-    archive_dir = Path('archived_services/services')
+    archive_dir = Path("archived_services/services")
     archive_dir.mkdir(parents=True, exist_ok=True)
 
-    destination = archive_dir / f'{service_name}.py'
+    destination = archive_dir / f"{service_name}.py"
 
     # Try git mv first to preserve history
     try:
         subprocess.run(
-            ['git', 'mv', str(service_path), str(destination)],
+            ["git", "mv", str(service_path), str(destination)],
             check=True,
             capture_output=True,
-            timeout=10
+            timeout=10,
         )
-        method = 'git mv'
-    except:
+        method = "git mv"
+    except Exception as e:
         # Fall back to regular mv
         try:
             subprocess.run(
-                ['mv', str(service_path), str(destination)],
+                ["mv", str(service_path), str(destination)],
                 check=True,
                 capture_output=True,
-                timeout=10
+                timeout=10,
             )
-            method = 'mv'
+            method = "mv"
         except Exception as e:
             print(f"    ❌ Failed to move {service_name}: {e}")
             return False
 
     # Log to manifest
-    with open(manifest_file, 'a') as f:
-        f.write(f"{service_name},{service_path},{destination},{method},{datetime.now().isoformat()}\n")
+    with open(manifest_file, "a") as f:
+        f.write(
+            f"{service_name},{service_path},{destination},{method},{datetime.now().isoformat()}\n"
+        )
 
     return True
+
 
 def main():
     """Main archival process."""
@@ -122,9 +128,9 @@ def main():
     print()
 
     # Create manifest
-    manifest_file = Path('archived_services/SERVICES_MANIFEST.csv')
+    manifest_file = Path("archived_services/SERVICES_MANIFEST.csv")
     if not manifest_file.exists():
-        with open(manifest_file, 'w') as f:
+        with open(manifest_file, "w") as f:
             f.write("service_name,original_path,archived_path,method,archived_at\n")
 
     # Get all services
@@ -134,7 +140,7 @@ def main():
     # Check each service
     unused_services = []
     for i, (service_name, service_path) in enumerate(sorted(all_services.items()), 1):
-        print(f"[{i}/{len(all_services)}] Checking {service_name}...", end=' ')
+        print(f"[{i}/{len(all_services)}] Checking {service_name}...", end=" ")
 
         usage_count = check_service_usage(service_name)
 
@@ -181,5 +187,6 @@ def main():
     print(f"   Failed: {failed_count} services")
     print(f"   Manifest: {manifest_file}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

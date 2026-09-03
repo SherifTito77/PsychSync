@@ -14,18 +14,22 @@ class TemplateService:
 
     @staticmethod
     async def create(
-        db: AsyncSession,
-        template_in: TemplateCreate,
-        creator_id: UUID | None = None
+        db: AsyncSession, template_in: TemplateCreate, creator_id: UUID | None = None
     ) -> Template:
         """Create new template"""
         template = Template(
             name=template_in.name,
             description=template_in.description,
-            template_type=template_in.template_type if hasattr(template_in, "template_type") else "assessment",
+            template_type=(
+                template_in.template_type
+                if hasattr(template_in, "template_type")
+                else "assessment"
+            ),
             content=template_in.content if hasattr(template_in, "content") else {},
-            is_public=template_in.is_public if hasattr(template_in, "is_public") else False,
-            created_by_id=creator_id
+            is_public=(
+                template_in.is_public if hasattr(template_in, "is_public") else False
+            ),
+            created_by_id=creator_id,
         )
         db.add(template)
         await db.commit()
@@ -44,7 +48,7 @@ class TemplateService:
         template_type: str | None = None,
         is_public: bool | None = None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[Template]:
         """Get all templates"""
         query = select(Template)
@@ -62,10 +66,7 @@ class TemplateService:
 
     @staticmethod
     async def get_user_templates(
-        db: AsyncSession,
-        user_id: UUID,
-        skip: int = 0,
-        limit: int = 100
+        db: AsyncSession, user_id: UUID, skip: int = 0, limit: int = 100
     ) -> list[Template]:
         """Get templates created by a user"""
         query = select(Template).where(Template.created_by_id == user_id)
@@ -76,9 +77,7 @@ class TemplateService:
 
     @staticmethod
     async def update(
-        db: AsyncSession,
-        template_id: UUID,
-        template_in: TemplateUpdate
+        db: AsyncSession, template_id: UUID, template_in: TemplateUpdate
     ) -> Template | None:
         """Update template"""
         result = await db.execute(select(Template).where(Template.id == template_id))
@@ -111,10 +110,7 @@ class TemplateService:
 
     @staticmethod
     async def duplicate(
-        db: AsyncSession,
-        template_id: UUID,
-        new_name: str,
-        creator_id: UUID
+        db: AsyncSession, template_id: UUID, new_name: str, creator_id: UUID
     ) -> Template | None:
         """Duplicate a template"""
         original = await TemplateService.get_by_id(db, template_id)
@@ -128,7 +124,7 @@ class TemplateService:
             template_type=original.template_type,
             content=original.content.copy() if original.content else {},
             is_public=False,  # Duplicated templates are private by default
-            created_by_id=creator_id
+            created_by_id=creator_id,
         )
 
         db.add(new_template)
@@ -146,16 +142,25 @@ class TemplateService:
             "template_type": template.template_type,
             "content": template.content,
             "is_public": template.is_public,
-            "created_by_id": str(template.created_by_id) if template.created_by_id else None,
-            "created_at": template.created_at.isoformat() if template.created_at else None,
-            "updated_at": template.updated_at.isoformat() if template.updated_at else None
+            "created_by_id": (
+                str(template.created_by_id) if template.created_by_id else None
+            ),
+            "created_at": (
+                template.created_at.isoformat() if template.created_at else None
+            ),
+            "updated_at": (
+                template.updated_at.isoformat() if template.updated_at else None
+            ),
         }
 
 
 # Backward compatibility functions
-async def create_template(db: AsyncSession, template_in: TemplateCreate, creator_id: UUID | None = None) -> Template:
+async def create_template(
+    db: AsyncSession, template_in: TemplateCreate, creator_id: UUID | None = None
+) -> Template:
     """Backward compatibility wrapper"""
     return await TemplateService.create(db, template_in, creator_id)
+
 
 async def get_template_by_id(db: AsyncSession, template_id: UUID) -> Template | None:
     """Backward compatibility wrapper"""

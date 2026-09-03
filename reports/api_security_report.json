@@ -1,0 +1,357 @@
+{
+  "test_summary": {
+    "total_tests": 20,
+    "vulnerabilities_found": 5,
+    "test_date": "2025-12-18T05:51:05.162785",
+    "base_url": "http://localhost:8000"
+  },
+  "vulnerabilities_by_type": {
+    "RATE_LIMITING": [
+      {
+        "test_type": "RATE_LIMITING",
+        "endpoint": "/api/v1/auth/login",
+        "total_requests": 100,
+        "successful_requests": 0,
+        "requests_per_second": 19.06,
+        "rate_limit_triggered": false,
+        "rate_limiting_effective": false,
+        "status_code_distribution": {
+          "200": 0,
+          "401": 0,
+          "429": 0,
+          "503": 0,
+          "others": 100
+        },
+        "timestamp": "2025-12-18T05:50:37.243522"
+      },
+      {
+        "test_type": "RATE_LIMITING",
+        "endpoint": "/api/v1/auth/register",
+        "total_requests": 100,
+        "successful_requests": 0,
+        "requests_per_second": 19.41,
+        "rate_limit_triggered": false,
+        "rate_limiting_effective": false,
+        "status_code_distribution": {
+          "200": 0,
+          "401": 0,
+          "429": 0,
+          "503": 0,
+          "others": 100
+        },
+        "timestamp": "2025-12-18T05:50:42.394860"
+      },
+      {
+        "test_type": "RATE_LIMITING",
+        "endpoint": "/api/v1/auth/forgot-password",
+        "total_requests": 100,
+        "successful_requests": 0,
+        "requests_per_second": 17.96,
+        "rate_limit_triggered": false,
+        "rate_limiting_effective": false,
+        "status_code_distribution": {
+          "200": 0,
+          "401": 0,
+          "429": 0,
+          "503": 0,
+          "others": 100
+        },
+        "timestamp": "2025-12-18T05:50:47.965485"
+      },
+      {
+        "test_type": "RATE_LIMITING",
+        "endpoint": "/api/v1/users/me",
+        "total_requests": 100,
+        "successful_requests": 0,
+        "requests_per_second": 23.14,
+        "rate_limit_triggered": false,
+        "rate_limiting_effective": false,
+        "status_code_distribution": {
+          "200": 0,
+          "401": 0,
+          "429": 0,
+          "503": 0,
+          "others": 100
+        },
+        "timestamp": "2025-12-18T05:50:52.288342"
+      },
+      {
+        "test_type": "RATE_LIMITING",
+        "endpoint": "/api/v1/assessments",
+        "total_requests": 100,
+        "successful_requests": 0,
+        "requests_per_second": 11.74,
+        "rate_limit_triggered": false,
+        "rate_limiting_effective": false,
+        "status_code_distribution": {
+          "200": 0,
+          "401": 100,
+          "429": 0,
+          "503": 0,
+          "others": 0
+        },
+        "timestamp": "2025-12-18T05:51:00.807551"
+      }
+    ],
+    "IDOR_VULNERABILITY": [],
+    "MASS_ASSIGNMENT": [],
+    "GRAPHQL_SECURITY": [],
+    "DATA_LEAKAGE": []
+  },
+  "detailed_results": [
+    {
+      "test_type": "RATE_LIMITING",
+      "endpoint": "/api/v1/auth/login",
+      "total_requests": 100,
+      "successful_requests": 0,
+      "requests_per_second": 19.06,
+      "rate_limit_triggered": false,
+      "rate_limiting_effective": false,
+      "status_code_distribution": {
+        "200": 0,
+        "401": 0,
+        "429": 0,
+        "503": 0,
+        "others": 100
+      },
+      "timestamp": "2025-12-18T05:50:37.243522"
+    },
+    {
+      "test_type": "RATE_LIMITING",
+      "endpoint": "/api/v1/auth/register",
+      "total_requests": 100,
+      "successful_requests": 0,
+      "requests_per_second": 19.41,
+      "rate_limit_triggered": false,
+      "rate_limiting_effective": false,
+      "status_code_distribution": {
+        "200": 0,
+        "401": 0,
+        "429": 0,
+        "503": 0,
+        "others": 100
+      },
+      "timestamp": "2025-12-18T05:50:42.394860"
+    },
+    {
+      "test_type": "RATE_LIMITING",
+      "endpoint": "/api/v1/auth/forgot-password",
+      "total_requests": 100,
+      "successful_requests": 0,
+      "requests_per_second": 17.96,
+      "rate_limit_triggered": false,
+      "rate_limiting_effective": false,
+      "status_code_distribution": {
+        "200": 0,
+        "401": 0,
+        "429": 0,
+        "503": 0,
+        "others": 100
+      },
+      "timestamp": "2025-12-18T05:50:47.965485"
+    },
+    {
+      "test_type": "RATE_LIMITING",
+      "endpoint": "/api/v1/users/me",
+      "total_requests": 100,
+      "successful_requests": 0,
+      "requests_per_second": 23.14,
+      "rate_limit_triggered": false,
+      "rate_limiting_effective": false,
+      "status_code_distribution": {
+        "200": 0,
+        "401": 0,
+        "429": 0,
+        "503": 0,
+        "others": 100
+      },
+      "timestamp": "2025-12-18T05:50:52.288342"
+    },
+    {
+      "test_type": "RATE_LIMITING",
+      "endpoint": "/api/v1/assessments",
+      "total_requests": 100,
+      "successful_requests": 0,
+      "requests_per_second": 11.74,
+      "rate_limit_triggered": false,
+      "rate_limiting_effective": false,
+      "status_code_distribution": {
+        "200": 0,
+        "401": 100,
+        "429": 0,
+        "503": 0,
+        "others": 0
+      },
+      "timestamp": "2025-12-18T05:51:00.807551"
+    },
+    {
+      "test_type": "IDOR_VULNERABILITY",
+      "endpoint": "/api/v1/assessments/{id}",
+      "test_ids_count": 8,
+      "vulnerabilities_found": 0,
+      "proper_protection": 16,
+      "idor_protected": true,
+      "timestamp": "2025-12-18T05:51:01.266840"
+    },
+    {
+      "test_type": "IDOR_VULNERABILITY",
+      "endpoint": "/api/v1/users/{id}",
+      "test_ids_count": 8,
+      "vulnerabilities_found": 0,
+      "proper_protection": 0,
+      "idor_protected": true,
+      "timestamp": "2025-12-18T05:51:01.667530"
+    },
+    {
+      "test_type": "IDOR_VULNERABILITY",
+      "endpoint": "/api/v1/teams/{id}",
+      "test_ids_count": 8,
+      "vulnerabilities_found": 0,
+      "proper_protection": 16,
+      "idor_protected": true,
+      "timestamp": "2025-12-18T05:51:02.581080"
+    },
+    {
+      "test_type": "IDOR_VULNERABILITY",
+      "endpoint": "/api/v1/responses/{id}",
+      "test_ids_count": 7,
+      "vulnerabilities_found": 0,
+      "proper_protection": 14,
+      "idor_protected": true,
+      "timestamp": "2025-12-18T05:51:03.526867"
+    },
+    {
+      "test_type": "MASS_ASSIGNMENT",
+      "endpoint": "/api/v1/auth/register",
+      "legitimate_status": 404,
+      "mass_assign_status": 404,
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:03.598933"
+    },
+    {
+      "test_type": "MASS_ASSIGNMENT",
+      "endpoint": "/api/v1/users/me",
+      "legitimate_status": 405,
+      "mass_assign_status": 405,
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:03.869437"
+    },
+    {
+      "test_type": "MASS_ASSIGNMENT",
+      "endpoint": "/api/v1/assessments",
+      "legitimate_status": 405,
+      "mass_assign_status": 405,
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:04.126213"
+    },
+    {
+      "test_type": "GRAPHQL_SECURITY",
+      "endpoints_tested": 4,
+      "graphql_vulnerabilities": 0,
+      "proper_protection": 4,
+      "graphql_secure": true,
+      "timestamp": "2025-12-18T05:51:04.394595"
+    },
+    {
+      "test_type": "DATA_LEAKAGE",
+      "endpoint": "/api/v1/health",
+      "status_code": 401,
+      "response_size": 204,
+      "leakage_indicators": [
+        "System info: localhost"
+      ],
+      "header_leakage": [],
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:04.461545"
+    },
+    {
+      "test_type": "DATA_LEAKAGE",
+      "endpoint": "/api/v1/auth/login",
+      "status_code": 404,
+      "response_size": 192,
+      "leakage_indicators": [
+        "System info: localhost"
+      ],
+      "header_leakage": [],
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:04.534965"
+    },
+    {
+      "test_type": "DATA_LEAKAGE",
+      "endpoint": "/api/v1/users/me",
+      "status_code": 405,
+      "response_size": 208,
+      "leakage_indicators": [
+        "System info: localhost"
+      ],
+      "header_leakage": [],
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:04.617169"
+    },
+    {
+      "test_type": "DATA_LEAKAGE",
+      "endpoint": "/api/v1/assessments",
+      "status_code": 401,
+      "response_size": 209,
+      "leakage_indicators": [
+        "System info: localhost"
+      ],
+      "header_leakage": [],
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:04.751936"
+    },
+    {
+      "test_type": "DATA_LEAKAGE",
+      "endpoint": "/api/v1/teams",
+      "status_code": 401,
+      "response_size": 203,
+      "leakage_indicators": [
+        "System info: localhost"
+      ],
+      "header_leakage": [],
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:04.861463"
+    },
+    {
+      "test_type": "DATA_LEAKAGE",
+      "endpoint": "/api/v1/responses",
+      "status_code": 401,
+      "response_size": 207,
+      "leakage_indicators": [
+        "System info: localhost"
+      ],
+      "header_leakage": [],
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:04.967682"
+    },
+    {
+      "test_type": "DATA_LEAKAGE",
+      "endpoint": "/api/v1/templates",
+      "status_code": 401,
+      "response_size": 207,
+      "leakage_indicators": [
+        "System info: localhost"
+      ],
+      "header_leakage": [],
+      "vulnerable": false,
+      "protected": true,
+      "timestamp": "2025-12-18T05:51:05.161822"
+    }
+  ],
+  "recommendations": [
+    "Implement rate limiting on all API endpoints",
+    "Use token bucket or sliding window algorithms",
+    "Set different limits for authenticated vs anonymous users",
+    "Implement IP-based and user-based rate limiting"
+  ],
+  "security_score": 50
+}

@@ -4,11 +4,11 @@ HR Tech Go-to-Market Strategy
 Mid-market focused GTM strategy for companies 100-1,000 employees
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
-from enum import Enum
 import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

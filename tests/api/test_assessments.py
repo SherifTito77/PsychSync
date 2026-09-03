@@ -1,6 +1,7 @@
-#tests/api/test_assessments.py
+# tests/api/test_assessments.py
 import pytest
 from httpx import AsyncClient
+
 from app.main import app
 from app.schemas.assessment import AssessmentCreate
 
@@ -15,10 +16,12 @@ async def test_create_assessment(ac: AsyncClient):
         "category": "personality",
         "user_id": 1,
         "team_id": 1,
-        "sections": []
+        "sections": [],
     }
     response = await ac.post("/api/v1/assessments/", json=payload)
     assert response.status_code in [200, 201]
+
+
 # @pytest.mark.asyncio
 # async def test_create_assessment():
 #     async with AsyncClient(app=app, base_url="http://test") as ac:
@@ -28,6 +31,7 @@ async def test_create_assessment(ac: AsyncClient):
 #     data = response.json()
 #     assert data["title"] == "Psych Test"
 #     assert "id" in data
+
 
 @pytest.mark.asyncio
 async def test_get_assessment():

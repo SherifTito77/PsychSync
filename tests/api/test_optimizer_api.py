@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -41,24 +45,21 @@ def optimize_lineups(client):
     Optimize fantasy lineups based on player pool and constraints
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/optimize",
-        json={}
-    )
+    response = client.post("/optimize", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -66,12 +67,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -86,24 +88,22 @@ def analyze_player_pool(client):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/analyze-player-pool",
-        json={},
-        params={'players': 'test_value'}
+        "/analyze-player-pool", json={}, params={"players": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -111,12 +111,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -133,22 +134,22 @@ def compare_lineups(client):
     response = client.post(
         "/compare-lineups",
         json={},
-        params={'lineups': 'test_value', 'player_pool': 'test_value'}
+        params={"lineups": "test_value", "player_pool": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -156,12 +157,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -175,8 +177,9 @@ def get_player_projections(client):
     Get detailed projections for a specific player
     """
     # TODO: Implement test logic
-    response = client.get("/player-projections/{player_id}",
-        params={'player_id': 'test_value', 'date': 'test_value'}
+    response = client.get(
+        "/player-projections/{player_id}",
+        params={"player_id": "test_value", "date": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -185,16 +188,16 @@ def get_player_projections(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -202,12 +205,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -224,22 +228,26 @@ def get_lineup_suggestions(client):
     response = client.post(
         "/lineup-builder/suggestions",
         json={},
-        params={'current_lineup': 'test_value', 'player_pool': 'test_value', 'position_needed': 'test_value'}
+        params={
+            "current_lineup": "test_value",
+            "player_pool": "test_value",
+            "position_needed": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -247,12 +255,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -269,22 +278,22 @@ def export_lineup(client):
     response = client.post(
         "/export-lineup",
         json={},
-        params={'lineup': 'test_value', 'format': 'test_value'}
+        params={"lineup": "test_value", "format": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -292,12 +301,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -311,10 +321,7 @@ def get_optimization_presets(client):
     Get predefined optimization presets for different scenarios
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/optimization-presets"
-        
-    )
+    response = client.get("/optimization-presets")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -322,16 +329,16 @@ def get_optimization_presets(client):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -339,12 +346,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -358,10 +366,7 @@ def optimizer_health(client):
     Health check for optimizer service
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/health"
-        
-    )
+    response = client.get("/health")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure

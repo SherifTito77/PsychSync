@@ -3,18 +3,23 @@ Billing and Subscription Management API Endpoints
 Enterprise-grade revenue generation and subscription management
 """
 
-from datetime import datetime, timedelta
+import asyncio
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.security import get_current_user
+from app.api.deps import get_async_db, get_current_active_user
 from app.db.models.organization import Organization
 from app.db.models.user import User
-from app.services.billing import PRICING_TIERS, BillingCycle, SubscriptionTier, revenue_service
+from app.services.billing import (
+    PRICING_TIERS,
+    BillingCycle,
+    SubscriptionTier,
+    revenue_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +43,9 @@ def check_idempotency(idempotency_key: str) -> dict[str, Any] | None:
     return _idempotency_cache.get(idempotency_key)
 
 
-def store_idempotency_result(idempotency_key: str, result: dict[str, Any], ttl: int = 86400):
+def store_idempotency_result(
+    idempotency_key: str, result: dict[str, Any], ttl: int = 86400
+):
     """
     Store result of idempotent request (24 hour TTL)
     In production, use Redis with: redis_client.setex(key, ttl, json.dumps(result))
@@ -59,8 +66,8 @@ async def create_subscription(
     trial_period_days: int = 14,
     promotion_code: str | None = None,
     idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new subscription with idempotency protection
@@ -76,9 +83,15 @@ async def create_subscription(
     # For now, the idempotency protection already prevents most abuse
 
     try:
+        # ✅ Run sync db operations in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+
         # Create or retrieve Stripe customer
-        organization = (
-            db.query(Organization).filter(Organization.id == current_user.organization_id).first()
+        organization = await loop.run_in_executor(
+            None,
+            lambda: db.query(Organization)
+            .filter(Organization.id == current_user.organization_id)
+            .first(),
         )
 
         if not current_user.stripe_customer_id:
@@ -110,9 +123,11 @@ async def create_subscription(
             "trial_period_days": trial_period_days,
             "status": subscription.status,
             "current_period_end": subscription.current_period_end,
-            "client_secret": subscription.latest_invoice.payment_intent.client_secret
-            if subscription.latest_invoice
-            else None,
+            "client_secret": (
+                subscription.latest_invoice.payment_intent.client_secret
+                if subscription.latest_invoice
+                else None
+            ),
         }
 
         # Store idempotency result
@@ -133,7 +148,7 @@ async def cancel_subscription(
     subscription_id: str,
     reason: str = "user_request",
     immediate: bool = False,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Cancel subscription
@@ -171,7 +186,7 @@ async def modify_subscription(
     new_billing_cycle: BillingCycle | None = None,
     prorate: bool = True,
     idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Upgrade or downgrade subscription with idempotency protection
@@ -197,7 +212,9 @@ async def modify_subscription(
             "success": True,
             "subscription_id": subscription_id,
             "new_tier": new_tier.value,
-            "new_billing_cycle": new_billing_cycle.value if new_billing_cycle else "unchanged",
+            "new_billing_cycle": (
+                new_billing_cycle.value if new_billing_cycle else "unchanged"
+            ),
             "prorate": prorate,
             "status": modified_subscription.status,
             "current_period_end": modified_subscription.current_period_end,
@@ -250,7 +267,9 @@ async def get_pricing_tiers():
                     "price_per_additional_team_member": float(
                         tier_config.price_per_additional_team_member
                     ),
-                    "price_per_additional_team": float(tier_config.price_per_additional_team),
+                    "price_per_additional_team": float(
+                        tier_config.price_per_additional_team
+                    ),
                 },
             }
 
@@ -270,7 +289,8 @@ async def get_pricing_tiers():
 
 @router.get("/subscription/current")
 async def get_current_subscription(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get user's current subscription details
@@ -304,7 +324,8 @@ async def get_current_subscription(
 
 @router.get("/usage")
 async def get_usage_metrics(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get user's current usage metrics
@@ -315,19 +336,28 @@ async def get_usage_metrics(
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         usage_report = await revenue_service.calculate_usage_based_billing(
-            user_id=str(current_user.id), billing_period_start=month_start, billing_period_end=now
+            user_id=str(current_user.id),
+            billing_period_start=month_start,
+            billing_period_end=now,
         )
 
         # Get user's subscription tier for limit comparison
         # Note: This would come from your database
 
         return {
-            "current_period": {"start": month_start.isoformat(), "end": now.isoformat()},
+            "current_period": {
+                "start": month_start.isoformat(),
+                "end": now.isoformat(),
+            },
             "usage_metrics": usage_report["usage_metrics"],
             "pricing_tier": usage_report["pricing_tier"],
             "limits": {
-                "assessments_completed": usage_report["usage_metrics"]["assessments_completed"],
-                "team_members_active": usage_report["usage_metrics"]["team_members_active"],
+                "assessments_completed": usage_report["usage_metrics"][
+                    "assessments_completed"
+                ],
+                "team_members_active": usage_report["usage_metrics"][
+                    "team_members_active"
+                ],
                 "teams_active": usage_report["usage_metrics"]["teams_active"],
             },
         }
@@ -341,7 +371,9 @@ async def get_usage_metrics(
 
 
 @router.post("/feature-check")
-async def check_feature_access(feature: str, current_user: User = Depends(get_current_user)):
+async def check_feature_access(
+    feature: str, current_user: User = Depends(get_current_active_user)
+):
     """
     Check if user has access to a specific feature
     """
@@ -349,9 +381,11 @@ async def check_feature_access(feature: str, current_user: User = Depends(get_cu
         access_validation = await revenue_service.validate_feature_access(
             user_id=str(current_user.id),
             feature=feature,
-            organization_id=str(current_user.organization_id)
-            if current_user.organization_id
-            else None,
+            organization_id=(
+                str(current_user.organization_id)
+                if current_user.organization_id
+                else None
+            ),
         )
 
         return {
@@ -377,7 +411,7 @@ async def check_feature_access(feature: str, current_user: User = Depends(get_cu
 async def get_invoices(
     limit: int = 10,
     starting_after: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get user's invoice history
@@ -406,7 +440,7 @@ async def get_invoices(
 async def add_payment_method(
     payment_method_id: str,
     set_as_default: bool = True,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Add a payment method to customer account
@@ -414,7 +448,8 @@ async def add_payment_method(
     try:
         if not current_user.stripe_customer_id:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="No Stripe customer found for user"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No Stripe customer found for user",
             )
 
         # Attach payment method to customer
@@ -435,7 +470,7 @@ async def add_payment_method(
 
 
 @router.get("/payment-methods")
-async def get_payment_methods(current_user: User = Depends(get_current_user)):
+async def get_payment_methods(current_user: User = Depends(get_current_active_user)):
     """
     Get user's saved payment methods
     """
@@ -446,9 +481,7 @@ async def get_payment_methods(current_user: User = Depends(get_current_user)):
         # This would use Stripe API to get payment methods
         # For now, return the structure
 
-        return {
-            "payment_methods": []  # Would be populated from Stripe API
-        }
+        return {"payment_methods": []}  # Would be populated from Stripe API
 
     except Exception as e:
         logger.error(f"Failed to get payment methods: {e!s}")
@@ -488,7 +521,9 @@ async def stripe_webhook(
         try:
             webhook_secret = settings.STRIPE_WEBHOOK_SECRET
             if webhook_secret:
-                event = stripe.Webhook.construct_event(payload, stripe_signature, webhook_secret)
+                event = stripe.Webhook.construct_event(
+                    payload, stripe_signature, webhook_secret
+                )
             else:
                 # For development: skip signature verification
                 import json
@@ -572,7 +607,9 @@ async def handle_payment_success(event: dict):
     customer_id = invoice_data.get("customer")
     amount_paid = invoice_data.get("amount_paid", 0)
 
-    logger.info(f"Payment succeeded for customer {customer_id}: ${amount_paid / 100:.2f}")
+    logger.info(
+        f"Payment succeeded for customer {customer_id}: ${amount_paid / 100:.2f}"
+    )
 
     # TODO: Update subscription status, send receipt email, etc.
 
@@ -583,7 +620,9 @@ async def handle_payment_failure(event: dict):
     customer_id = invoice_data.get("customer")
     attempt_count = invoice_data.get("attempt_count", 0)
 
-    logger.warning(f"Payment failed for customer {customer_id}, attempt {attempt_count}")
+    logger.warning(
+        f"Payment failed for customer {customer_id}, attempt {attempt_count}"
+    )
 
     # TODO: Send payment failure notification, handle dunning
 
@@ -596,7 +635,7 @@ async def handle_payment_failure(event: dict):
 async def get_billing_analytics(
     date_range_start: str | None = None,
     date_range_end: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive billing analytics (admin only)
@@ -645,7 +684,7 @@ async def create_promotional_code(
     duration: str = "once",
     duration_in_months: int | None = None,
     metadata: dict[str, str] | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create promotional discount code (admin only)

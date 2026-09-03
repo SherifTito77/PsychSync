@@ -3,14 +3,14 @@
 # Integrated psychometric service layer
 # ============================================================================
 
-from datetime import datetime
 import logging
+from datetime import datetime
 
-from ai.pattern_recognition import AnomalyDetector, PatternDetector
-from ai.psychometrics.emotion_detection import EmotionDetector
-from ai.psychometrics.personality_insights import PersonalityInsightEngine
-from ai.psychometrics.psychometric_scorer import PsychometricScorer
-from ai.psychometrics.sentiment_analysis import PsychometricSentimentAnalyzer
+from app.ai.pattern_recognition import AnomalyDetector, PatternDetector
+from app.ai.psychometrics.emotion_detection import EmotionDetector
+from app.ai.psychometrics.personality_insights import PersonalityInsightEngine
+from app.ai.psychometrics.psychometric_scorer import PsychometricScorer
+from app.ai.psychometrics.sentiment_analysis import PsychometricSentimentAnalyzer
 from app.services.nlp_service import NLPService
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,9 @@ class PsychometricService:
                 "key_insights": self._generate_session_insights(
                     sentiment, emotions, psycho_markers
                 ),
-                "red_flags": self._identify_red_flags(sentiment, emotions, psycho_markers),
+                "red_flags": self._identify_red_flags(
+                    sentiment, emotions, psycho_markers
+                ),
                 "analyzed_at": datetime.utcnow().isoformat(),
             }
 
@@ -80,7 +82,11 @@ class PsychometricService:
             raise
 
     async def generate_client_progress_report(
-        self, client_id: str, session_analyses: list[dict], start_date: datetime, end_date: datetime
+        self,
+        client_id: str,
+        session_analyses: list[dict],
+        start_date: datetime,
+        end_date: datetime,
     ) -> dict:
         """
         Generate comprehensive progress report for a client
@@ -96,18 +102,26 @@ class PsychometricService:
         """
         try:
             # Extract time-series data
-            sentiment_scores = [s["sentiment_analysis"]["overall_score"] for s in session_analyses]
-            timestamps = [datetime.fromisoformat(s["session_date"]) for s in session_analyses]
+            sentiment_scores = [
+                s["sentiment_analysis"]["overall_score"] for s in session_analyses
+            ]
+            timestamps = [
+                datetime.fromisoformat(s["session_date"]) for s in session_analyses
+            ]
 
             # Trend analysis
             trend = self.pattern_detector.analyze_trend(sentiment_scores, timestamps)
 
             # Cyclical patterns
-            cycles = self.pattern_detector.detect_cyclical_patterns(sentiment_scores, timestamps)
+            cycles = self.pattern_detector.detect_cyclical_patterns(
+                sentiment_scores, timestamps
+            )
 
             # Emotion patterns
             emotion_history = [s["emotion_analysis"] for s in session_analyses]
-            emotional_state = self.emotion_detector.analyze_emotional_state(emotion_history)
+            emotional_state = self.emotion_detector.analyze_emotional_state(
+                emotion_history
+            )
 
             # Anomaly detection
             data_points = [
@@ -118,14 +132,19 @@ class PsychometricService:
                 }
                 for s in session_analyses
             ]
-            anomalies = self.anomaly_detector.detect_anomalies(data_points, ["sentiment"])
+            anomalies = self.anomaly_detector.detect_anomalies(
+                data_points, ["sentiment"]
+            )
 
             # Overall assessment
             progress_level = self._assess_progress_level(trend, emotional_state)
 
             report = {
                 "client_id": client_id,
-                "report_period": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+                "report_period": {
+                    "start": start_date.isoformat(),
+                    "end": end_date.isoformat(),
+                },
                 "session_count": len(session_analyses),
                 "trend_analysis": trend,
                 "cyclical_patterns": cycles,
@@ -163,14 +182,18 @@ class PsychometricService:
             framework_config = self._get_framework_config(assessment_type)
 
             # Score assessment
-            scores = self.scorer.score_assessment(assessment_type, responses, framework_config)
+            scores = self.scorer.score_assessment(
+                assessment_type, responses, framework_config
+            )
 
             # Add client info
             scores["client_id"] = client_id
             scores["completed_at"] = datetime.utcnow().isoformat()
 
             # Generate insights
-            scores["insights"] = self._generate_assessment_insights(assessment_type, scores)
+            scores["insights"] = self._generate_assessment_insights(
+                assessment_type, scores
+            )
 
             return scores
 
@@ -193,7 +216,9 @@ class PsychometricService:
         # Emotion insights
         dominant_emotion = emotions["dominant_emotion"]
         if dominant_emotion in ["sadness", "fear", "anger"]:
-            insights.append(f"Primary emotion: {dominant_emotion} - may require attention")
+            insights.append(
+                f"Primary emotion: {dominant_emotion} - may require attention"
+            )
 
         # First-person pronoun usage
         first_person = psycho_markers.get("first_person", {})
@@ -262,23 +287,35 @@ class PsychometricService:
 
         # Trend-based recommendations
         if trend["trend_direction"] == "declining":
-            recommendations.append("Consider adjusting treatment plan - declining trend detected")
+            recommendations.append(
+                "Consider adjusting treatment plan - declining trend detected"
+            )
 
         # Emotional state recommendations
         psych_states = emotional_state.get("psychological_states", {})
         if psych_states.get("depression_risk", {}).get("risk_level") == "high":
-            recommendations.append("Screen for depression - elevated risk indicators present")
+            recommendations.append(
+                "Screen for depression - elevated risk indicators present"
+            )
 
         if psych_states.get("anxiety_risk", {}).get("risk_level") == "high":
             recommendations.append("Implement anxiety management interventions")
 
         # Anomaly-based recommendations
         if anomalies.get("anomaly_rate", 0) > 0.2:
-            recommendations.append("High volatility detected - increase session frequency")
+            recommendations.append(
+                "High volatility detected - increase session frequency"
+            )
 
-        return recommendations if recommendations else ["Continue current treatment approach"]
+        return (
+            recommendations
+            if recommendations
+            else ["Continue current treatment approach"]
+        )
 
-    def _generate_assessment_insights(self, assessment_type: str, scores: dict) -> list[str]:
+    def _generate_assessment_insights(
+        self, assessment_type: str, scores: dict
+    ) -> list[str]:
         """Generate insights from assessment scores"""
         insights = []
 
@@ -308,14 +345,24 @@ class PsychometricService:
                 "questions": {},  # Would be populated from database
                 "required_questions": [],
             },
-            "mbti": {"min_value": 1, "max_value": 5, "questions": {}, "required_questions": []},
+            "mbti": {
+                "min_value": 1,
+                "max_value": 5,
+                "questions": {},
+                "required_questions": [],
+            },
             "enneagram": {
                 "min_value": 1,
                 "max_value": 5,
                 "questions": {},
                 "required_questions": [],
             },
-            "disc": {"min_value": 1, "max_value": 4, "questions": {}, "required_questions": []},
+            "disc": {
+                "min_value": 1,
+                "max_value": 4,
+                "questions": {},
+                "required_questions": [],
+            },
         }
 
         return configs.get(assessment_type, {})

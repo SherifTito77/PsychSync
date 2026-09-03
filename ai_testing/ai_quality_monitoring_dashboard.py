@@ -4,14 +4,15 @@ AI Quality Monitoring Dashboard
 Real-time monitoring and visualization of AI system quality metrics
 """
 
+import argparse
 import json
 import os
 import sys
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
-import argparse
+from typing import Any, Dict, List, Optional
+
 
 class QualityStatus(Enum):
     EXCELLENT = "excellent"
@@ -19,9 +20,11 @@ class QualityStatus(Enum):
     WARNING = "warning"
     CRITICAL = "critical"
 
+
 @dataclass
 class QualityMetric:
     """Individual quality metric with status and trend"""
+
     name: str
     current_value: float
     target_value: float
@@ -30,6 +33,7 @@ class QualityMetric:
     description: str
     last_updated: datetime
     historical_values: List[float] = field(default_factory=list)
+
 
 class AIQualityMonitor:
     """Comprehensive AI quality monitoring system"""
@@ -44,14 +48,18 @@ class AIQualityMonitor:
             "personality_validation": 80.0,
             "recommendation_references": 75.0,
             "ai_bias_detection": 70.0,
-            "overall_quality": 80.0
+            "overall_quality": 80.0,
         }
 
     def load_latest_results(self, results_file: str = None):
         """Load latest AI testing results"""
         if results_file is None:
             # Find the most recent comprehensive report
-            report_files = [f for f in os.listdir('.') if f.startswith('comprehensive_ai_testing_report_')]
+            report_files = [
+                f
+                for f in os.listdir(".")
+                if f.startswith("comprehensive_ai_testing_report_")
+            ]
             if not report_files:
                 return self._generate_mock_data()
 
@@ -59,7 +67,7 @@ class AIQualityMonitor:
             results_file = latest_file
 
         try:
-            with open(results_file, 'r') as f:
+            with open(results_file, "r") as f:
                 data = json.load(f)
                 return self._parse_comprehensive_results(data)
         except Exception as e:
@@ -79,19 +87,27 @@ class AIQualityMonitor:
 
         # Hallucination Detection
         hallucination_result = test_results.get("ai_hallucination_detection", {})
-        results["hallucination_detection"] = hallucination_result.get("detection_accuracy", 0.0)
+        results["hallucination_detection"] = hallucination_result.get(
+            "detection_accuracy", 0.0
+        )
 
         # Personality Validation
         personality_result = test_results.get("personality_analysis_validation", {})
-        results["personality_validation"] = personality_result.get("average_validation_accuracy", 0.0)
+        results["personality_validation"] = personality_result.get(
+            "average_validation_accuracy", 0.0
+        )
 
         # Recommendation References
         recommendation_result = test_results.get("recommendation_data_reference", {})
-        results["recommendation_references"] = recommendation_result.get("overall_verification_rate", 0.0) * 100
+        results["recommendation_references"] = (
+            recommendation_result.get("overall_verification_rate", 0.0) * 100
+        )
 
         # AI Bias Detection
         bias_result = test_results.get("ai_bias_detection", {})
-        results["ai_bias_detection"] = bias_result.get("average_fairness_score", 0.0) * 100
+        results["ai_bias_detection"] = (
+            bias_result.get("average_fairness_score", 0.0) * 100
+        )
 
         # Overall Quality
         results["overall_quality"] = data.get("overall_ai_quality_score", 0.0)
@@ -106,7 +122,7 @@ class AIQualityMonitor:
             "personality_validation": 74.4,
             "recommendation_references": 50.0,
             "ai_bias_detection": 90.2,
-            "overall_quality": 75.0
+            "overall_quality": 75.0,
         }
 
     def calculate_status(self, metric_name: str, value: float) -> QualityStatus:
@@ -127,28 +143,28 @@ class AIQualityMonitor:
         metric_configs = {
             "ai_consistency": {
                 "description": "Consistency of AI outputs across different models",
-                "display_name": "AI Model Consistency"
+                "display_name": "AI Model Consistency",
             },
             "hallucination_detection": {
                 "description": "Accuracy of hallucination detection in AI outputs",
-                "display_name": "Hallucination Detection"
+                "display_name": "Hallucination Detection",
             },
             "personality_validation": {
                 "description": "Accuracy of personality type analysis and validation",
-                "display_name": "Personality Analysis Validation"
+                "display_name": "Personality Analysis Validation",
             },
             "recommendation_references": {
                 "description": "Percentage of recommendations properly referencing assessment data",
-                "display_name": "Data Grounding in Recommendations"
+                "display_name": "Data Grounding in Recommendations",
             },
             "ai_bias_detection": {
                 "description": "Fairness and bias detection across demographic groups",
-                "display_name": "AI Bias Detection"
+                "display_name": "AI Bias Detection",
             },
             "overall_quality": {
                 "description": "Overall AI system quality score",
-                "display_name": "Overall AI Quality"
-            }
+                "display_name": "Overall AI Quality",
+            },
         }
 
         for metric_name, value in results.items():
@@ -164,7 +180,7 @@ class AIQualityMonitor:
                     trend="stable",  # Would be calculated from historical data
                     description=config["description"],
                     last_updated=datetime.now(),
-                    historical_values=[value]  # Single data point for now
+                    historical_values=[value],  # Single data point for now
                 )
 
     def generate_dashboard(self, output_format: str = "text") -> str:
@@ -177,7 +193,9 @@ class AIQualityMonitor:
         # Header
         dashboard.append("🤖 PSYNSYNC AI QUALITY MONITORING DASHBOARD")
         dashboard.append("=" * 60)
-        dashboard.append(f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        dashboard.append(
+            f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         dashboard.append(f"Overall Status: {self._get_overall_status()}")
         dashboard.append("")
 
@@ -186,8 +204,12 @@ class AIQualityMonitor:
         dashboard.append("-" * 30)
         overall_score = self.metrics.get("overall_quality")
         if overall_score:
-            dashboard.append(f"Overall AI Quality: {overall_score.current_value:.1f}% (Target: {overall_score.target_value:.1f}%)")
-            dashboard.append(f"Production Readiness: {'✅ READY' if overall_score.current_value >= 80 else '❌ NOT READY'}")
+            dashboard.append(
+                f"Overall AI Quality: {overall_score.current_value:.1f}% (Target: {overall_score.target_value:.1f}%)"
+            )
+            dashboard.append(
+                f"Production Readiness: {'✅ READY' if overall_score.current_value >= 80 else '❌ NOT READY'}"
+            )
         else:
             dashboard.append("Overall AI Quality: Not available")
             dashboard.append("Production Readiness: ❌ NOT READY - No data available")
@@ -201,7 +223,7 @@ class AIQualityMonitor:
             QualityStatus.EXCELLENT: "🟢",
             QualityStatus.GOOD: "🟡",
             QualityStatus.WARNING: "🟠",
-            QualityStatus.CRITICAL: "🔴"
+            QualityStatus.CRITICAL: "🔴",
         }
 
         for metric_name, metric in self.metrics.items():
@@ -209,9 +231,15 @@ class AIQualityMonitor:
                 continue
 
             icon = status_icons[metric.status]
-            trend_icon = "📈" if metric.trend == "improving" else "📉" if metric.trend == "declining" else "➡️"
+            trend_icon = (
+                "📈"
+                if metric.trend == "improving"
+                else "📉" if metric.trend == "declining" else "➡️"
+            )
 
-            dashboard.append(f"{icon} {metric.name}: {metric.current_value:.1f}% (Target: {metric.target_value:.1f}%) {trend_icon}")
+            dashboard.append(
+                f"{icon} {metric.name}: {metric.current_value:.1f}% (Target: {metric.target_value:.1f}%) {trend_icon}"
+            )
 
         dashboard.append("")
 
@@ -227,23 +255,33 @@ class AIQualityMonitor:
             dashboard.append(f"   Current Performance: {metric.current_value:.1f}%")
             dashboard.append(f"   Target: {metric.target_value:.1f}%")
             dashboard.append(f"   Status: {metric.status.value.upper()}")
-            dashboard.append(f"   Gap: {metric.target_value - metric.current_value:.1f}%")
+            dashboard.append(
+                f"   Gap: {metric.target_value - metric.current_value:.1f}%"
+            )
             dashboard.append(f"   Description: {metric.description}")
 
         # Production Readiness Assessment
         dashboard.append("\n🚀 PRODUCTION READINESS ASSESSMENT")
         dashboard.append("-" * 40)
 
-        ready_metrics = sum(1 for m in self.metrics.values() if m.status in [QualityStatus.EXCELLENT, QualityStatus.GOOD])
+        ready_metrics = sum(
+            1
+            for m in self.metrics.values()
+            if m.status in [QualityStatus.EXCELLENT, QualityStatus.GOOD]
+        )
         total_metrics = len(self.metrics)
         readiness_percentage = (ready_metrics / total_metrics) * 100
 
-        dashboard.append(f"Readiness Score: {readiness_percentage:.1f}% ({ready_metrics}/{total_metrics} metrics meeting targets)")
+        dashboard.append(
+            f"Readiness Score: {readiness_percentage:.1f}% ({ready_metrics}/{total_metrics} metrics meeting targets)"
+        )
 
         if readiness_percentage >= 80:
             dashboard.append("✅ SYSTEM READY FOR PRODUCTION DEPLOYMENT")
         elif readiness_percentage >= 60:
-            dashboard.append("⚠️  SYSTEM CONDITIONALLY READY - Address critical issues first")
+            dashboard.append(
+                "⚠️  SYSTEM CONDITIONALLY READY - Address critical issues first"
+            )
         else:
             dashboard.append("❌ SYSTEM NOT READY - Significant improvements required")
 
@@ -251,14 +289,20 @@ class AIQualityMonitor:
         dashboard.append("\n💡 PRIORITY RECOMMENDATIONS")
         dashboard.append("-" * 35)
 
-        critical_metrics = [m for m in self.metrics.values() if m.status == QualityStatus.CRITICAL]
+        critical_metrics = [
+            m for m in self.metrics.values() if m.status == QualityStatus.CRITICAL
+        ]
         if critical_metrics:
             dashboard.append("🔴 CRITICAL ACTIONS REQUIRED:")
             for metric in critical_metrics:
                 gap = metric.target_value - metric.current_value
-                dashboard.append(f"   • Improve {metric.name.lower()} by {gap:.1f}% to meet target")
+                dashboard.append(
+                    f"   • Improve {metric.name.lower()} by {gap:.1f}% to meet target"
+                )
 
-        warning_metrics = [m for m in self.metrics.values() if m.status == QualityStatus.WARNING]
+        warning_metrics = [
+            m for m in self.metrics.values() if m.status == QualityStatus.WARNING
+        ]
         if warning_metrics:
             dashboard.append("\n🟠 RECOMMENDED IMPROVEMENTS:")
             for metric in warning_metrics:
@@ -272,7 +316,9 @@ class AIQualityMonitor:
         if not self.metrics:
             return "❌ NO DATA"
 
-        critical_count = sum(1 for m in self.metrics.values() if m.status == QualityStatus.CRITICAL)
+        critical_count = sum(
+            1 for m in self.metrics.values() if m.status == QualityStatus.CRITICAL
+        )
         total_count = len(self.metrics)
 
         if critical_count > 0:
@@ -288,17 +334,22 @@ class AIQualityMonitor:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"ai_quality_dashboard_{timestamp}.txt"
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             f.write(dashboard_text)
 
         return filename
 
+
 def main():
     """Main entry point for AI Quality Monitoring Dashboard"""
-    parser = argparse.ArgumentParser(description="Generate AI Quality Monitoring Dashboard")
+    parser = argparse.ArgumentParser(
+        description="Generate AI Quality Monitoring Dashboard"
+    )
     parser.add_argument("--input", "-i", help="Input JSON file with AI testing results")
     parser.add_argument("--output", "-o", help="Output file for dashboard")
-    parser.add_argument("--format", "-f", choices=["text", "html"], default="text", help="Output format")
+    parser.add_argument(
+        "--format", "-f", choices=["text", "html"], default="text", help="Output format"
+    )
 
     args = parser.parse_args()
 
@@ -324,6 +375,7 @@ def main():
     # Also save with timestamp for historical tracking
     timestamped_file = monitor.save_dashboard(dashboard)
     print(f"📄 Dashboard archived as: {timestamped_file}")
+
 
 if __name__ == "__main__":
     main()

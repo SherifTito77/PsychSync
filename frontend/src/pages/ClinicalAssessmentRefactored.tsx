@@ -105,11 +105,13 @@ const ClinicalAssessment: React.FC = () => {
   const [showCrisisWarning, setShowCrisisWarning] = useState(false);
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | undefined;
+
     const loadAssessmentData = async () => {
       console.log('ClinicalAssessment: Loading assessment for tool:', tool);
 
       // Add timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         console.warn('ClinicalAssessment: Loading timeout, forcing loading to false');
         setLoading(false);
       }, 5000);
@@ -139,7 +141,7 @@ const ClinicalAssessment: React.FC = () => {
         console.error('ClinicalAssessment: Error loading assessment data:', error);
         setLoading(false);
       } finally {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
       }
 
       console.log('ClinicalAssessment: Loading completed');
@@ -147,6 +149,10 @@ const ClinicalAssessment: React.FC = () => {
     };
 
     loadAssessmentData();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [tool]);
 
   const handleResponse = (questionId: number | string, answer: string) => {
@@ -233,7 +239,7 @@ const ClinicalAssessment: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
         <Card className="max-w-md">
           <CardContent className="pt-6">
-            <Alert variant="error" title="Assessment Not Found">
+            <Alert variant="danger" title="Assessment Not Found">
               The requested assessment could not be loaded. Please try again or contact support.
             </Alert>
             <Button onClick={() => navigate('/clinical')} className="mt-4">

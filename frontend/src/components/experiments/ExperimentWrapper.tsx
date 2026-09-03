@@ -7,7 +7,7 @@ interface ExperimentWrapperProps {
   name: string;
   children: ReactNode;
   loadingComponent?: ReactNode;
-  renderAs?: 'div' | 'section' | 'span' | 'button';
+  renderAs?: 'div' | 'section' | 'span' | 'button' | 'h1' | 'h2' | 'h3' | 'p';
   className?: string;
   onVariantAssigned?: (variant: string) => void;
 }
@@ -96,17 +96,20 @@ export const CTAButtonExperiment: React.FC<{
 }> = ({ experimentName, onClick, variants, loadingComponent }) => {
   return (
     <ExperimentWrapper name={experimentName} loadingComponent={loadingComponent}>
-      {Object.entries(variants).map(([variantName, config]) => (
-        <Variant key={variantName} name={variantName}>
-          <button
-            onClick={onClick}
-            className={config.className}
-            data-variant={variantName}
-          >
-            {config.text}
-          </button>
-        </Variant>
-      ))}
+      {Object.entries(variants).map(([variantName, config]) => {
+        const buttonConfig = config as { className: string; text: string };
+        return (
+          <Variant key={variantName} name={variantName}>
+            <button
+              onClick={onClick}
+              className={buttonConfig.className}
+              data-variant={variantName}
+            >
+              {buttonConfig.text}
+            </button>
+          </Variant>
+        );
+      })}
     </ExperimentWrapper>
   );
 };
@@ -126,7 +129,7 @@ export const TextExperiment: React.FC<{
     <ExperimentWrapper name={experimentName} loadingComponent={loadingComponent} renderAs={renderAs}>
       {Object.entries(variants).map(([variantName, text]) => (
         <Variant key={variantName} name={variantName}>
-          {text}
+          {text as ReactNode}
         </Variant>
       ))}
     </ExperimentWrapper>
@@ -147,7 +150,7 @@ export const LayoutExperiment: React.FC<{
     <ExperimentWrapper name={experimentName} loadingComponent={loadingComponent}>
       {Object.entries(variants).map(([variantName, component]) => (
         <Variant key={variantName} name={variantName}>
-          {component}
+          {component as ReactNode}
         </Variant>
       ))}
     </ExperimentWrapper>

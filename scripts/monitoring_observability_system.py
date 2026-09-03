@@ -15,31 +15,33 @@ Implements:
 """
 
 import asyncio
+import json
+import logging
+import os
 import subprocess
 import sys
-import os
-import json
 import time
-import psutil
-import requests
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import psutil
+import requests
 import yaml
-import logging
 
 sys.path.append(str(Path(__file__).parent.parent))
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SystemMetrics:
     """System performance metrics"""
+
     timestamp: datetime
     cpu_percent: float
     memory_percent: float
@@ -50,9 +52,11 @@ class SystemMetrics:
     process_count: int
     load_average: List[float]
 
+
 @dataclass
 class ApplicationMetrics:
     """Application performance metrics"""
+
     timestamp: datetime
     response_time_p50: float
     response_time_p95: float
@@ -64,9 +68,11 @@ class ApplicationMetrics:
     cache_hit_rate: float
     queue_depth: int
 
+
 @dataclass
 class AlertRule:
     """Alert rule configuration"""
+
     name: str
     metric: str
     condition: str  # >, <, >=, <=, ==
@@ -77,9 +83,11 @@ class AlertRule:
     description: str
     notification_channels: List[str]
 
+
 @dataclass
 class HealthCheckResult:
     """Health check result"""
+
     service_name: str
     status: str  # HEALTHY, DEGRADED, UNHEALTHY
     response_time: float
@@ -87,9 +95,11 @@ class HealthCheckResult:
     checks_performed: List[Dict[str, Any]]
     issues: List[str]
 
+
 @dataclass
 class LogAnalysisResult:
     """Log analysis result"""
+
     timestamp_range: Tuple[datetime, datetime]
     total_lines: int
     error_count: int
@@ -99,14 +109,17 @@ class LogAnalysisResult:
     top_errors: List[Dict[str, Any]]
     performance_issues: List[Dict[str, Any]]
 
+
 @dataclass
 class DashboardConfiguration:
     """Dashboard configuration"""
+
     name: str
     description: str
     panels: List[Dict[str, Any]]
     refresh_interval: int  # seconds
     time_range: str  # 1h, 6h, 24h, 7d
+
 
 class MonitoringObservabilitySystem:
     """
@@ -125,29 +138,29 @@ class MonitoringObservabilitySystem:
         print("🔧 Setting up monitoring infrastructure...")
 
         setup_results = {
-            'prometheus': {'installed': False, 'issues': []},
-            'grafana': {'installed': False, 'issues': []},
-            'elasticsearch': {'installed': False, 'issues': []},
-            'kibana': {'installed': False, 'issues': []},
-            'alertmanager': {'installed': False, 'issues': []},
-            'jaeger': {'installed': False, 'issues': []}  # For distributed tracing
+            "prometheus": {"installed": False, "issues": []},
+            "grafana": {"installed": False, "issues": []},
+            "elasticsearch": {"installed": False, "issues": []},
+            "kibana": {"installed": False, "issues": []},
+            "alertmanager": {"installed": False, "issues": []},
+            "jaeger": {"installed": False, "issues": []},  # For distributed tracing
         }
 
         # Check and setup Prometheus
-        setup_results['prometheus'] = await self._setup_prometheus()
+        setup_results["prometheus"] = await self._setup_prometheus()
 
         # Check and setup Grafana
-        setup_results['grafana'] = await self._setup_grafana()
+        setup_results["grafana"] = await self._setup_grafana()
 
         # Check and setup ELK stack for logging
-        setup_results['elasticsearch'] = await self._setup_elasticsearch()
-        setup_results['kibana'] = await self._setup_kibana()
+        setup_results["elasticsearch"] = await self._setup_elasticsearch()
+        setup_results["kibana"] = await self._setup_kibana()
 
         # Setup Alertmanager
-        setup_results['alertmanager'] = await self._setup_alertmanager()
+        setup_results["alertmanager"] = await self._setup_alertmanager()
 
         # Setup Jaeger for distributed tracing
-        setup_results['jaeger'] = await self._setup_jaeger()
+        setup_results["jaeger"] = await self._setup_jaeger()
 
         return setup_results
 
@@ -163,17 +176,17 @@ class MonitoringObservabilitySystem:
             memory_available_gb = memory.available / (1024**3)
 
             # Disk metrics
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             disk_usage_percent = disk.percent
             disk_available_gb = disk.free / (1024**3)
 
             # Network I/O
             network = psutil.net_io_counters()
             network_io = {
-                'bytes_sent': network.bytes_sent,
-                'bytes_recv': network.bytes_recv,
-                'packets_sent': network.packets_sent,
-                'packets_recv': network.packets_recv
+                "bytes_sent": network.bytes_sent,
+                "bytes_recv": network.bytes_recv,
+                "packets_sent": network.packets_sent,
+                "packets_recv": network.packets_recv,
             }
 
             # Process count
@@ -194,7 +207,7 @@ class MonitoringObservabilitySystem:
                 disk_available_gb=disk_available_gb,
                 network_io=network_io,
                 process_count=process_count,
-                load_average=load_average
+                load_average=load_average,
             )
 
         except Exception as e:
@@ -208,7 +221,7 @@ class MonitoringObservabilitySystem:
                 disk_available_gb=0.0,
                 network_io={},
                 process_count=0,
-                load_average=[0.0, 0.0, 0.0]
+                load_average=[0.0, 0.0, 0.0],
             )
 
     async def collect_application_metrics(self) -> ApplicationMetrics:
@@ -228,7 +241,7 @@ class MonitoringObservabilitySystem:
                 active_connections=0,
                 database_connections=0,
                 cache_hit_rate=0.0,
-                queue_depth=0
+                queue_depth=0,
             )
 
             try:
@@ -255,7 +268,7 @@ class MonitoringObservabilitySystem:
                 active_connections=0,
                 database_connections=0,
                 cache_hit_rate=0.0,
-                queue_depth=0
+                queue_depth=0,
             )
 
     async def configure_alert_rules(self) -> List[AlertRule]:
@@ -273,7 +286,7 @@ class MonitoringObservabilitySystem:
                 duration_minutes=5,
                 enabled=True,
                 description="CPU usage is above 80% for 5 minutes",
-                notification_channels=["email", "slack"]
+                notification_channels=["email", "slack"],
             ),
             AlertRule(
                 name="High Memory Usage",
@@ -284,7 +297,7 @@ class MonitoringObservabilitySystem:
                 duration_minutes=5,
                 enabled=True,
                 description="Memory usage is above 85% for 5 minutes",
-                notification_channels=["email", "slack"]
+                notification_channels=["email", "slack"],
             ),
             AlertRule(
                 name="Low Disk Space",
@@ -295,9 +308,8 @@ class MonitoringObservabilitySystem:
                 duration_minutes=2,
                 enabled=True,
                 description="Disk usage is above 90%",
-                notification_channels=["email", "slack", "pagerduty"]
+                notification_channels=["email", "slack", "pagerduty"],
             ),
-
             # Application alerts
             AlertRule(
                 name="High Error Rate",
@@ -308,7 +320,7 @@ class MonitoringObservabilitySystem:
                 duration_minutes=3,
                 enabled=True,
                 description="Application error rate is above 5%",
-                notification_channels=["email", "slack"]
+                notification_channels=["email", "slack"],
             ),
             AlertRule(
                 name="Slow Response Time",
@@ -319,7 +331,7 @@ class MonitoringObservabilitySystem:
                 duration_minutes=5,
                 enabled=True,
                 description="95th percentile response time is above 1 second",
-                notification_channels=["slack"]
+                notification_channels=["slack"],
             ),
             AlertRule(
                 name="Service Unavailable",
@@ -330,9 +342,8 @@ class MonitoringObservabilitySystem:
                 duration_minutes=1,
                 enabled=True,
                 description="Service health check is failing",
-                notification_channels=["email", "slack", "pagerduty"]
+                notification_channels=["email", "slack", "pagerduty"],
             ),
-
             # Database alerts
             AlertRule(
                 name="Database Connection Issues",
@@ -343,7 +354,7 @@ class MonitoringObservabilitySystem:
                 duration_minutes=3,
                 enabled=True,
                 description="Database connections are above 80% of pool",
-                notification_channels=["slack"]
+                notification_channels=["slack"],
             ),
             AlertRule(
                 name="Low Cache Hit Rate",
@@ -354,8 +365,8 @@ class MonitoringObservabilitySystem:
                 duration_minutes=10,
                 enabled=True,
                 description="Cache hit rate is below 70%",
-                notification_channels=["slack"]
-            )
+                notification_channels=["slack"],
+            ),
         ]
 
         self.alert_rules = alert_rules
@@ -367,41 +378,41 @@ class MonitoringObservabilitySystem:
 
         health_checks = [
             {
-                'name': 'Application Health',
-                'endpoint': 'http://localhost:8000/api/v1/health',
-                'method': 'GET',
-                'expected_status': 200,
-                'timeout_seconds': 10,
-                'check_interval': 30,
-                'description': 'Main application health endpoint'
+                "name": "Application Health",
+                "endpoint": "http://localhost:8000/api/v1/health",
+                "method": "GET",
+                "expected_status": 200,
+                "timeout_seconds": 10,
+                "check_interval": 30,
+                "description": "Main application health endpoint",
             },
             {
-                'name': 'Database Health',
-                'endpoint': 'http://localhost:8000/api/v1/health/db',
-                'method': 'GET',
-                'expected_status': 200,
-                'timeout_seconds': 5,
-                'check_interval': 60,
-                'description': 'Database connectivity check'
+                "name": "Database Health",
+                "endpoint": "http://localhost:8000/api/v1/health/db",
+                "method": "GET",
+                "expected_status": 200,
+                "timeout_seconds": 5,
+                "check_interval": 60,
+                "description": "Database connectivity check",
             },
             {
-                'name': 'Redis Health',
-                'endpoint': 'http://localhost:8000/api/v1/health/redis',
-                'method': 'GET',
-                'expected_status': 200,
-                'timeout_seconds': 5,
-                'check_interval': 60,
-                'description': 'Redis connectivity check'
+                "name": "Redis Health",
+                "endpoint": "http://localhost:8000/api/v1/health/redis",
+                "method": "GET",
+                "expected_status": 200,
+                "timeout_seconds": 5,
+                "check_interval": 60,
+                "description": "Redis connectivity check",
             },
             {
-                'name': 'External API Health',
-                'endpoint': 'https://api.example.com/health',
-                'method': 'GET',
-                'expected_status': 200,
-                'timeout_seconds': 10,
-                'check_interval': 120,
-                'description': 'External API dependency check'
-            }
+                "name": "External API Health",
+                "endpoint": "https://api.example.com/health",
+                "method": "GET",
+                "expected_status": 200,
+                "timeout_seconds": 10,
+                "check_interval": 120,
+                "description": "External API dependency check",
+            },
         ]
 
         self.health_checks = health_checks
@@ -417,18 +428,26 @@ class MonitoringObservabilitySystem:
             try:
                 result = await self._execute_health_check(check)
                 health_results.append(result)
-                status_icon = '✅' if result.status == 'HEALTHY' else '⚠️' if result.status == 'DEGRADED' else '❌'
-                print(f"  {status_icon} {result.service_name}: {result.status} ({result.response_time:.2f}s)")
+                status_icon = (
+                    "✅"
+                    if result.status == "HEALTHY"
+                    else "⚠️" if result.status == "DEGRADED" else "❌"
+                )
+                print(
+                    f"  {status_icon} {result.service_name}: {result.status} ({result.response_time:.2f}s)"
+                )
             except Exception as e:
                 logger.error(f"Health check failed for {check['name']}: {e}")
-                health_results.append(HealthCheckResult(
-                    service_name=check['name'],
-                    status='UNHEALTHY',
-                    response_time=0.0,
-                    last_check=datetime.now(),
-                    checks_performed=[],
-                    issues=[f"Health check failed: {e}"]
-                ))
+                health_results.append(
+                    HealthCheckResult(
+                        service_name=check["name"],
+                        status="UNHEALTHY",
+                        response_time=0.0,
+                        last_check=datetime.now(),
+                        checks_performed=[],
+                        issues=[f"Health check failed: {e}"],
+                    )
+                )
 
         return health_results
 
@@ -453,26 +472,30 @@ class MonitoringObservabilitySystem:
 
             for log_file in log_files:
                 try:
-                    file_analysis = await self._analyze_log_file(log_file, start_time, end_time)
-                    total_lines += file_analysis['total_lines']
-                    error_count += file_analysis['error_count']
-                    warning_count += file_analysis['warning_count']
-                    critical_errors.extend(file_analysis['critical_errors'])
+                    file_analysis = await self._analyze_log_file(
+                        log_file, start_time, end_time
+                    )
+                    total_lines += file_analysis["total_lines"]
+                    error_count += file_analysis["error_count"]
+                    warning_count += file_analysis["warning_count"]
+                    critical_errors.extend(file_analysis["critical_errors"])
 
                     # Merge error patterns
-                    for pattern, count in file_analysis['error_patterns'].items():
+                    for pattern, count in file_analysis["error_patterns"].items():
                         error_patterns[pattern] = error_patterns.get(pattern, 0) + count
 
-                    top_errors.extend(file_analysis['top_errors'])
-                    performance_issues.extend(file_analysis['performance_issues'])
+                    top_errors.extend(file_analysis["top_errors"])
+                    performance_issues.extend(file_analysis["performance_issues"])
 
                 except Exception as e:
                     logger.error(f"Error analyzing log file {log_file}: {e}")
 
             # Sort and limit results
-            critical_errors.sort(key=lambda x: x.get('severity', 'MEDIUM'), reverse=True)
-            top_errors.sort(key=lambda x: x.get('count', 0), reverse=True)
-            performance_issues.sort(key=lambda x: x.get('impact', 'LOW'), reverse=True)
+            critical_errors.sort(
+                key=lambda x: x.get("severity", "MEDIUM"), reverse=True
+            )
+            top_errors.sort(key=lambda x: x.get("count", 0), reverse=True)
+            performance_issues.sort(key=lambda x: x.get("impact", "LOW"), reverse=True)
 
             return LogAnalysisResult(
                 timestamp_range=(start_time, end_time),
@@ -482,7 +505,7 @@ class MonitoringObservabilitySystem:
                 critical_errors=critical_errors[:10],
                 error_patterns=error_patterns,
                 top_errors=top_errors[:20],
-                performance_issues=performance_issues[:10]
+                performance_issues=performance_issues[:10],
             )
 
         except Exception as e:
@@ -495,7 +518,7 @@ class MonitoringObservabilitySystem:
                 critical_errors=[],
                 error_patterns={},
                 top_errors=[],
-                performance_issues=[]
+                performance_issues=[],
             )
 
     async def create_dashboards(self) -> List[DashboardConfiguration]:
@@ -510,32 +533,32 @@ class MonitoringObservabilitySystem:
             description="Overall system health and performance",
             panels=[
                 {
-                    'title': 'CPU Usage',
-                    'type': 'stat',
-                    'metrics': ['cpu_percent'],
-                    'unit': 'percent'
+                    "title": "CPU Usage",
+                    "type": "stat",
+                    "metrics": ["cpu_percent"],
+                    "unit": "percent",
                 },
                 {
-                    'title': 'Memory Usage',
-                    'type': 'stat',
-                    'metrics': ['memory_percent'],
-                    'unit': 'percent'
+                    "title": "Memory Usage",
+                    "type": "stat",
+                    "metrics": ["memory_percent"],
+                    "unit": "percent",
                 },
                 {
-                    'title': 'Disk Usage',
-                    'type': 'stat',
-                    'metrics': ['disk_usage_percent'],
-                    'unit': 'percent'
+                    "title": "Disk Usage",
+                    "type": "stat",
+                    "metrics": ["disk_usage_percent"],
+                    "unit": "percent",
                 },
                 {
-                    'title': 'Network I/O',
-                    'type': 'graph',
-                    'metrics': ['network_io_bytes_sent', 'network_io_bytes_recv'],
-                    'unit': 'bytes'
-                }
+                    "title": "Network I/O",
+                    "type": "graph",
+                    "metrics": ["network_io_bytes_sent", "network_io_bytes_recv"],
+                    "unit": "bytes",
+                },
             ],
             refresh_interval=30,
-            time_range='1h'
+            time_range="1h",
         )
         dashboards.append(system_dashboard)
 
@@ -545,32 +568,36 @@ class MonitoringObservabilitySystem:
             description="Application performance metrics and health",
             panels=[
                 {
-                    'title': 'Response Time Percentiles',
-                    'type': 'graph',
-                    'metrics': ['response_time_p50', 'response_time_p95', 'response_time_p99'],
-                    'unit': 'milliseconds'
+                    "title": "Response Time Percentiles",
+                    "type": "graph",
+                    "metrics": [
+                        "response_time_p50",
+                        "response_time_p95",
+                        "response_time_p99",
+                    ],
+                    "unit": "milliseconds",
                 },
                 {
-                    'title': 'Request Rate',
-                    'type': 'graph',
-                    'metrics': ['requests_per_second'],
-                    'unit': 'requests/sec'
+                    "title": "Request Rate",
+                    "type": "graph",
+                    "metrics": ["requests_per_second"],
+                    "unit": "requests/sec",
                 },
                 {
-                    'title': 'Error Rate',
-                    'type': 'graph',
-                    'metrics': ['error_rate'],
-                    'unit': 'percent'
+                    "title": "Error Rate",
+                    "type": "graph",
+                    "metrics": ["error_rate"],
+                    "unit": "percent",
                 },
                 {
-                    'title': 'Active Connections',
-                    'type': 'stat',
-                    'metrics': ['active_connections'],
-                    'unit': 'count'
-                }
+                    "title": "Active Connections",
+                    "type": "stat",
+                    "metrics": ["active_connections"],
+                    "unit": "count",
+                },
             ],
             refresh_interval=15,
-            time_range='1h'
+            time_range="1h",
         )
         dashboards.append(app_dashboard)
 
@@ -580,26 +607,26 @@ class MonitoringObservabilitySystem:
             description="Database performance and connection metrics",
             panels=[
                 {
-                    'title': 'Database Connections',
-                    'type': 'stat',
-                    'metrics': ['database_connections'],
-                    'unit': 'count'
+                    "title": "Database Connections",
+                    "type": "stat",
+                    "metrics": ["database_connections"],
+                    "unit": "count",
                 },
                 {
-                    'title': 'Query Performance',
-                    'type': 'graph',
-                    'metrics': ['avg_query_time', 'slow_queries'],
-                    'unit': 'milliseconds'
+                    "title": "Query Performance",
+                    "type": "graph",
+                    "metrics": ["avg_query_time", "slow_queries"],
+                    "unit": "milliseconds",
                 },
                 {
-                    'title': 'Cache Hit Rate',
-                    'type': 'stat',
-                    'metrics': ['cache_hit_rate'],
-                    'unit': 'percent'
-                }
+                    "title": "Cache Hit Rate",
+                    "type": "stat",
+                    "metrics": ["cache_hit_rate"],
+                    "unit": "percent",
+                },
             ],
             refresh_interval=60,
-            time_range='6h'
+            time_range="6h",
         )
         dashboards.append(db_dashboard)
 
@@ -609,26 +636,26 @@ class MonitoringObservabilitySystem:
             description="Application errors and issues",
             panels=[
                 {
-                    'title': 'Error Rate',
-                    'type': 'graph',
-                    'metrics': ['error_rate'],
-                    'unit': 'percent'
+                    "title": "Error Rate",
+                    "type": "graph",
+                    "metrics": ["error_rate"],
+                    "unit": "percent",
                 },
                 {
-                    'title': 'Top Errors',
-                    'type': 'table',
-                    'metrics': ['error_counts'],
-                    'unit': 'count'
+                    "title": "Top Errors",
+                    "type": "table",
+                    "metrics": ["error_counts"],
+                    "unit": "count",
                 },
                 {
-                    'title': 'Critical Errors',
-                    'type': 'table',
-                    'metrics': ['critical_error_count'],
-                    'unit': 'count'
-                }
+                    "title": "Critical Errors",
+                    "type": "table",
+                    "metrics": ["critical_error_count"],
+                    "unit": "count",
+                },
             ],
             refresh_interval=30,
-            time_range='24h'
+            time_range="24h",
         )
         dashboards.append(error_dashboard)
 
@@ -654,9 +681,16 @@ class MonitoringObservabilitySystem:
         system_health_score = self._calculate_system_health_score(system_metrics)
         app_health_score = self._calculate_app_health_score(app_metrics)
         log_health_score = self._calculate_log_health_score(log_analysis)
-        infrastructure_health_score = self._calculate_infrastructure_health_score(infrastructure_setup)
+        infrastructure_health_score = self._calculate_infrastructure_health_score(
+            infrastructure_setup
+        )
 
-        overall_score = (system_health_score + app_health_score + log_health_score + infrastructure_health_score) / 4
+        overall_score = (
+            system_health_score
+            + app_health_score
+            + log_health_score
+            + infrastructure_health_score
+        ) / 4
 
         # Generate recommendations
         recommendations = []
@@ -668,11 +702,17 @@ class MonitoringObservabilitySystem:
             recommendations.append("Investigate high CPU usage and consider scaling")
 
         if system_metrics.memory_percent > 85:
-            critical_issues.append(f"High memory usage: {system_metrics.memory_percent:.1f}%")
-            recommendations.append("Monitor memory usage and optimize memory-intensive processes")
+            critical_issues.append(
+                f"High memory usage: {system_metrics.memory_percent:.1f}%"
+            )
+            recommendations.append(
+                "Monitor memory usage and optimize memory-intensive processes"
+            )
 
         if system_metrics.disk_usage_percent > 90:
-            critical_issues.append(f"Low disk space: {system_metrics.disk_usage_percent:.1f}% used")
+            critical_issues.append(
+                f"Low disk space: {system_metrics.disk_usage_percent:.1f}% used"
+            )
             recommendations.append("Clean up disk space and monitor storage growth")
 
         # Application recommendations
@@ -681,139 +721,145 @@ class MonitoringObservabilitySystem:
             recommendations.append("Investigate and fix application errors")
 
         if app_metrics.response_time_p95 > 1000:
-            recommendations.append(f"Optimize slow responses: P95 at {app_metrics.response_time_p95:.1f}ms")
+            recommendations.append(
+                f"Optimize slow responses: P95 at {app_metrics.response_time_p95:.1f}ms"
+            )
 
         # Health check recommendations
-        unhealthy_services = [h for h in health_results if h.status != 'HEALTHY']
+        unhealthy_services = [h for h in health_results if h.status != "HEALTHY"]
         if unhealthy_services:
             critical_issues.append(f"{len(unhealthy_services)} services are unhealthy")
             recommendations.append("Address unhealthy services immediately")
 
         # Log analysis recommendations
         if log_analysis.critical_errors:
-            recommendations.append(f"Address {len(log_analysis.critical_errors)} critical errors from logs")
+            recommendations.append(
+                f"Address {len(log_analysis.critical_errors)} critical errors from logs"
+            )
 
         return {
-            'timestamp': datetime.now().isoformat(),
-            'overall_health_score': overall_score,
-            'health_grade': self._get_health_grade(overall_score),
-            'component_scores': {
-                'system': system_health_score,
-                'application': app_health_score,
-                'logs': log_health_score,
-                'infrastructure': infrastructure_health_score
+            "timestamp": datetime.now().isoformat(),
+            "overall_health_score": overall_score,
+            "health_grade": self._get_health_grade(overall_score),
+            "component_scores": {
+                "system": system_health_score,
+                "application": app_health_score,
+                "logs": log_health_score,
+                "infrastructure": infrastructure_health_score,
             },
-            'current_metrics': {
-                'system': asdict(system_metrics),
-                'application': asdict(app_metrics)
+            "current_metrics": {
+                "system": asdict(system_metrics),
+                "application": asdict(app_metrics),
             },
-            'health_checks': [asdict(h) for h in health_results],
-            'log_analysis': asdict(log_analysis),
-            'infrastructure_setup': infrastructure_setup,
-            'alert_rules_count': len([r for r in alert_rules if r.enabled]),
-            'dashboards_count': len(dashboards),
-            'critical_issues': critical_issues,
-            'recommendations': recommendations,
-            'monitoring_complete': overall_score >= 80 and len(critical_issues) == 0
+            "health_checks": [asdict(h) for h in health_results],
+            "log_analysis": asdict(log_analysis),
+            "infrastructure_setup": infrastructure_setup,
+            "alert_rules_count": len([r for r in alert_rules if r.enabled]),
+            "dashboards_count": len(dashboards),
+            "critical_issues": critical_issues,
+            "recommendations": recommendations,
+            "monitoring_complete": overall_score >= 80 and len(critical_issues) == 0,
         }
 
     async def _setup_prometheus(self) -> Dict[str, Any]:
         """Setup Prometheus monitoring"""
-        result = {'installed': False, 'issues': []}
+        result = {"installed": False, "issues": []}
 
         try:
             # Check if Prometheus is running
             response = requests.get("http://localhost:9090/-/healthy", timeout=5)
             if response.status_code == 200:
-                result['installed'] = True
+                result["installed"] = True
             else:
-                result['issues'].append("Prometheus is not healthy")
+                result["issues"].append("Prometheus is not healthy")
         except requests.RequestException:
-            result['issues'].append("Prometheus is not accessible at localhost:9090")
+            result["issues"].append("Prometheus is not accessible at localhost:9090")
 
         return result
 
     async def _setup_grafana(self) -> Dict[str, Any]:
         """Setup Grafana dashboards"""
-        result = {'installed': False, 'issues': []}
+        result = {"installed": False, "issues": []}
 
         try:
             # Check if Grafana is running
             response = requests.get("http://localhost:3000/api/health", timeout=5)
             if response.status_code == 200:
-                result['installed'] = True
+                result["installed"] = True
             else:
-                result['issues'].append("Grafana is not healthy")
+                result["issues"].append("Grafana is not healthy")
         except requests.RequestException:
-            result['issues'].append("Grafana is not accessible at localhost:3000")
+            result["issues"].append("Grafana is not accessible at localhost:3000")
 
         return result
 
     async def _setup_elasticsearch(self) -> Dict[str, Any]:
         """Setup Elasticsearch for log aggregation"""
-        result = {'installed': False, 'issues': []}
+        result = {"installed": False, "issues": []}
 
         try:
             # Check if Elasticsearch is running
             response = requests.get("http://localhost:9200/_cluster/health", timeout=5)
             if response.status_code == 200:
                 health = response.json()
-                if health.get('status') in ['yellow', 'green']:
-                    result['installed'] = True
+                if health.get("status") in ["yellow", "green"]:
+                    result["installed"] = True
                 else:
-                    result['issues'].append(f"Elasticsearch cluster status: {health.get('status')}")
+                    result["issues"].append(
+                        f"Elasticsearch cluster status: {health.get('status')}"
+                    )
             else:
-                result['issues'].append("Elasticsearch is not healthy")
+                result["issues"].append("Elasticsearch is not healthy")
         except requests.RequestException:
-            result['issues'].append("Elasticsearch is not accessible at localhost:9200")
+            result["issues"].append("Elasticsearch is not accessible at localhost:9200")
 
         return result
 
     async def _setup_kibana(self) -> Dict[str, Any]:
         """Setup Kibana for log visualization"""
-        result = {'installed': False, 'issues': []}
+        result = {"installed": False, "issues": []}
 
         try:
             # Check if Kibana is running
             response = requests.get("http://localhost:5601/api/status", timeout=5)
             if response.status_code == 200:
-                result['installed'] = True
+                result["installed"] = True
             else:
-                result['issues'].append("Kibana is not healthy")
+                result["issues"].append("Kibana is not healthy")
         except requests.RequestException:
-            result['issues'].append("Kibana is not accessible at localhost:5601")
+            result["issues"].append("Kibana is not accessible at localhost:5601")
 
         return result
 
     async def _setup_alertmanager(self) -> Dict[str, Any]:
         """Setup Alertmanager for alerting"""
-        result = {'installed': False, 'issues': []}
+        result = {"installed": False, "issues": []}
 
         try:
             # Check if Alertmanager is running
             response = requests.get("http://localhost:9093/-/healthy", timeout=5)
             if response.status_code == 200:
-                result['installed'] = True
+                result["installed"] = True
             else:
-                result['issues'].append("Alertmanager is not healthy")
+                result["issues"].append("Alertmanager is not healthy")
         except requests.RequestException:
-            result['issues'].append("Alertmanager is not accessible at localhost:9093")
+            result["issues"].append("Alertmanager is not accessible at localhost:9093")
 
         return result
 
     async def _setup_jaeger(self) -> Dict[str, Any]:
         """Setup Jaeger for distributed tracing"""
-        result = {'installed': False, 'issues': []}
+        result = {"installed": False, "issues": []}
 
         try:
             # Check if Jaeger is running
             response = requests.get("http://localhost:16686/api/services", timeout=5)
             if response.status_code == 200:
-                result['installed'] = True
+                result["installed"] = True
             else:
-                result['issues'].append("Jaeger is not healthy")
+                result["issues"].append("Jaeger is not healthy")
         except requests.RequestException:
-            result['issues'].append("Jaeger is not accessible at localhost:16686")
+            result["issues"].append("Jaeger is not accessible at localhost:16686")
 
         return result
 
@@ -829,10 +875,10 @@ class MonitoringObservabilitySystem:
             active_connections=0,
             database_connections=0,
             cache_hit_rate=0.0,
-            queue_depth=0
+            queue_depth=0,
         )
 
-        lines = metrics_text.split('\n')
+        lines = metrics_text.split("\n")
         for line in lines:
             if line.startswith('http_request_duration_seconds_bucket{le="0.5"}'):
                 # P50 approximation
@@ -846,7 +892,7 @@ class MonitoringObservabilitySystem:
                 # P99 approximation
                 value = float(line.split()[-1])
                 app_metrics.response_time_p99 = value * 1000
-            elif line.startswith('http_requests_total'):
+            elif line.startswith("http_requests_total"):
                 value = float(line.split()[-1])
                 # Calculate RPS (simplified)
                 app_metrics.requests_per_second = value / 3600  # Rough estimate
@@ -862,35 +908,35 @@ class MonitoringObservabilitySystem:
 
         try:
             response = requests.request(
-                method=check['method'],
-                url=check['endpoint'],
-                timeout=check['timeout_seconds']
+                method=check["method"],
+                url=check["endpoint"],
+                timeout=check["timeout_seconds"],
             )
 
             response_time = (time.time() - start_time) * 1000  # Convert to ms
 
             # Determine status
-            if response.status_code == check['expected_status']:
-                status = 'HEALTHY'
+            if response.status_code == check["expected_status"]:
+                status = "HEALTHY"
             elif response.status_code >= 500:
-                status = 'UNHEALTHY'
+                status = "UNHEALTHY"
             else:
-                status = 'DEGRADED'
+                status = "DEGRADED"
 
             # Check specific health indicators
             checks_performed = [
                 {
-                    'name': 'HTTP Status',
-                    'expected': check['expected_status'],
-                    'actual': response.status_code,
-                    'passed': response.status_code == check['expected_status']
+                    "name": "HTTP Status",
+                    "expected": check["expected_status"],
+                    "actual": response.status_code,
+                    "passed": response.status_code == check["expected_status"],
                 },
                 {
-                    'name': 'Response Time',
-                    'expected': f"< {check['timeout_seconds']}s",
-                    'actual': f"{response_time:.2f}ms",
-                    'passed': response_time < (check['timeout_seconds'] * 1000)
-                }
+                    "name": "Response Time",
+                    "expected": f"< {check['timeout_seconds']}s",
+                    "actual": f"{response_time:.2f}ms",
+                    "passed": response_time < (check["timeout_seconds"] * 1000),
+                },
             ]
 
             # Parse response body if JSON
@@ -898,118 +944,143 @@ class MonitoringObservabilitySystem:
             try:
                 response_data = response.json()
                 if isinstance(response_data, dict):
-                    if 'status' in response_data and response_data['status'] != 'healthy':
-                        issues.append(f"Service reports status: {response_data['status']}")
-                    if 'checks' in response_data:
-                        for check_name, check_result in response_data['checks'].items():
-                            if not check_result.get('passed', True):
-                                issues.append(f"{check_name}: {check_result.get('message', 'Failed')}")
-            except:
+                    if (
+                        "status" in response_data
+                        and response_data["status"] != "healthy"
+                    ):
+                        issues.append(
+                            f"Service reports status: {response_data['status']}"
+                        )
+                    if "checks" in response_data:
+                        for check_name, check_result in response_data["checks"].items():
+                            if not check_result.get("passed", True):
+                                issues.append(
+                                    f"{check_name}: {check_result.get('message', 'Failed')}"
+                                )
+            except Exception as e:
                 pass
 
-            if status == 'UNHEALTHY' and not issues:
+            if status == "UNHEALTHY" and not issues:
                 issues.append(f"HTTP {response.status_code} response")
 
             return HealthCheckResult(
-                service_name=check['name'],
+                service_name=check["name"],
                 status=status,
                 response_time=response_time,
                 last_check=datetime.now(),
                 checks_performed=checks_performed,
-                issues=issues
+                issues=issues,
             )
 
         except requests.RequestException as e:
             response_time = (time.time() - start_time) * 1000
 
             return HealthCheckResult(
-                service_name=check['name'],
-                status='UNHEALTHY',
+                service_name=check["name"],
+                status="UNHEALTHY",
                 response_time=response_time,
                 last_check=datetime.now(),
                 checks_performed=[],
-                issues=[f"Request failed: {str(e)}"]
+                issues=[f"Request failed: {str(e)}"],
             )
 
     def _find_log_files(self) -> List[str]:
         """Find application log files"""
         log_files = []
         log_directories = [
-            'logs/',
-            'app/logs/',
-            '/var/log/psychsync/',
-            os.path.join(self.project_root, 'logs')
+            "logs/",
+            "app/logs/",
+            "/var/log/psychsync/",
+            os.path.join(self.project_root, "logs"),
         ]
 
         for log_dir in log_directories:
             if os.path.exists(log_dir):
                 for root, dirs, files in os.walk(log_dir):
                     for file in files:
-                        if file.endswith(('.log', '.out', '.err')):
+                        if file.endswith((".log", ".out", ".err")):
                             log_files.append(os.path.join(root, file))
 
         return log_files
 
-    async def _analyze_log_file(self, log_file: str, start_time: datetime, end_time: datetime) -> Dict[str, Any]:
+    async def _analyze_log_file(
+        self, log_file: str, start_time: datetime, end_time: datetime
+    ) -> Dict[str, Any]:
         """Analyze a single log file"""
         analysis = {
-            'total_lines': 0,
-            'error_count': 0,
-            'warning_count': 0,
-            'critical_errors': [],
-            'error_patterns': {},
-            'top_errors': [],
-            'performance_issues': []
+            "total_lines": 0,
+            "error_count": 0,
+            "warning_count": 0,
+            "critical_errors": [],
+            "error_patterns": {},
+            "top_errors": [],
+            "performance_issues": [],
         }
 
         try:
-            with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
                 for line in f:
-                    analysis['total_lines'] += 1
+                    analysis["total_lines"] += 1
 
                     # Simple timestamp checking (would need better parsing in production)
                     if self._is_log_line_in_range(line, start_time, end_time):
                         # Count error levels
-                        if any(level in line.upper() for level in ['ERROR', 'FATAL', 'CRITICAL']):
-                            analysis['error_count'] += 1
+                        if any(
+                            level in line.upper()
+                            for level in ["ERROR", "FATAL", "CRITICAL"]
+                        ):
+                            analysis["error_count"] += 1
 
                             # Extract error patterns
                             error_pattern = self._extract_error_pattern(line)
                             if error_pattern:
-                                analysis['error_patterns'][error_pattern] = analysis['error_patterns'].get(error_pattern, 0) + 1
+                                analysis["error_patterns"][error_pattern] = (
+                                    analysis["error_patterns"].get(error_pattern, 0) + 1
+                                )
 
                             # Check for critical errors
-                            if any(critical in line.upper() for critical in ['CRITICAL', 'FATAL', 'OUT_OF_MEMORY']):
-                                analysis['critical_errors'].append({
-                                    'timestamp': datetime.now().isoformat(),
-                                    'message': line.strip(),
-                                    'severity': 'CRITICAL'
-                                })
+                            if any(
+                                critical in line.upper()
+                                for critical in ["CRITICAL", "FATAL", "OUT_OF_MEMORY"]
+                            ):
+                                analysis["critical_errors"].append(
+                                    {
+                                        "timestamp": datetime.now().isoformat(),
+                                        "message": line.strip(),
+                                        "severity": "CRITICAL",
+                                    }
+                                )
 
-                        elif any(level in line.upper() for level in ['WARNING', 'WARN']):
-                            analysis['warning_count'] += 1
+                        elif any(
+                            level in line.upper() for level in ["WARNING", "WARN"]
+                        ):
+                            analysis["warning_count"] += 1
 
                         # Check for performance issues
-                        if any(perf in line.upper() for perf in ['TIMEOUT', 'SLOW_QUERY', 'HIGH_LATENCY']):
-                            analysis['performance_issues'].append({
-                                'timestamp': datetime.now().isoformat(),
-                                'message': line.strip(),
-                                'impact': 'MEDIUM'
-                            })
+                        if any(
+                            perf in line.upper()
+                            for perf in ["TIMEOUT", "SLOW_QUERY", "HIGH_LATENCY"]
+                        ):
+                            analysis["performance_issues"].append(
+                                {
+                                    "timestamp": datetime.now().isoformat(),
+                                    "message": line.strip(),
+                                    "impact": "MEDIUM",
+                                }
+                            )
 
         except Exception as e:
             logger.error(f"Error analyzing log file {log_file}: {e}")
 
         # Convert error patterns to top errors
-        for pattern, count in analysis['error_patterns'].items():
-            analysis['top_errors'].append({
-                'pattern': pattern,
-                'count': count
-            })
+        for pattern, count in analysis["error_patterns"].items():
+            analysis["top_errors"].append({"pattern": pattern, "count": count})
 
         return analysis
 
-    def _is_log_line_in_range(self, line: str, start_time: datetime, end_time: datetime) -> bool:
+    def _is_log_line_in_range(
+        self, line: str, start_time: datetime, end_time: datetime
+    ) -> bool:
         """Check if log line timestamp is within range"""
         # Simplified timestamp checking - would need proper log parser in production
         return True
@@ -1017,16 +1088,16 @@ class MonitoringObservabilitySystem:
     def _extract_error_pattern(self, line: str) -> Optional[str]:
         """Extract error pattern from log line"""
         # Simple pattern extraction - would need more sophisticated parsing
-        if 'Exception' in line:
-            return 'Exception'
-        elif 'Connection' in line and 'failed' in line.lower():
-            return 'Connection Error'
-        elif 'Timeout' in line:
-            return 'Timeout'
-        elif '404' in line or 'Not Found' in line:
-            return '404 Error'
-        elif '500' in line or 'Internal Server Error' in line:
-            return '500 Error'
+        if "Exception" in line:
+            return "Exception"
+        elif "Connection" in line and "failed" in line.lower():
+            return "Connection Error"
+        elif "Timeout" in line:
+            return "Timeout"
+        elif "404" in line or "Not Found" in line:
+            return "404 Error"
+        elif "500" in line or "Internal Server Error" in line:
+            return "500 Error"
         return None
 
     def _calculate_system_health_score(self, metrics: SystemMetrics) -> float:
@@ -1141,22 +1212,27 @@ class MonitoringObservabilitySystem:
     def _calculate_infrastructure_health_score(self, setup: Dict[str, Any]) -> float:
         """Calculate infrastructure health score"""
         total_components = len(setup)
-        healthy_components = sum(1 for component in setup.values() if component['installed'])
+        healthy_components = sum(
+            1 for component in setup.values() if component["installed"]
+        )
 
-        return (healthy_components / total_components) * 100 if total_components > 0 else 0
+        return (
+            (healthy_components / total_components) * 100 if total_components > 0 else 0
+        )
 
     def _get_health_grade(self, score: float) -> str:
         """Get health grade from score"""
         if score >= 95:
-            return 'EXCELLENT'
+            return "EXCELLENT"
         elif score >= 85:
-            return 'GOOD'
+            return "GOOD"
         elif score >= 70:
-            return 'FAIR'
+            return "FAIR"
         elif score >= 50:
-            return 'POOR'
+            return "POOR"
         else:
-            return 'CRITICAL'
+            return "CRITICAL"
+
 
 async def main():
     """Main execution function"""
@@ -1170,23 +1246,25 @@ async def main():
         report = await monitoring_system.generate_monitoring_report()
 
         # Display results
-        print(f"\n📊 Overall System Health Score: {report['overall_health_score']:.1f}/100")
+        print(
+            f"\n📊 Overall System Health Score: {report['overall_health_score']:.1f}/100"
+        )
         print(f"📈 Health Grade: {report['health_grade']}")
 
         print(f"\n📊 Component Health Scores:")
-        for component, score in report['component_scores'].items():
+        for component, score in report["component_scores"].items():
             print(f"   {component.capitalize()}: {score:.1f}/100")
 
         # Display current metrics
         print(f"\n💻 Current System Metrics:")
-        sys_metrics = report['current_metrics']['system']
+        sys_metrics = report["current_metrics"]["system"]
         print(f"   CPU Usage: {sys_metrics['cpu_percent']:.1f}%")
         print(f"   Memory Usage: {sys_metrics['memory_percent']:.1f}%")
         print(f"   Disk Usage: {sys_metrics['disk_usage_percent']:.1f}%")
         print(f"   Available Disk: {sys_metrics['disk_available_gb']:.1f}GB")
 
         print(f"\n⚡ Current Application Metrics:")
-        app_metrics = report['current_metrics']['application']
+        app_metrics = report["current_metrics"]["application"]
         print(f"   P95 Response Time: {app_metrics['response_time_p95']:.1f}ms")
         print(f"   Error Rate: {app_metrics['error_rate']:.1f}%")
         print(f"   Requests/sec: {app_metrics['requests_per_second']:.1f}")
@@ -1194,20 +1272,28 @@ async def main():
 
         # Display health check results
         print(f"\n💓 Health Check Results:")
-        for health in report['health_checks']:
-            status_icon = '✅' if health['status'] == 'HEALTHY' else '⚠️' if health['status'] == 'DEGRADED' else '❌'
-            print(f"   {status_icon} {health['service_name']}: {health['status']} ({health['response_time']:.1f}ms)")
+        for health in report["health_checks"]:
+            status_icon = (
+                "✅"
+                if health["status"] == "HEALTHY"
+                else "⚠️" if health["status"] == "DEGRADED" else "❌"
+            )
+            print(
+                f"   {status_icon} {health['service_name']}: {health['status']} ({health['response_time']:.1f}ms)"
+            )
 
         # Display infrastructure status
         print(f"\n🏗️  Infrastructure Status:")
-        infra = report['infrastructure_setup']
+        infra = report["infrastructure_setup"]
         for component, status in infra.items():
-            status_icon = '✅' if status['installed'] else '❌'
-            print(f"   {status_icon} {component.capitalize()}: {'Installed' if status['installed'] else 'Not Available'}")
+            status_icon = "✅" if status["installed"] else "❌"
+            print(
+                f"   {status_icon} {component.capitalize()}: {'Installed' if status['installed'] else 'Not Available'}"
+            )
 
         # Display log analysis summary
-        log_analysis = report['log_analysis']
-        if log_analysis['total_lines'] > 0:
+        log_analysis = report["log_analysis"]
+        if log_analysis["total_lines"] > 0:
             print(f"\n📋 Log Analysis Summary:")
             print(f"   Total Lines: {log_analysis['total_lines']}")
             print(f"   Errors: {log_analysis['error_count']}")
@@ -1220,19 +1306,19 @@ async def main():
         print(f"   Monitoring Dashboards: {report['dashboards_count']}")
 
         # Display critical issues
-        if report['critical_issues']:
+        if report["critical_issues"]:
             print(f"\n🚨 Critical Issues:")
-            for issue in report['critical_issues']:
+            for issue in report["critical_issues"]:
                 print(f"   • {issue}")
 
         # Display recommendations
-        if report['recommendations']:
+        if report["recommendations"]:
             print(f"\n💡 Recommendations:")
-            for rec in report['recommendations']:
+            for rec in report["recommendations"]:
                 print(f"   • {rec}")
 
         # Overall assessment
-        if report['monitoring_complete']:
+        if report["monitoring_complete"]:
             print(f"\n✅ Monitoring setup is COMPLETE and system is HEALTHY")
             exit_code = 0
         else:
@@ -1241,7 +1327,7 @@ async def main():
 
         # Save detailed report
         report_file = "monitoring_observability_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         print(f"\n📄 Detailed report saved to: {report_file}")
@@ -1252,6 +1338,7 @@ async def main():
         logger.error(f"Error during monitoring setup: {e}")
         print(f"❌ Monitoring setup failed: {e}")
         return 1
+
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

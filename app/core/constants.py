@@ -282,7 +282,9 @@ class Validation:
     # Regular expressions
     EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-    STRONG_PASSWORD_PATTERN = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]"
+    STRONG_PASSWORD_PATTERN = (
+        r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]"
+    )
 
     # Phone number
     PHONE_PATTERN = r"^\+?1?-?\.?\s?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})$"
@@ -305,7 +307,9 @@ class Logging:
 
     # Log formats
     DEFAULT_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    DETAILED_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s"
+    DETAILED_FORMAT = (
+        "%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s"
+    )
     JSON_FORMAT = "json"
 
     # File settings

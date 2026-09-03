@@ -16,24 +16,25 @@ Author: QA Team
 Version: 1.0 Functional Testing
 """
 
-import pytest
 import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
-from unittest.mock import Mock, patch, AsyncMock
+from typing import Any, Dict, Optional
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.main import app
 from app.core.database import get_async_db
-from app.db.models.user import User, UserRole
-from app.db.models.team import Team
-from app.core.security import get_password_hash, verify_password
 from app.core.redis_client import get_redis_client
+from app.db.models.team import Team
+from app.db.models.user import User, UserRole
+from app.main import app
+from app.services.security import get_password_hash, verify_password
 
 
 class TestAnonymousQuickAssessment:
@@ -53,12 +54,14 @@ class TestAnonymousQuickAssessment:
             "team_size": "5-10",
             "industry": "technology",
             "session_id": "test_session_123",
-            "referrer": "organic"
+            "referrer": "organic",
         }
 
     def test_qa_001_valid_quick_assessment_request(self, client, assessment_data):
         """✅ QA-001: Valid Quick Assessment Request"""
-        response = client.post("/api/v1/onboarding/quick-assessment", json=assessment_data)
+        response = client.post(
+            "/api/v1/onboarding/quick-assessment", json=assessment_data
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -80,7 +83,9 @@ class TestAnonymousQuickAssessment:
     def test_qa_002_all_role_types_support(self, client, assessment_data, role):
         """✅ QA-002: All Role Types Support"""
         assessment_data["role"] = role
-        response = client.post("/api/v1/onboarding/quick-assessment", json=assessment_data)
+        response = client.post(
+            "/api/v1/onboarding/quick-assessment", json=assessment_data
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -88,11 +93,18 @@ class TestAnonymousQuickAssessment:
         # Role-specific insights should be generated
         assert role.lower() in data["value_proposition"].lower()
 
-    @pytest.mark.parametrize("challenge", ["communication", "productivity", "turnover", "collaboration", "conflict"])
-    def test_qa_003_all_challenge_types_support(self, client, assessment_data, challenge):
+    @pytest.mark.parametrize(
+        "challenge",
+        ["communication", "productivity", "turnover", "collaboration", "conflict"],
+    )
+    def test_qa_003_all_challenge_types_support(
+        self, client, assessment_data, challenge
+    ):
         """✅ QA-003: All Challenge Types Support"""
         assessment_data["challenge"] = challenge
-        response = client.post("/api/v1/onboarding/quick-assessment", json=assessment_data)
+        response = client.post(
+            "/api/v1/onboarding/quick-assessment", json=assessment_data
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -104,28 +116,32 @@ class TestAnonymousQuickAssessment:
     def test_qa_004_invalid_role_handling(self, client, assessment_data):
         """✅ QA-004: Invalid Role Handling"""
         assessment_data["role"] = "invalid_role"
-        response = client.post("/api/v1/onboarding/quick-assessment", json=assessment_data)
+        response = client.post(
+            "/api/v1/onboarding/quick-assessment", json=assessment_data
+        )
 
         assert response.status_code == 422  # Validation error
 
     def test_qa_005_missing_required_fields(self, client):
         """✅ QA-005: Missing Required Fields"""
         # Test missing role
-        response = client.post("/api/v1/onboarding/quick-assessment", json={
-            "challenge": "communication",
-            "team_size": "5-10"
-        })
+        response = client.post(
+            "/api/v1/onboarding/quick-assessment",
+            json={"challenge": "communication", "team_size": "5-10"},
+        )
         assert response.status_code == 422
 
         # Test missing challenge
-        response = client.post("/api/v1/onboarding/quick-assessment", json={
-            "role": "manager",
-            "team_size": "5-10"
-        })
+        response = client.post(
+            "/api/v1/onboarding/quick-assessment",
+            json={"role": "manager", "team_size": "5-10"},
+        )
         assert response.status_code == 422
 
-    @patch('app.services.onboarding_service.OnboardingService.generate_quick_insights')
-    def test_qa_007_analytics_event_tracking(self, mock_generate_insights, client, assessment_data):
+    @patch("app.services.onboarding_service.OnboardingService.generate_quick_insights")
+    def test_qa_007_analytics_event_tracking(
+        self, mock_generate_insights, client, assessment_data
+    ):
         """✅ QA-007: Analytics Event Tracking"""
         # Mock the insights generation
         mock_insights = Mock()
@@ -135,10 +151,14 @@ class TestAnonymousQuickAssessment:
         mock_insights.conversion_probability = 0.75
         mock_generate_insights.return_value = mock_insights
 
-        with patch('app.services.analytics_service.AnalyticsService.track_onboarding_event') as mock_track:
+        with patch(
+            "app.services.analytics_service.AnalyticsService.track_onboarding_event"
+        ) as mock_track:
             mock_track.return_value = None
 
-            response = client.post("/api/v1/onboarding/quick-assessment", json=assessment_data)
+            response = client.post(
+                "/api/v1/onboarding/quick-assessment", json=assessment_data
+            )
 
             assert response.status_code == 200
             # Verify analytics events were tracked
@@ -150,7 +170,9 @@ class TestAnonymousQuickAssessment:
         # Make 21 requests rapidly (limit is 20 per minute)
         responses = []
         for i in range(25):
-            response = client.post("/api/v1/onboarding/quick-assessment", json=assessment_data)
+            response = client.post(
+                "/api/v1/onboarding/quick-assessment", json=assessment_data
+            )
             responses.append(response)
             if response.status_code == 429:
                 break
@@ -176,13 +198,13 @@ class TestUserRegistration:
             "email": "test.user@psychsync.com",
             "password": "SecurePass123!@#",
             "full_name": "Test User",
-            "role": "user"
+            "role": "user",
         }
 
     @pytest.mark.asyncio
     async def test_reg_001_valid_user_registration(self, client, valid_user_data):
         """✅ REG-001: Valid User Registration"""
-        with patch('app.core.database.get_async_db') as mock_db:
+        with patch("app.core.database.get_async_db") as mock_db:
             # Mock database session
             mock_session = AsyncMock()
             mock_db.return_value = mock_session
@@ -196,7 +218,7 @@ class TestUserRegistration:
             mock_user.created_at = datetime.utcnow()
             mock_user.updated_at = datetime.utcnow()
 
-            with patch('app.api.v1.endpoints.auth.User') as mock_user_model:
+            with patch("app.api.v1.endpoints.auth.User") as mock_user_model:
                 mock_user_model.return_value = mock_user
 
                 response = client.post("/api/v1/auth/register", json=valid_user_data)
@@ -215,7 +237,7 @@ class TestUserRegistration:
             "nouppercase123",  # No uppercase
             "NOLOWERCASE123",  # No lowercase
             "NoNumbersHere",  # No numbers
-            "NoSpecialChars123"  # No special characters
+            "NoSpecialChars123",  # No special characters
         ]
 
         for weak_pass in weak_passwords:
@@ -238,7 +260,7 @@ class TestUserRegistration:
             "invalid@",
             "invalid..email@test.com",
             "invalid@email",
-            "spaces @test.com"
+            "spaces @test.com",
         ]
 
         for invalid_email in invalid_emails:
@@ -251,7 +273,7 @@ class TestUserRegistration:
             "test@example.com",
             "user.name@domain.co.uk",
             "user+tag@example.org",
-            "user123@test-domain.com"
+            "user123@test-domain.com",
         ]
 
         for valid_email in valid_emails:
@@ -265,7 +287,7 @@ class TestUserRegistration:
         malicious_inputs = [
             "'; DROP TABLE users; --",
             "admin' OR '1'='1",
-            "'; INSERT INTO users (email) VALUES ('hacker@evil.com'); --"
+            "'; INSERT INTO users (email) VALUES ('hacker@evil.com'); --",
         ]
 
         for malicious_input in malicious_inputs:
@@ -275,7 +297,10 @@ class TestUserRegistration:
             response = client.post("/api/v1/auth/register", json=valid_user_data)
 
             # Should not cause database errors
-            assert response.status_code in [400, 422]  # Validation error, not database error
+            assert response.status_code in [
+                400,
+                422,
+            ]  # Validation error, not database error
 
 
 class TestUserAuthentication:
@@ -289,10 +314,7 @@ class TestUserAuthentication:
     @pytest.fixture
     def test_user_data(self):
         """Test user credentials"""
-        return {
-            "email": "auth.test@psychsync.com",
-            "password": "TestAuthPass123!@#"
-        }
+        return {"email": "auth.test@psychsync.com", "password": "TestAuthPass123!@#"}
 
     @pytest.mark.asyncio
     async def test_auth_001_valid_login(self, client, test_user_data):
@@ -305,11 +327,14 @@ class TestUserAuthentication:
         mock_user.is_active = True
         mock_user.role = UserRole.USER
 
-        with patch('app.core.security.authenticate_user', return_value=mock_user):
-            response = client.post("/api/v1/auth/token", data={
-                "username": test_user_data["email"],
-                "password": test_user_data["password"]
-            })
+        with patch("app.core.security.authenticate_user", return_value=mock_user):
+            response = client.post(
+                "/api/v1/auth/token",
+                data={
+                    "username": test_user_data["email"],
+                    "password": test_user_data["password"],
+                },
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -319,20 +344,20 @@ class TestUserAuthentication:
 
     def test_auth_002_invalid_credentials(self, client, test_user_data):
         """✅ AUTH-002: Invalid Credentials"""
-        response = client.post("/api/v1/auth/token", data={
-            "username": test_user_data["email"],
-            "password": "wrongpassword"
-        })
+        response = client.post(
+            "/api/v1/auth/token",
+            data={"username": test_user_data["email"], "password": "wrongpassword"},
+        )
 
         assert response.status_code == 401
         assert "detail" in response.json()
 
     def test_auth_003_nonexistent_user_login(self, client):
         """✅ AUTH-003: Non-existent User Login"""
-        response = client.post("/api/v1/auth/token", data={
-            "username": "nonexistent@psychsync.com",
-            "password": "anypassword"
-        })
+        response = client.post(
+            "/api/v1/auth/token",
+            data={"username": "nonexistent@psychsync.com", "password": "anypassword"},
+        )
 
         assert response.status_code == 401
 
@@ -340,18 +365,24 @@ class TestUserAuthentication:
         """✅ AUTH-007: Brute Force Protection"""
         # Make multiple failed login attempts
         for i in range(6):  # Exceed the 5 attempt limit
-            response = client.post("/api/v1/auth/token", data={
-                "username": test_user_data["email"],
-                "password": f"wrongpassword{i}"
-            })
+            response = client.post(
+                "/api/v1/auth/token",
+                data={
+                    "username": test_user_data["email"],
+                    "password": f"wrongpassword{i}",
+                },
+            )
             # Should fail, but may not trigger lockout until threshold
             assert response.status_code == 401
 
         # Next attempt should be rate limited or account locked
-        response = client.post("/api/v1/auth/token", data={
-            "username": test_user_data["email"],
-            "password": test_user_data["password"]
-        })
+        response = client.post(
+            "/api/v1/auth/token",
+            data={
+                "username": test_user_data["email"],
+                "password": test_user_data["password"],
+            },
+        )
 
         # Should be blocked due to too many attempts
         assert response.status_code in [401, 429]
@@ -365,7 +396,7 @@ class TestTeamCreation:
         """Create authenticated test client"""
         client = TestClient(app)
         # Mock authentication
-        with patch('app.api.v1.deps.get_current_active_user') as mock_auth:
+        with patch("app.api.v1.deps.get_current_active_user") as mock_auth:
             mock_user = Mock()
             mock_user.id = "test-user-uuid"
             mock_user.email = "team.test@psychsync.com"
@@ -379,10 +410,10 @@ class TestTeamCreation:
         team_data = {
             "name": "Test Team",
             "description": "A test team for functional testing",
-            "organization_id": "test-org-uuid"
+            "organization_id": "test-org-uuid",
         }
 
-        with patch('app.core.database.get_async_db') as mock_db:
+        with patch("app.core.database.get_async_db") as mock_db:
             mock_session = AsyncMock()
             mock_db.return_value = mock_session
 
@@ -392,7 +423,7 @@ class TestTeamCreation:
             mock_team.name = team_data["name"]
             mock_team.description = team_data["description"]
 
-            with patch('app.db.models.team.Team') as mock_team_model:
+            with patch("app.db.models.team.Team") as mock_team_model:
                 mock_team_model.return_value = mock_team
 
                 response = authenticated_client.post("/api/v1/teams/", json=team_data)
@@ -403,23 +434,33 @@ class TestTeamCreation:
     def test_setup_001_setup_wizard_progression(self, authenticated_client):
         """✅ SETUP-001: Setup Wizard Progression"""
         setup_steps = [
-            {"step": "profile", "data": {"industry": "technology", "company_size": "50-100"}},
+            {
+                "step": "profile",
+                "data": {"industry": "technology", "company_size": "50-100"},
+            },
             {"step": "team", "data": {"team_name": "Engineering", "team_size": 10}},
-            {"step": "goals", "data": {"primary_goal": "communication", "timeline": "3_months"}}
+            {
+                "step": "goals",
+                "data": {"primary_goal": "communication", "timeline": "3_months"},
+            },
         ]
 
-        with patch('app.services.onboarding_service.OnboardingService.process_setup_step') as mock_setup:
+        with patch(
+            "app.services.onboarding_service.OnboardingService.process_setup_step"
+        ) as mock_setup:
             mock_setup.return_value = {"success": True, "next_step": "profile"}
 
             for step_data in setup_steps:
-                response = authenticated_client.post("/api/v1/onboarding/setup-wizard", json=step_data)
+                response = authenticated_client.post(
+                    "/api/v1/onboarding/setup-wizard", json=step_data
+                )
                 assert response.status_code == 200
 
                 # Verify setup service was called with correct data
                 mock_setup.assert_called_with(
                     user_id="test-user-uuid",
                     step=step_data["step"],
-                    data=step_data["data"]
+                    data=step_data["data"],
                 )
 
 
@@ -430,7 +471,7 @@ class TestDetailedTeamInsights:
     def authenticated_client(self):
         """Create authenticated test client"""
         client = TestClient(app)
-        with patch('app.api.v1.deps.get_current_active_user') as mock_auth:
+        with patch("app.api.v1.deps.get_current_active_user") as mock_auth:
             mock_user = Mock()
             mock_user.id = "insights-user-uuid"
             mock_user.email = "insights.test@psychsync.com"
@@ -443,10 +484,12 @@ class TestDetailedTeamInsights:
         """✅ INSIGHTS-001: Authenticated Team Insights"""
         insights_request = {
             "team_id": "test-team-uuid",
-            "session_id": "insights-session-123"
+            "session_id": "insights-session-123",
         }
 
-        with patch('app.services.onboarding_service.OnboardingService.generate_detailed_team_insights') as mock_insights:
+        with patch(
+            "app.services.onboarding_service.OnboardingService.generate_detailed_team_insights"
+        ) as mock_insights:
             # Mock insights response
             mock_insights_response = Mock()
             mock_insights_response.team_profile = {
@@ -454,10 +497,14 @@ class TestDetailedTeamInsights:
                 "avg_experience": 5.5,
                 "communication_style": "collaborative",
                 "current_performance": 0.7,
-                "potential_performance": 0.9
+                "potential_performance": 0.9,
             }
             mock_insights_response.detailed_insights = [
-                {"category": "communication", "title": "Test Insight", "description": "Test description"}
+                {
+                    "category": "communication",
+                    "title": "Test Insight",
+                    "description": "Test description",
+                }
             ]
             mock_insights_response.action_items = [
                 {"title": "Test Action", "description": "Test action description"}
@@ -471,7 +518,9 @@ class TestDetailedTeamInsights:
 
             mock_insights.return_value = mock_insights_response
 
-            response = authenticated_client.post("/api/v1/onboarding/team-insights", json=insights_request)
+            response = authenticated_client.post(
+                "/api/v1/onboarding/team-insights", json=insights_request
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -489,13 +538,17 @@ class TestDetailedTeamInsights:
                 {
                     "name": f"Member {i}",
                     "profile": "x" * 1000,  # Large profile data
-                    "assessment_data": {"question_" + str(j): "answer" * 100 for j in range(50)}
+                    "assessment_data": {
+                        "question_" + str(j): "answer" * 100 for j in range(50)
+                    },
                 }
                 for i in range(50)
-            ]
+            ],
         }
 
-        response = authenticated_client.post("/api/v1/onboarding/team-insights", json=oversized_data)
+        response = authenticated_client.post(
+            "/api/v1/onboarding/team-insights", json=oversized_data
+        )
 
         # Should reject oversized data
         assert response.status_code == 400
@@ -525,19 +578,21 @@ class TestOnboardingStatus:
         """✅ STATUS-002: Authenticated User Status"""
         client = TestClient(app)
 
-        with patch('app.api.v1.deps.get_current_user_optional') as mock_auth:
+        with patch("app.api.v1.deps.get_current_user_optional") as mock_auth:
             mock_user = Mock()
             mock_user.id = "status-user-uuid"
             mock_user.is_active = True
             mock_auth.return_value = mock_user
 
-            with patch('app.services.onboarding_service.OnboardingService.get_onboarding_status') as mock_status:
+            with patch(
+                "app.services.onboarding_service.OnboardingService.get_onboarding_status"
+            ) as mock_status:
                 mock_status.return_value = {
                     "is_authenticated": True,
                     "onboarding_complete": False,
                     "progress": 0.6,
                     "completed_steps": ["quick_assessment", "registration"],
-                    "next_steps": ["create_team", "take_assessment"]
+                    "next_steps": ["create_team", "take_assessment"],
                 }
 
                 response = client.get("/api/v1/onboarding/onboarding-status")
@@ -561,13 +616,19 @@ class TestSecurityAndRateLimiting:
             {"email": "'; DROP TABLE users; --"},
             {"full_name": "<script>alert('xss')</script>"},
             {"description": "'; SELECT * FROM users; --"},
-            {"data": {"injection": "'; DROP TABLE assessments; --"}}
+            {"data": {"injection": "'; DROP TABLE assessments; --"}},
         ]
 
         # Test various endpoints with malicious input
         endpoints_to_test = [
-            ("/api/v1/auth/register", {"email": "test@test.com", "password": "ValidPass123!"}),
-            ("/api/v1/onboarding/quick-assessment", {"role": "manager", "challenge": "communication"})
+            (
+                "/api/v1/auth/register",
+                {"email": "test@test.com", "password": "ValidPass123!"},
+            ),
+            (
+                "/api/v1/onboarding/quick-assessment",
+                {"role": "manager", "challenge": "communication"},
+            ),
         ]
 
         for endpoint, base_data in endpoints_to_test:
@@ -589,18 +650,23 @@ class TestSecurityAndRateLimiting:
             "email": "sensitive.user@company.com",
             "full_name": "John Doe",
             "phone": "555-123-4567",
-            "ssn": "123-45-6789"
+            "ssn": "123-45-6789",
         }
 
-        with patch('app.services.analytics_service.AnalyticsService.track_onboarding_event') as mock_track:
+        with patch(
+            "app.services.analytics_service.AnalyticsService.track_onboarding_event"
+        ) as mock_track:
             mock_track.return_value = None
 
-            response = client.post("/api/v1/onboarding/quick-assessment", json={
-                "role": "manager",
-                "challenge": "communication",
-                "team_size": "5-10",
-                "session_id": "sensitive_test"
-            })
+            response = client.post(
+                "/api/v1/onboarding/quick-assessment",
+                json={
+                    "role": "manager",
+                    "challenge": "communication",
+                    "team_size": "5-10",
+                    "session_id": "sensitive_test",
+                },
+            )
 
             # Verify analytics was called
             if mock_track.called:
@@ -621,19 +687,22 @@ class TestCrossFunctionalIntegration:
         """✅ INTEGRATION-001: Complete Onboarding Flow"""
         async with AsyncClient(app=app, base_url="http://test") as client:
             # Step 1: Anonymous Quick Assessment
-            assessment_response = await client.post("/api/v1/onboarding/quick-assessment", json={
-                "role": "manager",
-                "challenge": "communication",
-                "team_size": "5-10",
-                "session_id": "integration-test-session"
-            })
+            assessment_response = await client.post(
+                "/api/v1/onboarding/quick-assessment",
+                json={
+                    "role": "manager",
+                    "challenge": "communication",
+                    "team_size": "5-10",
+                    "session_id": "integration-test-session",
+                },
+            )
 
             assert assessment_response.status_code == 200
             assessment_data = assessment_response.json()
             assert assessment_data["success"] is True
 
             # Step 2: User Registration
-            with patch('app.api.v1.endpoints.auth.User') as mock_user_model:
+            with patch("app.api.v1.endpoints.auth.User") as mock_user_model:
                 mock_user = Mock()
                 mock_user.id = "integration-user-uuid"
                 mock_user.email = "integration@test.com"
@@ -642,24 +711,31 @@ class TestCrossFunctionalIntegration:
                 mock_user.updated_at = datetime.utcnow()
                 mock_user_model.return_value = mock_user
 
-                register_response = await client.post("/api/v1/auth/register", json={
-                    "email": "integration@test.com",
-                    "password": "IntegrationTestPass123!@#",
-                    "full_name": "Integration Test User"
-                })
+                register_response = await client.post(
+                    "/api/v1/auth/register",
+                    json={
+                        "email": "integration@test.com",
+                        "password": "IntegrationTestPass123!@#",
+                        "full_name": "Integration Test User",
+                    },
+                )
 
             # Step 3: Check Onboarding Status
-            with patch('app.api.v1.deps.get_current_user_optional') as mock_auth:
+            with patch("app.api.v1.deps.get_current_user_optional") as mock_auth:
                 mock_auth.return_value = mock_user
 
-                with patch('app.services.onboarding_service.OnboardingService.get_onboarding_status') as mock_status:
+                with patch(
+                    "app.services.onboarding_service.OnboardingService.get_onboarding_status"
+                ) as mock_status:
                     mock_status.return_value = {
                         "is_authenticated": True,
                         "onboarding_complete": False,
-                        "progress": 0.3
+                        "progress": 0.3,
                     }
 
-                    status_response = await client.get("/api/v1/onboarding/onboarding-status")
+                    status_response = await client.get(
+                        "/api/v1/onboarding/onboarding-status"
+                    )
                     assert status_response.status_code == 200
                     status_data = status_response.json()
                     assert status_data["is_authenticated"] is True
@@ -670,15 +746,16 @@ class TestCrossFunctionalIntegration:
 
         # Test quick assessment response time
         start_time = time.time()
-        response = client.post("/api/v1/onboarding/quick-assessment", json={
-            "role": "manager",
-            "challenge": "communication",
-            "team_size": "5-10"
-        })
+        response = client.post(
+            "/api/v1/onboarding/quick-assessment",
+            json={"role": "manager", "challenge": "communication", "team_size": "5-10"},
+        )
         response_time = time.time() - start_time
 
         assert response.status_code == 200
-        assert response_time < 3.0, f"Quick assessment took {response_time:.2f}s, expected < 3.0s"
+        assert (
+            response_time < 3.0
+        ), f"Quick assessment took {response_time:.2f}s, expected < 3.0s"
 
         # Test onboarding status response time
         start_time = time.time()
@@ -686,7 +763,9 @@ class TestCrossFunctionalIntegration:
         response_time = time.time() - start_time
 
         assert response.status_code == 200
-        assert response_time < 1.0, f"Status check took {response_time:.2f}s, expected < 1.0s"
+        assert (
+            response_time < 1.0
+        ), f"Status check took {response_time:.2f}s, expected < 1.0s"
 
 
 # Test Configuration and Fixtures
@@ -701,7 +780,7 @@ def event_loop():
 @pytest.fixture
 async def mock_redis():
     """Mock Redis client for testing"""
-    with patch('app.core.redis_client.get_redis_client') as mock_redis:
+    with patch("app.core.redis_client.get_redis_client") as mock_redis:
         mock_client = AsyncMock()
         mock_redis.return_value = mock_client
         yield mock_client
@@ -709,10 +788,12 @@ async def mock_redis():
 
 # Test Execution Configuration
 if __name__ == "__main__":
-    pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "--disable-warnings",
-        "-k 'not test_perf_'  # Skip performance tests in normal runs"
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "--disable-warnings",
+            "-k 'not test_perf_'  # Skip performance tests in normal runs",
+        ]
+    )

@@ -1,25 +1,29 @@
 """Enterprise security implementation
 
-Revision ID: 014_enterprise_security_implementation
+Revision ID: 014b_enterprise_security_implementation
 Revises: 013_add_critical_performance_indexes
 Create Date: 2025-01-24 12:00:00.000000
 
 """
-from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+
 import json
 import logging
 
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+from alembic import op
+
 # Configure logging for migration
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('alembic')
+logger = logging.getLogger("alembic")
 
 # revision identifiers, used by Alembic.
-revision = '014_enterprise_security_implementation'
-down_revision = '013_add_critical_performance_indexes'
+revision = "014b_enterprise_security_implementation"
+down_revision = "014_enterprise_compliance_implementation"
 branch_labels = None
 depends_on = None
+
 
 def upgrade():
     """Implement enterprise-grade security measures"""
@@ -28,16 +32,19 @@ def upgrade():
 
     # Enable required extensions
     logger.info("Enabling required PostgreSQL extensions...")
-    op.execute("""
+    op.execute(
+        """
         CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
         CREATE EXTENSION IF NOT EXISTS "pgcrypto";
         CREATE EXTENSION IF NOT EXISTS "btree_gin";
         CREATE EXTENSION IF NOT EXISTS "btree_gist";
-    """)
+    """
+    )
 
     # Create secure user roles
     logger.info("Creating secure database roles...")
-    op.execute("""
+    op.execute(
+        """
         -- Create roles for RLS implementation
         CREATE ROLE IF NOT EXISTS authenticated_role NOINHERIT;
         CREATE ROLE IF NOT EXISTS service_role NOINHERIT;
@@ -57,100 +64,159 @@ def upgrade():
         -- Grant inheritance
         GRANT authenticated_role TO service_role;
         GRANT authenticated_role TO admin_role;
-    """)
+    """
+    )
 
     # Create audit logs table
     logger.info("Creating audit logs table...")
     op.create_table(
-        'audit_logs',
-        sa.Column('id', sa.BigInteger(), nullable=False),
-        sa.Column('timestamp', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('table_name', sa.String(100), nullable=False),
-        sa.Column('operation', sa.String(50), nullable=False),
-        sa.Column('record_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('ip_address', sa.String(45), nullable=True),
-        sa.Column('user_agent', sa.Text(), nullable=True),
-        sa.Column('session_id', sa.String(64), nullable=True),
-        sa.Column('context', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('risk_score', sa.Float(), nullable=True, server_default='0.0'),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
-        sa.PrimaryKeyConstraint('id')
+        "audit_logs",
+        sa.Column("id", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "timestamp",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("table_name", sa.String(100), nullable=False),
+        sa.Column("operation", sa.String(50), nullable=False),
+        sa.Column("record_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("ip_address", sa.String(45), nullable=True),
+        sa.Column("user_agent", sa.Text(), nullable=True),
+        sa.Column("session_id", sa.String(64), nullable=True),
+        sa.Column("context", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("risk_score", sa.Float(), nullable=True, server_default="0.0"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create indexes for audit logs
-    op.create_index('idx_audit_logs_timestamp', 'audit_logs', ['timestamp'])
-    op.create_index('idx_audit_logs_user_id', 'audit_logs', ['user_id'])
-    op.create_index('idx_audit_logs_table_operation', 'audit_logs', ['table_name', 'operation'])
-    op.create_index('idx_audit_logs_record_id', 'audit_logs', ['record_id'])
-    op.create_index('idx_audit_logs_risk_score', 'audit_logs', ['risk_score'])
+    op.create_index("idx_audit_logs_timestamp", "audit_logs", ["timestamp"])
+    op.create_index("idx_audit_logs_user_id", "audit_logs", ["user_id"])
+    op.create_index(
+        "idx_audit_logs_table_operation", "audit_logs", ["table_name", "operation"]
+    )
+    op.create_index("idx_audit_logs_record_id", "audit_logs", ["record_id"])
+    op.create_index("idx_audit_logs_risk_score", "audit_logs", ["risk_score"])
 
     # Create security events table
     logger.info("Creating security events table...")
     op.create_table(
-        'security_events',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('event_type', sa.String(100), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('ip_address', sa.String(45), nullable=False),
-        sa.Column('user_agent', sa.Text(), nullable=True),
-        sa.Column('timestamp', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
-        sa.Column('details', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('risk_score', sa.Float(), nullable=False, server_default='0.0'),
-        sa.Column('resolved', sa.Boolean(), nullable=False, server_default='false'),
-        sa.Column('resolved_by', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
-        sa.PrimaryKeyConstraint('id')
+        "security_events",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("event_type", sa.String(100), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("ip_address", sa.String(45), nullable=False),
+        sa.Column("user_agent", sa.Text(), nullable=True),
+        sa.Column(
+            "timestamp",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column("details", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("risk_score", sa.Float(), nullable=False, server_default="0.0"),
+        sa.Column("resolved", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("resolved_by", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create indexes for security events
-    op.create_index('idx_security_events_type', 'security_events', ['event_type'])
-    op.create_index('idx_security_events_user', 'security_events', ['user_id'])
-    op.create_index('idx_security_events_ip', 'security_events', ['ip_address'])
-    op.create_index('idx_security_events_timestamp', 'security_events', ['timestamp'])
-    op.create_index('idx_security_events_risk', 'security_events', ['risk_score'])
-    op.create_index('idx_security_events_resolved', 'security_events', ['resolved'])
+    op.create_index("idx_security_events_type", "security_events", ["event_type"])
+    op.create_index("idx_security_events_user", "security_events", ["user_id"])
+    op.create_index("idx_security_events_ip", "security_events", ["ip_address"])
+    op.create_index("idx_security_events_timestamp", "security_events", ["timestamp"])
+    op.create_index("idx_security_events_risk", "security_events", ["risk_score"])
+    op.create_index("idx_security_events_resolved", "security_events", ["resolved"])
 
     # Create secure data backup table
     logger.info("Creating secure data backup table...")
     op.create_table(
-        'secure_backups',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('backup_name', sa.String(255), nullable=False),
-        sa.Column('table_name', sa.String(100), nullable=False),
-        sa.Column('backup_data', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
-        sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('encrypted', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('checksum', sa.String(64), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        "secure_backups",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("backup_name", sa.String(255), nullable=False),
+        sa.Column("table_name", sa.String(100), nullable=False),
+        sa.Column(
+            "backup_data", postgresql.JSONB(astext_type=sa.Text()), nullable=False
+        ),
+        sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("encrypted", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("checksum", sa.String(64), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create indexes for secure backups
-    op.create_index('idx_secure_backups_table', 'secure_backups', ['table_name'])
-    op.create_index('idx_secure_backups_created', 'secure_backups', ['created_at'])
-    op.create_index('idx_secure_backups_expires', 'secure_backups', ['expires_at'])
+    op.create_index("idx_secure_backups_table", "secure_backups", ["table_name"])
+    op.create_index("idx_secure_backups_created", "secure_backups", ["created_at"])
+    op.create_index("idx_secure_backups_expires", "secure_backups", ["expires_at"])
 
     # Create data retention policies table
     logger.info("Creating data retention policies table...")
     op.create_table(
-        'data_retention_policies',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('table_name', sa.String(100), nullable=False),
-        sa.Column('retention_days', sa.Integer(), nullable=False),
-        sa.Column('auto_delete', sa.Boolean(), nullable=False, server_default='false'),
-        sa.Column('archive_before_delete', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
-        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()'), onupdate=sa.text('now()')),
-        sa.PrimaryKeyConstraint('id')
+        "data_retention_policies",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("table_name", sa.String(100), nullable=False),
+        sa.Column("retention_days", sa.Integer(), nullable=False),
+        sa.Column("auto_delete", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column(
+            "archive_before_delete", sa.Boolean(), nullable=False, server_default="true"
+        ),
+        sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+            onupdate=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create default data retention policies
     logger.info("Creating default data retention policies...")
-    op.execute("""
+    op.execute(
+        """
         INSERT INTO data_retention_policies (table_name, retention_days, created_by) VALUES
         ('users_secure', 2555, gen_random_uuid()), -- 7 years
         ('organizations_secure', 3650, gen_random_uuid()), -- 10 years
@@ -158,11 +224,13 @@ def upgrade():
         ('responses_secure', 2555, gen_random_uuid()), -- 7 years
         ('audit_logs', 1825, gen_random_uuid()), -- 5 years
         ('security_events', 1095, gen_random_uuid()); -- 3 years
-    """)
+    """
+    )
 
     # Create data anonymization functions
     logger.info("Creating data anonymization functions...")
-    op.execute("""
+    op.execute(
+        """
         -- Function to anonymize email
         CREATE OR REPLACE FUNCTION anonymize_email(email TEXT)
         RETURNS TEXT AS $$
@@ -192,11 +260,13 @@ def upgrade():
             RETURN '***-***-' || substr(phone, -4);
         END;
         $$ LANGUAGE plpgsql IMMUTABLE;
-    """)
+    """
+    )
 
     # Create security monitoring views
     logger.info("Creating security monitoring views...")
-    op.execute("""
+    op.execute(
+        """
         -- View for security risk analysis
         CREATE OR REPLACE VIEW security_risk_analysis AS
         SELECT
@@ -238,11 +308,13 @@ def upgrade():
         WHERE al.context->>'contains_phi' = 'true'
            OR al.context->>'data_classification' IN ('protected_health', 'sensitive', 'special')
         ORDER BY al.timestamp DESC;
-    """)
+    """
+    )
 
     # Enable Row Level Security on audit tables
     logger.info("Enabling Row Level Security on audit tables...")
-    op.execute("""
+    op.execute(
+        """
         -- Enable RLS on audit logs
         ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
@@ -266,11 +338,13 @@ def upgrade():
         CREATE POLICY secure_backups_policy ON secure_backups
         FOR ALL TO admin_role
         USING (true);
-    """)
+    """
+    )
 
     # Create triggers for automatic audit logging
     logger.info("Creating triggers for automatic audit logging...")
-    op.execute("""
+    op.execute(
+        """
         -- Function for audit logging
         CREATE OR REPLACE FUNCTION audit_trigger_function()
         RETURNS TRIGGER AS $$
@@ -297,11 +371,13 @@ def upgrade():
 
         -- Note: Triggers will be added to individual tables as they are created
         -- This prevents issues with tables that don't exist yet
-    """)
+    """
+    )
 
     # Create automated data cleanup function
     logger.info("Creating automated data cleanup function...")
-    op.execute("""
+    op.execute(
+        """
         -- Function for automated data cleanup based on retention policies
         CREATE OR REPLACE FUNCTION cleanup_expired_data()
         RETURNS TEXT AS $$
@@ -336,9 +412,11 @@ def upgrade():
             RETURN 'Data cleanup completed';
         END;
         $$ LANGUAGE plpgsql;
-    """)
+    """
+    )
 
     logger.info("Enterprise security implementation completed successfully")
+
 
 def downgrade():
     """Remove enterprise security measures"""
@@ -347,35 +425,41 @@ def downgrade():
 
     # Drop triggers and functions
     logger.info("Dropping security functions and triggers...")
-    op.execute("""
+    op.execute(
+        """
         DROP FUNCTION IF EXISTS cleanup_expired_data() CASCADE;
         DROP FUNCTION IF EXISTS audit_trigger_function() CASCADE;
         DROP FUNCTION IF EXISTS anonymize_email(TEXT) CASCADE;
         DROP FUNCTION IF EXISTS anonymize_text(TEXT) CASCADE;
         DROP FUNCTION IF EXISTS anonymize_phone(TEXT) CASCADE;
-    """)
+    """
+    )
 
     # Drop views
     logger.info("Dropping security monitoring views...")
-    op.execute("""
+    op.execute(
+        """
         DROP VIEW IF EXISTS security_risk_analysis CASCADE;
         DROP VIEW IF EXISTS data_access_patterns CASCADE;
         DROP VIEW IF EXISTS sensitive_data_access CASCADE;
-    """)
+    """
+    )
 
     # Drop tables in reverse order
     logger.info("Dropping security tables...")
-    op.drop_table('data_retention_policies')
-    op.drop_table('secure_backups')
-    op.drop_table('security_events')
-    op.drop_table('audit_logs')
+    op.drop_table("data_retention_policies")
+    op.drop_table("secure_backups")
+    op.drop_table("security_events")
+    op.drop_table("audit_logs")
 
     # Drop roles
     logger.info("Dropping secure database roles...")
-    op.execute("""
+    op.execute(
+        """
         DROP ROLE IF EXISTS admin_role CASCADE;
         DROP ROLE IF EXISTS service_role CASCADE;
         DROP ROLE IF EXISTS authenticated_role CASCADE;
-    """)
+    """
+    )
 
     logger.info("Enterprise security downgrade completed successfully")

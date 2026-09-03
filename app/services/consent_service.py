@@ -3,12 +3,21 @@ Consent Management Service
 Handles granular user consent management with audit trails and compliance tracking
 """
 
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, and_
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    and_,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
@@ -49,7 +58,9 @@ class ConsentPurpose(Base):
 
     __tablename__ = "consent_purposes"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
     consent_type = Column(String(100), nullable=False, unique=True)
     name = Column(Text, nullable=False)
     description = Column(Text, nullable=False)
@@ -58,8 +69,12 @@ class ConsentPurpose(Base):
     )  # consent, contract, legal_obligation, vital_interests, public_task, legitimate_interests
     required = Column(Boolean, default=False)  # Whether consent is required for service
     auto_renew = Column(Boolean, default=True)  # Whether consent auto-renews
-    expiry_days = Column(Integer, nullable=True)  # Days until consent expires (None = no expiry)
-    data_categories = Column(JSONB, nullable=True)  # What data categories this consent covers
+    expiry_days = Column(
+        Integer, nullable=True
+    )  # Days until consent expires (None = no expiry)
+    data_categories = Column(
+        JSONB, nullable=True
+    )  # What data categories this consent covers
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -68,10 +83,16 @@ class UserConsentRecord(Base):
 
     __tablename__ = "user_consent_records"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
     consent_type = Column(String(100), nullable=False, index=True)
-    purpose_id = Column(UUID(as_uuid=True), ForeignKey("consent_purposes.id"), nullable=True)
+    purpose_id = Column(
+        UUID(as_uuid=True), ForeignKey("consent_purposes.id"), nullable=True
+    )
 
     # Consent details
     status = Column(String(20), nullable=False, default=ConsentStatus.ACTIVE)
@@ -87,7 +108,9 @@ class UserConsentRecord(Base):
 
     # Additional details
     granular_preferences = Column(JSONB, nullable=True)  # Granular consent preferences
-    purpose_specific_data = Column(JSONB, nullable=True)  # Specific data categories consented to
+    purpose_specific_data = Column(
+        JSONB, nullable=True
+    )  # Specific data categories consented to
     withdrawal_reason = Column(Text, nullable=True)  # Reason for withdrawal
 
     # Legal compliance
@@ -104,7 +127,9 @@ class ConsentHistory(Base):
 
     __tablename__ = "consent_history"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
     consent_record_id = Column(
         UUID(as_uuid=True), ForeignKey("user_consent_records.id"), nullable=False
     )
@@ -129,7 +154,10 @@ class ConsentManagementService:
     """Comprehensive consent management service"""
 
     def __init__(self):
-        self.required_consents = {ConsentType.DATA_PROCESSING, ConsentType.COOKIES_ESSENTIAL}
+        self.required_consents = {
+            ConsentType.DATA_PROCESSING,
+            ConsentType.COOKIES_ESSENTIAL,
+        }
 
         self.automated_decision_consents = {
             ConsentType.AUTOMATED_DECISIONS,
@@ -248,7 +276,9 @@ class ConsentManagementService:
         try:
             # Get consent purpose
             purpose = (
-                db.query(ConsentPurpose).filter(ConsentPurpose.consent_type == consent_type).first()
+                db.query(ConsentPurpose)
+                .filter(ConsentPurpose.consent_type == consent_type)
+                .first()
             )
 
             if not purpose:
@@ -316,9 +346,11 @@ class ConsentManagementService:
                 "consent_type": consent_record.consent_type,
                 "status": consent_record.status,
                 "granted_at": consent_record.granted_at.isoformat(),
-                "expires_at": consent_record.expires_at.isoformat()
-                if consent_record.expires_at
-                else None,
+                "expires_at": (
+                    consent_record.expires_at.isoformat()
+                    if consent_record.expires_at
+                    else None
+                ),
                 "lawful_basis": consent_record.lawful_basis,
             }
 
@@ -394,7 +426,11 @@ class ConsentManagementService:
             raise
 
     async def get_user_consents(
-        self, db: Session, user_id: str, include_history: bool = False, active_only: bool = True
+        self,
+        db: Session,
+        user_id: str,
+        include_history: bool = False,
+        active_only: bool = True,
     ) -> dict[str, Any]:
         """Get user's current consent status"""
 
@@ -404,7 +440,9 @@ class ConsentManagementService:
             purpose_map = {p.consent_type: p for p in purposes}
 
             # Get user's consent records
-            query = db.query(UserConsentRecord).filter(UserConsentRecord.user_id == user_id)
+            query = db.query(UserConsentRecord).filter(
+                UserConsentRecord.user_id == user_id
+            )
 
             if active_only:
                 query = query.filter(UserConsentRecord.status == ConsentStatus.ACTIVE)
@@ -415,7 +453,12 @@ class ConsentManagementService:
             consent_status = {}
             for purpose in purposes:
                 user_consent = next(
-                    (c for c in consent_records if c.consent_type == purpose.consent_type), None
+                    (
+                        c
+                        for c in consent_records
+                        if c.consent_type == purpose.consent_type
+                    ),
+                    None,
                 )
 
                 consent_status[purpose.consent_type] = {
@@ -424,16 +467,22 @@ class ConsentManagementService:
                     "required": purpose.required,
                     "legal_basis": purpose.lawful_basis,
                     "current_status": user_consent.status if user_consent else None,
-                    "granted_at": user_consent.granted_at.isoformat() if user_consent else None,
-                    "withdrawn_at": user_consent.withdrawn_at.isoformat()
-                    if user_consent and user_consent.withdrawn_at
-                    else None,
-                    "expires_at": user_consent.expires_at.isoformat()
-                    if user_consent and user_consent.expires_at
-                    else None,
-                    "granular_preferences": user_consent.granular_preferences
-                    if user_consent
-                    else None,
+                    "granted_at": (
+                        user_consent.granted_at.isoformat() if user_consent else None
+                    ),
+                    "withdrawn_at": (
+                        user_consent.withdrawn_at.isoformat()
+                        if user_consent and user_consent.withdrawn_at
+                        else None
+                    ),
+                    "expires_at": (
+                        user_consent.expires_at.isoformat()
+                        if user_consent and user_consent.expires_at
+                        else None
+                    ),
+                    "granular_preferences": (
+                        user_consent.granular_preferences if user_consent else None
+                    ),
                     "consent_id": str(user_consent.id) if user_consent else None,
                 }
 
@@ -476,7 +525,10 @@ class ConsentManagementService:
                 return False
 
             # Check if consent has expired
-            if consent_record.expires_at and consent_record.expires_at < datetime.utcnow():
+            if (
+                consent_record.expires_at
+                and consent_record.expires_at < datetime.utcnow()
+            ):
                 # Mark as expired
                 consent_record.status = ConsentStatus.EXPIRED
                 db.commit()
@@ -511,7 +563,9 @@ class ConsentManagementService:
                     action = consent_item.get("action")  # "grant" or "withdraw"
 
                     if not consent_type or not action:
-                        errors.append(f"Missing consent_type or action for item: {consent_item}")
+                        errors.append(
+                            f"Missing consent_type or action for item: {consent_item}"
+                        )
                         continue
 
                     if action == "grant":
@@ -519,7 +573,9 @@ class ConsentManagementService:
                             db=db,
                             user_id=user_id,
                             consent_type=consent_type,
-                            granular_preferences=consent_item.get("granular_preferences"),
+                            granular_preferences=consent_item.get(
+                                "granular_preferences"
+                            ),
                             ip_address=context.get("ip_address"),
                             user_agent=context.get("user_agent"),
                             consent_form_version=context.get("form_version", "1.0"),
@@ -539,7 +595,9 @@ class ConsentManagementService:
                         results.append(result)
 
                 except Exception as e:
-                    errors.append(f"Failed to process consent item {consent_item}: {e!s}")
+                    errors.append(
+                        f"Failed to process consent item {consent_item}: {e!s}"
+                    )
 
             return {
                 "user_id": user_id,
@@ -578,7 +636,10 @@ class ConsentManagementService:
 
             # Analyze consent patterns
             analytics = {
-                "period": {"start_date": start_date.isoformat(), "end_date": end_date.isoformat()},
+                "period": {
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                },
                 "total_consent_grants": len(consent_records),
                 "consent_by_type": {},
                 "consent_by_language": {},
@@ -619,9 +680,11 @@ class ConsentManagementService:
                 .filter(
                     and_(
                         UserConsentRecord.status == ConsentStatus.ACTIVE,
-                        UserConsentRecord.expires_at > datetime.utcnow()
-                        if UserConsentRecord.expires_at.isnot(None)
-                        else True,
+                        (
+                            UserConsentRecord.expires_at > datetime.utcnow()
+                            if UserConsentRecord.expires_at.isnot(None)
+                            else True
+                        ),
                     )
                 )
                 .all()
@@ -690,7 +753,9 @@ class ConsentManagementService:
             return [
                 {
                     "action": h.action,
-                    "consent_type": h.consent_record.consent_type if h.consent_record else None,
+                    "consent_type": (
+                        h.consent_record.consent_type if h.consent_record else None
+                    ),
                     "timestamp": h.timestamp.isoformat(),
                     "previous_status": h.previous_status,
                     "new_status": h.new_status,

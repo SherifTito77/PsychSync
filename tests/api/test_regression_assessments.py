@@ -20,16 +20,17 @@ Priority: P0 (Critical)
 Coverage Target: 90% lines, 85% branches, 95% functions
 """
 
+import asyncio
+from datetime import datetime
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from datetime import datetime
-from unittest.mock import patch, Mock
-import asyncio
 
-from app.main import app
-from app.db.models.user import User, UserRole
 from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
+from app.db.models.user import User, UserRole
+from app.main import app
 from tests.conftest import fake
 
 
@@ -41,7 +42,13 @@ class TestAssessmentCRUDRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_create_assessment_success(self, client: AsyncClient, auth_headers: dict, test_user: User, test_organization):
+    async def test_create_assessment_success(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_user: User,
+        test_organization,
+    ):
         """
         Test: Verify assessment creation by authenticated user
 
@@ -56,9 +63,9 @@ class TestAssessmentCRUDRegression:
                 "description": "Discover your MBTI personality type",
                 "category": "personality",
                 "organization_id": str(test_organization.id),
-                "status": "draft"
+                "status": "draft",
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 201
@@ -68,7 +75,9 @@ class TestAssessmentCRUDRegression:
         assert "id" in data["data"]
 
     @pytest.mark.asyncio
-    async def test_create_assessment_unauthenticated(self, client: AsyncClient, test_organization):
+    async def test_create_assessment_unauthenticated(
+        self, client: AsyncClient, test_organization
+    ):
         """
         Test: Verify rejection without authentication
 
@@ -83,19 +92,29 @@ class TestAssessmentCRUDRegression:
                 "title": "Test Assessment",
                 "description": "Test description",
                 "category": "personality",
-                "organization_id": test_organization.id
-            }
+                "organization_id": test_organization.id,
+            },
         )
 
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("invalid_data,missing_field", [
-        ({"description": "No title", "category": "personality"}, "title"),
-        ({"title": "No category", "description": "Test"}, "category"),
-        ({}, "title"),
-    ])
-    async def test_create_assessment_validation_errors(self, client: AsyncClient, auth_headers: dict, invalid_data: dict, missing_field: str, test_organization):
+    @pytest.mark.parametrize(
+        "invalid_data,missing_field",
+        [
+            ({"description": "No title", "category": "personality"}, "title"),
+            ({"title": "No category", "description": "Test"}, "category"),
+            ({}, "title"),
+        ],
+    )
+    async def test_create_assessment_validation_errors(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        invalid_data: dict,
+        missing_field: str,
+        test_organization,
+    ):
         """
         Test: Verify input validation
 
@@ -106,13 +125,20 @@ class TestAssessmentCRUDRegression:
         response = await client.post(
             "/api/v1/assessments/",
             json={**invalid_data, "organization_id": test_organization.id},
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_list_assessments_pagination(self, client: AsyncClient, auth_headers: dict, test_user: User, test_db, test_organization):
+    async def test_list_assessments_pagination(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_user: User,
+        test_db,
+        test_organization,
+    ):
         """
         Test: Verify pagination works correctly
 
@@ -130,15 +156,14 @@ class TestAssessmentCRUDRegression:
                 category=AssessmentCategory.PERSONALITY,
                 status=AssessmentStatus.DRAFT,
                 organization_id=test_organization.id,
-                created_by_id=test_user.id
+                created_by_id=test_user.id,
             )
             test_db.add(assessment)
         await test_db.commit()
 
         # Request page 1 with limit=10
         response = await client.get(
-            "/api/v1/assessments/?skip=0&limit=10",
-            headers=auth_headers
+            "/api/v1/assessments/?skip=0&limit=10", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -148,12 +173,21 @@ class TestAssessmentCRUDRegression:
         assert data["data"]["total"] == 25
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("filter_key,filter_value", [
-        ("category", "personality"),
-        ("status", "draft"),
-        ("created_by", 1),
-    ])
-    async def test_list_assessments_filtering(self, client: AsyncClient, auth_headers: dict, filter_key: str, filter_value: str):
+    @pytest.mark.parametrize(
+        "filter_key,filter_value",
+        [
+            ("category", "personality"),
+            ("status", "draft"),
+            ("created_by", 1),
+        ],
+    )
+    async def test_list_assessments_filtering(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        filter_key: str,
+        filter_value: str,
+    ):
         """
         Test: Verify filtering by category, status, creator
 
@@ -162,8 +196,7 @@ class TestAssessmentCRUDRegression:
         Priority: P0
         """
         response = await client.get(
-            f"/api/v1/assessments/?{filter_key}={filter_value}",
-            headers=auth_headers
+            f"/api/v1/assessments/?{filter_key}={filter_value}", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -171,7 +204,14 @@ class TestAssessmentCRUDRegression:
         assert "data" in data
 
     @pytest.mark.asyncio
-    async def test_list_assessments_search(self, client: AsyncClient, auth_headers: dict, test_user: User, test_db, test_organization):
+    async def test_list_assessments_search(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_user: User,
+        test_db,
+        test_organization,
+    ):
         """
         Test: Verify full-text search
 
@@ -188,7 +228,7 @@ class TestAssessmentCRUDRegression:
             category=AssessmentCategory.PERSONALITY,
             status=AssessmentStatus.DRAFT,
             organization_id=test_organization.id,
-            created_by_id=test_user.id
+            created_by_id=test_user.id,
         )
         assessment2 = Assessment(
             title="Communication Test",
@@ -196,7 +236,7 @@ class TestAssessmentCRUDRegression:
             category=AssessmentCategory.PERSONALITY,
             status=AssessmentStatus.DRAFT,
             organization_id=test_organization.id,
-            created_by_id=test_user.id
+            created_by_id=test_user.id,
         )
         test_db.add(assessment1)
         test_db.add(assessment2)
@@ -204,17 +244,20 @@ class TestAssessmentCRUDRegression:
 
         # Search for "leadership"
         response = await client.get(
-            "/api/v1/assessments/?search=leadership",
-            headers=auth_headers
+            "/api/v1/assessments/?search=leadership", headers=auth_headers
         )
 
         assert response.status_code == 200
         data = response.json()
         # Should find assessment with "Leadership" in title
-        assert any(a["title"] == "Leadership Assessment" for a in data["data"]["assessments"])
+        assert any(
+            a["title"] == "Leadership Assessment" for a in data["data"]["assessments"]
+        )
 
     @pytest.mark.asyncio
-    async def test_get_assessment_by_id_success(self, client: AsyncClient, auth_headers: dict, test_assessment, test_db):
+    async def test_get_assessment_by_id_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, test_db
+    ):
         """
         Test: Verify retrieval by ID
 
@@ -223,8 +266,7 @@ class TestAssessmentCRUDRegression:
         Priority: P0
         """
         response = await client.get(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -233,7 +275,9 @@ class TestAssessmentCRUDRegression:
         assert data["data"]["id"] == str(test_assessment.id)
 
     @pytest.mark.asyncio
-    async def test_get_assessment_by_id_not_found(self, client: AsyncClient, auth_headers: dict):
+    async def test_get_assessment_by_id_not_found(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: Verify 404 for invalid ID
 
@@ -241,15 +285,14 @@ class TestAssessmentCRUDRegression:
         Expected: 404 status
         Priority: P0
         """
-        response = await client.get(
-            "/api/v1/assessments/999999",
-            headers=auth_headers
-        )
+        response = await client.get("/api/v1/assessments/999999", headers=auth_headers)
 
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_assessment_unauthorized(self, client: AsyncClient, test_db, test_user: User, test_admin: User):
+    async def test_get_assessment_unauthorized(
+        self, client: AsyncClient, test_db, test_user: User, test_admin: User
+    ):
         """
         Test: Verify access control (IDOR protection)
 
@@ -259,7 +302,7 @@ class TestAssessmentCRUDRegression:
         Security: IDOR protection
         """
         from app.db.models.assessment import Assessment
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create assessment as admin
         assessment = Assessment(
@@ -268,25 +311,28 @@ class TestAssessmentCRUDRegression:
             category=AssessmentCategory.PERSONALITY,
             status=AssessmentStatus.DRAFT,
             is_public=False,
-            created_by_id=test_admin.id
+            created_by_id=test_admin.id,
         )
         test_db.add(assessment)
         await test_db.commit()
 
         # Create auth headers for regular user
-        token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
+        token = create_access_token(
+            data={"sub": test_user.email, "user_id": test_user.id}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         # Try to access admin's assessment
         response = await client.get(
-            f"/api/v1/assessments/{assessment.id}",
-            headers=headers
+            f"/api/v1/assessments/{assessment.id}", headers=headers
         )
 
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_update_assessment_success(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_update_assessment_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify assessment update by creator
 
@@ -296,11 +342,8 @@ class TestAssessmentCRUDRegression:
         """
         response = await client.put(
             f"/api/v1/assessments/{test_assessment.id}",
-            json={
-                "title": "Updated Title",
-                "description": "Updated description"
-            },
-            headers=auth_headers
+            json={"title": "Updated Title", "description": "Updated description"},
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
@@ -308,7 +351,9 @@ class TestAssessmentCRUDRegression:
         assert data["title"] == "Updated Title"
 
     @pytest.mark.asyncio
-    async def test_update_assessment_unauthorized(self, client: AsyncClient, test_assessment, test_user: User, test_admin: User):
+    async def test_update_assessment_unauthorized(
+        self, client: AsyncClient, test_assessment, test_user: User, test_admin: User
+    ):
         """
         Test: Verify only creator can update
 
@@ -317,22 +362,26 @@ class TestAssessmentCRUDRegression:
         Priority: P0
         Security: Access control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create auth headers for different user
-        token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
+        token = create_access_token(
+            data={"sub": test_user.email, "user_id": test_user.id}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         response = await client.put(
             f"/api/v1/assessments/{test_assessment.id}",
             json={"title": "Hacked Title"},
-            headers=headers
+            headers=headers,
         )
 
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_delete_assessment_success(self, client: AsyncClient, auth_headers: dict, test_assessment, test_db):
+    async def test_delete_assessment_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, test_db
+    ):
         """
         Test: Verify deletion by creator
 
@@ -341,20 +390,24 @@ class TestAssessmentCRUDRegression:
         Priority: P0
         """
         response = await client.delete(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
         )
 
         assert response.status_code == 204
 
         # Verify deletion
         from sqlalchemy import select
-        result = await test_db.execute(select(Assessment).where(Assessment.id == test_assessment.id))
+
+        result = await test_db.execute(
+            select(Assessment).where(Assessment.id == test_assessment.id)
+        )
         assessment = result.scalar_one_or_none()
         assert assessment is None
 
     @pytest.mark.asyncio
-    async def test_delete_assessment_unauthorized(self, client: AsyncClient, test_assessment, test_user: User):
+    async def test_delete_assessment_unauthorized(
+        self, client: AsyncClient, test_assessment, test_user: User
+    ):
         """
         Test: Verify only creator can delete
 
@@ -363,15 +416,16 @@ class TestAssessmentCRUDRegression:
         Priority: P0
         Security: Access control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
         # Create auth headers for different user
-        token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
+        token = create_access_token(
+            data={"sub": test_user.email, "user_id": test_user.id}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         response = await client.delete(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=headers
         )
 
         assert response.status_code == 403
@@ -384,7 +438,9 @@ class TestAssessmentLifecycleRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_publish_assessment_success(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_publish_assessment_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify status change to published
 
@@ -393,8 +449,7 @@ class TestAssessmentLifecycleRegression:
         Priority: P0
         """
         response = await client.post(
-            f"/api/v1/assessments/{test_assessment.id}/publish",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}/publish", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -402,7 +457,9 @@ class TestAssessmentLifecycleRegression:
         assert data["status"] == "published"
 
     @pytest.mark.asyncio
-    async def test_publish_already_published(self, client: AsyncClient, auth_headers: dict, test_assessment, test_db):
+    async def test_publish_already_published(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, test_db
+    ):
         """
         Test: Verify rejection of already published
 
@@ -415,14 +472,15 @@ class TestAssessmentLifecycleRegression:
         await test_db.commit()
 
         response = await client.post(
-            f"/api/v1/assessments/{test_assessment.id}/publish",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}/publish", headers=auth_headers
         )
 
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_archive_assessment_success(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_archive_assessment_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify archival functionality
 
@@ -431,8 +489,7 @@ class TestAssessmentLifecycleRegression:
         Priority: P0
         """
         response = await client.post(
-            f"/api/v1/assessments/{test_assessment.id}/archive",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}/archive", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -440,7 +497,9 @@ class TestAssessmentLifecycleRegression:
         assert data["status"] == "archived"
 
     @pytest.mark.asyncio
-    async def test_duplicate_assessment_success(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_duplicate_assessment_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify assessment duplication
 
@@ -449,8 +508,7 @@ class TestAssessmentLifecycleRegression:
         Priority: P0
         """
         response = await client.post(
-            f"/api/v1/assessments/{test_assessment.id}/duplicate",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}/duplicate", headers=auth_headers
         )
 
         assert response.status_code == 201
@@ -469,7 +527,9 @@ class TestAssessmentSectionQuestionRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_add_section_success(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_add_section_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify section creation
 
@@ -482,16 +542,22 @@ class TestAssessmentSectionQuestionRegression:
             json={
                 "title": "Personality Questions",
                 "order": 1,
-                "description": "First section"
+                "description": "First section",
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         # Note: This test may need adjustment based on actual implementation
-        assert response.status_code in [201, 200, 404]  # 404 if endpoint not implemented
+        assert response.status_code in [
+            201,
+            200,
+            404,
+        ]  # 404 if endpoint not implemented
 
     @pytest.mark.asyncio
-    async def test_add_section_unauthorized(self, client: AsyncClient, test_assessment, test_user: User):
+    async def test_add_section_unauthorized(
+        self, client: AsyncClient, test_assessment, test_user: User
+    ):
         """
         Test: Verify only creator can add sections
 
@@ -500,21 +566,25 @@ class TestAssessmentSectionQuestionRegression:
         Priority: P0
         Security: Access control
         """
-        from app.core.security import create_access_token
+        from app.services.security import create_access_token
 
-        token = create_access_token(data={"sub": test_user.email, "user_id": test_user.id})
+        token = create_access_token(
+            data={"sub": test_user.email, "user_id": test_user.id}
+        )
         headers = {"Authorization": f"Bearer {token}"}
 
         response = await client.post(
             f"/api/v1/assessments/{test_assessment.id}/sections",
             json={"title": "Unauthorized Section"},
-            headers=headers
+            headers=headers,
         )
 
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_add_question_success(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_add_question_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify question creation
 
@@ -527,7 +597,9 @@ class TestAssessmentSectionQuestionRegression:
         pass
 
     @pytest.mark.asyncio
-    async def test_delete_question_success(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_delete_question_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify question deletion
 
@@ -547,7 +619,9 @@ class TestAssessmentAssignmentRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_create_assignment_success(self, client: AsyncClient, auth_headers: dict, test_assessment, test_user: User):
+    async def test_create_assignment_success(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, test_user: User
+    ):
         """
         Test: Verify assessment assignment to user
 
@@ -559,16 +633,18 @@ class TestAssessmentAssignmentRegression:
             f"/api/v1/assessments/{test_assessment.id}/assignments",
             json={
                 "assigned_to_user_id": str(test_user.id),
-                "due_date": "2024-12-31T23:59:59"
+                "due_date": "2024-12-31T23:59:59",
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         # May return 404 if endpoint not fully implemented
         assert response.status_code in [201, 200, 404]
 
     @pytest.mark.asyncio
-    async def test_create_assignment_draft_assessment(self, client: AsyncClient, auth_headers: dict, test_assessment, test_user: User):
+    async def test_create_assignment_draft_assessment(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, test_user: User
+    ):
         """
         Test: Verify only published assessments assignable
 
@@ -580,9 +656,9 @@ class TestAssessmentAssignmentRegression:
             f"/api/v1/assessments/{test_assessment.id}/assignments",
             json={
                 "assigned_to_user_id": str(test_user.id),
-                "due_date": "2024-12-31T23:59:59"
+                "due_date": "2024-12-31T23:59:59",
             },
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         # Should fail if assessment is not published
@@ -590,7 +666,9 @@ class TestAssessmentAssignmentRegression:
             assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_get_my_assignments_success(self, client: AsyncClient, auth_headers: dict):
+    async def test_get_my_assignments_success(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: Verify retrieval of user's assignments
 
@@ -599,8 +677,7 @@ class TestAssessmentAssignmentRegression:
         Priority: P0
         """
         response = await client.get(
-            "/api/v1/assessments/assignments/me",
-            headers=auth_headers
+            "/api/v1/assessments/assignments/me", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -653,7 +730,9 @@ class TestAssessmentTemplateRegression:
         Expected: 200 status, 18 Enneagram questions
         Priority: P0
         """
-        response = await client.get("/api/v1/assessments/assessment-questions/enneagram")
+        response = await client.get(
+            "/api/v1/assessments/assessment-questions/enneagram"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -685,7 +764,9 @@ class TestAssessmentTemplateRegression:
         templates = ["mbti", "big-five", "enneagram", "disc"]
 
         for template in templates:
-            response = await client.get(f"/api/v1/assessments/assessment-questions/{template}")
+            response = await client.get(
+                f"/api/v1/assessments/assessment-questions/{template}"
+            )
             assert response.status_code == 200
 
             data = response.json()
@@ -703,7 +784,9 @@ class TestAssessmentPerformanceRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_assessment_caching(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_assessment_caching(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify responses are cached
 
@@ -715,16 +798,14 @@ class TestAssessmentPerformanceRegression:
         # First request
         start = time.time()
         response1 = await client.get(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
         )
         time1 = time.time() - start
 
         # Second request (should be cached)
         start = time.time()
         response2 = await client.get(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
         )
         time2 = time.time() - start
 
@@ -735,7 +816,14 @@ class TestAssessmentPerformanceRegression:
         assert time2 <= time1 * 1.5  # Allow 50% variance
 
     @pytest.mark.asyncio
-    async def test_assessment_performance_large_dataset(self, client: AsyncClient, auth_headers: dict, test_user: User, test_db, test_organization):
+    async def test_assessment_performance_large_dataset(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        test_user: User,
+        test_db,
+        test_organization,
+    ):
         """
         Test: Verify performance with 100+ questions
 
@@ -753,7 +841,7 @@ class TestAssessmentPerformanceRegression:
             category=AssessmentCategory.PERSONALITY,
             status=AssessmentStatus.PUBLISHED,
             organization_id=test_organization.id,
-            created_by_id=test_user.id
+            created_by_id=test_user.id,
         )
         test_db.add(assessment)
         await test_db.commit()
@@ -763,7 +851,7 @@ class TestAssessmentPerformanceRegression:
             question = Question(
                 assessment_id=assessment.id,
                 question_text=f"Question {i}",
-                question_type="single_choice"
+                question_type="single_choice",
             )
             test_db.add(question)
         await test_db.commit()
@@ -771,8 +859,7 @@ class TestAssessmentPerformanceRegression:
         # Measure retrieval time
         start = time.time()
         response = await client.get(
-            f"/api/v1/assessments/{assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{assessment.id}", headers=auth_headers
         )
         elapsed = time.time() - start
 
@@ -783,7 +870,11 @@ class TestAssessmentPerformanceRegression:
 # Test class markers
 TestAssessmentCRUDRegression = pytest.mark.P0(TestAssessmentCRUDRegression)
 TestAssessmentLifecycleRegression = pytest.mark.P0(TestAssessmentLifecycleRegression)
-TestAssessmentSectionQuestionRegression = pytest.mark.P0(TestAssessmentSectionQuestionRegression)
+TestAssessmentSectionQuestionRegression = pytest.mark.P0(
+    TestAssessmentSectionQuestionRegression
+)
 TestAssessmentAssignmentRegression = pytest.mark.P0(TestAssessmentAssignmentRegression)
 TestAssessmentTemplateRegression = pytest.mark.P0(TestAssessmentTemplateRegression)
-TestAssessmentPerformanceRegression = pytest.mark.P1(TestAssessmentPerformanceRegression)
+TestAssessmentPerformanceRegression = pytest.mark.P1(
+    TestAssessmentPerformanceRegression
+)

@@ -7,12 +7,13 @@ Automated onboarding flows, health monitoring, and customer success playbooks
 import asyncio
 import json
 import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class CustomerHealthStatus(Enum):
     HEALTHY = "healthy"
@@ -20,6 +21,7 @@ class CustomerHealthStatus(Enum):
     CRITICAL = "critical"
     CHURNED = "churned"
     GROWING = "growing"
+
 
 class OnboardingStage(Enum):
     SIGNED_UP = "signed_up"
@@ -30,6 +32,7 @@ class OnboardingStage(Enum):
     VALUE_REALIZED = "value_realized"
     FULLY_ADOPTED = "fully_adopted"
 
+
 class SuccessMilestone(Enum):
     SETUP_COMPLETED = "setup_completed"
     FIRST_WEEK_ACTIVE = "first_week_active"
@@ -37,6 +40,7 @@ class SuccessMilestone(Enum):
     TEAM_ADOPTION = "team_adoption"
     UPGRADE_QUALIFIED = "upgrade_qualified"
     EXECUTIVE_BUY_IN = "executive_buy_in"
+
 
 @dataclass
 class CustomerProfile:
@@ -57,6 +61,7 @@ class CustomerProfile:
     health_score: float = 0.0
     health_status: CustomerHealthStatus = CustomerHealthStatus.HEALTHY
 
+
 @dataclass
 class OnboardingFlow:
     id: str
@@ -68,6 +73,7 @@ class OnboardingFlow:
     success_criteria: List[str]
     average_completion_days: int
 
+
 @dataclass
 class HealthMetric:
     name: str
@@ -76,6 +82,7 @@ class HealthMetric:
     threshold_warning: float
     weight: float
     last_updated: datetime
+
 
 @dataclass
 class SuccessPlay:
@@ -86,6 +93,7 @@ class SuccessPlay:
     expected_outcome: str
     success_metrics: List[str]
     timeline_days: int
+
 
 class CustomerSuccessService:
     """Automated customer success with health monitoring and proactive engagement"""
@@ -112,51 +120,89 @@ class CustomerSuccessService:
                     "duration_hours": 0,
                     "objectives": ["Welcome email sent", "Account setup confirmation"],
                     "automated_actions": [
-                        {"type": "email", "template": "welcome_free_tier", "delay_hours": 0},
-                        {"type": "in_app", "message": "Let's create your first dashboard", "delay_hours": 0}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "welcome_free_tier",
+                            "delay_hours": 0,
+                        },
+                        {
+                            "type": "in_app",
+                            "message": "Let's create your first dashboard",
+                            "delay_hours": 0,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.DASHBOARD_CREATED.value,
                     "duration_hours": 24,
-                    "objectives": ["Dashboard setup completed", "Initial insights generated"],
+                    "objectives": [
+                        "Dashboard setup completed",
+                        "Initial insights generated",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "first_insight_ready", "trigger": "dashboard_created"},
-                        {"type": "in_app", "message": "Your competitive advantage is ready", "delay_hours": 1}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "first_insight_ready",
+                            "trigger": "dashboard_created",
+                        },
+                        {
+                            "type": "in_app",
+                            "message": "Your competitive advantage is ready",
+                            "delay_hours": 1,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.FIRST_INSIGHT_VIEWED.value,
                     "duration_hours": 48,
                     "objectives": ["First insight viewed", "Value demonstrated"],
                     "automated_actions": [
-                        {"type": "email", "template": "value_realization", "trigger": "insight_viewed"},
-                        {"type": "check_in", "message": "How valuable was your first insight?", "delay_hours": 24}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "value_realization",
+                            "trigger": "insight_viewed",
+                        },
+                        {
+                            "type": "check_in",
+                            "message": "How valuable was your first insight?",
+                            "delay_hours": 24,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.VALUE_REALIZED.value,
                     "duration_hours": 168,  # 1 week
-                    "objectives": ["Customer recognizes value", "Active engagement established"],
+                    "objectives": [
+                        "Customer recognizes value",
+                        "Active engagement established",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "weekly_success", "delay_hours": 168},
-                        {"type": "upgrade_nudge", "condition": "high_usage", "delay_hours": 144}
-                    ]
-                }
+                        {
+                            "type": "email",
+                            "template": "weekly_success",
+                            "delay_hours": 168,
+                        },
+                        {
+                            "type": "upgrade_nudge",
+                            "condition": "high_usage",
+                            "delay_hours": 144,
+                        },
+                    ],
+                },
             ],
             target_tiers=["free"],
             automated_actions=[
                 {"type": "progress_tracking", "frequency": "daily"},
                 {"type": "health_monitoring", "frequency": "continuous"},
-                {"type": "upgrade_eligibility_check", "frequency": "weekly"}
+                {"type": "upgrade_eligibility_check", "frequency": "weekly"},
             ],
             success_criteria=[
                 "Dashboard created within 48 hours",
                 "First insight viewed within 72 hours",
                 "Weekly active engagement",
-                "Upgrade qualified within 30 days"
+                "Upgrade qualified within 30 days",
             ],
-            average_completion_days=7
+            average_completion_days=7,
         )
 
         # Growth Tier Onboarding
@@ -168,65 +214,125 @@ class CustomerSuccessService:
                 {
                     "stage": OnboardingStage.SIGNED_UP.value,
                     "duration_hours": 0,
-                    "objectives": ["Premium features unlocked", "Success manager assigned"],
+                    "objectives": [
+                        "Premium features unlocked",
+                        "Success manager assigned",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "welcome_growth_tier", "delay_hours": 0},
-                        {"type": "human_touch", "action": "assign_success_manager", "delay_hours": 4},
-                        {"type": "onboarding_call", "schedule": "automated", "delay_hours": 24}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "welcome_growth_tier",
+                            "delay_hours": 0,
+                        },
+                        {
+                            "type": "human_touch",
+                            "action": "assign_success_manager",
+                            "delay_hours": 4,
+                        },
+                        {
+                            "type": "onboarding_call",
+                            "schedule": "automated",
+                            "delay_hours": 24,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.DASHBOARD_CREATED.value,
                     "duration_hours": 24,
-                    "objectives": ["Advanced dashboard setup", "Custom metrics configured"],
+                    "objectives": [
+                        "Advanced dashboard setup",
+                        "Custom metrics configured",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "advanced_features_guide", "delay_hours": 2},
-                        {"type": "in_app", "message": "Explore premium features", "delay_hours": 4}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "advanced_features_guide",
+                            "delay_hours": 2,
+                        },
+                        {
+                            "type": "in_app",
+                            "message": "Explore premium features",
+                            "delay_hours": 4,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.TEAM_INVITED.value,
                     "duration_hours": 72,
-                    "objectives": ["Team members invited", "Collaboration features activated"],
+                    "objectives": [
+                        "Team members invited",
+                        "Collaboration features activated",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "team_collaboration_guide", "trigger": "team_invited"},
-                        {"type": "team_usage_report", "frequency": "weekly", "delay_hours": 168}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "team_collaboration_guide",
+                            "trigger": "team_invited",
+                        },
+                        {
+                            "type": "team_usage_report",
+                            "frequency": "weekly",
+                            "delay_hours": 168,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.INTEGRATIONS_CONNECTED.value,
                     "duration_hours": 120,  # 5 days
-                    "objectives": ["Key integrations connected", "Automated workflows active"],
+                    "objectives": [
+                        "Key integrations connected",
+                        "Automated workflows active",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "integration_success_stories", "trigger": "integration_connected"},
-                        {"type": "integration_health_check", "frequency": "daily"}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "integration_success_stories",
+                            "trigger": "integration_connected",
+                        },
+                        {"type": "integration_health_check", "frequency": "daily"},
+                    ],
                 },
                 {
                     "stage": OnboardingStage.FULLY_ADOPTED.value,
                     "duration_hours": 336,  # 14 days
-                    "objectives": ["Full feature adoption", "ROI demonstrated", "Expansion identified"],
+                    "objectives": [
+                        "Full feature adoption",
+                        "ROI demonstrated",
+                        "Expansion identified",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "success_celebration", "delay_hours": 336},
-                        {"type": "roi_review", "schedule": "automated", "delay_hours": 384},
-                        {"type": "expansion_planning", "schedule": "30_day_review", "delay_hours": 720}
-                    ]
-                }
+                        {
+                            "type": "email",
+                            "template": "success_celebration",
+                            "delay_hours": 336,
+                        },
+                        {
+                            "type": "roi_review",
+                            "schedule": "automated",
+                            "delay_hours": 384,
+                        },
+                        {
+                            "type": "expansion_planning",
+                            "schedule": "30_day_review",
+                            "delay_hours": 720,
+                        },
+                    ],
+                },
             ],
             target_tiers=["growth", "enterprise"],
             automated_actions=[
                 {"type": "success_manager_check_in", "frequency": "weekly"},
                 {"type": "roi_tracking", "frequency": "continuous"},
                 {"type": "expansion_opportunity_detection", "frequency": "weekly"},
-                {"type": "executive_reporting", "frequency": "monthly"}
+                {"type": "executive_reporting", "frequency": "monthly"},
             ],
             success_criteria=[
                 "Advanced features used within 7 days",
                 "Team adoption >50% within 14 days",
                 "Key integrations connected within 30 days",
-                "ROI >100x within 60 days"
+                "ROI >100x within 60 days",
             ],
-            average_completion_days=14
+            average_completion_days=14,
         )
 
         # Enterprise Onboarding
@@ -238,76 +344,140 @@ class CustomerSuccessService:
                 {
                     "stage": OnboardingStage.SIGNED_UP.value,
                     "duration_hours": 0,
-                    "objectives": ["Executive sponsor confirmed", "Technical requirements gathered"],
+                    "objectives": [
+                        "Executive sponsor confirmed",
+                        "Technical requirements gathered",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "enterprise_welcome", "delay_hours": 0},
-                        {"type": "human_touch", "action": "assign_enterprise_team", "delay_hours": 2},
-                        {"type": "discovery_call", "priority": "high", "delay_hours": 24}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "enterprise_welcome",
+                            "delay_hours": 0,
+                        },
+                        {
+                            "type": "human_touch",
+                            "action": "assign_enterprise_team",
+                            "delay_hours": 2,
+                        },
+                        {
+                            "type": "discovery_call",
+                            "priority": "high",
+                            "delay_hours": 24,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.DASHBOARD_CREATED.value,
                     "duration_hours": 48,
-                    "objectives": ["Custom dashboards designed", "Executive reporting configured"],
+                    "objectives": [
+                        "Custom dashboards designed",
+                        "Executive reporting configured",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "custom_dashboard_review", "trigger": "dashboard_created"},
-                        {"type": "executive_demonstration", "schedule": "automated", "delay_hours": 72}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "custom_dashboard_review",
+                            "trigger": "dashboard_created",
+                        },
+                        {
+                            "type": "executive_demonstration",
+                            "schedule": "automated",
+                            "delay_hours": 72,
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.TEAM_INVITED.value,
                     "duration_hours": 96,
-                    "objectives": ["Enterprise team rollout", "Training sessions conducted"],
+                    "objectives": [
+                        "Enterprise team rollout",
+                        "Training sessions conducted",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "enterprise_training_schedule", "trigger": "team_invited"},
-                        {"type": "training_session", "type": "webinar", "frequency": "weekly"}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "enterprise_training_schedule",
+                            "trigger": "team_invited",
+                        },
+                        {
+                            "type": "training_session",
+                            "type": "webinar",
+                            "frequency": "weekly",
+                        },
+                    ],
                 },
                 {
                     "stage": OnboardingStage.INTEGRATIONS_CONNECTED.value,
                     "duration_hours": 168,  # 1 week
-                    "objectives": ["Enterprise integrations deployed", "SSO configured", "Security approved"],
+                    "objectives": [
+                        "Enterprise integrations deployed",
+                        "SSO configured",
+                        "Security approved",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "enterprise_security_confirmation", "trigger": "security_setup"},
+                        {
+                            "type": "email",
+                            "template": "enterprise_security_confirmation",
+                            "trigger": "security_setup",
+                        },
                         {"type": "security_audit", "frequency": "monthly"},
-                        {"type": "compliance_reporting", "frequency": "quarterly"}
-                    ]
+                        {"type": "compliance_reporting", "frequency": "quarterly"},
+                    ],
                 },
                 {
                     "stage": OnboardingStage.EXECUTIVE_BUY_IN.value,
                     "duration_hours": 336,  # 14 days
-                    "objectives": ["Executive value demonstrated", "Strategic partnership established"],
+                    "objectives": [
+                        "Executive value demonstrated",
+                        "Strategic partnership established",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "executive_business_review", "delay_hours": 336},
-                        {"type": "quarterly_business_review", "schedule": "automated", "recurring": True},
-                        {"type": "strategic_planning", "frequency": "quarterly"}
-                    ]
+                        {
+                            "type": "email",
+                            "template": "executive_business_review",
+                            "delay_hours": 336,
+                        },
+                        {
+                            "type": "quarterly_business_review",
+                            "schedule": "automated",
+                            "recurring": True,
+                        },
+                        {"type": "strategic_planning", "frequency": "quarterly"},
+                    ],
                 },
                 {
                     "stage": OnboardingStage.FULLY_ADOPTED.value,
                     "duration_hours": 720,  # 30 days
-                    "objectives": ["Enterprise-wide adoption", "Custom KPIs tracked", "Strategic value proven"],
+                    "objectives": [
+                        "Enterprise-wide adoption",
+                        "Custom KPIs tracked",
+                        "Strategic value proven",
+                    ],
                     "automated_actions": [
-                        {"type": "email", "template": "enterprise_success_celebration", "delay_hours": 720},
+                        {
+                            "type": "email",
+                            "template": "enterprise_success_celebration",
+                            "delay_hours": 720,
+                        },
                         {"type": "account_review", "frequency": "monthly"},
-                        {"type": "strategic_growth_planning", "frequency": "quarterly"}
-                    ]
-                }
+                        {"type": "strategic_growth_planning", "frequency": "quarterly"},
+                    ],
+                },
             ],
             target_tiers=["enterprise"],
             automated_actions=[
                 {"type": "dedicated_success_manager", "availability": "24/7"},
                 {"type": "executive_sponsor_check_in", "frequency": "monthly"},
                 {"type": "strategic_account_review", "frequency": "quarterly"},
-                {"type": "custom_success_metrics", "frequency": "continuous"}
+                {"type": "custom_success_metrics", "frequency": "continuous"},
             ],
             success_criteria=[
                 "Executive dashboards active within 5 days",
                 "80% team adoption within 30 days",
                 "Custom integrations deployed within 14 days",
-                "Strategic value demonstrated within 60 days"
+                "Strategic value demonstrated within 60 days",
             ],
-            average_completion_days=30
+            average_completion_days=30,
         )
 
         return flows
@@ -321,7 +491,7 @@ class CustomerSuccessService:
                 threshold_good=0.8,  # 80% of expected login frequency
                 threshold_warning=0.5,
                 weight=0.25,
-                last_updated=datetime.now()
+                last_updated=datetime.now(),
             ),
             "feature_adoption": HealthMetric(
                 name="Feature Adoption",
@@ -329,7 +499,7 @@ class CustomerSuccessService:
                 threshold_good=0.7,  # 70% of key features used
                 threshold_warning=0.4,
                 weight=0.2,
-                last_updated=datetime.now()
+                last_updated=datetime.now(),
             ),
             "team_engagement": HealthMetric(
                 name="Team Engagement",
@@ -337,7 +507,7 @@ class CustomerSuccessService:
                 threshold_good=0.6,  # 60% of team members active
                 threshold_warning=0.3,
                 weight=0.15,
-                last_updated=datetime.now()
+                last_updated=datetime.now(),
             ),
             "roi_realization": HealthMetric(
                 name="ROI Realization",
@@ -345,7 +515,7 @@ class CustomerSuccessService:
                 threshold_good=100.0,  # 100x ROI achieved
                 threshold_warning=50.0,
                 weight=0.2,
-                last_updated=datetime.now()
+                last_updated=datetime.now(),
             ),
             "support_sentiment": HealthMetric(
                 name="Support Sentiment",
@@ -353,7 +523,7 @@ class CustomerSuccessService:
                 threshold_good=0.9,  # 90% positive sentiment
                 threshold_warning=0.7,
                 weight=0.1,
-                last_updated=datetime.now()
+                last_updated=datetime.now(),
             ),
             "growth_indicators": HealthMetric(
                 name="Growth Indicators",
@@ -361,8 +531,8 @@ class CustomerSuccessService:
                 threshold_good=0.5,  # 50% of growth indicators present
                 threshold_warning=0.2,
                 weight=0.1,
-                last_updated=datetime.now()
-            )
+                last_updated=datetime.now(),
+            ),
         }
 
     def _initialize_success_plays(self) -> Dict[str, SuccessPlay]:
@@ -377,23 +547,23 @@ class CustomerSuccessService:
                 "health_score_below": 40,
                 "login_frequency_below": 0.3,
                 "days_inactive_above": 14,
-                "support_tickets_above": 3
+                "support_tickets_above": 3,
             },
             actions=[
                 {"type": "priority_support", "action": "assign_dedicated_support"},
                 {"type": "outreach", "method": "phone_call", "priority": "high"},
                 {"type": "success_plan", "action": "create_recovery_plan"},
                 {"type": "executive_escalation", "condition": "high_value_customer"},
-                {"type": "value_demonstration", "action": "custom_roi_analysis"}
+                {"type": "value_demonstration", "action": "custom_roi_analysis"},
             ],
             expected_outcome="Recovery to healthy status within 30 days",
             success_metrics=[
                 "Health score improves to >60",
                 "Login frequency increases to >50%",
                 "Customer re-engages with key features",
-                "Positive support interactions"
+                "Positive support interactions",
             ],
-            timeline_days=30
+            timeline_days=30,
         )
 
         # Growth Acceleration
@@ -404,23 +574,26 @@ class CustomerSuccessService:
                 "health_score_above": 80,
                 "usage_growth_rate_above": 0.2,  # 20% month-over-month
                 "team_expansion_detected": True,
-                "roi_above_threshold": True
+                "roi_above_threshold": True,
             },
             actions=[
                 {"type": "success_manager_engagement", "frequency": "bi-weekly"},
-                {"type": "expansion_opportunity", "action": "identify_upgrade_triggers"},
+                {
+                    "type": "expansion_opportunity",
+                    "action": "identify_upgrade_triggers",
+                },
                 {"type": "advocacy_program", "action": "invite_to_customer_advisory"},
                 {"type": "case_study_development", "action": "document_success_story"},
-                {"type": "executive_business_review", "schedule": "quarterly"}
+                {"type": "executive_business_review", "schedule": "quarterly"},
             ],
             expected_outcome="Expansion to higher tier within 90 days",
             success_metrics=[
                 "Upgrade to next tier completed",
                 "Team size increases by >50%",
                 "ROI >200x achieved",
-                "Customer advocacy activities initiated"
+                "Customer advocacy activities initiated",
             ],
-            timeline_days=90
+            timeline_days=90,
         )
 
         # New Customer Success
@@ -430,23 +603,26 @@ class CustomerSuccessService:
             trigger_conditions={
                 "customer_age_days": "<=30",
                 "onboarding_stage": "in_progress",
-                "first_month_active": True
+                "first_month_active": True,
             },
             actions=[
                 {"type": "onboarding_support", "frequency": "daily_check_ins"},
                 {"type": "best_practice_sharing", "method": "targeted_content"},
                 {"type": "peer_connection", "action": "connect_with_similar_customers"},
-                {"type": "quick_win_identification", "action": "find_immediate_value_opportunities"},
-                {"type": "success_planning", "action": "30_day_success_plan"}
+                {
+                    "type": "quick_win_identification",
+                    "action": "find_immediate_value_opportunities",
+                },
+                {"type": "success_planning", "action": "30_day_success_plan"},
             ],
             expected_outcome="Successful onboarding completion with 90% retention",
             success_metrics=[
                 "Onboarding completed on schedule",
                 "First month usage targets met",
                 "Customer satisfaction score >8/10",
-                "Renewal likelihood >90%"
+                "Renewal likelihood >90%",
             ],
-            timeline_days=30
+            timeline_days=30,
         )
 
         # Executive Engagement
@@ -457,23 +633,26 @@ class CustomerSuccessService:
                 "account_tier": "enterprise",
                 "revenue_impact_above": 100000,
                 "strategic_importance": "high",
-                "contract_renewal_within": "90_days"
+                "contract_renewal_within": "90_days",
             },
             actions=[
                 {"type": "executive_business_review", "schedule": "quarterly"},
                 {"type": "strategic_planning", "action": "joint_success_planning"},
                 {"type": "industry_intelligence", "action": "custom_market_analysis"},
                 {"type": "innovation_workshop", "schedule": "semi_annual"},
-                {"type": "executive_sponsor_program", "action": "executive_matchmaking"}
+                {
+                    "type": "executive_sponsor_program",
+                    "action": "executive_matchmaking",
+                },
             ],
             expected_outcome="Strategic partnership with multi-year commitment",
             success_metrics=[
                 "Executive satisfaction score >9/10",
                 "Strategic value documented",
                 "Multi-year contract renewal",
-                "Joint innovation initiatives launched"
+                "Joint innovation initiatives launched",
             ],
-            timeline_days=180
+            timeline_days=180,
         )
 
         return plays
@@ -492,13 +671,12 @@ class CustomerSuccessService:
             team_size=customer_data.get("team_size", 10),
             annual_revenue=customer_data.get("annual_revenue", 1000000),
             use_case=customer_data.get("use_case", "business_intelligence"),
-            success_metrics=customer_data.get("success_metrics", [
-                "user_satisfaction",
-                "revenue_protection",
-                "competitive_advantage"
-            ]),
+            success_metrics=customer_data.get(
+                "success_metrics",
+                ["user_satisfaction", "revenue_protection", "competitive_advantage"],
+            ),
             risk_factors=customer_data.get("risk_factors", []),
-            growth_indicators=customer_data.get("growth_indicators", [])
+            growth_indicators=customer_data.get("growth_indicators", []),
         )
 
         self.customer_profiles[customer_id] = profile
@@ -522,7 +700,9 @@ class CustomerSuccessService:
         if flow:
             self._execute_onboarding_stage(customer_id, flow, 0)
 
-    def _execute_onboarding_stage(self, customer_id: str, flow: OnboardingFlow, stage_index: int):
+    def _execute_onboarding_stage(
+        self, customer_id: str, flow: OnboardingFlow, stage_index: int
+    ):
         """Execute current onboarding stage with automated actions"""
         if stage_index >= len(flow.stages):
             return
@@ -536,7 +716,9 @@ class CustomerSuccessService:
         # Schedule next stage
         next_stage_delay = stage.get("duration_hours", 24)
         # In production, this would schedule the next stage execution
-        logger.info(f"Scheduled next onboarding stage for {customer_id} in {next_stage_delay} hours")
+        logger.info(
+            f"Scheduled next onboarding stage for {customer_id} in {next_stage_delay} hours"
+        )
 
     def _execute_automated_action(self, customer_id: str, action: Dict[str, Any]):
         """Execute automated action based on action type"""
@@ -563,32 +745,44 @@ class CustomerSuccessService:
             self._schedule_check_in(customer_id, message, delay_hours)
 
         # Log action for tracking
-        self.engagement_history.append({
-            "customer_id": customer_id,
-            "action": action,
-            "executed_at": datetime.now(),
-            "status": "executed"
-        })
+        self.engagement_history.append(
+            {
+                "customer_id": customer_id,
+                "action": action,
+                "executed_at": datetime.now(),
+                "status": "executed",
+            }
+        )
 
     def _send_automated_email(self, customer_id: str, template: str, delay_hours: int):
         """Send automated onboarding email"""
         # In production, this would integrate with email marketing service
-        logger.info(f"Scheduling email template '{template}' for {customer_id} in {delay_hours} hours")
+        logger.info(
+            f"Scheduling email template '{template}' for {customer_id} in {delay_hours} hours"
+        )
 
     def _send_in_app_message(self, customer_id: str, message: str, delay_hours: int):
         """Send in-app notification"""
         # In production, this would integrate with notification system
-        logger.info(f"Scheduling in-app message for {customer_id}: '{message}' in {delay_hours} hours")
+        logger.info(
+            f"Scheduling in-app message for {customer_id}: '{message}' in {delay_hours} hours"
+        )
 
-    def _schedule_human_touch(self, customer_id: str, action_type: str, delay_hours: int):
+    def _schedule_human_touch(
+        self, customer_id: str, action_type: str, delay_hours: int
+    ):
         """Schedule human touchpoint (success manager, call, etc.)"""
         # In production, this would create tasks for success team
-        logger.info(f"Scheduling human touch '{action_type}' for {customer_id} in {delay_hours} hours")
+        logger.info(
+            f"Scheduling human touch '{action_type}' for {customer_id} in {delay_hours} hours"
+        )
 
     def _schedule_check_in(self, customer_id: str, message: str, delay_hours: int):
         """Schedule customer check-in"""
         # In production, this would schedule automated check-in
-        logger.info(f"Scheduling check-in for {customer_id}: '{message}' in {delay_hours} hours")
+        logger.info(
+            f"Scheduling check-in for {customer_id}: '{message}' in {delay_hours} hours"
+        )
 
     def update_customer_activity(self, customer_id: str, activity_data: Dict[str, Any]):
         """Update customer activity and recalculate health"""
@@ -626,7 +820,9 @@ class CustomerSuccessService:
         # Check for success play triggers
         self._check_success_play_triggers(customer_id)
 
-    def _update_health_metric(self, customer_id: str, metric_name: str, increment: float):
+    def _update_health_metric(
+        self, customer_id: str, metric_name: str, increment: float
+    ):
         """Update specific health metric"""
         if metric_name in self.health_metrics:
             metric = self.health_metrics[metric_name]
@@ -669,14 +865,22 @@ class CustomerSuccessService:
             if self._should_trigger_success_play(profile, play):
                 self._execute_success_play(customer_id, play)
 
-    def _should_trigger_success_play(self, profile: CustomerProfile, play: SuccessPlay) -> bool:
+    def _should_trigger_success_play(
+        self, profile: CustomerProfile, play: SuccessPlay
+    ) -> bool:
         """Check if success play conditions are met"""
         triggers = play.trigger_conditions
 
         # Check health score conditions
-        if "health_score_below" in triggers and profile.health_score >= triggers["health_score_below"]:
+        if (
+            "health_score_below" in triggers
+            and profile.health_score >= triggers["health_score_below"]
+        ):
             return False
-        if "health_score_above" in triggers and profile.health_score < triggers["health_score_above"]:
+        if (
+            "health_score_above" in triggers
+            and profile.health_score < triggers["health_score_above"]
+        ):
             return False
 
         # Check account age
@@ -706,7 +910,10 @@ class CustomerSuccessService:
                     return False
 
         # Check support tickets
-        if "support_tickets_above" in triggers and profile.support_tickets <= triggers["support_tickets_above"]:
+        if (
+            "support_tickets_above" in triggers
+            and profile.support_tickets <= triggers["support_tickets_above"]
+        ):
             return False
 
         # Check revenue impact
@@ -726,7 +933,9 @@ class CustomerSuccessService:
         for action in play["actions"]:
             self._execute_success_action(customer_id, action, play)
 
-    def _execute_success_action(self, customer_id: str, action: Dict[str, Any], play: SuccessPlay):
+    def _execute_success_action(
+        self, customer_id: str, action: Dict[str, Any], play: SuccessPlay
+    ):
         """Execute individual success play action"""
         action_type = action.get("type")
 
@@ -769,7 +978,9 @@ class CustomerSuccessService:
 
     def _create_success_plan(self, customer_id: str, play: SuccessPlay):
         """Create customer success plan"""
-        logger.info(f"Creating success plan for customer {customer_id} based on play {play.id}")
+        logger.info(
+            f"Creating success plan for customer {customer_id} based on play {play.id}"
+        )
 
     def _executive_escalation(self, customer_id: str):
         """Escalate to executive team"""
@@ -803,19 +1014,28 @@ class CustomerSuccessService:
             "health_metrics": {
                 name: {
                     "value": metric.value,
-                    "status": "good" if metric.value >= metric.threshold_good else
-                            "warning" if metric.value >= metric.threshold_warning else "critical",
-                    "last_updated": metric.last_updated.isoformat()
+                    "status": (
+                        "good"
+                        if metric.value >= metric.threshold_good
+                        else (
+                            "warning"
+                            if metric.value >= metric.threshold_warning
+                            else "critical"
+                        )
+                    ),
+                    "last_updated": metric.last_updated.isoformat(),
                 }
                 for name, metric in self.health_metrics.items()
             },
             "engagement_summary": {
-                "last_login": profile.last_login.isoformat() if profile.last_login else None,
+                "last_login": (
+                    profile.last_login.isoformat() if profile.last_login else None
+                ),
                 "support_tickets": profile.support_tickets,
                 "risk_factors": profile.risk_factors,
-                "growth_indicators": profile.growth_indicators
+                "growth_indicators": profile.growth_indicators,
             },
-            "recommendations": self._generate_health_recommendations(profile)
+            "recommendations": self._generate_health_recommendations(profile),
         }
 
     def _generate_health_recommendations(self, profile: CustomerProfile) -> List[str]:
@@ -823,31 +1043,43 @@ class CustomerSuccessService:
         recommendations = []
 
         if profile.health_score < 60:
-            recommendations.extend([
-                "Schedule immediate check-in with customer",
-                "Review and address any support issues",
-                "Provide additional training on key features",
-                "Demonstrate recent value and ROI"
-            ])
+            recommendations.extend(
+                [
+                    "Schedule immediate check-in with customer",
+                    "Review and address any support issues",
+                    "Provide additional training on key features",
+                    "Demonstrate recent value and ROI",
+                ]
+            )
 
         if self.health_metrics["login_frequency"].value < 0.5:
             recommendations.append("Send re-engagement campaign with value reminders")
 
         if self.health_metrics["feature_adoption"].value < 0.5:
-            recommendations.append("Provide feature adoption training and use case examples")
+            recommendations.append(
+                "Provide feature adoption training and use case examples"
+            )
 
         if self.health_metrics["team_engagement"].value < 0.3:
-            recommendations.append("Conduct team training and identify additional users")
+            recommendations.append(
+                "Conduct team training and identify additional users"
+            )
 
         if profile.support_tickets > 3:
-            recommendations.append("Review support ticket patterns and address root causes")
+            recommendations.append(
+                "Review support ticket patterns and address root causes"
+            )
 
         return recommendations
 
     def get_portfolio_health_overview(self) -> Dict[str, Any]:
         """Get portfolio-wide health overview"""
         if not self.customer_profiles:
-            return {"total_customers": 0, "health_distribution": {}, "tier_breakdown": {}}
+            return {
+                "total_customers": 0,
+                "health_distribution": {},
+                "tier_breakdown": {},
+            }
 
         total_customers = len(self.customer_profiles)
         health_distribution = {
@@ -855,20 +1087,16 @@ class CustomerSuccessService:
             "at_risk": 0,
             "critical": 0,
             "churned": 0,
-            "growing": 0
+            "growing": 0,
         }
 
         tier_breakdown = {
             "free": {"count": 0, "avg_health": 0},
             "growth": {"count": 0, "avg_health": 0},
-            "enterprise": {"count": 0, "avg_health": 0}
+            "enterprise": {"count": 0, "avg_health": 0},
         }
 
-        total_health_by_tier = {
-            "free": [],
-            "growth": [],
-            "enterprise": []
-        }
+        total_health_by_tier = {"free": [], "growth": [], "enterprise": []}
 
         for profile in self.customer_profiles.values():
             # Count health distribution
@@ -881,11 +1109,22 @@ class CustomerSuccessService:
         # Calculate average health by tier
         for tier in total_health_by_tier:
             if total_health_by_tier[tier]:
-                tier_breakdown[tier]["avg_health"] = sum(total_health_by_tier[tier]) / len(total_health_by_tier[tier])
+                tier_breakdown[tier]["avg_health"] = sum(
+                    total_health_by_tier[tier]
+                ) / len(total_health_by_tier[tier])
 
         # Calculate risk and opportunity metrics
-        at_risk_customers = [p for p in self.customer_profiles.values() if p.health_status in [CustomerHealthStatus.AT_RISK, CustomerHealthStatus.CRITICAL]]
-        growth_opportunities = [p for p in self.customer_profiles.values() if p.health_score > 80 and p.tier != "enterprise"]
+        at_risk_customers = [
+            p
+            for p in self.customer_profiles.values()
+            if p.health_status
+            in [CustomerHealthStatus.AT_RISK, CustomerHealthStatus.CRITICAL]
+        ]
+        growth_opportunities = [
+            p
+            for p in self.customer_profiles.values()
+            if p.health_score > 80 and p.tier != "enterprise"
+        ]
 
         return {
             "total_customers": total_customers,
@@ -894,16 +1133,30 @@ class CustomerSuccessService:
             "risk_metrics": {
                 "at_risk_count": len(at_risk_customers),
                 "at_risk_percentage": len(at_risk_customers) / total_customers * 100,
-                "high_value_at_risk": len([p for p in at_risk_customers if p.annual_revenue > 1000000])
+                "high_value_at_risk": len(
+                    [p for p in at_risk_customers if p.annual_revenue > 1000000]
+                ),
             },
             "growth_opportunities": {
                 "upgrade_candidates": len(growth_opportunities),
-                "expansion_revenue_potential": sum(p.annual_revenue * 0.01 for p in growth_opportunities),  # 1% of revenue
-                "advocacy_potential": len([p for p in self.customer_profiles.values() if p.health_score > 90])
+                "expansion_revenue_potential": sum(
+                    p.annual_revenue * 0.01 for p in growth_opportunities
+                ),  # 1% of revenue
+                "advocacy_potential": len(
+                    [p for p in self.customer_profiles.values() if p.health_score > 90]
+                ),
             },
             "success_play_activity": {
-                "active_plays": len([p for p in self.customer_profiles.values() if p.health_score < 60]),
+                "active_plays": len(
+                    [p for p in self.customer_profiles.values() if p.health_score < 60]
+                ),
                 "growth_plays": len(growth_opportunities),
-                "executive_engagement": len([p for p in self.customer_profiles.values() if p.tier == "enterprise"])
-            }
+                "executive_engagement": len(
+                    [
+                        p
+                        for p in self.customer_profiles.values()
+                        if p.tier == "enterprise"
+                    ]
+                ),
+            },
         }

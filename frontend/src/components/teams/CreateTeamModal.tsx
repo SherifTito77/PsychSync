@@ -1,33 +1,69 @@
 // frontend/src/components/teams/CreateTeamModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { teamService } from '../../services/teamService';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useAnalytics } from '../../services/analytics/tracker';
 interface CreateTeamModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ onClose, onSuccess }) => {
+  const { track, trackFunnel } = useAnalytics();
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Track modal open
+  useEffect(() => {
+    track('user_modal_opened', {
+      modal_id: 'create_team',
+      page: 'teams'
+    });
+  }, [track]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
     if (formData.name.length < 3) {
       setError('Team name must be at least 3 characters');
       return;
     }
+
     setIsLoading(true);
+
+    // Track team creation funnel start
+    trackFunnel('team_creation', 'started', {
+      has_description: !!formData.description,
+      name_length: formData.name.length
+    });
+
     try {
-      await teamService.createTeam({
+      const team = await teamService.createTeam({
         name: formData.name,
         description: formData.description || undefined,
       });
+
+      // Track successful team creation
+      trackFunnel('team_creation', 'completed', {
+        team_id: team.id,
+        team_name: team.name,
+        has_description: !!formData.description
+      });
+
       onSuccess();
     } catch (error: any) {
+      // Track team creation failure
+      track('system_error_occurred', {
+        error_type: 'team_creation_failed',
+        error_message: error.response?.data?.detail || 'Failed to create team',
+        funnel_step: 'team_creation'
+      });
+
       setError(error.response?.data?.detail || 'Failed to create team');
     } finally {
       setIsLoading(false);
@@ -111,7 +147,14 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ onClose, onSuccess })
                   </button>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={() => {
+                      track('user_modal_closed', {
+                        modal_id: 'create_team',
+                        page: 'teams',
+                        had_input: !!formData.name
+                      });
+                      onClose();
+                    }}
                     className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
                   >
                     Cancel

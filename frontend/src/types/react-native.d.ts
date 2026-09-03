@@ -1,0 +1,19 @@
+declare module 'react-native' {
+  export const View: any;
+  export const Text: any;
+  export const StyleSheet: any;
+  export const Switch: any;
+  export const ScrollView: any;
+  export const Alert: any;
+  export const Platform: any;
+  export const TouchableOpacity: any;
+  export const ActivityIndicator: any;
+  export const TextInput: any;
+  export const Modal: any;
+  export const Pressable: any;
+  export const FlatList: any;
+  export const Image: any;
+  export const ViewStyle: any;
+  export const TextStyle: any;
+  export const ImageStyle: any;
+}

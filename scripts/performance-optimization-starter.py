@@ -8,28 +8,30 @@ with rollback capabilities and monitoring.
 """
 
 import asyncio
-import sys
-import os
-from pathlib import Path
 import logging
+import os
+import sys
 from datetime import datetime
-from typing import Dict, Any
+from pathlib import Path
+from typing import Any, Dict
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+import time
+
+from sqlalchemy import text
+
 from app.core.config import settings
 from app.core.database import get_async_engine
-from sqlalchemy import text
-import time
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 class PerformanceOptimizer:
     """Safe performance optimization implementation with rollback"""
@@ -44,18 +46,18 @@ class PerformanceOptimizer:
         logger.info("🔄 Backing up current settings...")
 
         self.backup_settings = {
-            'DB_POOL_SIZE': getattr(settings, 'DB_POOL_SIZE', None),
-            'DB_MAX_OVERFLOW': getattr(settings, 'DB_MAX_OVERFLOW', None),
-            'DB_POOL_RECYCLE': getattr(settings, 'DB_POOL_RECYCLE', None),
-            'timestamp': datetime.now().isoformat()
+            "DB_POOL_SIZE": getattr(settings, "DB_POOL_SIZE", None),
+            "DB_MAX_OVERFLOW": getattr(settings, "DB_MAX_OVERFLOW", None),
+            "DB_POOL_RECYCLE": getattr(settings, "DB_POOL_RECYCLE", None),
+            "timestamp": datetime.now().isoformat(),
         }
 
         # Save backup to file
-        backup_file = project_root / '.env.backup'
-        with open(backup_file, 'w') as f:
+        backup_file = project_root / ".env.backup"
+        with open(backup_file, "w") as f:
             f.write(f"# Performance Optimization Backup - {datetime.now()}\n")
             for key, value in self.backup_settings.items():
-                if key != 'timestamp':
+                if key != "timestamp":
                     f.write(f"{key}={value}\n")
 
         logger.info(f"✅ Settings backed up to {backup_file}")
@@ -67,19 +69,19 @@ class PerformanceOptimizer:
 
         # Recommended production settings
         optimized_settings = {
-            'DB_POOL_SIZE': 20,              # 4x increase
-            'DB_MAX_OVERFLOW': 30,           # 3x increase
-            'DB_POOL_RECYCLE': 1800,         # 30 minutes for connection health
-            'DB_POOL_PRE_PING': True         # Enable connection validation
+            "DB_POOL_SIZE": 20,  # 4x increase
+            "DB_MAX_OVERFLOW": 30,  # 3x increase
+            "DB_POOL_RECYCLE": 1800,  # 30 minutes for connection health
+            "DB_POOL_PRE_PING": True,  # Enable connection validation
         }
 
         try:
             # Update environment file safely
-            env_file = project_root / '.env.dev'
+            env_file = project_root / ".env.dev"
 
             if env_file.exists():
                 await self._update_env_file(env_file, optimized_settings)
-                self.optimizations_applied.append('connection_pool')
+                self.optimizations_applied.append("connection_pool")
                 logger.info("✅ Connection pool settings updated")
 
             # Validate new settings
@@ -93,15 +95,15 @@ class PerformanceOptimizer:
     async def _update_env_file(self, env_file: Path, settings_update: Dict[str, Any]):
         """Safely update environment file with new settings"""
         content = env_file.read_text()
-        lines = content.split('\n')
+        lines = content.split("\n")
         updated_lines = []
 
         for line in lines:
-            if line.startswith('#') or not line.strip():
+            if line.startswith("#") or not line.strip():
                 updated_lines.append(line)
                 continue
 
-            key = line.split('=')[0] if '=' in line else line
+            key = line.split("=")[0] if "=" in line else line
 
             if key in settings_update:
                 updated_lines.append(f"{key}={settings_update[key]}")
@@ -110,14 +112,18 @@ class PerformanceOptimizer:
                 updated_lines.append(line)
 
         # Add any missing settings
-        existing_keys = [line.split('=')[0] for line in updated_lines if '=' in line and not line.startswith('#')]
+        existing_keys = [
+            line.split("=")[0]
+            for line in updated_lines
+            if "=" in line and not line.startswith("#")
+        ]
 
         for key, value in settings_update.items():
             if key not in existing_keys:
                 updated_lines.append(f"{key}={value}")
                 logger.info(f"  ➕ Added {key}: {value}")
 
-        env_file.write_text('\n'.join(updated_lines))
+        env_file.write_text("\n".join(updated_lines))
 
     async def _validate_new_settings(self):
         """Test new database connection settings"""
@@ -157,23 +163,27 @@ class PerformanceOptimizer:
                 await conn.execute(text("SELECT COUNT(*) FROM users"))
 
             connection_time = (time.time() - start_time) * 1000
-            benchmark_results['connection_time_ms'] = connection_time
+            benchmark_results["connection_time_ms"] = connection_time
 
             # Test query performance
             start_time = time.time()
 
             async with engine.begin() as conn:
-                result = await conn.execute(text("""
+                result = await conn.execute(
+                    text(
+                        """
                     SELECT u.id, u.email, u.created_at
                     FROM users u
                     ORDER BY u.created_at DESC
                     LIMIT 10
-                """))
+                """
+                    )
+                )
                 rows = result.fetchall()
 
             query_time = (time.time() - start_time) * 1000
-            benchmark_results['query_time_ms'] = query_time
-            benchmark_results['rows_returned'] = len(rows)
+            benchmark_results["query_time_ms"] = query_time
+            benchmark_results["rows_returned"] = len(rows)
 
             logger.info(f"📊 Benchmark Results:")
             logger.info(f"  • Connection Time: {connection_time:.2f}ms")
@@ -195,18 +205,18 @@ class PerformanceOptimizer:
 
         try:
             # Restore from backup
-            backup_file = project_root / '.env.backup'
+            backup_file = project_root / ".env.backup"
 
             if backup_file.exists():
-                env_file = project_root / '.env.dev'
+                env_file = project_root / ".env.dev"
 
                 # Read backup settings
                 backup_content = backup_file.read_text()
                 restored_settings = {}
 
-                for line in backup_content.split('\n'):
-                    if '=' in line and not line.startswith('#'):
-                        key, value = line.split('=', 1)
+                for line in backup_content.split("\n"):
+                    if "=" in line and not line.startswith("#"):
+                        key, value = line.split("=", 1)
                         restored_settings[key] = value
 
                 # Restore settings
@@ -220,10 +230,11 @@ class PerformanceOptimizer:
             logger.error(f"❌ Rollback failed: {e}")
             raise
 
-    async def generate_optimization_report(self, before_benchmark: Dict[str, float],
-                                         after_benchmark: Dict[str, float]):
+    async def generate_optimization_report(
+        self, before_benchmark: Dict[str, float], after_benchmark: Dict[str, float]
+    ):
         """Generate performance optimization report"""
-        report_file = project_root / 'PERFORMANCE_OPTIMIZATION_REPORT.md'
+        report_file = project_root / "PERFORMANCE_OPTIMIZATION_REPORT.md"
 
         report_content = f"""# 🚀 PsychSync Performance Optimization Report
 
@@ -246,14 +257,26 @@ class PerformanceOptimizer:
 ### Performance Improvement
 """
 
-        if 'connection_time_ms' in before_benchmark and 'connection_time_ms' in after_benchmark:
-            improvement = ((before_benchmark['connection_time_ms'] - after_benchmark['connection_time_ms'])
-                          / before_benchmark['connection_time_ms']) * 100
-            report_content += f"- **Connection Speed:** {improvement:.1f}% improvement\n"
+        if (
+            "connection_time_ms" in before_benchmark
+            and "connection_time_ms" in after_benchmark
+        ):
+            improvement = (
+                (
+                    before_benchmark["connection_time_ms"]
+                    - after_benchmark["connection_time_ms"]
+                )
+                / before_benchmark["connection_time_ms"]
+            ) * 100
+            report_content += (
+                f"- **Connection Speed:** {improvement:.1f}% improvement\n"
+            )
 
-        if 'query_time_ms' in before_benchmark and 'query_time_ms' in after_benchmark:
-            improvement = ((before_benchmark['query_time_ms'] - after_benchmark['query_time_ms'])
-                          / before_benchmark['query_time_ms']) * 100
+        if "query_time_ms" in before_benchmark and "query_time_ms" in after_benchmark:
+            improvement = (
+                (before_benchmark["query_time_ms"] - after_benchmark["query_time_ms"])
+                / before_benchmark["query_time_ms"]
+            ) * 100
             report_content += f"- **Query Speed:** {improvement:.1f}% improvement\n"
 
         report_content += f"""
@@ -294,13 +317,18 @@ Rollback command: `python scripts/performance-optimization-starter.py --rollback
         report_file.write_text(report_content)
         logger.info(f"📄 Optimization report generated: {report_file}")
 
+
 async def main():
     """Main optimization execution"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='PsychSync Performance Optimization')
-    parser.add_argument('--rollback', action='store_true', help='Rollback optimizations')
-    parser.add_argument('--benchmark-only', action='store_true', help='Run benchmarks only')
+    parser = argparse.ArgumentParser(description="PsychSync Performance Optimization")
+    parser.add_argument(
+        "--rollback", action="store_true", help="Rollback optimizations"
+    )
+    parser.add_argument(
+        "--benchmark-only", action="store_true", help="Run benchmarks only"
+    )
     args = parser.parse_args()
 
     optimizer = PerformanceOptimizer()
@@ -346,6 +374,7 @@ async def main():
         logger.error(f"❌ Optimization failed: {e}")
         await optimizer.rollback_changes()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

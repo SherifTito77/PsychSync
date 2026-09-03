@@ -65,7 +65,9 @@ class MFAService:
         self.max_attempts = 3  # Max verification attempts
         self.attempt_window = 300  # 5 minutes
 
-    async def generate_totp_secret(self, user: User, db: AsyncSession) -> tuple[str, str]:
+    async def generate_totp_secret(
+        self, user: User, db: AsyncSession
+    ) -> tuple[str, str]:
         """
         Generate a new TOTP secret for a user
 
@@ -90,7 +92,9 @@ class MFAService:
             await db.commit()
 
             # Generate provisioning URI for QR code
-            totp = pyotp.TOTP(secret, digits=self.totp_digits, interval=self.totp_interval)
+            totp = pyotp.TOTP(
+                secret, digits=self.totp_digits, interval=self.totp_interval
+            )
 
             # Create provisioning URI
             # Format: otpauth://totp/Service:username?secret=SECRET&issuer=Service
@@ -207,7 +211,9 @@ class MFAService:
 
             # Create TOTP instance
             totp = pyotp.TOTP(
-                user.two_factor_secret, digits=self.totp_digits, interval=self.totp_interval
+                user.two_factor_secret,
+                digits=self.totp_digits,
+                interval=self.totp_interval,
             )
 
             # Verify code (allows for clock skew)
@@ -215,12 +221,14 @@ class MFAService:
 
             if not is_valid:
                 logger.warning(
-                    f"Invalid TOTP code attempt for user {user.id}", extra={"user_id": str(user.id)}
+                    f"Invalid TOTP code attempt for user {user.id}",
+                    extra={"user_id": str(user.id)},
                 )
                 raise MFAVerificationError("Invalid authentication code")
 
             logger.info(
-                f"Successful TOTP verification for user {user.id}", extra={"user_id": str(user.id)}
+                f"Successful TOTP verification for user {user.id}",
+                extra={"user_id": str(user.id)},
             )
 
             return True
@@ -271,7 +279,10 @@ class MFAService:
 
                 logger.info(
                     f"Backup code consumed for user {user.id}. {len(backup_codes)} remaining.",
-                    extra={"user_id": str(user.id), "remaining_codes": len(backup_codes)},
+                    extra={
+                        "user_id": str(user.id),
+                        "remaining_codes": len(backup_codes),
+                    },
                 )
             else:
                 logger.info(
@@ -303,7 +314,9 @@ class MFAService:
 
         logger.info(f"MFA enabled for user {user.id}", extra={"user_id": str(user.id)})
 
-    async def verify_mfa_setup(self, user: User, totp_code: str, db: AsyncSession) -> bool:
+    async def verify_mfa_setup(
+        self, user: User, totp_code: str, db: AsyncSession
+    ) -> bool:
         """
         Verify MFA setup by validating TOTP code and enabling MFA
 
@@ -325,7 +338,8 @@ class MFAService:
         await self.enable_mfa(user, db)
 
         logger.info(
-            f"MFA setup verified and enabled for user {user.id}", extra={"user_id": str(user.id)}
+            f"MFA setup verified and enabled for user {user.id}",
+            extra={"user_id": str(user.id)},
         )
 
         return True
@@ -358,11 +372,14 @@ class MFAService:
         return {
             "enabled": user.two_factor_enabled,
             "has_backup_codes": bool(
-                user.two_factor_recovery_codes and len(user.two_factor_recovery_codes) > 0
+                user.two_factor_recovery_codes
+                and len(user.two_factor_recovery_codes) > 0
             ),
-            "backup_codes_count": len(user.two_factor_recovery_codes)
-            if user.two_factor_recovery_codes
-            else 0,
+            "backup_codes_count": (
+                len(user.two_factor_recovery_codes)
+                if user.two_factor_recovery_codes
+                else 0
+            ),
         }
 
 

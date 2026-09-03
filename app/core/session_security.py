@@ -5,10 +5,10 @@ Handles secure session management with fixation prevention and hijacking detecti
 """
 
 import asyncio
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import logging
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from app.core.cache import cache_delete, cache_get, cache_set
 
@@ -50,7 +50,11 @@ class SessionSecurityManager:
         self._lock = asyncio.Lock()
 
     async def create_secure_session(
-        self, user_id: str, ip_address: str, user_agent: str, prevent_fixation: bool = True
+        self,
+        user_id: str,
+        ip_address: str,
+        user_agent: str,
+        prevent_fixation: bool = True,
     ) -> str:
         """
         Create secure session with fixation prevention
@@ -113,7 +117,9 @@ class SessionSecurityManager:
                 # Track in memory
                 self.active_sessions[session_id] = metadata
 
-                logger.info(f"Secure session created: {session_id[:8]}... for user: {user_id}")
+                logger.info(
+                    f"Secure session created: {session_id[:8]}... for user: {user_id}"
+                )
 
                 return session_id
 
@@ -196,7 +202,10 @@ class SessionSecurityManager:
             if original_user_agent and original_user_agent != user_agent[:200]:
                 # User agent change - potential hijacking
                 await self._record_suspicious_activity(
-                    user_id, "user_agent_change", "Session user agent changed", ip_address
+                    user_id,
+                    "user_agent_change",
+                    "Session user agent changed",
+                    ip_address,
                 )
                 security_score -= 20
                 warnings.append("user_agent_changed")
@@ -328,7 +337,9 @@ class SessionSecurityManager:
                 if session_data:
                     # Calculate session age
                     created_at = datetime.fromisoformat(session_data["created_at"])
-                    last_activity = datetime.fromisoformat(session_data["last_activity"])
+                    last_activity = datetime.fromisoformat(
+                        session_data["last_activity"]
+                    )
 
                     sessions.append(
                         {
@@ -336,9 +347,11 @@ class SessionSecurityManager:
                             "created_at": session_data["created_at"],
                             "last_activity": session_data["last_activity"],
                             "ip_address": session_data["ip_address"],
-                            "user_agent": session_data["user_agent"][:50] + "..."
-                            if len(session_data["user_agent"]) > 50
-                            else session_data["user_agent"],
+                            "user_agent": (
+                                session_data["user_agent"][:50] + "..."
+                                if len(session_data["user_agent"]) > 50
+                                else session_data["user_agent"]
+                            ),
                             "age_minutes": int(
                                 (datetime.utcnow() - created_at).total_seconds() / 60
                             ),
@@ -395,7 +408,9 @@ class SessionSecurityManager:
                 sessions_to_remove = len(sessions) - self.max_concurrent_sessions
 
                 for session_id in sessions[:sessions_to_remove]:
-                    await self.invalidate_session(session_id, user_id, "session_limit_exceeded")
+                    await self.invalidate_session(
+                        session_id, user_id, "session_limit_exceeded"
+                    )
 
                 logger.info(
                     f"Removed {sessions_to_remove} old sessions for user: {user_id} due to limit"
@@ -435,7 +450,8 @@ class SessionSecurityManager:
             recent_activities = [
                 a
                 for a in activities
-                if datetime.utcnow() - datetime.fromisoformat(a["timestamp"]) < timedelta(hours=24)
+                if datetime.utcnow() - datetime.fromisoformat(a["timestamp"])
+                < timedelta(hours=24)
             ]
 
             if len(recent_activities) >= self.suspicious_activity_threshold:

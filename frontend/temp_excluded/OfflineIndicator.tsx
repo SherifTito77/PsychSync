@@ -1,6 +1,6 @@
 /**
  * Offline Indicator Component
- * 
+ *
  * Shows user's connection status and sync state
  * Provides manual sync button when offline
  */
@@ -76,7 +76,7 @@ const OfflineIndicator = () => {
           {getIcon()}
           <span className="text-sm font-medium">{status.message}</span>
         </div>
-        
+
         {isOnline && pendingCount > 0 && !isSyncing && (
           <button
             onClick={handleSyncClick}

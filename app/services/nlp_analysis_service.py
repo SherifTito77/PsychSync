@@ -4,10 +4,10 @@ NLP Analysis Service for Email-Based Behavioral Analysis
 Privacy-first analysis that works with metadata-only approach
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import hashlib
 import re
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 try:
@@ -54,7 +54,9 @@ class EmotionResult:
 class BehavioralIndicators:
     """Behavioral pattern indicators"""
 
-    communication_style: str  # 'assertive', 'passive', 'aggressive', 'passive_aggressive'
+    communication_style: (
+        str  # 'assertive', 'passive', 'aggressive', 'passive_aggressive'
+    )
     response_pattern: str  # 'prompt', 'delayed', 'inconsistent'
     leadership_indicators: float  # 0 to 1
     collaboration_score: float  # 0 to 1
@@ -83,7 +85,9 @@ class NLPAnalysisService:
 
         # Check for required dependencies
         if not HAS_TRANSFORMERS or not HAS_SKLEARN:
-            self.logger.warning("ML dependencies not available. NLP features will be limited.")
+            self.logger.warning(
+                "ML dependencies not available. NLP features will be limited."
+            )
             self.device = "cpu"
             self._models_loaded = True  # Skip loading
         else:
@@ -96,7 +100,9 @@ class NLPAnalysisService:
             return
 
         if not HAS_TRANSFORMERS or not HAS_SKLEARN:
-            self.logger.info("ML dependencies not available, skipping model initialization")
+            self.logger.info(
+                "ML dependencies not available, skipping model initialization"
+            )
             return
 
         try:
@@ -157,7 +163,9 @@ class NLPAnalysisService:
         # Linguistic patterns
         urgency_words = len(
             re.findall(
-                r"\b(urgent|asap|immediate|critical|important|stat)\b", subject, re.IGNORECASE
+                r"\b(urgent|asap|immediate|critical|important|stat)\b",
+                subject,
+                re.IGNORECASE,
             )
         )
         politeness_words = len(
@@ -201,7 +209,9 @@ class NLPAnalysisService:
                 else:
                     sentiment_score = 0.0
 
-                return SentimentResult(score=sentiment_score, confidence=score, label=label)
+                return SentimentResult(
+                    score=sentiment_score, confidence=score, label=label
+                )
             # Fallback to rule-based sentiment
             return self._rule_based_sentiment(subject)
 
@@ -256,7 +266,9 @@ class NLPAnalysisService:
         """Analyze emotions from email subject line"""
         if not subject:
             return EmotionResult(
-                emotions={"neutral": 1.0}, dominant_emotion="neutral", emotional_intensity=0.0
+                emotions={"neutral": 1.0},
+                dominant_emotion="neutral",
+                emotional_intensity=0.0,
             )
 
         try:
@@ -265,15 +277,32 @@ class NLPAnalysisService:
             if self._emotion_pipeline:
                 # Use transformer model
                 results = self._emotion_pipeline(subject[:512])
-                emotions = {result["label"]: result["score"] for result in results[0]}
-                dominant_emotion = max(emotions, key=emotions.get)
-                emotional_intensity = max(emotions.values())
 
-                return EmotionResult(
-                    emotions=emotions,
-                    dominant_emotion=dominant_emotion,
-                    emotional_intensity=emotional_intensity,
-                )
+                # ✅ FIX: Check if results exist before accessing
+                if not results or not results[0]:
+                    self.logger.warning("NLP emotion pipeline returned empty results")
+                    return self._rule_based_emotions(subject)
+
+                try:
+                    emotions = {
+                        result["label"]: result["score"] for result in results[0]
+                    }
+
+                    if not emotions:
+                        self.logger.warning("NLP emotion pipeline produced no emotions")
+                        return self._rule_based_emotions(subject)
+
+                    dominant_emotion = max(emotions, key=emotions.get)
+                    emotional_intensity = max(emotions.values())
+
+                    return EmotionResult(
+                        emotions=emotions,
+                        dominant_emotion=dominant_emotion,
+                        emotional_intensity=emotional_intensity,
+                    )
+                except (KeyError, TypeError, IndexError) as e:
+                    self.logger.error(f"Invalid NLP emotion result format: {e}")
+                    return self._rule_based_emotions(subject)
             # Fallback to basic emotion detection
             return self._rule_based_emotions(subject)
 
@@ -285,7 +314,14 @@ class NLPAnalysisService:
         """Rule-based emotion detection as fallback"""
         emotion_keywords = {
             "joy": ["happy", "excited", "great", "excellent", "wonderful", "fantastic"],
-            "anger": ["angry", "frustrated", "annoyed", "upset", "furious", "irritated"],
+            "anger": [
+                "angry",
+                "frustrated",
+                "annoyed",
+                "upset",
+                "furious",
+                "irritated",
+            ],
             "fear": ["worried", "concerned", "anxious", "scared", "nervous", "afraid"],
             "sadness": ["sad", "disappointed", "upset", "depressed", "unhappy"],
             "surprise": ["surprised", "shocked", "amazed", "astonished"],
@@ -298,7 +334,9 @@ class NLPAnalysisService:
         for emotion, keywords in emotion_keywords.items():
             if keywords:
                 score = sum(1 for keyword in keywords if keyword in text_lower)
-                emotion_scores[emotion] = score / len(text.split()) if text.split() else 0
+                emotion_scores[emotion] = (
+                    score / len(text.split()) if text.split() else 0
+                )
             else:
                 emotion_scores[emotion] = 0.1  # baseline for neutral
 
@@ -348,19 +386,27 @@ class NLPAnalysisService:
                 response_pattern = "delayed"
             else:
                 response_pattern = (
-                    "inconsistent" if response_time_std > avg_response_time * 0.5 else "moderate"
+                    "inconsistent"
+                    if response_time_std > avg_response_time * 0.5
+                    else "moderate"
                 )
         else:
             response_pattern = "unknown"
             avg_response_time = 0
 
         # Subject line analysis for communication style
-        subjects = [email.subject_clean for email in email_metadata_list if email.subject_clean]
+        subjects = [
+            email.subject_clean for email in email_metadata_list if email.subject_clean
+        ]
 
         if subjects:
             # Analyze linguistic patterns
             urgency_indicators = sum(
-                len(re.findall(r"\b(urgent|asap|immediate|critical)\b", s, re.IGNORECASE))
+                len(
+                    re.findall(
+                        r"\b(urgent|asap|immediate|critical)\b", s, re.IGNORECASE
+                    )
+                )
                 for s in subjects
             )
             politeness_indicators = sum(
@@ -466,7 +512,9 @@ class NLPAnalysisService:
         feedback_receptivity = 1.0 - min(1.0, user_patterns.get("avoidance_rate", 0))
 
         # Vulnerability sharing: appropriate self-disclosure patterns
-        vulnerability_sharing = min(1.0, user_patterns.get("appropriate_sharing_rate", 0))
+        vulnerability_sharing = min(
+            1.0, user_patterns.get("appropriate_sharing_rate", 0)
+        )
 
         # Overall psychological safety (weighted average)
         psychological_safety = (
@@ -497,10 +545,14 @@ class NLPAnalysisService:
                 )
 
                 # Analyze emotions from subject
-                emotion_result = await self.analyze_emotions_from_subject(email_meta.subject_clean)
+                emotion_result = await self.analyze_emotions_from_subject(
+                    email_meta.subject_clean
+                )
 
                 # Extract linguistic features
-                subject_features = self._extract_subject_features(email_meta.subject_clean)
+                subject_features = self._extract_subject_features(
+                    email_meta.subject_clean
+                )
 
                 # Calculate conflict probability
                 conflict_probability = self._calculate_conflict_probability(
@@ -563,7 +615,11 @@ class NLPAnalysisService:
         # Combine factors
         conflict_probability = min(
             1.0,
-            base_conflict + urgency_factor + exclamation_factor + response_factor + thread_factor,
+            base_conflict
+            + urgency_factor
+            + exclamation_factor
+            + response_factor
+            + thread_factor,
         )
 
         return conflict_probability
@@ -583,42 +639,63 @@ class NLPAnalysisService:
             return {"message": "No recent communication data available"}
 
         # Aggregate metrics
-        sentiment_scores = [float(a.sentiment_score) for a in recent_analyses if a.sentiment_score]
+        sentiment_scores = [
+            float(a.sentiment_score) for a in recent_analyses if a.sentiment_score
+        ]
         conflict_probabilities = [
-            float(a.conflict_probability) for a in recent_analyses if a.conflict_probability
+            float(a.conflict_probability)
+            for a in recent_analyses
+            if a.conflict_probability
         ]
 
         insights = {
             "analysis_period_days": days_back,
             "total_emails_analyzed": len(recent_analyses),
             "sentiment_analysis": {
-                "average_sentiment": np.mean(sentiment_scores) if sentiment_scores else 0,
-                "sentiment_trend": "improving"
-                if len(sentiment_scores) > 1
-                and np.mean(sentiment_scores[-10:]) > np.mean(sentiment_scores[:10])
-                else "stable",
-                "positive_ratio": len([s for s in sentiment_scores if s > 0.1])
-                / len(sentiment_scores)
-                if sentiment_scores
-                else 0,
+                "average_sentiment": (
+                    np.mean(sentiment_scores) if sentiment_scores else 0
+                ),
+                "sentiment_trend": (
+                    "improving"
+                    if len(sentiment_scores) > 1
+                    and np.mean(sentiment_scores[-10:]) > np.mean(sentiment_scores[:10])
+                    else "stable"
+                ),
+                "positive_ratio": (
+                    len([s for s in sentiment_scores if s > 0.1])
+                    / len(sentiment_scores)
+                    if sentiment_scores
+                    else 0
+                ),
             },
             "conflict_analysis": {
-                "average_conflict_probability": np.mean(conflict_probabilities)
-                if conflict_probabilities
-                else 0,
-                "high_conflict_emails": len([p for p in conflict_probabilities if p > 0.7]),
-                "conflict_trend": "increasing"
-                if len(conflict_probabilities) > 1
-                and np.mean(conflict_probabilities[-10:]) > np.mean(conflict_probabilities[:10])
-                else "stable",
+                "average_conflict_probability": (
+                    np.mean(conflict_probabilities) if conflict_probabilities else 0
+                ),
+                "high_conflict_emails": len(
+                    [p for p in conflict_probabilities if p > 0.7]
+                ),
+                "conflict_trend": (
+                    "increasing"
+                    if len(conflict_probabilities) > 1
+                    and np.mean(conflict_probabilities[-10:])
+                    > np.mean(conflict_probabilities[:10])
+                    else "stable"
+                ),
             },
             "behavioral_patterns": {
                 "communication_frequency": len(recent_analyses) / days_back,
-                "emotional_intensity": np.mean(
-                    [float(a.emotional_intensity) for a in recent_analyses if a.emotional_intensity]
-                )
-                if recent_analyses
-                else 0,
+                "emotional_intensity": (
+                    np.mean(
+                        [
+                            float(a.emotional_intensity)
+                            for a in recent_analyses
+                            if a.emotional_intensity
+                        ]
+                    )
+                    if recent_analyses
+                    else 0
+                ),
             },
         }
 

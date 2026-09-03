@@ -13,8 +13,8 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/Badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import corporateIntegrationService from '@/services/corporateIntegrationService';
 import {
   BehavioralInsight,
@@ -265,24 +265,27 @@ export const BehavioralInsightsDashboard: React.FC<BehavioralInsightsDashboardPr
 
         {/* By Category */}
         <TabsContent value="by-category" className="space-y-6">
-          {Object.entries(insightsByCategory).map(([category, insights]) => (
-            <div key={category}>
-              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                <span>{CATEGORY_ICONS[category] || '📊'}</span>
-                <span className="capitalize">{category}</span>
-                <Badge variant="outline">{insights.length}</Badge>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {insights.map((insight) => (
-                  <InsightCard
-                    key={`${insight.category}-${insight.detected_at}`}
-                    insight={insight}
-                    onClick={() => onInsightClick?.(`${insight.category}-${insight.detected_at}`)}
-                  />
-                ))}
+          {Object.entries(insightsByCategory).map(([category, insights]) => {
+            const insightsArray = insights as any[];
+            return (
+              <div key={category}>
+                <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
+                  <span>{CATEGORY_ICONS[category] || '📊'}</span>
+                  <span className="capitalize">{category}</span>
+                  <Badge variant="outline">{insightsArray.length}</Badge>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {insightsArray.map((insight) => (
+                    <InsightCard
+                      key={`${insight.category}-${insight.detected_at}`}
+                      insight={insight}
+                      onClick={() => onInsightClick?.(`${insight.category}-${insight.detected_at}`)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </TabsContent>
 
         {/* By Severity */}

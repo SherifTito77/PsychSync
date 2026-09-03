@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Card,
   CardHeader,
@@ -7,6 +7,8 @@ import {
 } from '@/components/ui/card';
 import WellbeingScore from './WellbeingScore';
 import RiskLevelIndicator from './RiskLevelIndicator';
+import { useAsyncEffect } from '@/hooks/useAsyncEffect';
+import { useDebouncedCallback } from '@/hooks/usePerformanceOptimizations';
 
 interface AnalyticsData {
   totalScreenings: number;
@@ -47,21 +49,34 @@ const ClinicalAnalytics: React.FC<ClinicalAnalyticsProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAnalyticsData();
-  }, [userId, timeframe]);
+  // Track if we're currently fetching to prevent concurrent requests
+  const isFetchingRef = useRef(false);
 
-  const fetchAnalyticsData = async () => {
+  const fetchAnalyticsData = useCallback(async (signal?: AbortSignal) => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     try {
       setLoading(true);
+      setError(null);
+
       const response = await fetch(
         `/api/v1/clinical/analytics?user_id=${userId || 'me'}&timeframe=${timeframe}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           },
+          signal,
         }
       );
+
+      // Check if request was aborted
+      if (signal?.aborted) {
+        return;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch analytics data');
@@ -69,12 +84,32 @@ const ClinicalAnalytics: React.FC<ClinicalAnalyticsProps> = ({
 
       const data = await response.json();
       setAnalyticsData(data);
-    } catch (err) {
+    } catch (err: any) {
+      // Don't update state if request was aborted
+      if (err.name === 'AbortError' || signal?.aborted) {
+        return;
+      }
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      setLoading(false);
+      // Only update loading state if request wasn't aborted
+      if (!signal?.aborted) {
+        setLoading(false);
+        isFetchingRef.current = false;
+      }
     }
-  };
+  }, [userId, timeframe]);
+
+  // Initial data load with race condition protection
+  useAsyncEffect(async (signal, isMounted) => {
+    await fetchAnalyticsData(signal);
+  }, [fetchAnalyticsData]);
+
+  // Debounced refresh handler (500ms debounce)
+  const handleRefresh = useDebouncedCallback(() => {
+    if (!isFetchingRef.current) {
+      fetchAnalyticsData();
+    }
+  }, 500, []);
 
   const getRiskLevelColor = (level: string) => {
     switch (level) {
@@ -127,7 +162,7 @@ const ClinicalAnalytics: React.FC<ClinicalAnalyticsProps> = ({
               <h3 className="text-lg font-medium text-red-900">Error Loading Analytics</h3>
               <p className="text-sm text-red-700">{error}</p>
               <button
-                onClick={fetchAnalyticsData}
+                onClick={handleRefresh}
                 className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
               >
                 Try Again
@@ -239,25 +274,28 @@ const ClinicalAnalytics: React.FC<ClinicalAnalyticsProps> = ({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(analyticsData.riskDistribution).map(([level, count]) => (
-                <div key={level} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className={`w-4 h-4 rounded-full mr-3 ${getRiskLevelColor(level)}`}></div>
-                    <span className="capitalize text-sm font-medium text-gray-700">{level}</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${getRiskLevelColor(level)}`}
-                        style={{
-                          width: `${analyticsData.totalScreenings > 0 ? (count / analyticsData.totalScreenings) * 100 : 0}%`
-                        }}
-                      ></div>
+              {Object.entries(analyticsData.riskDistribution).map(([level, count]) => {
+                const numCount = count as number;
+                return (
+                  <div key={level} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-4 h-4 rounded-full mr-3 ${getRiskLevelColor(level)}`}></div>
+                      <span className="capitalize text-sm font-medium text-gray-700">{level}</span>
                     </div>
-                    <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-32 bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${getRiskLevelColor(level)}`}
+                          style={{
+                            width: `${analyticsData.totalScreenings > 0 ? (numCount / analyticsData.totalScreenings) * 100 : 0}%`
+                          }}
+                        ></div>
+                      </div>
+                      <span className="text-sm text-gray-600 w-12 text-right">{numCount}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -364,7 +402,7 @@ const ClinicalAnalytics: React.FC<ClinicalAnalyticsProps> = ({
               maxScore={100}
               category="overall"
               showDetails={true}
-              size="lg"
+              size="sm"
               trend={
                 analyticsData.trendData.length >= 2
                   ? (analyticsData.trendData[analyticsData.trendData.length - 1]?.wellbeingScore || 0) >

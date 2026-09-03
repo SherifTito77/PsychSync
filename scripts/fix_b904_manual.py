@@ -12,7 +12,7 @@ def fix_file_carefully(file_path: Path) -> int:
     Fix B904 errors in a file by carefully handling multi-line raise statements.
     """
     content = file_path.read_text()
-    lines = content.split('\n')
+    lines = content.split("\n")
     fixes = 0
 
     i = 0
@@ -20,7 +20,7 @@ def fix_file_carefully(file_path: Path) -> int:
         line = lines[i]
 
         # Look for except blocks
-        except_match = re.match(r'^(\s*)except\s+\w+\s+as\s+(\w+):', line)
+        except_match = re.match(r"^(\s*)except\s+\w+\s+as\s+(\w+):", line)
         if except_match:
             indent = except_match.group(1)
             exception_var = except_match.group(2)
@@ -31,14 +31,14 @@ def fix_file_carefully(file_path: Path) -> int:
                 next_line = lines[j]
 
                 # Check if we've left the except block (dedent or empty line followed by dedent)
-                if next_line.strip() and not next_line.startswith(indent + ' '):
+                if next_line.strip() and not next_line.startswith(indent + " "):
                     break
 
                 # Look for raise statement
-                raise_match = re.match(r'^(\s*)raise\s+\w+Exception\(', next_line)
+                raise_match = re.match(r"^(\s*)raise\s+\w+Exception\(", next_line)
                 if raise_match:
                     # Check if it already has 'from'
-                    if ' from ' not in next_line and ' from' not in next_line:
+                    if " from " not in next_line and " from" not in next_line:
                         # This might be a multi-line raise statement
                         # Find the closing parenthesis
                         raise_start = j
@@ -46,10 +46,10 @@ def fix_file_carefully(file_path: Path) -> int:
                         found_closing = False
 
                         # Scan forward to find the closing paren
-                        open_parens = next_line.count('(') - next_line.count(')')
+                        open_parens = next_line.count("(") - next_line.count(")")
                         while k < len(lines):
-                            open_parens += lines[k].count('(') - lines[k].count(')')
-                            if open_parens == 0 and ')' in lines[k]:
+                            open_parens += lines[k].count("(") - lines[k].count(")")
+                            if open_parens == 0 and ")" in lines[k]:
                                 found_closing = True
                                 break
                             k += 1
@@ -59,7 +59,9 @@ def fix_file_carefully(file_path: Path) -> int:
                             # Insert 'from exception_var' before the closing paren
                             closing_line = lines[k]
                             # Find the closing paren and insert before it
-                            modified = re.sub(r'\)(\s*)$', f' from {exception_var})\\1', closing_line)
+                            modified = re.sub(
+                                r"\)(\s*)$", f" from {exception_var})\\1", closing_line
+                            )
                             if modified != closing_line:
                                 lines[k] = modified
                                 fixes += 1
@@ -71,20 +73,20 @@ def fix_file_carefully(file_path: Path) -> int:
         i += 1
 
     if fixes > 0:
-        file_path.write_text('\n'.join(lines))
+        file_path.write_text("\n".join(lines))
 
     return fixes
 
 
 def main():
-    import subprocess
     import json
+    import subprocess
 
     # Get all files with B904 errors
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -96,7 +98,7 @@ def main():
     # Group by file
     files_with_errors = {}
     for error in errors:
-        filename = error['filename']
+        filename = error["filename"]
         if filename not in files_with_errors:
             files_with_errors[filename] = []
         files_with_errors[filename].append(error)
@@ -120,19 +122,17 @@ def main():
     # Verify
     print("\nVerifying fixes...")
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904'],
-        capture_output=True,
-        text=True
+        ["ruff", "check", "app/", "--select", "B904"], capture_output=True, text=True
     )
 
     if result.returncode == 0:
         print("✅ All B904 errors fixed!")
         return 0
     else:
-        remaining = result.stdout.count('\n') if result.stdout else 0
+        remaining = result.stdout.count("\n") if result.stdout else 0
         print(f"Remaining B904 errors: {remaining}")
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit(main())

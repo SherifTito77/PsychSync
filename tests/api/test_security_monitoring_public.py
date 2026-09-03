@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -41,9 +45,7 @@ def get_security_metrics(client, auth_headers):
     Get security metrics for the monitoring dashboard.
     """
     # TODO: Implement test logic
-    response = client.get("/dashboard/metrics",
-        params={'hours': 'test_value'}
-    )
+    response = client.get("/dashboard/metrics", params={"hours": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -51,16 +53,16 @@ def get_security_metrics(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -68,12 +70,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -87,8 +90,8 @@ def get_security_events(client, auth_headers):
     Get recent security events with optional filtering.
     """
     # TODO: Implement test logic
-    response = client.get("/dashboard/events",
-        params={'limit': 'test_value', 'event_type': 'test_value'}
+    response = client.get(
+        "/dashboard/events", params={"limit": "test_value", "event_type": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -97,16 +100,16 @@ def get_security_events(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -114,12 +117,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -133,9 +137,7 @@ def get_security_timeline(client, auth_headers):
     Get security events aggregated by time period.
     """
     # TODO: Implement test logic
-    response = client.get("/dashboard/stats/timeline",
-        params={'hours': 'test_value'}
-    )
+    response = client.get("/dashboard/stats/timeline", params={"hours": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -143,16 +145,16 @@ def get_security_timeline(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -160,12 +162,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -180,9 +183,7 @@ def send_test_alert(client, auth_headers):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/dashboard/test-alert",
-        json={},
-        params={'alert_type': 'test_value'}
+        "/dashboard/test-alert", json={}, params={"alert_type": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]

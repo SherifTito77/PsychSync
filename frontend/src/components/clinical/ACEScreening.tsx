@@ -158,9 +158,9 @@ export function ACEScreening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/ace', responses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', { assessment_type: 'ace', responses: responses });
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       console.error('Screening submission error:', err);
       const errorMessage = err?.response?.data?.detail || err?.response?.data?.message || 'Failed to submit screening. Please try again.';
       setError(errorMessage);
@@ -189,7 +189,7 @@ export function ACEScreening() {
         <CardContent className="space-y-6">
           {/* Crisis Alert */}
           {result.crisis_alert && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertDescription>
                 <div className="space-y-4">
                   <div className="font-semibold text-lg">
@@ -291,7 +291,7 @@ export function ACEScreening() {
       </CardHeader>
       <CardContent className="space-y-6">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="error">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -333,8 +333,8 @@ export function ACEScreening() {
 
           {/* Response options */}
           <RadioGroup
-            value={responses[QUESTIONS[currentQuestion].id as keyof ACEResponse]}
-            onValueChange={(value) =>
+            value={String(responses[QUESTIONS[currentQuestion].id as keyof ACEResponse] || 0)}
+            onChange={(value) =>
               handleResponse(QUESTIONS[currentQuestion].id, parseInt(value))
             }
           >

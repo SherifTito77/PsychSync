@@ -6,6 +6,7 @@ import {
 } from '../../services/assessmentService';
 import { teamService, Team } from '../../services/teamService';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { useAsyncEffect } from '../../hooks/useAsyncEffect';
 interface EditAssessmentModalProps {
   assessment: AssessmentWithSections;
   onClose: () => void;
@@ -30,9 +31,21 @@ const EditAssessmentModal: React.FC<EditAssessmentModalProps> = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => {
-    loadTeams();
+
+  // ✅ FIXED: Memory leak prevention - uses useAsyncEffect with cleanup
+  useAsyncEffect(async (signal, isMounted) => {
+    try {
+      const data = await teamService.getTeams(true);
+      if (isMounted()) {
+        setTeams(data);
+      }
+    } catch (error) {
+      if (isMounted() && error.name !== 'AbortError') {
+        console.error('Failed to load teams');
+      }
+    }
   }, []);
+
   const loadTeams = async () => {
     try {
       const data = await teamService.getTeams(true);

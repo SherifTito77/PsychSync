@@ -63,7 +63,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Skip for health checks and monitoring
-        if path.startswith("/health") or path.startswith("/metrics") or path.startswith("/status"):
+        if (
+            path.startswith("/health")
+            or path.startswith("/metrics")
+            or path.startswith("/status")
+        ):
             return True
 
         # Skip for static files
@@ -71,7 +75,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             return True
 
         # Skip for documentation
-        if path.startswith("/docs") or path.startswith("/redoc") or path.startswith("/openapi"):
+        if (
+            path.startswith("/docs")
+            or path.startswith("/redoc")
+            or path.startswith("/openapi")
+        ):
             return True
 
         # Skip custom excluded paths
@@ -116,9 +124,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/api/"):
             self._add_api_cache_headers(response)
 
-        # Remove server information
-        if "Server" in response.headers:
-            del response.headers["Server"]
+        # Remove server information headers (information leakage prevention)
+        for header_to_remove in ["Server", "X-Powered-By", "X-AspNet-Version"]:
+            if header_to_remove in response.headers:
+                del response.headers[header_to_remove]
+
+        # HIPAA-specific headers for clinical/PHI endpoints
+        if self._is_phi_endpoint(request):
+            self._add_phi_headers(response)
 
         # Custom security headers
         for header, value in self.custom_headers.items():
@@ -154,7 +167,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
     def _build_csp_policy(self, request: Request, report_only: bool = False) -> str:
         """Build Content Security Policy based on environment and request"""
-        is_development = getattr(settings, "ENVIRONMENT", "development") == "development"
+        is_development = (
+            getattr(settings, "ENVIRONMENT", "development") == "development"
+        )
         is_production = getattr(settings, "ENVIRONMENT", "development") == "production"
 
         # Base CSP directives
@@ -249,6 +264,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             directives["font-src"].extend(cdn_domains)
             directives["img-src"].extend(cdn_domains)
 
+        # Add CSP violation reporting endpoint
+        directives["report-uri"] = ["/api/v1/security/reports"]
+
         # Build CSP string
         csp_parts = []
         for directive, sources in directives.items():
@@ -268,7 +286,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
     def _add_referrer_policy_headers(self, response: Response):
         """Add Referrer-Policy header"""
-        referrer_policy = getattr(settings, "REFERRER_POLICY", "strict-origin-when-cross-origin")
+        referrer_policy = getattr(
+            settings, "REFERRER_POLICY", "strict-origin-when-cross-origin"
+        )
         response.headers["Referrer-Policy"] = referrer_policy
 
     def _add_permissions_policy_headers(self, response: Response):
@@ -316,11 +336,38 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if policy_parts:
             response.headers["Permissions-Policy"] = ", ".join(policy_parts)
 
+    def _is_phi_endpoint(self, request: Request) -> bool:
+        """Check if the endpoint handles PHI (Protected Health Information)."""
+        phi_prefixes = (
+            "/api/v1/clinical/",
+            "/api/v1/screening/",
+            "/api/v1/users-secure/",
+            "/api/v1/responses-secure/",
+        )
+        return request.url.path.startswith(phi_prefixes)
+
+    def _add_phi_headers(self, response: Response):
+        """Add HIPAA-specific security headers for PHI endpoints."""
+        # Strict no-cache for PHI data — browser must never store PHI
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, private, max-age=0"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
+        # Prevent PHI from being included in Referer headers
+        response.headers["Referrer-Policy"] = "no-referrer"
+
+        # Mark response as containing sensitive data (non-standard, for proxies/WAFs)
+        response.headers["X-Content-Classification"] = "PHI-HIPAA"
+
     def _add_api_cache_headers(self, response: Response):
         """Add cache control headers for API responses"""
         # Prevent caching of API responses by default
         if "Cache-Control" not in response.headers:
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Cache-Control"] = (
+                "no-store, no-cache, must-revalidate, max-age=0"
+            )
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
 
@@ -359,18 +406,22 @@ class SecurityReportingMiddleware(BaseHTTPMiddleware):
                     "violated_directive": report_data.get("csp-report", {}).get(
                         "violated-directive"
                     ),
-                    "document_uri": report_data.get("csp-report", {}).get("document-uri"),
+                    "document_uri": report_data.get("csp-report", {}).get(
+                        "document-uri"
+                    ),
                 },
             )
 
             # TODO: Store report in database for analysis
             # TODO: Send alert to security team if critical violation
 
-            return JSONResponse(status_code=204, content={"message": "Report received"})
+            return Response(status_code=204)
 
         except Exception as e:
             logger.error(f"Failed to handle security report: {e!s}")
-            return JSONResponse(status_code=400, content={"error": "Invalid report format"})
+            return JSONResponse(
+                status_code=400, content={"error": "Invalid report format"}
+            )
 
     def _get_client_ip(self, request: Request) -> str:
         """Get client IP address from request"""
@@ -410,4 +461,6 @@ def create_security_middleware_stack(
     )
 
     # Security reporting middleware
-    app.add_middleware(SecurityReportingMiddleware, report_endpoint="/api/v1/security/reports")
+    app.add_middleware(
+        SecurityReportingMiddleware, report_endpoint="/api/v1/security/reports"
+    )

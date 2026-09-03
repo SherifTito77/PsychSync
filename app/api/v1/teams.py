@@ -1,13 +1,14 @@
-
-#/psychsync/app/api/v1/teams.py
+# /psychsync/app/api/v1/teams.py
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from app.core.database import get_async_db
 from app.db.models.team import Team
 from app.schemas import TeamCreate, TeamResponse
 
 router = APIRouter()
+
 
 @router.post("/", response_model=TeamResponse)
 async def create_team(team: TeamCreate, db: Session = Depends(get_async_db)):
@@ -15,17 +16,19 @@ async def create_team(team: TeamCreate, db: Session = Depends(get_async_db)):
         name=team.name,
         description=team.description,
         owner_id=team.owner_id,
-        team_type=team.team_type
+        team_type=team.team_type,
     )
     db.add(db_team)
     await db.commit()
     await db.refresh(db_team)
     return TeamResponse.from_orm(db_team)
 
+
 @router.get("/", response_model=list[TeamResponse])
 async def get_teams(db: Session = Depends(get_db)):
     teams = db.query(Team).all()
     return [TeamResponse.from_orm(team) for team in teams]
+
 
 @router.get("/{team_id}", response_model=TeamResponse)
 async def get_team(team_id: int, db: Session = Depends(get_db)):

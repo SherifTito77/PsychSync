@@ -1,0 +1,1585 @@
+"""
+Behavioral Intelligence Engine
+
+Core scoring service that aggregates organizational signals into
+composite behavioral health metrics. This is PsychSync's flagship
+differentiation layer.
+
+Scores produced:
+  - Team Health Score (0-100)
+  - Collaboration Score (0-100)
+  - Manager Health Score (0-100)
+  - Psychological Safety Score (0-100)
+  - Change Readiness Score (0-100)
+  - Organizational Friction Index (0-100, lower is better)
+  - Burnout Risk Score (0-100, lower is better)
+
+Data sources: Assessment responses, HRIS data, team structure,
+calendar metadata, work system signals (when available).
+"""
+
+import logging
+import math
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.response import Response
+from app.db.models.team import Team, TeamMember
+from app.db.models.user import User
+from app.db.models.organizational_pulse import PulseSnapshot
+from app.db.models.wellness_burnout import WellnessMetrics
+
+logger = logging.getLogger(__name__)
+
+
+class BehavioralIntelligenceService:
+    """
+    Aggregates behavioral signals into organizational health scores.
+
+    Design principle: Behavior → Pattern → Prediction → Recommendation
+    Not: Assessment → Score → Dashboard
+    """
+
+    # ── Team Health Score ────────────────────────────────────────────
+    async def calculate_team_health(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
+        meeting_signals: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Composite team health from assessment engagement, personality
+        balance, burnout risk, and tenure stability.
+        """
+        since = datetime.utcnow() - timedelta(days=lookback_days)
+
+        # Get team members
+        members = await self._get_team_members(db, team_id)
+        member_count = len(members)
+        if member_count == 0:
+            return self._empty_score("team_health", "No team members found")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Assessment engagement (are people completing assessments?)
+        engagement = await self._assessment_engagement(db, member_ids, since)
+
+        # Factor 2: Personality balance (Big Five trait diversity)
+        personality_balance = await self._personality_balance(db, member_ids)
+
+        # Factor 3: Response quality (are people answering thoughtfully?)
+        response_quality = await self._response_quality(db, member_ids, since)
+
+        # Factor 4: Team size health (research: 5-9 optimal)
+        size_score = self._team_size_score(member_count)
+
+        # Weighted composite
+        score = (
+            engagement * 0.30
+            + personality_balance * 0.25
+            + response_quality * 0.25
+            + size_score * 0.20
+        )
+
+        factors = {
+            "engagement": round(engagement, 1),
+            "personality_balance": round(personality_balance, 1),
+            "response_quality": round(response_quality, 1),
+            "team_size_health": round(size_score, 1),
+        }
+
+        # Behavioral enrichment: work velocity + meeting balance
+        if enrichment:
+            e_signals = {}
+            if "cycle_time_trend" in enrichment:
+                e_signals["work_velocity"] = self._cycle_trend_to_score(
+                    enrichment["cycle_time_trend"]
+                )
+            if "meeting_health_score" in enrichment:
+                e_signals["meeting_balance"] = enrichment["meeting_health_score"]
+            if e_signals:
+                e_avg = sum(e_signals.values()) / len(e_signals)
+                score = score * 0.80 + e_avg * 0.20
+                factors.update({k: round(v, 1) for k, v in e_signals.items()})
+
+        # Meeting effectiveness: direct employee voice on meeting quality
+        if meeting_signals and meeting_signals.get("meeting_avg_score_100") is not None:
+            meeting_eff = meeting_signals["meeting_avg_score_100"]
+            score = score * 0.85 + meeting_eff * 0.15
+            factors["meeting_effectiveness"] = round(meeting_eff, 1)
+
+        trend = await self._calculate_trend(
+            db, member_ids, "team_health", lookback_days
+        )
+
+        return {
+            "score": round(score, 1),
+            "label": self._score_label(score),
+            "trend": trend,
+            "factors": factors,
+            "member_count": member_count,
+            "recommendations": self._team_health_recommendations(
+                engagement, personality_balance, response_quality, size_score
+            ),
+        }
+
+    # ── Collaboration Score ──────────────────────────────────────────
+    async def calculate_collaboration_score(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
+        culture_signals: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Measures cross-functional work and team cohesion.
+        Uses assessment data + team structure as baseline.
+        Enhanced with work system data and culture metrics when available.
+        """
+        since = datetime.utcnow() - timedelta(days=lookback_days)
+        members = await self._get_team_members(db, team_id)
+        if not members:
+            return self._empty_score("collaboration", "No team members")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Team agreeableness + extraversion (Big Five predictors of collaboration)
+        collab_traits = await self._collaboration_trait_score(db, member_ids)
+
+        # Factor 2: Assessment co-completion (teams that assess together collaborate better)
+        co_completion = await self._co_completion_rate(db, member_ids, since)
+
+        # Factor 3: Response consistency (similar engagement patterns = alignment)
+        consistency = await self._response_consistency(db, member_ids, since)
+
+        score = collab_traits * 0.40 + co_completion * 0.35 + consistency * 0.25
+
+        factors = {
+            "collaboration_traits": round(collab_traits, 1),
+            "co_completion_rate": round(co_completion, 1),
+            "response_consistency": round(consistency, 1),
+        }
+
+        # Behavioral enrichment: cross-team collaboration from work systems
+        if enrichment and "cross_team_edges" in enrichment:
+            cross_team = min(100, enrichment["cross_team_edges"] * 5)
+            score = score * 0.80 + cross_team * 0.20
+            factors["cross_team_collaboration"] = round(cross_team, 1)
+
+        # Culture metrics enrichment: direct collaboration measurement
+        if culture_signals and "culture_collaboration" in culture_signals:
+            culture_collab = culture_signals["culture_collaboration"]
+            score = score * 0.80 + culture_collab * 0.20
+            factors["culture_measurement"] = round(culture_collab, 1)
+
+        return {
+            "score": round(score, 1),
+            "label": self._score_label(score),
+            "trend": await self._calculate_trend(
+                db, member_ids, "collaboration", lookback_days
+            ),
+            "factors": factors,
+            "recommendations": self._collaboration_recommendations(
+                collab_traits, co_completion, consistency
+            ),
+        }
+
+    # ── Manager Health Score ─────────────────────────────────────────
+    async def calculate_manager_health(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
+        recognition_signals: Optional[Dict[str, Any]] = None,
+        pulse_survey_signals: Optional[Dict[str, Any]] = None,
+        feedback_360_signals: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Manager effectiveness measured through team outcomes + direct feedback.
+
+        Base signals (personality/assessment inference):
+          - Team engagement (30%), burnout resilience (25%),
+            productivity proxy (25%), retention (20%)
+
+        Enrichment layers (when available):
+          - Calendar 1:1 frequency (15% blend)
+          - Recognition investment (10% blend)
+          - Pulse survey manager_support (20% blend — direct employee voice)
+        """
+        since = datetime.utcnow() - timedelta(days=lookback_days)
+        members = await self._get_team_members(db, team_id)
+        if not members:
+            return self._empty_score("manager_health", "No team members")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Team engagement health
+        engagement = await self._assessment_engagement(db, member_ids, since)
+
+        # Factor 2: Low neuroticism in team (inverse burnout proxy)
+        neuroticism = await self._avg_trait(db, member_ids, "neuroticism")
+        burnout_proxy = max(0, 100 - neuroticism)
+
+        # Factor 3: Team conscientiousness (productivity proxy)
+        conscientiousness = await self._avg_trait(db, member_ids, "conscientiousness")
+
+        # Factor 4: Retention signal (team member tenure)
+        retention = self._retention_score(members)
+
+        score = (
+            engagement * 0.30
+            + burnout_proxy * 0.25
+            + conscientiousness * 0.25
+            + retention * 0.20
+        )
+
+        factors = {
+            "team_engagement": round(engagement, 1),
+            "burnout_resilience": round(burnout_proxy, 1),
+            "team_productivity": round(conscientiousness, 1),
+            "team_retention": round(retention, 1),
+        }
+
+        # Behavioral enrichment: 1:1 meeting frequency from calendar
+        if enrichment and "one_on_one_ratio" in enrichment:
+            ono_score = min(100, enrichment["one_on_one_ratio"] * 500)
+            score = score * 0.85 + ono_score * 0.15
+            factors["one_on_one_frequency"] = round(ono_score, 1)
+
+        # Recognition investment: managers who recognize their team are more effective
+        if recognition_signals and recognition_signals.get("per_giver"):
+            per_giver = recognition_signals["per_giver"]
+            manager_recognition_total = 0
+            for mid in member_ids:
+                giver_data = per_giver.get(mid)
+                if giver_data:
+                    manager_recognition_total += giver_data["given_count"]
+            recognition_score = min(100, manager_recognition_total * 10)
+            score = score * 0.90 + recognition_score * 0.10
+            factors["recognition_investment"] = round(recognition_score, 1)
+
+        # Pulse survey: direct employee voice on manager support (strongest signal)
+        if (
+            pulse_survey_signals
+            and pulse_survey_signals.get("manager_support") is not None
+        ):
+            mgr_support = pulse_survey_signals["manager_support"]
+            score = score * 0.80 + mgr_support * 0.20
+            factors["pulse_manager_support"] = round(mgr_support, 1)
+
+        # 360 feedback: multi-rater leadership assessment (when available)
+        if (
+            feedback_360_signals
+            and feedback_360_signals.get("leadership_score") is not None
+        ):
+            leadership = feedback_360_signals["leadership_score"]
+            score = score * 0.80 + leadership * 0.20
+            factors["feedback_360_leadership"] = round(leadership, 1)
+
+        return {
+            "score": round(score, 1),
+            "label": self._score_label(score),
+            "trend": await self._calculate_trend(
+                db, member_ids, "manager_health", lookback_days
+            ),
+            "factors": factors,
+            "recommendations": self._manager_health_recommendations(
+                engagement, burnout_proxy, conscientiousness, retention
+            ),
+        }
+
+    # ── Psychological Safety Score ───────────────────────────────────
+    async def calculate_psychological_safety(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+        culture_signals: Optional[Dict[str, Any]] = None,
+        feedback_signals: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Based on Edmondson's framework. Teams with high openness,
+        high agreeableness, and low neuroticism tend to have
+        higher psychological safety.
+
+        When culture_signals or feedback_signals are provided, direct
+        measurements blend with personality-based inference for accuracy.
+        """
+        members = await self._get_team_members(db, team_id)
+        if not members:
+            return self._empty_score("psychological_safety", "No team members")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Openness to experience (willingness to share ideas)
+        openness = await self._avg_trait(db, member_ids, "openness")
+
+        # Factor 2: Agreeableness (interpersonal trust)
+        agreeableness = await self._avg_trait(db, member_ids, "agreeableness")
+
+        # Factor 3: Low neuroticism (emotional stability)
+        neuroticism = await self._avg_trait(db, member_ids, "neuroticism")
+        stability = max(0, 100 - neuroticism)
+
+        # Factor 4: Trait diversity (diverse teams that still function = high safety)
+        diversity_bonus = await self._trait_diversity_bonus(db, member_ids)
+
+        score = (
+            openness * 0.30
+            + agreeableness * 0.30
+            + stability * 0.25
+            + diversity_bonus * 0.15
+        )
+
+        factors = {
+            "openness_to_ideas": round(openness, 1),
+            "interpersonal_trust": round(agreeableness, 1),
+            "emotional_stability": round(stability, 1),
+            "diversity_resilience": round(diversity_bonus, 1),
+        }
+
+        # Culture metrics enrichment: direct psych safety measurement
+        if culture_signals and "culture_psych_safety" in culture_signals:
+            culture_safety = culture_signals["culture_psych_safety"]
+            score = score * 0.75 + culture_safety * 0.25
+            factors["culture_measurement"] = round(culture_safety, 1)
+
+        # Anonymous feedback penalty: safety-related reports lower the score
+        if feedback_signals and feedback_signals.get("safety_reports", 0) > 0:
+            safety_reports = feedback_signals["safety_reports"]
+            total = feedback_signals.get("total_reports", 1)
+            # Each safety report reduces score; scaled by report volume
+            safety_penalty = min(20, safety_reports * 3)
+            score = max(0, score - safety_penalty)
+            factors["feedback_safety_penalty"] = round(safety_penalty, 1)
+
+        return {
+            "score": round(score, 1),
+            "label": self._psych_safety_label(score),
+            "trend": await self._calculate_trend(
+                db, member_ids, "psych_safety", lookback_days
+            ),
+            "factors": factors,
+            "recommendations": self._psych_safety_recommendations(
+                openness, agreeableness, stability
+            ),
+        }
+
+    # ── Change Readiness Score ───────────────────────────────────────
+    async def calculate_change_readiness(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+    ) -> Dict[str, Any]:
+        """
+        Predicts how well a team will adapt to organizational change.
+        High openness + high conscientiousness + low neuroticism = ready.
+        """
+        members = await self._get_team_members(db, team_id)
+        if not members:
+            return self._empty_score("change_readiness", "No team members")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Openness (embraces new approaches)
+        openness = await self._avg_trait(db, member_ids, "openness")
+
+        # Factor 2: Conscientiousness (executes on new processes)
+        conscientiousness = await self._avg_trait(db, member_ids, "conscientiousness")
+
+        # Factor 3: Emotional resilience (handles uncertainty)
+        neuroticism = await self._avg_trait(db, member_ids, "neuroticism")
+        resilience = max(0, 100 - neuroticism)
+
+        # Factor 4: Extraversion (communicates change effectively)
+        extraversion = await self._avg_trait(db, member_ids, "extraversion")
+
+        score = (
+            openness * 0.35
+            + conscientiousness * 0.25
+            + resilience * 0.25
+            + extraversion * 0.15
+        )
+
+        return {
+            "score": round(score, 1),
+            "label": self._readiness_label(score),
+            "trend": await self._calculate_trend(
+                db, member_ids, "change_readiness", lookback_days
+            ),
+            "factors": {
+                "adaptability": round(openness, 1),
+                "execution_capability": round(conscientiousness, 1),
+                "emotional_resilience": round(resilience, 1),
+                "communication_strength": round(extraversion, 1),
+            },
+            "recommendations": self._change_readiness_recommendations(
+                openness, conscientiousness, resilience, extraversion
+            ),
+        }
+
+    # ── Organizational Friction Index ────────────────────────────────
+    async def calculate_friction_index(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
+        feedback_signals: Optional[Dict[str, Any]] = None,
+        culture_signals: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Measures organizational drag. Lower is better.
+        Based on coordination overhead, response delays, personality
+        friction points, anonymous feedback patterns, and culture conflict.
+        """
+        since = datetime.utcnow() - timedelta(days=lookback_days)
+        members = await self._get_team_members(db, team_id)
+        if not members:
+            return self._empty_score("friction_index", "No team members")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Personality conflict potential
+        conflict_potential = await self._conflict_potential(db, member_ids)
+
+        # Factor 2: Assessment fatigue (declining response rates)
+        fatigue = await self._assessment_fatigue(db, member_ids, since)
+
+        # Factor 3: Team fragmentation (uneven participation)
+        fragmentation = await self._participation_inequality(db, member_ids, since)
+
+        friction = conflict_potential * 0.40 + fatigue * 0.30 + fragmentation * 0.30
+
+        factors = {
+            "personality_conflict_risk": round(conflict_potential, 1),
+            "assessment_fatigue": round(fatigue, 1),
+            "participation_inequality": round(fragmentation, 1),
+        }
+
+        # Behavioral enrichment: cycle time drag from work systems
+        if enrichment and "cycle_time_trend" in enrichment:
+            trend_friction = {"slowing": 75, "stable": 30, "improving": 10}.get(
+                enrichment["cycle_time_trend"], 30
+            )
+            friction = friction * 0.80 + trend_friction * 0.20
+            factors["cycle_time_drag"] = round(trend_friction, 1)
+
+        # Anonymous feedback amplifier: friction-related reports increase score
+        if feedback_signals and feedback_signals.get("friction_reports", 0) > 0:
+            friction_reports = feedback_signals["friction_reports"]
+            # Each friction-category report adds to the score (capped at +15)
+            feedback_amplifier = min(15, friction_reports * 2.5)
+            friction = min(100, friction + feedback_amplifier)
+            factors["feedback_friction_reports"] = friction_reports
+            factors["feedback_amplifier"] = round(feedback_amplifier, 1)
+
+        # Culture conflict level enrichment
+        if culture_signals and "culture_conflict" in culture_signals:
+            culture_conflict = culture_signals["culture_conflict"]
+            friction = friction * 0.85 + culture_conflict * 0.15
+            factors["culture_conflict_level"] = round(culture_conflict, 1)
+
+        return {
+            "score": round(friction, 1),
+            "label": self._friction_label(friction),
+            "trend": await self._calculate_trend(
+                db, member_ids, "friction", lookback_days
+            ),
+            "factors": factors,
+            "recommendations": self._friction_recommendations(
+                conflict_potential, fatigue, fragmentation
+            ),
+        }
+
+    # ── Burnout Risk Score ──────────────────────────────────────────
+    async def calculate_burnout_risk(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Blends direct wellness metrics with personality-based signals
+        to produce a burnout risk score. Higher = greater risk.
+        """
+        since = datetime.utcnow() - timedelta(days=lookback_days)
+        members = await self._get_team_members(db, team_id)
+        if not members:
+            return self._empty_score("burnout_risk", "No team members")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Direct burnout risk from WellnessMetrics (0-10 → 0-100)
+        direct_burnout = await self._direct_burnout_score(db, member_ids, since)
+
+        # Factor 2: Neuroticism (Big Five — high neuroticism predicts burnout)
+        neuroticism = await self._avg_trait(db, member_ids, "neuroticism")
+
+        # Factor 3: Engagement decline (falling response rates = disengagement)
+        fatigue = await self._assessment_fatigue(db, member_ids, since)
+
+        # Factor 4: Resilience deficit from WellnessMetrics
+        resilience_deficit = await self._resilience_deficit(db, member_ids, since)
+
+        score = (
+            direct_burnout * 0.35
+            + resilience_deficit * 0.25
+            + neuroticism * 0.25
+            + fatigue * 0.15
+        )
+
+        factors = {
+            "direct_burnout_signals": round(direct_burnout, 1),
+            "neuroticism_risk": round(neuroticism, 1),
+            "engagement_decline": round(fatigue, 1),
+            "resilience_deficit": round(resilience_deficit, 1),
+        }
+
+        # Behavioral enrichment: meeting overload + work overcommitment
+        if enrichment:
+            e_signals = {}
+            # Meeting overload composite: high meeting hours + after-hours + low focus time
+            has_calendar = any(
+                k in enrichment
+                for k in (
+                    "meeting_hours_per_week",
+                    "after_hours_pct",
+                    "focus_hours_per_week",
+                )
+            )
+            if has_calendar:
+                # >10h/week meetings starts adding risk, >25h = max signal
+                mtg_load = min(
+                    100,
+                    max(0, (enrichment.get("meeting_hours_per_week", 10) - 10) * 6.67),
+                )
+                after_hrs = enrichment.get("after_hours_pct", 0)
+                # <20h focus/week = risk, <5h = critical
+                focus_deficit = max(
+                    0, min(100, (20 - enrichment.get("focus_hours_per_week", 20)) * 5)
+                )
+                # Meeting load is strongest predictor (Maslach & Leiter, 2016)
+                meeting_overload = (
+                    mtg_load * 0.45 + after_hrs * 0.30 + focus_deficit * 0.25
+                )
+                e_signals["meeting_overload"] = min(100, meeting_overload)
+
+            if "avg_overcommitment" in enrichment:
+                e_signals["work_overcommitment"] = enrichment["avg_overcommitment"]
+
+            if e_signals:
+                e_avg = sum(e_signals.values()) / len(e_signals)
+                score = score * 0.80 + e_avg * 0.20
+                factors.update({k: round(v, 1) for k, v in e_signals.items()})
+
+        trend = await self._calculate_trend(
+            db, member_ids, "burnout_risk", lookback_days
+        )
+
+        return {
+            "score": round(score, 1),
+            "label": self._burnout_label(score),
+            "trend": trend,
+            "factors": factors,
+            "member_count": len(members),
+            "recommendations": self._burnout_recommendations(
+                direct_burnout, neuroticism, fatigue, resilience_deficit
+            ),
+        }
+
+    # ── Organization-wide Dashboard ──────────────────────────────────
+    async def get_organization_dashboard(
+        self,
+        db: AsyncSession,
+        organization_id: str,
+        lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
+        culture_signals: Optional[Dict[str, Any]] = None,
+        feedback_signals: Optional[Dict[str, Any]] = None,
+        recognition_signals: Optional[Dict[str, Any]] = None,
+        pulse_survey_signals: Optional[Dict[str, Any]] = None,
+        feedback_360_signals: Optional[Dict[str, Any]] = None,
+        meeting_signals: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Full behavioral intelligence dashboard for an organization.
+
+        When ``enrichment`` is provided (from ``build_enrichment()``), work system
+        and calendar signals are blended into team health, collaboration, manager
+        health, friction, and burnout risk scores.
+
+        When ``culture_signals`` / ``feedback_signals`` / ``recognition_signals``
+        / ``pulse_survey_signals`` / ``feedback_360_signals`` / ``meeting_signals``
+        are provided, direct employee voice enriches the scores.
+        """
+        # Get all teams in the organization
+        result = await db.execute(
+            select(Team).where(Team.organization_id == organization_id)
+        )
+        teams = result.scalars().all()
+
+        if not teams:
+            return {
+                "organization_id": organization_id,
+                "team_count": 0,
+                "scores": {},
+                "teams": [],
+                "executive_summary": "No teams found. Create teams and complete assessments to generate behavioral intelligence.",
+                "generated_at": datetime.utcnow().isoformat(),
+            }
+
+        team_results = []
+        agg_scores = {
+            "team_health": [],
+            "collaboration": [],
+            "manager_health": [],
+            "psychological_safety": [],
+            "change_readiness": [],
+            "friction_index": [],
+            "burnout_risk": [],
+        }
+
+        for team in teams:
+            tid = str(team.id)
+            th = await self.calculate_team_health(
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                meeting_signals=meeting_signals,
+            )
+            co = await self.calculate_collaboration_score(
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                culture_signals=culture_signals,
+            )
+            mh = await self.calculate_manager_health(
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                recognition_signals=recognition_signals,
+                pulse_survey_signals=pulse_survey_signals,
+                feedback_360_signals=feedback_360_signals,
+            )
+            ps = await self.calculate_psychological_safety(
+                db,
+                tid,
+                lookback_days,
+                culture_signals=culture_signals,
+                feedback_signals=feedback_signals,
+            )
+            cr = await self.calculate_change_readiness(db, tid, lookback_days)
+            fi = await self.calculate_friction_index(
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                feedback_signals=feedback_signals,
+                culture_signals=culture_signals,
+            )
+            br = await self.calculate_burnout_risk(
+                db, tid, lookback_days, enrichment=enrichment
+            )
+
+            for key, val in [
+                ("team_health", th),
+                ("collaboration", co),
+                ("manager_health", mh),
+                ("psychological_safety", ps),
+                ("change_readiness", cr),
+                ("friction_index", fi),
+                ("burnout_risk", br),
+            ]:
+                if val["score"] > 0:
+                    agg_scores[key].append(val["score"])
+
+            team_results.append(
+                {
+                    "team_id": tid,
+                    "team_name": team.name,
+                    "member_count": th.get("member_count", 0),
+                    "scores": {
+                        "team_health": th["score"],
+                        "collaboration": co["score"],
+                        "manager_health": mh["score"],
+                        "psychological_safety": ps["score"],
+                        "change_readiness": cr["score"],
+                        "friction_index": fi["score"],
+                        "burnout_risk": br["score"],
+                    },
+                    "top_risk": self._identify_top_risk(th, co, mh, ps, cr, fi, br),
+                }
+            )
+
+        # Organization averages
+        org_scores = {}
+        for key, vals in agg_scores.items():
+            org_scores[key] = round(sum(vals) / len(vals), 1) if vals else 0.0
+
+        # Executive narrative
+        narrative = self._generate_executive_narrative(org_scores, team_results)
+
+        # Sort teams by risk (lowest team_health first)
+        team_results.sort(key=lambda t: t["scores"]["team_health"])
+
+        # Internal benchmarking: percentile rank + 90-day trend
+        benchmarks = self._compute_benchmark_context(org_scores, team_results)
+        historical_trend = await self._get_historical_trend(db, organization_id, 90)
+
+        return {
+            "organization_id": organization_id,
+            "team_count": len(teams),
+            "scores": org_scores,
+            "benchmarks": benchmarks,
+            "historical_trend": historical_trend,
+            "teams": team_results,
+            "executive_summary": narrative,
+            "generated_at": datetime.utcnow().isoformat(),
+            "lookback_days": lookback_days,
+        }
+
+    # ══════════════════════════════════════════════════════════════════
+    # INTERNAL BENCHMARKING
+    # ══════════════════════════════════════════════════════════════════
+
+    def _compute_benchmark_context(
+        self,
+        org_scores: Dict[str, float],
+        team_results: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Percentile rank + org-average context for each BI score.
+
+        For each of the 7 scores, computes:
+        - org_average: mean across all teams
+        - distribution: {min, p25, median, p75, max}
+        - per-team percentile_rank (added into team_results in-place)
+        """
+        score_keys = [
+            "team_health",
+            "collaboration",
+            "manager_health",
+            "psychological_safety",
+            "change_readiness",
+            "friction_index",
+            "burnout_risk",
+        ]
+
+        benchmarks: Dict[str, Any] = {}
+
+        for key in score_keys:
+            values = sorted(
+                t["scores"].get(key, 0)
+                for t in team_results
+                if t["scores"].get(key, 0) > 0
+            )
+            if not values:
+                benchmarks[key] = {
+                    "org_average": org_scores.get(key, 0),
+                    "distribution": None,
+                }
+                continue
+
+            n = len(values)
+            benchmarks[key] = {
+                "org_average": org_scores.get(key, 0),
+                "distribution": {
+                    "min": round(values[0], 1),
+                    "p25": round(values[max(0, n // 4 - 1)], 1),
+                    "median": round(values[n // 2], 1),
+                    "p75": round(values[max(0, 3 * n // 4 - 1)], 1),
+                    "max": round(values[-1], 1),
+                },
+            }
+
+            # Add percentile rank to each team (in-place)
+            for team in team_results:
+                team_score = team["scores"].get(key, 0)
+                if team_score <= 0:
+                    continue
+                # Inverted metrics: lower is better → rank from bottom
+                if key in ("friction_index", "burnout_risk"):
+                    rank = sum(1 for v in values if v >= team_score) / n
+                else:
+                    rank = sum(1 for v in values if v <= team_score) / n
+                team.setdefault("percentiles", {})[key] = round(rank * 100, 0)
+
+        return benchmarks
+
+    async def _get_historical_trend(
+        self,
+        db: AsyncSession,
+        organization_id: str,
+        days: int = 90,
+    ) -> Dict[str, Any]:
+        """90-day trend from PulseSnapshot history."""
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        try:
+            result = await db.execute(
+                select(PulseSnapshot)
+                .where(
+                    and_(
+                        PulseSnapshot.organization_id == organization_id,
+                        PulseSnapshot.snapshot_date >= cutoff,
+                    )
+                )
+                .order_by(PulseSnapshot.snapshot_date.asc())
+            )
+            snapshots = result.scalars().all()
+        except Exception:
+            return {"available": False}
+
+        if len(snapshots) < 2:
+            return {"available": False, "reason": "insufficient_history"}
+
+        first = snapshots[0]
+        last = snapshots[-1]
+
+        return {
+            "available": True,
+            "period_days": days,
+            "data_points": len(snapshots),
+            "pulse_score": {
+                "start": first.overall_pulse_score,
+                "end": last.overall_pulse_score,
+                "delta": round(last.overall_pulse_score - first.overall_pulse_score, 1),
+                "trend": last.overall_trend,
+            },
+            "risk_evolution": {
+                "teams_at_risk_start": first.teams_at_risk,
+                "teams_at_risk_end": last.teams_at_risk,
+                "delta": last.teams_at_risk - first.teams_at_risk,
+            },
+        }
+
+    # ══════════════════════════════════════════════════════════════════
+    # PRIVATE HELPERS
+    # ══════════════════════════════════════════════════════════════════
+
+    async def _get_team_members(self, db: AsyncSession, team_id: str) -> list:
+        result = await db.execute(
+            select(TeamMember).where(TeamMember.team_id == team_id)
+        )
+        return result.scalars().all()
+
+    async def _assessment_engagement(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """What % of members completed at least one assessment recently?"""
+        if not member_ids:
+            return 0.0
+        result = await db.execute(
+            select(func.count(func.distinct(Response.user_id))).where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at >= since,
+                )
+            )
+        )
+        active_count = result.scalar() or 0
+        return min((active_count / len(member_ids)) * 100, 100)
+
+    async def _personality_balance(self, db: AsyncSession, member_ids: list) -> float:
+        """How balanced are Big Five traits across the team?"""
+        responses = await self._get_latest_responses(db, member_ids)
+        if not responses:
+            return 50.0  # Neutral default
+
+        # Group by user, calculate average answer_value
+        user_scores = {}
+        for r in responses:
+            uid = str(r.user_id)
+            if uid not in user_scores:
+                user_scores[uid] = []
+            if r.answer_value is not None:
+                user_scores[uid].append(r.answer_value)
+
+        if len(user_scores) < 2:
+            return 50.0
+
+        # Calculate variance of average scores across members
+        averages = [sum(v) / len(v) for v in user_scores.values() if v]
+        if not averages:
+            return 50.0
+
+        mean = sum(averages) / len(averages)
+        variance = sum((a - mean) ** 2 for a in averages) / len(averages)
+
+        # Lower variance = more balanced (but some variance is healthy)
+        # Optimal variance is moderate (0.5-2.0 on a 1-5 scale)
+        balance = max(0, 100 - variance * 20)
+        return min(balance, 100)
+
+    async def _response_quality(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """Are people completing assessments fully (not rushing)?"""
+        result = await db.execute(
+            select(
+                func.count(Response.id),
+                func.avg(Response.response_time_ms),
+                func.count(Response.answer_value),
+            ).where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at >= since,
+                )
+            )
+        )
+        row = result.one_or_none()
+        if not row or not row[0]:
+            return 50.0
+
+        total, avg_time, answered = row
+        completion_rate = (answered / total * 100) if total else 50
+        # Reasonable response time: 2-30 seconds per item
+        time_quality = (
+            70
+            if avg_time is None
+            else min(100, max(0, 100 - abs(avg_time - 10000) / 500))
+        )
+
+        return completion_rate * 0.6 + time_quality * 0.4
+
+    def _team_size_score(self, count: int) -> float:
+        """Research suggests 5-9 is optimal team size."""
+        if 5 <= count <= 9:
+            return 95.0
+        elif 3 <= count <= 12:
+            return 75.0
+        elif count < 3:
+            return 40.0
+        else:
+            return max(30, 80 - (count - 12) * 3)
+
+    async def _collaboration_trait_score(
+        self, db: AsyncSession, member_ids: list
+    ) -> float:
+        """Average of agreeableness + extraversion as collaboration predictors."""
+        agreeableness = await self._avg_trait(db, member_ids, "agreeableness")
+        extraversion = await self._avg_trait(db, member_ids, "extraversion")
+        return (agreeableness + extraversion) / 2
+
+    async def _co_completion_rate(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """How many members complete the same assessments?"""
+        if len(member_ids) < 2:
+            return 50.0
+
+        result = await db.execute(
+            select(Response.assessment_id, func.count(func.distinct(Response.user_id)))
+            .where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at >= since,
+                )
+            )
+            .group_by(Response.assessment_id)
+        )
+        rows = result.all()
+        if not rows:
+            return 0.0
+
+        # What fraction of the team participates in each assessment?
+        rates = [r[1] / len(member_ids) for r in rows]
+        return min(sum(rates) / len(rates) * 100, 100)
+
+    async def _response_consistency(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """How consistent are response patterns across team members?"""
+        result = await db.execute(
+            select(Response.user_id, func.count(Response.id))
+            .where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at >= since,
+                )
+            )
+            .group_by(Response.user_id)
+        )
+        counts = [r[1] for r in result.all()]
+        if len(counts) < 2:
+            return 50.0
+
+        mean = sum(counts) / len(counts)
+        if mean == 0:
+            return 0.0
+        cv = (sum((c - mean) ** 2 for c in counts) / len(counts)) ** 0.5 / mean
+        # Lower CV = more consistent = better
+        return max(0, min(100, 100 - cv * 50))
+
+    async def _avg_trait(
+        self, db: AsyncSession, member_ids: list, trait_name: str
+    ) -> float:
+        """Get average normalized score for a Big Five trait (0-100 scale)."""
+        responses = await self._get_latest_responses(db, member_ids)
+        if not responses:
+            return 50.0  # Neutral baseline
+
+        # Use average answer_value as proxy (assessments use 1-5 scales)
+        values = [r.answer_value for r in responses if r.answer_value is not None]
+        if not values:
+            return 50.0
+
+        avg = sum(values) / len(values)
+        # Normalize from 1-5 scale to 0-100
+        return min(100, max(0, (avg - 1) / 4 * 100))
+
+    async def _trait_diversity_bonus(self, db: AsyncSession, member_ids: list) -> float:
+        """Teams with personality diversity that still function get a bonus."""
+        responses = await self._get_latest_responses(db, member_ids)
+        if not responses:
+            return 50.0
+
+        user_avgs = {}
+        for r in responses:
+            uid = str(r.user_id)
+            if uid not in user_avgs:
+                user_avgs[uid] = []
+            if r.answer_value is not None:
+                user_avgs[uid].append(r.answer_value)
+
+        if len(user_avgs) < 2:
+            return 50.0
+
+        averages = [sum(v) / len(v) for v in user_avgs.values() if v]
+        if len(averages) < 2:
+            return 50.0
+
+        # Standard deviation of averages
+        mean = sum(averages) / len(averages)
+        std = (sum((a - mean) ** 2 for a in averages) / len(averages)) ** 0.5
+
+        # Moderate diversity is best (std around 0.5-1.0 on 1-5 scale)
+        if 0.3 <= std <= 1.2:
+            return 80.0
+        elif std < 0.3:
+            return 60.0  # Too homogeneous
+        else:
+            return 50.0  # Too fragmented
+
+    def _retention_score(self, members: list) -> float:
+        """Score based on team member tenure (higher tenure = stability)."""
+        if not members:
+            return 50.0
+        # Use member created_at as proxy for tenure
+        now = datetime.utcnow()
+        tenures = []
+        for m in members:
+            if hasattr(m, "created_at") and m.created_at:
+                days = (now - m.created_at.replace(tzinfo=None)).days
+                tenures.append(days)
+        if not tenures:
+            return 50.0
+
+        avg_tenure = sum(tenures) / len(tenures)
+        # 180+ days average tenure is healthy
+        return min(100, (avg_tenure / 180) * 80 + 20)
+
+    async def _conflict_potential(self, db: AsyncSession, member_ids: list) -> float:
+        """High neuroticism + low agreeableness = conflict risk."""
+        neuroticism = await self._avg_trait(db, member_ids, "neuroticism")
+        agreeableness = await self._avg_trait(db, member_ids, "agreeableness")
+        # Higher neuroticism + lower agreeableness = more friction
+        return max(0, min(100, neuroticism * 0.6 + (100 - agreeableness) * 0.4))
+
+    async def _assessment_fatigue(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """Declining response rates indicate fatigue."""
+        midpoint = since + (datetime.utcnow() - since) / 2
+
+        result_first = await db.execute(
+            select(func.count(Response.id)).where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at >= since,
+                    Response.created_at < midpoint,
+                )
+            )
+        )
+        result_second = await db.execute(
+            select(func.count(Response.id)).where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at >= midpoint,
+                )
+            )
+        )
+        first_half = result_first.scalar() or 0
+        second_half = result_second.scalar() or 0
+
+        if first_half == 0 and second_half == 0:
+            return 30.0  # Low fatigue if no data
+        if first_half == 0:
+            return 10.0  # Increasing engagement
+
+        decline_ratio = 1 - (second_half / max(first_half, 1))
+        return max(0, min(100, decline_ratio * 100))
+
+    async def _participation_inequality(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """Gini coefficient of participation (0=equal, 100=one person does everything)."""
+        result = await db.execute(
+            select(Response.user_id, func.count(Response.id))
+            .where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at >= since,
+                )
+            )
+            .group_by(Response.user_id)
+        )
+        counts = sorted([r[1] for r in result.all()])
+
+        # Include zero-participation members
+        while len(counts) < len(member_ids):
+            counts.insert(0, 0)
+
+        n = len(counts)
+        if n == 0 or sum(counts) == 0:
+            return 30.0
+
+        # Gini coefficient
+        total = sum(counts)
+        cum = 0
+        gini_sum = 0
+        for i, c in enumerate(counts):
+            cum += c
+            gini_sum += cum
+        gini = (2 * gini_sum - total * (n + 1)) / (total * n)
+        return max(0, min(100, gini * 100))
+
+    async def _direct_burnout_score(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """Average burnout_risk_score from WellnessMetrics, mapped 0-10 → 0-100."""
+        result = await db.execute(
+            select(func.avg(WellnessMetrics.burnout_risk_score)).where(
+                and_(
+                    WellnessMetrics.user_id.in_(member_ids),
+                    WellnessMetrics.measurement_date >= since.date(),
+                )
+            )
+        )
+        avg = result.scalar()
+        if avg is None:
+            return 50.0  # No data — neutral risk
+        return min(100, float(avg) * 10)
+
+    async def _resilience_deficit(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """Inverse of average resilience_score. Higher deficit = higher risk."""
+        result = await db.execute(
+            select(func.avg(WellnessMetrics.resilience_score)).where(
+                and_(
+                    WellnessMetrics.user_id.in_(member_ids),
+                    WellnessMetrics.measurement_date >= since.date(),
+                )
+            )
+        )
+        avg = result.scalar()
+        if avg is None:
+            return 50.0
+        # Resilience 10 → deficit 0, Resilience 0 → deficit 100
+        return max(0, 100 - float(avg) * 10)
+
+    async def _get_latest_responses(self, db: AsyncSession, member_ids: list) -> list:
+        """Get recent assessment responses for a set of users."""
+        result = await db.execute(
+            select(Response)
+            .where(Response.user_id.in_(member_ids))
+            .order_by(Response.created_at.desc())
+            .limit(500)
+        )
+        return result.scalars().all()
+
+    async def _calculate_trend(
+        self, db: AsyncSession, member_ids: list, metric: str, lookback_days: int
+    ) -> Dict[str, Any]:
+        """Simple trend: compare first half vs second half engagement."""
+        now = datetime.utcnow()
+        since = now - timedelta(days=lookback_days)
+        mid = since + timedelta(days=lookback_days // 2)
+
+        r1 = await db.execute(
+            select(func.count(Response.id)).where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at.between(since, mid),
+                )
+            )
+        )
+        r2 = await db.execute(
+            select(func.count(Response.id)).where(
+                and_(
+                    Response.user_id.in_(member_ids),
+                    Response.created_at.between(mid, now),
+                )
+            )
+        )
+        first = r1.scalar() or 0
+        second = r2.scalar() or 0
+
+        if first == 0 and second == 0:
+            return {"direction": "stable", "change_pct": 0}
+        if first == 0:
+            return {"direction": "improving", "change_pct": 100}
+
+        change = ((second - first) / first) * 100
+        direction = (
+            "improving" if change > 5 else ("declining" if change < -5 else "stable")
+        )
+        return {"direction": direction, "change_pct": round(change, 1)}
+
+    # ── Labels ───────────────────────────────────────────────────────
+
+    def _score_label(self, score: float) -> str:
+        if score >= 80:
+            return "Excellent"
+        elif score >= 60:
+            return "Good"
+        elif score >= 40:
+            return "Needs Attention"
+        elif score >= 20:
+            return "At Risk"
+        return "Critical"
+
+    def _psych_safety_label(self, score: float) -> str:
+        if score >= 80:
+            return "High Safety"
+        elif score >= 60:
+            return "Moderate Safety"
+        elif score >= 40:
+            return "Low Safety"
+        return "Unsafe Environment"
+
+    def _readiness_label(self, score: float) -> str:
+        if score >= 80:
+            return "Highly Ready"
+        elif score >= 60:
+            return "Moderately Ready"
+        elif score >= 40:
+            return "Resistant"
+        return "Not Ready"
+
+    def _friction_label(self, score: float) -> str:
+        if score <= 20:
+            return "Smooth Operations"
+        elif score <= 40:
+            return "Minor Friction"
+        elif score <= 60:
+            return "Moderate Friction"
+        elif score <= 80:
+            return "High Friction"
+        return "Critical Friction"
+
+    def _burnout_label(self, score: float) -> str:
+        if score >= 80:
+            return "Critical Burnout Risk"
+        elif score >= 60:
+            return "High Risk"
+        elif score >= 40:
+            return "Moderate Risk"
+        elif score >= 20:
+            return "Low Risk"
+        return "Healthy"
+
+    def _empty_score(self, metric: str, reason: str) -> Dict[str, Any]:
+        return {
+            "score": 0.0,
+            "label": "No Data",
+            "trend": {"direction": "stable", "change_pct": 0},
+            "factors": {},
+            "recommendations": [reason],
+        }
+
+    @staticmethod
+    def _cycle_trend_to_score(trend: str) -> float:
+        """Convert work system cycle time trend to a health score."""
+        return {"improving": 85.0, "stable": 65.0, "slowing": 35.0}.get(trend, 65.0)
+
+    @staticmethod
+    def build_enrichment(
+        workload_snapshots: Optional[list] = None,
+        cycle_times: Optional[Dict[str, Any]] = None,
+        collaboration_edges: Optional[list] = None,
+        meeting_health: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Build enrichment dict from work system + calendar analyzer outputs.
+
+        Pass the result as ``enrichment`` to any score calculation method.
+        """
+        enrichment: Dict[str, Any] = {}
+
+        if workload_snapshots:
+            scores = [s.overcommitment_score for s in workload_snapshots]
+            enrichment["avg_overcommitment"] = (
+                sum(scores) / len(scores) if scores else 0
+            )
+
+        if cycle_times:
+            enrichment["cycle_time_trend"] = cycle_times.get("trend", "stable")
+            enrichment["avg_cycle_time_hours"] = cycle_times.get("avg_hours", 0)
+
+        if collaboration_edges:
+            enrichment["cross_team_edges"] = len(collaboration_edges)
+
+        if meeting_health is not None:
+            enrichment["meeting_health_score"] = meeting_health.score
+            enrichment["meeting_hours_per_week"] = meeting_health.meeting_hours_per_week
+            enrichment["focus_hours_per_week"] = meeting_health.focus_hours_per_week
+            enrichment["after_hours_pct"] = meeting_health.after_hours_pct
+            enrichment["one_on_one_ratio"] = meeting_health.one_on_one_ratio
+            enrichment["back_to_back_rate"] = meeting_health.back_to_back_rate
+
+        return enrichment
+
+    # ── Recommendations ──────────────────────────────────────────────
+
+    def _team_health_recommendations(self, engagement, balance, quality, size):
+        recs = []
+        if engagement < 50:
+            recs.append(
+                "Assessment participation is low. Consider shorter, more frequent pulse checks to boost engagement."
+            )
+        if balance < 40:
+            recs.append(
+                "Team personality composition is imbalanced. When hiring, consider candidates who complement existing personality profiles."
+            )
+        if quality < 50:
+            recs.append(
+                "Response quality suggests rushed assessments. Consider reducing assessment length or adding gamification."
+            )
+        if size < 50:
+            recs.append(
+                "Team size is outside the optimal 5-9 range. Research shows smaller cross-functional teams outperform larger ones."
+            )
+        if not recs:
+            recs.append("Team health is strong. Maintain current practices.")
+        return recs
+
+    def _collaboration_recommendations(self, traits, co_completion, consistency):
+        recs = []
+        if co_completion < 40:
+            recs.append(
+                "Team members aren't completing assessments together. Schedule team assessment sessions to build shared understanding."
+            )
+        if traits < 50:
+            recs.append(
+                "Team collaboration traits are moderate. Consider team-building activities that strengthen interpersonal connections."
+            )
+        if consistency < 40:
+            recs.append(
+                "Uneven participation patterns detected. Some members may be disengaged — consider individual check-ins."
+            )
+        if not recs:
+            recs.append("Collaboration signals are healthy. Team is well-aligned.")
+        return recs
+
+    def _manager_health_recommendations(
+        self, engagement, burnout, productivity, retention
+    ):
+        recs = []
+        if burnout < 40:
+            recs.append(
+                "Team shows elevated stress indicators. Manager should review workload distribution and ensure recovery time."
+            )
+        if engagement < 40:
+            recs.append(
+                "Low team engagement may indicate leadership disconnect. Schedule regular 1:1s and feedback sessions."
+            )
+        if retention < 50:
+            recs.append(
+                "Team tenure is low, suggesting retention challenges. Investigate exit patterns and satisfaction drivers."
+            )
+        if not recs:
+            recs.append(
+                "Manager effectiveness indicators are positive. Team shows healthy engagement and stability."
+            )
+        return recs
+
+    def _psych_safety_recommendations(self, openness, agreeableness, stability):
+        recs = []
+        if openness < 50:
+            recs.append(
+                "Low openness suggests ideas may not be freely shared. Create structured forums for anonymous idea submission."
+            )
+        if agreeableness < 50:
+            recs.append(
+                "Interpersonal trust may be low. Consider facilitated team retrospectives focused on appreciative inquiry."
+            )
+        if stability < 40:
+            recs.append(
+                "Emotional volatility is elevated. Provide stress management resources and ensure workload is sustainable."
+            )
+        if not recs:
+            recs.append(
+                "Psychological safety is strong. Team members likely feel comfortable speaking up and taking risks."
+            )
+        return recs
+
+    def _change_readiness_recommendations(
+        self, openness, conscientiousness, resilience, extraversion
+    ):
+        recs = []
+        if openness < 50:
+            recs.append(
+                "Team may resist new approaches. Introduce changes incrementally with clear rationale and early wins."
+            )
+        if resilience < 40:
+            recs.append(
+                "Low emotional resilience during change. Provide additional support structures and clear communication."
+            )
+        if conscientiousness < 50:
+            recs.append(
+                "Execution risk during transitions. Break changes into smaller, trackable milestones."
+            )
+        if not recs:
+            recs.append(
+                "Team is well-positioned for organizational change. Leverage their adaptability for transformation initiatives."
+            )
+        return recs
+
+    def _friction_recommendations(self, conflict, fatigue, fragmentation):
+        recs = []
+        if conflict > 60:
+            recs.append(
+                "High personality conflict potential. Consider facilitated conflict resolution workshops or team mediation."
+            )
+        if fatigue > 60:
+            recs.append(
+                "Assessment fatigue detected — response rates are declining. Reduce assessment frequency or switch to micro-surveys."
+            )
+        if fragmentation > 60:
+            recs.append(
+                "Participation is uneven. Some members may be overwhelmed or disengaged. Investigate individual workload balance."
+            )
+        if not recs:
+            recs.append(
+                "Organizational friction is low. Operations are running smoothly."
+            )
+        return recs
+
+    def _burnout_recommendations(
+        self, direct, neuroticism, fatigue, resilience_deficit
+    ):
+        recs = []
+        if direct > 60:
+            recs.append(
+                "Direct burnout indicators are elevated. Immediate intervention needed — review workloads, enforce recovery time, and consider temporary task redistribution."
+            )
+        if neuroticism > 60:
+            recs.append(
+                "Team personality profiles show high emotional reactivity. Provide stress management training and ensure managers check in regularly."
+            )
+        if fatigue > 60:
+            recs.append(
+                "Engagement is declining, a hallmark pre-burnout signal. Reduce assessment frequency and focus on meaningful, shorter pulse surveys."
+            )
+        if resilience_deficit > 60:
+            recs.append(
+                "Low resilience reserves detected. Invest in resilience workshops, ensure adequate PTO usage, and consider workload audits."
+            )
+        if not recs:
+            recs.append(
+                "Burnout risk is well-managed. Maintain current wellness practices and continue monitoring."
+            )
+        return recs
+
+    def _identify_top_risk(self, th, co, mh, ps, cr, fi, br=None) -> str:
+        """Identify the most concerning metric for a team."""
+        risks = [
+            ("Team Health", th["score"], False),
+            ("Collaboration", co["score"], False),
+            ("Manager Health", mh["score"], False),
+            ("Psychological Safety", ps["score"], False),
+            ("Change Readiness", cr["score"], False),
+            ("Organizational Friction", fi["score"], True),  # Higher is worse
+        ]
+        if br is not None:
+            risks.append(("Burnout Risk", br["score"], True))  # Higher is worse
+
+        worst = None
+        worst_severity = 0
+        for name, score, higher_is_worse in risks:
+            severity = score if higher_is_worse else (100 - score)
+            if severity > worst_severity:
+                worst_severity = severity
+                worst = name
+
+        return worst or "None"
+
+    def _generate_executive_narrative(
+        self, scores: Dict[str, float], teams: list
+    ) -> str:
+        """Generate executive-level intelligence narrative."""
+        parts = []
+
+        # Overall assessment
+        avg_health = scores.get("team_health", 0)
+        if avg_health >= 70:
+            parts.append(f"Organization-wide team health is strong at {avg_health}%.")
+        elif avg_health >= 50:
+            parts.append(
+                f"Organization-wide team health is moderate at {avg_health}%, with room for improvement."
+            )
+        else:
+            parts.append(
+                f"Organization-wide team health requires attention at {avg_health}%."
+            )
+
+        # Friction
+        friction = scores.get("friction_index", 0)
+        if friction > 50:
+            parts.append(
+                f"Organizational friction is elevated at {friction}%, which may be slowing delivery and increasing coordination overhead."
+            )
+
+        # Change readiness
+        readiness = scores.get("change_readiness", 0)
+        if readiness < 50:
+            parts.append(
+                f"Change readiness is low at {readiness}%. Major organizational changes should be introduced gradually with additional support."
+            )
+
+        # Psychological safety
+        safety = scores.get("psychological_safety", 0)
+        if safety < 50:
+            parts.append(
+                f"Psychological safety is concerning at {safety}%. Teams may not feel comfortable raising issues or proposing new ideas."
+            )
+
+        # Burnout risk
+        burnout = scores.get("burnout_risk", 0)
+        if burnout > 60:
+            parts.append(
+                f"Burnout risk is elevated at {burnout}%. Proactive intervention is recommended before attrition increases."
+            )
+
+        # At-risk teams
+        at_risk = [t for t in teams if t["scores"]["team_health"] < 50]
+        if at_risk:
+            names = ", ".join(t["team_name"] for t in at_risk[:3])
+            parts.append(f"Teams requiring immediate attention: {names}.")
+
+        return (
+            " ".join(parts)
+            if parts
+            else "Insufficient data to generate executive summary. Complete assessments across teams to enable behavioral intelligence."
+        )

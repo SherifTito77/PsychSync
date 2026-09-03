@@ -9,18 +9,19 @@ Test Coverage:
 - Test Categories: Authentication, CRUD, Security, Error Handling, Performance
 """
 
-import pytest
-import pytest_asyncio
 import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
-from httpx import AsyncClient
+from typing import Any, Dict, List
+
+import pytest
+import pytest_asyncio
 from fastapi import status
+from httpx import AsyncClient
 
 # Import API endpoints testing utilities
-from tests.test_auth_complete import TestPasswordSecurity, TestJWTTokenSecurity
+from tests.test_auth_complete import TestJWTTokenSecurity, TestPasswordSecurity
 
 
 class TestAuthenticationEndpoints:

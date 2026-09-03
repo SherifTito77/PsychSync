@@ -9,12 +9,12 @@ Usage:
     python scripts/simple_test_generator.py --module app.services.user_service
 """
 
+import argparse
+import ast
 import os
 import sys
-import ast
-import argparse
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -24,7 +24,7 @@ sys.path.insert(0, str(project_root))
 def analyze_module(module_path: str) -> dict:
     """Analyze a Python module and extract functions/classes"""
 
-    with open(module_path, 'r', encoding='utf-8') as f:
+    with open(module_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     try:
@@ -37,41 +37,47 @@ def analyze_module(module_path: str) -> dict:
 
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
-            functions.append({
-                'name': node.name,
-                'is_async': isinstance(node, ast.AsyncFunctionDef),
-                'docstring': ast.get_docstring(node),
-                'line_number': node.lineno
-            })
+            functions.append(
+                {
+                    "name": node.name,
+                    "is_async": isinstance(node, ast.AsyncFunctionDef),
+                    "docstring": ast.get_docstring(node),
+                    "line_number": node.lineno,
+                }
+            )
         elif isinstance(node, ast.ClassDef):
             methods = []
             for item in node.body:
                 if isinstance(item, ast.FunctionDef):
-                    methods.append({
-                        'name': item.name,
-                        'is_async': isinstance(item, ast.AsyncFunctionDef),
-                        'docstring': ast.get_docstring(item),
-                        'line_number': item.lineno
-                    })
+                    methods.append(
+                        {
+                            "name": item.name,
+                            "is_async": isinstance(item, ast.AsyncFunctionDef),
+                            "docstring": ast.get_docstring(item),
+                            "line_number": item.lineno,
+                        }
+                    )
 
-            classes.append({
-                'name': node.name,
-                'methods': methods,
-                'docstring': ast.get_docstring(node)
-            })
+            classes.append(
+                {
+                    "name": node.name,
+                    "methods": methods,
+                    "docstring": ast.get_docstring(node),
+                }
+            )
 
     return {
-        'functions': functions,
-        'classes': classes,
-        'module_name': Path(module_path).stem
+        "functions": functions,
+        "classes": classes,
+        "module_name": Path(module_path).stem,
     }
 
 
 def generate_test_file(module_info: dict) -> str:
     """Generate comprehensive test file content"""
 
-    module_name = module_info['module_name']
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    module_name = module_info["module_name"]
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     test_content = f'''"""
 Comprehensive Test Suite for {module_name}
@@ -126,27 +132,29 @@ def mock_user():
 @pytest.fixture
 def mock_token():
     """Mock JWT token"""
-    from app.core.security import create_access_token
+    from app.services.security import create_access_token
     return create_access_token(data={{"sub": "test@example.com"}})
 
 
 '''
 
     # Generate tests for standalone functions
-    if module_info['functions']:
-        test_content += '\n\nclass TestModuleFunctions:\n'
-        for func in module_info['functions']:
-            if not func['name'].startswith('_'):
+    if module_info["functions"]:
+        test_content += "\n\nclass TestModuleFunctions:\n"
+        for func in module_info["functions"]:
+            if not func["name"].startswith("_"):
                 test_content += generate_function_test(func, is_method=False)
 
     # Generate tests for class methods
-    for cls in module_info['classes']:
+    for cls in module_info["classes"]:
         test_content += f'\n\nclass Test{cls["name"]}:\n'
         test_content += f'    """Tests for {cls["name"]} class"""\n\n'
 
-        for method in cls['methods']:
-            if not method['name'].startswith('_'):
-                test_content += generate_function_test(method, is_method=True, class_name=cls["name"])
+        for method in cls["methods"]:
+            if not method["name"].startswith("_"):
+                test_content += generate_function_test(
+                    method, is_method=True, class_name=cls["name"]
+                )
 
     # Add integration tests
     test_content += generate_integration_tests()
@@ -185,93 +193,101 @@ if __name__ == "__main__":
     return test_content
 
 
-def generate_function_test(func: dict, is_method: bool = False, class_name: str = None) -> str:
+def generate_function_test(
+    func: dict, is_method: bool = False, class_name: str = None
+) -> str:
     """Generate test for a specific function"""
 
-    func_name = func['name']
+    func_name = func["name"]
     prefix = f"test_{class_name.lower()}_" if class_name else "test_"
     test_name = f"{prefix}{func_name}"
 
     # Determine test patterns based on function name
     test_scenarios = []
 
-    if 'create' in func_name.lower():
-        test_scenarios = ['valid_creation', 'invalid_creation', 'duplicate_creation']
-    elif 'get' in func_name.lower() or 'find' in func_name.lower():
-        test_scenarios = ['found_existing', 'not_found', 'invalid_id']
-    elif 'update' in func_name.lower():
-        test_scenarios = ['valid_update', 'invalid_update', 'not_found']
-    elif 'delete' in func_name.lower() or 'remove' in func_name.lower():
-        test_scenarios = ['existing_deletion', 'not_found_deletion']
-    elif 'auth' in func_name.lower() or 'login' in func_name.lower():
-        test_scenarios = ['valid_credentials', 'invalid_credentials', 'account_locked']
+    if "create" in func_name.lower():
+        test_scenarios = ["valid_creation", "invalid_creation", "duplicate_creation"]
+    elif "get" in func_name.lower() or "find" in func_name.lower():
+        test_scenarios = ["found_existing", "not_found", "invalid_id"]
+    elif "update" in func_name.lower():
+        test_scenarios = ["valid_update", "invalid_update", "not_found"]
+    elif "delete" in func_name.lower() or "remove" in func_name.lower():
+        test_scenarios = ["existing_deletion", "not_found_deletion"]
+    elif "auth" in func_name.lower() or "login" in func_name.lower():
+        test_scenarios = ["valid_credentials", "invalid_credentials", "account_locked"]
     else:
-        test_scenarios = ['happy_path', 'error_case', 'edge_case']
+        test_scenarios = ["happy_path", "error_case", "edge_case"]
 
-    test_content = f'    def {test_name}(self'
+    test_content = f"    def {test_name}(self"
 
     # Add common parameters for test methods
-    test_content += ', mock_db=None, mock_user=None):\n'
+    test_content += ", mock_db=None, mock_user=None):\n"
     test_content += f'        """Test {func_name} function"""\n\n'
 
     for i, scenario in enumerate(test_scenarios):
         test_content += f'        # Test {scenario.replace("_", " ").title()}\n'
-        test_content += '        try:\n'
+        test_content += "        try:\n"
 
         if is_method and class_name:
-            test_content += f'            # Setup mock instance\n'
-            test_content += f'            instance = {class_name}()\n'
+            test_content += f"            # Setup mock instance\n"
+            test_content += f"            instance = {class_name}()\n"
 
         # Add scenario-specific setup
-        if 'valid' in scenario or 'found' in scenario or 'happy' in scenario:
-            test_content += '            # Arrange: Valid test data\n'
+        if "valid" in scenario or "found" in scenario or "happy" in scenario:
+            test_content += "            # Arrange: Valid test data\n"
             test_content += '            test_data = {"key": "value"}\n'
-        elif 'invalid' in scenario or 'error' in scenario:
-            test_content += '            # Arrange: Invalid test data\n'
+        elif "invalid" in scenario or "error" in scenario:
+            test_content += "            # Arrange: Invalid test data\n"
             test_content += '            test_data = {"invalid": "data"}\n'
-        elif 'not_found' in scenario:
-            test_content += '            # Arrange: Non-existent resource\n'
-            test_content += '            test_id = 999999\n'
+        elif "not_found" in scenario:
+            test_content += "            # Arrange: Non-existent resource\n"
+            test_content += "            test_id = 999999\n"
 
         # Add execution step
-        test_content += '            \n'
-        test_content += '            # Act\n'
+        test_content += "            \n"
+        test_content += "            # Act\n"
 
         if is_method and class_name:
-            test_content += f'            result = instance.{func_name}('
+            test_content += f"            result = instance.{func_name}("
         else:
-            test_content += f'            result = {func_name}('
+            test_content += f"            result = {func_name}("
 
         # Add parameters based on function name hints
-        if 'id' in func_name.lower():
+        if "id" in func_name.lower():
             test_content += 'test_id if "test_id" in locals() else 1'
-        elif 'data' in func_name.lower():
+        elif "data" in func_name.lower():
             test_content += 'test_data if "test_data" in locals() else {"key": "value"}'
         else:
-            test_content += 'mock_db or test_data'
+            test_content += "mock_db or test_data"
 
-        test_content += ')\n\n'
+        test_content += ")\n\n"
 
         # Add assertion step
-        test_content += '            # Assert\n'
-        if 'invalid' in scenario or 'error' in scenario:
-            test_content += '            # Should handle error gracefully\n'
-            test_content += '            assert True  # Implement specific error assertions\n'
+        test_content += "            # Assert\n"
+        if "invalid" in scenario or "error" in scenario:
+            test_content += "            # Should handle error gracefully\n"
+            test_content += (
+                "            assert True  # Implement specific error assertions\n"
+            )
         else:
-            test_content += '            assert result is not None\n'
-            test_content += '            # Add specific assertions for expected behavior\n'
+            test_content += "            assert result is not None\n"
+            test_content += (
+                "            # Add specific assertions for expected behavior\n"
+            )
 
-        test_content += '\n        except Exception as e:\n'
+        test_content += "\n        except Exception as e:\n"
         test_content += f'            if "{scenario}" == "error_case":\n'
-        test_content += '                # Expected error for error case\n'
-        test_content += '                pass\n'
-        test_content += '            else:\n'
-        test_content += '                pytest.fail(f"Unexpected error in {scenario}: {{e}}")\n'
+        test_content += "                # Expected error for error case\n"
+        test_content += "                pass\n"
+        test_content += "            else:\n"
+        test_content += (
+            '                pytest.fail(f"Unexpected error in {scenario}: {{e}}")\n'
+        )
 
         if i < len(test_scenarios) - 1:
-            test_content += '\n'
+            test_content += "\n"
 
-    test_content += '\n'
+    test_content += "\n"
     return test_content
 
 
@@ -386,20 +402,22 @@ def main():
 Examples:
     python scripts/simple_test_generator.py --module app.services.user_service
     python scripts/simple_test_generator.py --module app.api.v1.endpoints.users
-        """
+        """,
     )
 
     parser.add_argument(
-        '--module', '-m',
+        "--module",
+        "-m",
         type=str,
         required=True,
-        help='Module path to generate tests for (e.g., app.services.user_service)'
+        help="Module path to generate tests for (e.g., app.services.user_service)",
     )
 
     parser.add_argument(
-        '--output', '-o',
+        "--output",
+        "-o",
         type=str,
-        help='Output file path (optional, defaults to tests/module_name_test.py)'
+        help="Output file path (optional, defaults to tests/module_name_test.py)",
     )
 
     args = parser.parse_args()
@@ -415,7 +433,9 @@ Examples:
         print(f"🔍 Analyzing module: {args.module}")
         module_info = analyze_module(str(module_path))
 
-        print(f"📝 Found {len(module_info['functions'])} functions and {len(module_info['classes'])} classes")
+        print(
+            f"📝 Found {len(module_info['functions'])} functions and {len(module_info['classes'])} classes"
+        )
 
         # Generate test suite
         print("🚀 Generating comprehensive test suite...")
@@ -432,7 +452,7 @@ Examples:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Write test file
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(test_content)
 
         print(f"✅ Test suite generated successfully!")
@@ -440,7 +460,9 @@ Examples:
         print(f"🎯 Next steps:")
         print(f"   1. Review and customize generated tests")
         print(f"   2. Run: pytest {output_path.relative_to(project_root)} -v")
-        print(f"   3. Check coverage: pytest --cov={args.module} --cov-report=term-missing")
+        print(
+            f"   3. Check coverage: pytest --cov={args.module} --cov-report=term-missing"
+        )
 
     except Exception as e:
         print(f"❌ Error: {e}")

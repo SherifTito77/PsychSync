@@ -5,8 +5,9 @@ Quickly identify and archive unused services in a single pass.
 
 import os
 import subprocess
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 
 def main():
     print("=" * 80)
@@ -15,11 +16,15 @@ def main():
     print()
 
     # Get all service files
-    services_dir = Path('app/services')
-    service_files = list(services_dir.glob('*.py'))
+    services_dir = Path("app/services")
+    service_files = list(services_dir.glob("*.py"))
 
     # Filter out __init__ and backup files
-    service_files = [f for f in service_files if f.name != '__init__.py' and not f.name.startswith('.!')]
+    service_files = [
+        f
+        for f in service_files
+        if f.name != "__init__.py" and not f.name.startswith(".!")
+    ]
 
     print(f"📊 Found {len(service_files)} service files\n")
 
@@ -28,8 +33,8 @@ def main():
 
     # Create a single grep pattern that matches all services
     # This is much faster than grepping individually
-    pattern_file = '/tmp/service_patterns.txt'
-    with open(pattern_file, 'w') as f:
+    pattern_file = "/tmp/service_patterns.txt"
+    with open(pattern_file, "w") as f:
         for name in service_names:
             # Match imports and usage
             f.write(f"from app.services.{name}\n")
@@ -41,24 +46,27 @@ def main():
 
     try:
         result = subprocess.run(
-            ['grep', '-r', '--include=*.py', '-f', pattern_file, 'app/'],
+            ["grep", "-r", "--include=*.py", "-f", pattern_file, "app/"],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
         )
 
         # Parse results
         mentioned_services = set()
-        for line in result.stdout.split('\n'):
+        for line in result.stdout.split("\n"):
             if not line:
                 continue
 
             # Extract service name from the line
             for service_name in service_names:
                 # Check if this service is mentioned in a meaningful way
-                if f'app.services.{service_name}' in line or f'import {service_name}' in line:
+                if (
+                    f"app.services.{service_name}" in line
+                    or f"import {service_name}" in line
+                ):
                     # Exclude self-references
-                    if f'services/{service_name}.py' not in line:
+                    if f"services/{service_name}.py" not in line:
                         mentioned_services.add(service_name)
                         break
 
@@ -80,28 +88,30 @@ def main():
         print()
 
         # Archive the services
-        archive_dir = Path('archived_services/services')
+        archive_dir = Path("archived_services/services")
         archive_dir.mkdir(parents=True, exist_ok=True)
 
-        manifest_file = archive_dir.parent / 'ARCHIVAL_MANIFEST.md'
+        manifest_file = archive_dir.parent / "ARCHIVAL_MANIFEST.md"
 
         print(f"📦 Archiving {len(unused_services)} unused services...")
 
         archived_count = 0
-        with open(manifest_file, 'a') as manifest:
+        with open(manifest_file, "a") as manifest:
             manifest.write(f"\n## Archival: {datetime.now().isoformat()}\n\n")
             manifest.write(f"Total services archived: {len(unused_services)}\n\n")
 
             for service_name in sorted(unused_services):
-                source = services_dir / f'{service_name}.py'
-                destination = archive_dir / f'{service_name}.py'
+                source = services_dir / f"{service_name}.py"
+                destination = archive_dir / f"{service_name}.py"
 
                 if source.exists():
                     try:
                         # Move the file
                         source.rename(destination)
 
-                        manifest.write(f"- {service_name}: `app/services/{service_name}.py` → `archived_services/services/{service_name}.py`\n")
+                        manifest.write(
+                            f"- {service_name}: `app/services/{service_name}.py` → `archived_services/services/{service_name}.py`\n"
+                        )
 
                         print(f"  ✅ Archived {service_name}")
                         archived_count += 1
@@ -115,5 +125,6 @@ def main():
     else:
         print("✅ No unused services found!")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

@@ -214,7 +214,7 @@ const PWAInstaller: React.FC<PWAInstallerProps> = ({
       <style>{`
         @keyframes slide-in-from-bottom {
           from {
-            transform: translateY(100%);
+            transform: translateY(20px);
             opacity: 0;
           }
           to {
@@ -225,6 +225,14 @@ const PWAInstaller: React.FC<PWAInstallerProps> = ({
 
         .animate-in {
           animation: slide-in-from-bottom 0.3s ease-out;
+        }
+
+        /* Respect reduced motion preference */
+        @media (prefers-reduced-motion: reduce) {
+          .animate-in {
+            animation: none;
+            opacity: 1;
+          }
         }
       `}</style>
     </div>

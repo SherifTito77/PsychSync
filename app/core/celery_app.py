@@ -38,14 +38,22 @@ def debug_task(self):
 @celery_app.task
 def test_ai_processing():
     """Test AI processing in background"""
-    from ai.processors.mbti_processor import MBTIProcessor
+    from app.ai.processors.mbti_processor import MBTIProcessor
 
     try:
         processor = MBTIProcessor()
         result = processor.process({"type": "INTJ", "confidence": 0.9})
-        return {"success": True, "result": result, "message": "Background AI processing successful"}
+        return {
+            "success": True,
+            "result": result,
+            "message": "Background AI processing successful",
+        }
     except Exception as e:
-        return {"success": False, "error": str(e), "message": "Background AI processing failed"}
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Background AI processing failed",
+        }
 
 
 if __name__ == "__main__":

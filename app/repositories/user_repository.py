@@ -16,8 +16,8 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
@@ -46,7 +46,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
         """
         super().__init__(db, User)
 
-    async def get_by_email(self, email: str, include_deleted: bool = False) -> User | None:
+    async def get_by_email(
+        self, email: str, include_deleted: bool = False
+    ) -> User | None:
         """
         Get user by email address
 
@@ -58,7 +60,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             User instance or None
         """
         try:
-            query = select(User).where(func.lower(User.email) == func.lower(email.strip()))
+            query = select(User).where(
+                func.lower(User.email) == func.lower(email.strip())
+            )
 
             # Apply soft-delete filter
             if not include_deleted:
@@ -78,7 +82,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             user_repo_logger.error(f"Error getting user by email {email}: {e}")
             raise
 
-    async def email_exists(self, email: str, exclude_user_id: Any | None = None) -> bool:
+    async def email_exists(
+        self, email: str, exclude_user_id: Any | None = None
+    ) -> bool:
         """
         Check if email address already exists
 
@@ -157,7 +163,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             total_count = count_result.scalar()
 
             # Apply pagination and ordering
-            query = base_query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+            query = (
+                base_query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+            )
             result = await self.db.execute(query)
             users = result.scalars().all()
 
@@ -173,7 +181,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             return users, total_count
 
         except Exception as e:
-            user_repo_logger.error(f"Error getting users by organization {organization_id}: {e}")
+            user_repo_logger.error(
+                f"Error getting users by organization {organization_id}: {e}"
+            )
             raise
 
     async def get_users_by_role(
@@ -193,7 +203,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
         """
         try:
             # Build base query
-            base_query = select(User).where(User.role == role).where(User.deleted_at.is_(None))
+            base_query = (
+                select(User).where(User.role == role).where(User.deleted_at.is_(None))
+            )
 
             # Filter by active status if specified
             if not include_inactive:
@@ -213,7 +225,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             total_count = count_result.scalar()
 
             # Apply pagination and ordering
-            query = base_query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+            query = (
+                base_query.order_by(User.created_at.desc()).offset(skip).limit(limit)
+            )
             result = await self.db.execute(query)
             users = result.scalars().all()
 
@@ -282,10 +296,14 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             return users
 
         except Exception as e:
-            user_repo_logger.error(f"Error searching users with term '{search_term}': {e}")
+            user_repo_logger.error(
+                f"Error searching users with term '{search_term}': {e}"
+            )
             raise
 
-    async def get_unverified_users(self, days_old: int = 30, limit: int = 100) -> list[User]:
+    async def get_unverified_users(
+        self, days_old: int = 30, limit: int = 100
+    ) -> list[User]:
         """
         Get users who haven't verified their email
 
@@ -327,7 +345,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             user_repo_logger.error(f"Error getting unverified users: {e}")
             raise
 
-    async def get_user_statistics(self, organization_id: Any | None = None) -> dict[str, Any]:
+    async def get_user_statistics(
+        self, organization_id: Any | None = None
+    ) -> dict[str, Any]:
         """
         Get user statistics
 
@@ -381,8 +401,12 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
                 "verified_users": verified_users,
                 "recent_registrations": recent_registrations,
                 "users_by_role": users_by_role,
-                "activation_rate": (active_users / total_users * 100) if total_users > 0 else 0,
-                "verification_rate": (verified_users / total_users * 100) if total_users > 0 else 0,
+                "activation_rate": (
+                    (active_users / total_users * 100) if total_users > 0 else 0
+                ),
+                "verification_rate": (
+                    (verified_users / total_users * 100) if total_users > 0 else 0
+                ),
             }
 
             user_repo_logger.info(
@@ -414,7 +438,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             # Get user
             user = await self.get_by_id(user_id)
             if not user:
-                user_repo_logger.warning(f"Cannot update last login for user {user_id}: not found")
+                user_repo_logger.warning(
+                    f"Cannot update last login for user {user_id}: not found"
+                )
                 return False
 
             # Update last login
@@ -431,7 +457,11 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
 
             user_repo_logger.info(
                 f"Updated last login for user {user_id}",
-                extra={"user_id": user_id, "client_ip": client_ip, "login_count": user.login_count},
+                extra={
+                    "user_id": user_id,
+                    "client_ip": client_ip,
+                    "login_count": user.login_count,
+                },
             )
 
             return True
@@ -472,7 +502,11 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
 
             user_repo_logger.info(
                 f"Deactivated user {user_id}",
-                extra={"user_id": user_id, "reason": reason, "deactivated_by": deactivated_by},
+                extra={
+                    "user_id": user_id,
+                    "reason": reason,
+                    "deactivated_by": deactivated_by,
+                },
             )
 
             return True
@@ -482,7 +516,9 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             await self.db.rollback()
             raise
 
-    async def reactivate_user(self, user_id: Any, reactivated_by: Any | None = None) -> bool:
+    async def reactivate_user(
+        self, user_id: Any, reactivated_by: Any | None = None
+    ) -> bool:
         """
         Reactivate user account
 
@@ -553,5 +589,7 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
             return user
 
         except Exception as e:
-            user_repo_logger.error(f"Error getting user with organization {user_id}: {e}")
+            user_repo_logger.error(
+                f"Error getting user with organization {user_id}: {e}"
+            )
             raise

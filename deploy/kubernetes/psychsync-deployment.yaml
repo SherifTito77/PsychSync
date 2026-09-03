@@ -162,7 +162,7 @@ spec:
           readOnly: true
       containers:
       - name: psychsync
-        image: ghcr.io/your-org/psychsync:v1.0.0
+        image: ghcr.io/sheriftito77/psychsync-api:latest  # Update via CI/CD or kustomize overlay
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

@@ -11,14 +11,14 @@ This module provides enterprise-grade feature flag management with:
 - Performance optimization with caching
 """
 
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
-from enum import Enum
-from functools import wraps
 import hashlib
 import json
 import logging
 import time
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from functools import wraps
 from typing import Any
 
 import aioredis
@@ -110,14 +110,20 @@ class FeatureFlagCache:
     async def set_flag(self, key: str, flag_data: dict[str, Any]):
         """Set flag in cache"""
         try:
-            await self.redis.setex(f"flag:{key}", self.ttl, json.dumps(flag_data, default=str))
+            await self.redis.setex(
+                f"flag:{key}", self.ttl, json.dumps(flag_data, default=str)
+            )
         except Exception as e:
             logger.warning(f"Cache set error for {key}: {e}")
 
-    async def get_evaluation_result(self, key: str, user_id: str) -> dict[str, Any] | None:
+    async def get_evaluation_result(
+        self, key: str, user_id: str
+    ) -> dict[str, Any] | None:
         """Get cached evaluation result"""
         try:
-            cache_key = f"eval:{key}:{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
+            cache_key = (
+                f"eval:{key}:{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
+            )
             cached = await self.redis.get(cache_key)
             if cached:
                 return json.loads(cached)
@@ -125,11 +131,17 @@ class FeatureFlagCache:
             logger.warning(f"Evaluation cache get error: {e}")
         return None
 
-    async def set_evaluation_result(self, key: str, user_id: str, result: dict[str, Any]):
+    async def set_evaluation_result(
+        self, key: str, user_id: str, result: dict[str, Any]
+    ):
         """Cache evaluation result"""
         try:
-            cache_key = f"eval:{key}:{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
-            await self.redis.setex(cache_key, 60, json.dumps(result, default=str))  # 1 minute TTL
+            cache_key = (
+                f"eval:{key}:{hashlib.sha256(user_id.encode()).hexdigest()[:16]}"
+            )
+            await self.redis.setex(
+                cache_key, 60, json.dumps(result, default=str)
+            )  # 1 minute TTL
         except Exception as e:
             logger.warning(f"Evaluation cache set error: {e}")
 
@@ -199,7 +211,9 @@ class FeatureFlagManager:
 
         # Check cache first
         if use_cache:
-            cached_result = await self.cache.get_evaluation_result(flag_key, user_context.user_id)
+            cached_result = await self.cache.get_evaluation_result(
+                flag_key, user_context.user_id
+            )
             if cached_result:
                 return FlagEvaluationResult(**cached_result)
 
@@ -243,14 +257,18 @@ class FeatureFlagManager:
 
         # Cache result
         if use_cache:
-            await self.cache.set_evaluation_result(flag_key, user_context.user_id, asdict(result))
+            await self.cache.set_evaluation_result(
+                flag_key, user_context.user_id, asdict(result)
+            )
 
         # Log evaluation for analytics
         await self._log_evaluation(result, user_context)
 
         return result
 
-    async def _evaluate_flag_logic(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
+    async def _evaluate_flag_logic(
+        self, flag: FeatureFlag, user_context: UserContext
+    ) -> tuple:
         """Core flag evaluation logic"""
 
         # Check if flag is globally enabled
@@ -283,7 +301,9 @@ class FeatureFlagManager:
 
         return True, flag.value, "default"
 
-    def _evaluate_conditions(self, conditions: dict[str, Any], user_context: UserContext) -> bool:
+    def _evaluate_conditions(
+        self, conditions: dict[str, Any], user_context: UserContext
+    ) -> bool:
         """Evaluate flag conditions"""
 
         # User-based conditions
@@ -305,14 +325,18 @@ class FeatureFlagManager:
         if "attributes" in conditions:
             for attr_key, expected_value in conditions["attributes"].items():
                 user_attr_value = (
-                    user_context.attributes.get(attr_key) if user_context.attributes else None
+                    user_context.attributes.get(attr_key)
+                    if user_context.attributes
+                    else None
                 )
                 if user_attr_value != expected_value:
                     return False
 
         return True
 
-    def _evaluate_percentage_rollout(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
+    def _evaluate_percentage_rollout(
+        self, flag: FeatureFlag, user_context: UserContext
+    ) -> tuple:
         """Evaluate percentage-based rollout"""
         hash_input = f"{flag.key}:{user_context.user_id}"
         hash_value = int(hashlib.sha256(hash_input.encode()).hexdigest(), 16)
@@ -323,12 +347,16 @@ class FeatureFlagManager:
             return True, flag.value, f"percentage_rollout_{flag.rollout_percentage}%"
         return False, flag.value, f"percentage_rollout_{flag.rollout_percentage}%"
 
-    def _evaluate_gradual_rollout(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
+    def _evaluate_gradual_rollout(
+        self, flag: FeatureFlag, user_context: UserContext
+    ) -> tuple:
         """Evaluate gradual rollout based on time"""
         if not flag.created_at:
             return False, flag.value, "no_created_date"
 
-        hours_since_creation = (datetime.now(UTC) - flag.created_at).total_seconds() / 3600
+        hours_since_creation = (
+            datetime.now(UTC) - flag.created_at
+        ).total_seconds() / 3600
 
         # Gradual rollout over 24 hours
         max_hours = 24.0
@@ -371,7 +399,9 @@ class FeatureFlagManager:
             return True, flag.value, "canary_rollout"
         return False, flag.value, "not_in_canary"
 
-    def _evaluate_time_based(self, flag: FeatureFlag, user_context: UserContext) -> tuple:
+    def _evaluate_time_based(
+        self, flag: FeatureFlag, user_context: UserContext
+    ) -> tuple:
         """Evaluate time-based rollout"""
         if not flag.conditions or "time_window" not in flag.conditions:
             return False, flag.value, "no_time_window"
@@ -387,7 +417,9 @@ class FeatureFlagManager:
             return True, flag.value, "time_window_active"
         return False, flag.value, "time_window_inactive"
 
-    async def _log_evaluation(self, result: FlagEvaluationResult, user_context: UserContext):
+    async def _log_evaluation(
+        self, result: FlagEvaluationResult, user_context: UserContext
+    ):
         """Log flag evaluation for analytics"""
         try:
             log_data = {
@@ -482,7 +514,9 @@ def is_enabled(flag_key: str, user_context: UserContext = None, default: bool = 
         @wraps(func)
         async def wrapper(*args, **kwargs):
             if feature_flag_manager and user_context:
-                result = await feature_flag_manager.evaluate_flag(flag_key, user_context)
+                result = await feature_flag_manager.evaluate_flag(
+                    flag_key, user_context
+                )
                 if result.enabled:
                     return await func(*args, **kwargs)
 

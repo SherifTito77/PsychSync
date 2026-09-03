@@ -21,6 +21,9 @@ const ClinicalEmergency: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [crisisAlertTriggered, setCrisisAlertTriggered] = useState(false);
 
+  // Feature flag: emergency logging endpoints not implemented yet
+  const EMERGENCY_LOGGING_ENABLED = false;
+
   const emergencyResources: EmergencyResource[] = [
     {
       title: '988 Suicide & Crisis Lifeline',
@@ -109,8 +112,12 @@ const ClinicalEmergency: React.FC = () => {
   useEffect(() => {
     // Log that user accessed emergency page (for safety monitoring)
     const logEmergencyAccess = async () => {
+      if (!EMERGENCY_LOGGING_ENABLED) {
+        return;
+      }
+
       try {
-        await fetch('/api/v1/clinical/emergency-access', {
+        const response = await fetch('/api/v1/clinical/emergency-access', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -121,6 +128,10 @@ const ClinicalEmergency: React.FC = () => {
             user_agent: navigator.userAgent,
           }),
         });
+
+        if (!response.ok && response.status !== 404) {
+          console.error('Failed to log emergency access:', response.status);
+        }
       } catch (error) {
         console.error('Error logging emergency access:', error);
       }
@@ -131,7 +142,13 @@ const ClinicalEmergency: React.FC = () => {
   }, []);
 
   const handleCallEmergency = (phone: string) => {
-    // Log emergency call
+    // Log emergency call (if enabled)
+    if (!EMERGENCY_LOGGING_ENABLED) {
+      // Still make the call, just don't log it
+      window.location.href = `tel:${phone}`;
+      return;
+    }
+
     try {
       fetch('/api/v1/clinical/emergency-call', {
         method: 'POST',
@@ -148,15 +165,19 @@ const ClinicalEmergency: React.FC = () => {
       console.error('Error logging emergency call:', error);
     }
 
-    // Make the call
-    window.open(`tel:${phone.replace(/[^\d]/g, '')}`);
+    // Make the actual call
+    window.location.href = `tel:${phone}`;
   };
 
   const handleTriggerCrisisAlert = async () => {
     setCrisisAlertTriggered(true);
 
+    if (!EMERGENCY_LOGGING_ENABLED) {
+      return;
+    }
+
     try {
-      await fetch('/api/v1/clinical/crisis-alert', {
+      const response = await fetch('/api/v1/clinical/crisis-alert', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,6 +189,10 @@ const ClinicalEmergency: React.FC = () => {
           requires_immediate_follow_up: true,
         }),
       });
+
+      if (!response.ok && response.status !== 404) {
+        console.error('Failed to trigger crisis alert:', response.status);
+      }
     } catch (error) {
       console.error('Error triggering crisis alert:', error);
     }
@@ -196,7 +221,7 @@ const ClinicalEmergency: React.FC = () => {
           <div className="mt-4">
             <Button
               variant="destructive"
-              size="lg"
+              size="sm"
               onClick={() => handleCallEmergency('911')}
               className="text-lg px-8 py-3"
             >

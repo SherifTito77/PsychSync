@@ -4,12 +4,13 @@ PsychSync Database Backup System
 Simple backup script for PostgreSQL database
 """
 
-import subprocess
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
 
 class DatabaseBackup:
     def __init__(self):
@@ -27,20 +28,26 @@ class DatabaseBackup:
             # Use pg_dump to create backup
             cmd = [
                 "pg_dump",
-                "-h", "localhost",
-                "-U", "psychsync_user",
-                "-d", db_name,
+                "-h",
+                "localhost",
+                "-U",
+                "psychsync_user",
+                "-d",
+                db_name,
                 "--verbose",
                 "--no-password",
                 "--format=custom",
-                "--file", str(backup_file)
+                "--file",
+                str(backup_file),
             ]
 
             # Set password in environment for pg_dump
             env = os.environ.copy()
-            db_password = os.getenv('DB_PASSWORD', 'C8Vsywo9yXRQSOaGwxjVVQ-Secure9')
-            if not os.getenv('DB_PASSWORD'):
-                print("WARNING: DB_PASSWORD environment variable not set. Using default for development only.")
+            db_password = os.getenv("DB_PASSWORD", "C8Vsywo9yXRQSOaGwxjVVQ-Secure9")
+            if not os.getenv("DB_PASSWORD"):
+                print(
+                    "WARNING: DB_PASSWORD environment variable not set. Using default for development only."
+                )
             env["PGPASSWORD"] = db_password
 
             result = subprocess.run(cmd, capture_output=True, text=True, env=env)
@@ -69,19 +76,24 @@ class DatabaseBackup:
         try:
             cmd = [
                 "pg_restore",
-                "-h", "localhost",
-                "-U", "psychsync_user",
-                "-d", db_name,
+                "-h",
+                "localhost",
+                "-U",
+                "psychsync_user",
+                "-d",
+                db_name,
                 "--verbose",
                 "--clean",
                 "--if-exists",
-                backup_file
+                backup_file,
             ]
 
             env = os.environ.copy()
-            db_password = os.getenv('DB_PASSWORD', 'C8Vsywo9yXRQSOaGwxjVVQ-Secure9')
-            if not os.getenv('DB_PASSWORD'):
-                print("WARNING: DB_PASSWORD environment variable not set. Using default for development only.")
+            db_password = os.getenv("DB_PASSWORD", "C8Vsywo9yXRQSOaGwxjVVQ-Secure9")
+            if not os.getenv("DB_PASSWORD"):
+                print(
+                    "WARNING: DB_PASSWORD environment variable not set. Using default for development only."
+                )
             env["PGPASSWORD"] = db_password
 
             result = subprocess.run(cmd, capture_output=True, text=True, env=env)
@@ -133,6 +145,7 @@ class DatabaseBackup:
         else:
             print(f"  ✅ Removed {removed_count} old backup(s)")
 
+
 def main():
     """Main backup function"""
     if len(sys.argv) < 2:
@@ -172,6 +185,7 @@ def main():
 
     else:
         print("Unknown action. Use: create, restore, list, or cleanup")
+
 
 if __name__ == "__main__":
     main()

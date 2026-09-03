@@ -10,28 +10,30 @@ SECURITY: All text analysis methods now include comprehensive security controls:
 - Security event logging for suspicious patterns
 """
 
-from collections import Counter
-from dataclasses import dataclass
 import logging
 import re
+from collections import Counter
+from dataclasses import dataclass
 from typing import Any
 
 import nltk
+import spacy
 from nltk.corpus import stopwords
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.tokenize import sent_tokenize, word_tokenize
-import spacy
+
+logger = logging.getLogger(__name__)
 
 # AI Security imports
 try:
-    from ai.security.ai_input_validator import validate_ai_input
-    from ai.security.ai_output_sanitizer import OutputType, sanitize_ai_output
-    from ai.security.ai_security_monitoring import (
+    from app.ai.security.ai_input_validator import validate_ai_input
+    from app.ai.security.ai_output_sanitizer import OutputType, sanitize_ai_output
+    from app.ai.security.ai_security_monitoring import (
         SecurityEventSeverity,
         SecurityEventType,
         log_ai_security_event,
     )
-    from ai.security.pii_redaction import redact_pii
+    from app.ai.security.pii_redaction import redact_pii
 
     AI_SECURITY_AVAILABLE = True
 except ImportError:
@@ -40,21 +42,31 @@ except ImportError:
         "AI security controls not available - NLP service will run without security protection"
     )
 
+# Patch SSL for macOS where system certs may be missing
+import ssl as _ssl
+
+try:
+    _ssl.create_default_context()
+except Exception:
+    _ssl._create_default_https_context = _ssl._create_unverified_context  # type: ignore[attr-defined]
+
 # Download required NLTK data (one-time setup)
+_orig_ssl = getattr(_ssl, "_create_default_https_context", None)
 try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt")
-
-try:
-    nltk.data.find("corpora/stopwords")
-except LookupError:
-    nltk.download("stopwords")
-
-try:
-    nltk.data.find("sentiment/vader_lexicon")
-except LookupError:
-    nltk.download("vader_lexicon")
+    _ssl._create_default_https_context = _ssl._create_unverified_context  # type: ignore[attr-defined]
+    for _corpus, _path in [
+        ("punkt", "tokenizers/punkt"),
+        ("stopwords", "corpora/stopwords"),
+        ("vader_lexicon", "sentiment/vader_lexicon"),
+        ("punkt_tab", "tokenizers/punkt_tab"),
+    ]:
+        try:
+            nltk.data.find(_path)
+        except LookupError:
+            nltk.download(_corpus, quiet=True, raise_on_error=False)
+finally:
+    if _orig_ssl is not None:
+        _ssl._create_default_https_context = _orig_ssl  # type: ignore[attr-defined]
 
 from app.core.logging_config import logger
 
@@ -114,7 +126,9 @@ class FreeNLPService:
             logger.info("Downloading spaCy model...")
             import subprocess
 
-            subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+            subprocess.run(
+                ["python", "-m", "spacy", "download", "en_core_web_sm"], check=True
+            )
             self.nlp = spacy.load("en_core_web_sm")
 
         # Emotion keywords (simplified emotion detection)
@@ -128,8 +142,24 @@ class FreeNLPService:
                 "thrilled",
                 "wonderful",
             ],
-            "anger": ["angry", "frustrated", "annoyed", "irritated", "furious", "outraged", "mad"],
-            "fear": ["afraid", "scared", "worried", "anxious", "nervous", "concerned", "fearful"],
+            "anger": [
+                "angry",
+                "frustrated",
+                "annoyed",
+                "irritated",
+                "furious",
+                "outraged",
+                "mad",
+            ],
+            "fear": [
+                "afraid",
+                "scared",
+                "worried",
+                "anxious",
+                "nervous",
+                "concerned",
+                "fearful",
+            ],
             "sadness": [
                 "sad",
                 "disappointed",
@@ -139,8 +169,22 @@ class FreeNLPService:
                 "miserable",
                 "grief",
             ],
-            "surprise": ["surprised", "amazed", "shocked", "astonished", "unexpected", "wow"],
-            "disgust": ["disgusted", "revolted", "repulsed", "sickened", "appalled", "nauseated"],
+            "surprise": [
+                "surprised",
+                "amazed",
+                "shocked",
+                "astonished",
+                "unexpected",
+                "wow",
+            ],
+            "disgust": [
+                "disgusted",
+                "revolted",
+                "repulsed",
+                "sickened",
+                "appalled",
+                "nauseated",
+            ],
         }
 
         # Behavioral keywords
@@ -176,8 +220,22 @@ class FreeNLPService:
             "join",
             "cooperation",
         ]
-        self.leadership_keywords = ["lead", "manage", "guide", "direct", "supervise", "coordinate"]
-        self.conflict_keywords = ["disagree", "conflict", "dispute", "argument", "issue", "problem"]
+        self.leadership_keywords = [
+            "lead",
+            "manage",
+            "guide",
+            "direct",
+            "supervise",
+            "coordinate",
+        ]
+        self.conflict_keywords = [
+            "disagree",
+            "conflict",
+            "dispute",
+            "argument",
+            "issue",
+            "problem",
+        ]
 
     def _apply_security_controls(
         self, text: str, method_name: str = "analysis"
@@ -193,7 +251,9 @@ class FreeNLPService:
 
         try:
             # Step 1: Validate input
-            validation_result = validate_ai_input(text, input_type="clinical_note", sanitize=True)
+            validation_result = validate_ai_input(
+                text, input_type="clinical_note", sanitize=True
+            )
 
             if not validation_result.is_valid:
                 self.security_events_count += 1
@@ -226,7 +286,9 @@ class FreeNLPService:
             self.logger.error(f"Error applying security controls: {e}")
             return text, False
 
-    def analyze_sentiment(self, text: str, user_id: str | None = None) -> SentimentScore:
+    def analyze_sentiment(
+        self, text: str, user_id: str | None = None
+    ) -> SentimentScore:
         """
         Analyze sentiment using VADER (free NLTK analyzer)
 
@@ -234,7 +296,9 @@ class FreeNLPService:
         """
         try:
             # SECURITY: Apply security controls
-            secured_text, security_passed = self._apply_security_controls(text, "analyze_sentiment")
+            secured_text, security_passed = self._apply_security_controls(
+                text, "analyze_sentiment"
+            )
 
             # Clean text
             cleaned_text = self._clean_text(secured_text)
@@ -265,7 +329,9 @@ class FreeNLPService:
 
             # SECURITY: Sanitize output
             if self.security_enabled:
-                sanitized_result = sanitize_ai_output(result, output_type=OutputType.ANALYSIS)
+                sanitized_result = sanitize_ai_output(
+                    result, output_type=OutputType.ANALYSIS
+                )
                 if sanitized_result.blocked:
                     self.logger.error(f"Output blocked: {sanitized_result.reason}")
                     return SentimentScore(0, 0, 1, 0, "neutral")
@@ -326,14 +392,24 @@ class FreeNLPService:
             # Calculate various indicators
             urgency_score = self._calculate_keyword_score(tokens, self.urgency_keywords)
             stress_score = self._calculate_keyword_score(tokens, self.stress_keywords)
-            confidence_score = self._calculate_keyword_score(tokens, self.confidence_keywords)
-            collaboration_score = self._calculate_keyword_score(tokens, self.collaboration_keywords)
-            leadership_score = self._calculate_keyword_score(tokens, self.leadership_keywords)
-            conflict_score = self._calculate_keyword_score(tokens, self.conflict_keywords)
+            confidence_score = self._calculate_keyword_score(
+                tokens, self.confidence_keywords
+            )
+            collaboration_score = self._calculate_keyword_score(
+                tokens, self.collaboration_keywords
+            )
+            leadership_score = self._calculate_keyword_score(
+                tokens, self.leadership_keywords
+            )
+            conflict_score = self._calculate_keyword_score(
+                tokens, self.conflict_keywords
+            )
 
             # Adjust scores based on linguistic patterns
             avg_sentence_length = (
-                sum(len(sent.split()) for sent in sentences) / len(sentences) if sentences else 0
+                sum(len(sent.split()) for sent in sentences) / len(sentences)
+                if sentences
+                else 0
             )
 
             # Very short sentences might indicate urgency
@@ -361,7 +437,9 @@ class FreeNLPService:
                 confidence=confidence_score,
                 collaboration_tendency=collaboration_score,
                 leadership_indicators=leadership_score,
-                conflict_probability=min(conflict_score * 2, 1),  # Amplify conflict indicators
+                conflict_probability=min(
+                    conflict_score * 2, 1
+                ),  # Amplify conflict indicators
             )
 
         except Exception as e:
@@ -381,7 +459,9 @@ class FreeNLPService:
             ]
 
             # Extract noun phrases as topics
-            noun_phrases = [chunk.text.lower() for chunk in doc.noun_chunks if len(chunk.text) > 2]
+            noun_phrases = [
+                chunk.text.lower() for chunk in doc.noun_chunks if len(chunk.text) > 2
+            ]
 
             # Combine and count
             all_topics = entities + noun_phrases
@@ -412,7 +492,9 @@ class FreeNLPService:
             # Basic metrics
             word_count = len(words)
             sentence_count = len(sentences)
-            avg_sentence_length = word_count / sentence_count if sentence_count > 0 else 0
+            avg_sentence_length = (
+                word_count / sentence_count if sentence_count > 0 else 0
+            )
 
             # Linguistic features
             exclamation_count = text.count("!")
@@ -479,7 +561,9 @@ class FreeNLPService:
         matches = sum(1 for keyword in keywords if keyword in token_set)
         return matches / len(keywords) if keywords else 0
 
-    def comprehensive_analysis(self, subject: str, preview_text: str = "") -> dict[str, Any]:
+    def comprehensive_analysis(
+        self, subject: str, preview_text: str = ""
+    ) -> dict[str, Any]:
         """Perform comprehensive NLP analysis"""
         try:
             # Combine subject and preview text

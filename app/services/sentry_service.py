@@ -4,14 +4,14 @@ Provides comprehensive error tracking, performance monitoring, and issue managem
 """
 
 import asyncio
+import logging
+import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-import logging
 from typing import Any
-import uuid
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -196,7 +196,9 @@ class SentryService:
             # Configure integrations
             integrations = []
             if "fastapi" in self.config.integrations:
-                integrations.append(FastApiIntegration(auto_enabling_integrations=False))
+                integrations.append(
+                    FastApiIntegration(auto_enabling_integrations=False)
+                )
             if "sqlalchemy" in self.config.integrations:
                 integrations.append(SqlalchemyIntegration())
             if "redis" in self.config.integrations:
@@ -436,7 +438,11 @@ class SentryService:
             logger.error(f"Failed to finish transaction in Sentry: {e!s}")
 
     async def create_span(
-        self, trace_id: str, op: str, description: str, parent_span_id: str | None = None
+        self,
+        trace_id: str,
+        op: str,
+        description: str,
+        parent_span_id: str | None = None,
     ) -> str | None:
         """Create a performance span within a transaction"""
         if not self.enabled or trace_id not in self.performance_transactions:
@@ -492,7 +498,9 @@ class SentryService:
                 return
 
             span.end_timestamp = datetime.utcnow()
-            span.duration_ms = (span.end_timestamp - span.start_timestamp).total_seconds() * 1000
+            span.duration_ms = (
+                span.end_timestamp - span.start_timestamp
+            ).total_seconds() * 1000
             span.status = status
 
             # Finish actual Sentry span if it exists
@@ -556,7 +564,12 @@ class SentryService:
     async def get_error_stats(self, hours: int = 24) -> dict[str, Any]:
         """Get error statistics from Sentry"""
         if not self.enabled:
-            return {"total_errors": 0, "errors_by_level": {}, "top_errors": [], "error_trend": []}
+            return {
+                "total_errors": 0,
+                "errors_by_level": {},
+                "top_errors": [],
+                "error_trend": [],
+            }
 
         try:
             # This would make API calls to Sentry
@@ -565,7 +578,11 @@ class SentryService:
                 "total_errors": 45,
                 "errors_by_level": {"error": 38, "warning": 5, "fatal": 2},
                 "top_errors": [
-                    {"title": "Database Connection Timeout", "count": 15, "level": "error"},
+                    {
+                        "title": "Database Connection Timeout",
+                        "count": 15,
+                        "level": "error",
+                    },
                     {"title": "Authentication Failed", "count": 12, "level": "error"},
                     {"title": "External API Timeout", "count": 8, "level": "warning"},
                 ],
@@ -656,7 +673,7 @@ class SentryService:
                     import sentry_sdk
 
                     sentry_sdk.capture_exception(e)
-                except:
+                except Exception as e:
                     logger.error(f"Failed to capture exception: {e!s}")
                 raise
 
@@ -681,8 +698,16 @@ class SentryService:
                 "total_transactions": 1250,
                 "average_duration": 245.6,
                 "slow_transactions": [
-                    {"name": "POST /api/v1/assessments", "duration": 1250.5, "count": 15},
-                    {"name": "GET /api/v1/team/analytics", "duration": 890.3, "count": 23},
+                    {
+                        "name": "POST /api/v1/assessments",
+                        "duration": 1250.5,
+                        "count": 15,
+                    },
+                    {
+                        "name": "GET /api/v1/team/analytics",
+                        "duration": 890.3,
+                        "count": 23,
+                    },
                 ],
                 "error_rate": 0.8,
                 "top_operations": [
@@ -722,7 +747,7 @@ class SentryService:
                 import sentry_sdk
 
                 sentry_sdk.flush()
-            except:
+            except Exception as e:
                 pass
 
 

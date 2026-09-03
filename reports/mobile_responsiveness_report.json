@@ -1,0 +1,2350 @@
+{
+  "summary": {
+    "total_components_analyzed": 179,
+    "responsive_components": 111,
+    "mobile_responsive_rate": 62.0,
+    "total_issues_found": 30,
+    "components_with_issues": 10,
+    "has_viewport_meta": true,
+    "css_media_queries": 24,
+    "breakpoints_defined": [
+      375,
+      480,
+      576,
+      768,
+      992,
+      1024,
+      1280
+    ]
+  },
+  "css_analysis": {
+    "responsive_patterns": {
+      "media_queries": [
+        {
+          "file": "frontend/src/App.css",
+          "query": "@media (prefers-reduced-motion: no-preference) {"
+        },
+        {
+          "file": "frontend/src/index.css",
+          "query": "@media (min-width: 768px) {"
+        },
+        {
+          "file": "frontend/src/index.css",
+          "query": "@media (min-width: 1024px) {"
+        },
+        {
+          "file": "frontend/src/index.css",
+          "query": "@media (prefers-color-scheme: light) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (prefers-contrast: high) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (prefers-reduced-motion: reduce) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (min-width: 375px) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (min-width: 480px) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (min-width: 768px) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (min-width: 1024px) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (min-width: 1280px) {"
+        },
+        {
+          "file": "frontend/src/styles/mobile-optimizations.css",
+          "query": "@media (prefers-color-scheme: dark) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media (min-width: 375px) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media (min-width: 576px) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media (min-width: 768px) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media (min-width: 992px) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media (prefers-color-scheme: dark) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media (prefers-reduced-motion: reduce) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media (prefers-contrast: high) {"
+        },
+        {
+          "file": "frontend/src/styles/pwa.css",
+          "query": "@media print {"
+        },
+        {
+          "file": "frontend/src/components/lists/SimpleResponsiveList.css",
+          "query": "@media (min-width: 768px) {"
+        },
+        {
+          "file": "frontend/src/components/lists/SimpleResponsiveList.css",
+          "query": "@media (min-width: 1024px) {"
+        },
+        {
+          "file": "frontend/src/components/lists/SimpleResponsiveList.css",
+          "query": "@media (prefers-reduced-motion: reduce) {"
+        },
+        {
+          "file": "frontend/src/components/lists/SimpleResponsiveList.css",
+          "query": "@media (prefers-color-scheme: dark) {"
+        }
+      ],
+      "mobile_first": [
+        "frontend/src/index.css",
+        "frontend/src/styles/mobile-optimizations.css",
+        "frontend/src/styles/pwa.css",
+        "frontend/src/components/lists/SimpleResponsiveList.css"
+      ],
+      "flexbox": [],
+      "grid": [],
+      "viewport_units": [
+        "frontend/src/App.css",
+        "frontend/src/index.css",
+        "frontend/src/styles/mobile-optimizations.css"
+      ]
+    },
+    "breakpoints": [
+      375,
+      480,
+      576,
+      768,
+      992,
+      1024,
+      1280
+    ],
+    "mobile_utilities": [],
+    "potential_issues": []
+  },
+  "component_analysis": {
+    "App.tsx": {
+      "file": "App.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "main.tsx": {
+      "file": "main.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "mobile_pwa.tsx": {
+      "file": "mobile_pwa.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "contexts/TeamContext.tsx": {
+      "file": "contexts/TeamContext.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "contexts/AuthContext.tsx": {
+      "file": "contexts/AuthContext.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "contexts/NotificationContext.tsx": {
+      "file": "contexts/NotificationContext.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "integration/PsychSyncMobileIntegration.tsx": {
+      "file": "integration/PsychSyncMobileIntegration.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 1200px",
+        "Fixed width found: width: 40px",
+        "Fixed width found: width: 768px"
+      ]
+    },
+    "tests/app.test.tsx": {
+      "file": "tests/app.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "testing/FontScalingTest.tsx": {
+      "file": "testing/FontScalingTest.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 1200px",
+        "Fixed width found: width: 80px",
+        "Fixed width found: width: 44px"
+      ]
+    },
+    "testing/RealWorldScenarios.tsx": {
+      "file": "testing/RealWorldScenarios.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 1200px",
+        "Fixed width found: width: 768px",
+        "Fixed width found: width: 600px"
+      ]
+    },
+    "components/OnboardingNavigation.tsx": {
+      "file": "components/OnboardingNavigation.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/NavBar.tsx": {
+      "file": "components/NavBar.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ProblemScenarios.tsx": {
+      "file": "components/ProblemScenarios.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [
+        "mobile"
+      ],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/AnonymousFeedbackHRDashboard.tsx": {
+      "file": "components/AnonymousFeedbackHRDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/UserProfile.tsx": {
+      "file": "components/UserProfile.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/OptimizedComponent.tsx": {
+      "file": "components/OptimizedComponent.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/AnonymousFeedbackStatus.tsx": {
+      "file": "components/AnonymousFeedbackStatus.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/team_optimizer.tsx": {
+      "file": "components/team_optimizer.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/RequireAuth.tsx": {
+      "file": "components/RequireAuth.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/login_signup.tsx": {
+      "file": "components/login_signup.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/PWAInstaller.tsx": {
+      "file": "components/PWAInstaller.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/ProblemDetector.tsx": {
+      "file": "components/ProblemDetector.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/ResendVerification.tsx": {
+      "file": "components/ResendVerification.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/OfflineStatus.tsx": {
+      "file": "components/OfflineStatus.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/scoring_dashboard.tsx": {
+      "file": "components/scoring_dashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/AnonymousFeedbackForm.tsx": {
+      "file": "components/AnonymousFeedbackForm.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/ErrorBoundary.tsx": {
+      "file": "components/ErrorBoundary.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "examples/MobileOptimizationExamples.tsx": {
+      "file": "examples/MobileOptimizationExamples.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 40px",
+        "Fixed width found: width: 8px",
+        "Fixed width found: width: 768px"
+      ]
+    },
+    "monitoring/sentryConfig.tsx": {
+      "file": "monitoring/sentryConfig.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [
+        "viewport"
+      ],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "i18n/index.tsx": {
+      "file": "i18n/index.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/Settings.tsx": {
+      "file": "pages/Settings.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/TeamOptimizer.tsx": {
+      "file": "pages/TeamOptimizer.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Assessments.tsx": {
+      "file": "pages/Assessments.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Reporting.tsx": {
+      "file": "pages/Reporting.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/TakeAssessment.tsx": {
+      "file": "pages/TakeAssessment.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Login.tsx": {
+      "file": "pages/Login.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Dashboard.tsx": {
+      "file": "pages/Dashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/ResponseResults.tsx": {
+      "file": "pages/ResponseResults.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/AssessmentDetail.tsx": {
+      "file": "pages/AssessmentDetail.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/QuickAssessment.tsx": {
+      "file": "pages/QuickAssessment.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Register.tsx": {
+      "file": "pages/Register.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/TemplateBrowser.tsx": {
+      "file": "pages/TemplateBrowser.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/TeamDetail.tsx": {
+      "file": "pages/TeamDetail.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/AssessmentAnalytics.tsx": {
+      "file": "pages/AssessmentAnalytics.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [
+        "responsive"
+      ],
+      "uses_responsive_classes": [
+        "responsive",
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/ResetPassword.tsx": {
+      "file": "pages/ResetPassword.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Analytics.tsx": {
+      "file": "pages/Analytics.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Profile.tsx": {
+      "file": "pages/Profile.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/PublicLanding.tsx": {
+      "file": "pages/PublicLanding.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/MyResponses.tsx": {
+      "file": "pages/MyResponses.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/AnonymousFeedback.tsx": {
+      "file": "pages/AnonymousFeedback.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/ForgotPassword.tsx": {
+      "file": "pages/ForgotPassword.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/VerifyEmail.tsx": {
+      "file": "pages/VerifyEmail.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/Teams.tsx": {
+      "file": "pages/Teams.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/PredictiveAnalytics.tsx": {
+      "file": "pages/PredictiveAnalytics.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/Integrations.tsx": {
+      "file": "pages/Integrations.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/MobilePWA.tsx": {
+      "file": "pages/MobilePWA.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/EmployeeSafety.tsx": {
+      "file": "pages/EmployeeSafety.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/ReliabilityValidity.tsx": {
+      "file": "pages/ReliabilityValidity.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "routes/AssessmentRoutes.tsx": {
+      "file": "routes/AssessmentRoutes.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/ui/comprehensive_button_state_tests.tsx": {
+      "file": "tests/ui/comprehensive_button_state_tests.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [
+        "onTouchStart",
+        "onTouchEnd"
+      ],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/ui/button_state_visual_test_runner.tsx": {
+      "file": "tests/ui/button_state_visual_test_runner.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "tests/ui/Input.test.tsx": {
+      "file": "tests/ui/Input.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/ui/Card.test.tsx": {
+      "file": "tests/ui/Card.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "tests/ui/Alert.test.tsx": {
+      "file": "tests/ui/Alert.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/responsive/listRenderingSolutions.tsx": {
+      "file": "tests/responsive/listRenderingSolutions.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 767px",
+        "Fixed width found: width: 768px",
+        "Fixed width found: width: 1023px"
+      ]
+    },
+    "tests/responsive/listRenderingTestSuite.test.tsx": {
+      "file": "tests/responsive/listRenderingTestSuite.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "tests/responsive/listRenderingProblems.tsx": {
+      "file": "tests/responsive/listRenderingProblems.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [
+        "viewport"
+      ],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 768px",
+        "Fixed width found: width: 300px",
+        "Fixed width found: width: 768px"
+      ]
+    },
+    "tests/overlays/overlayConsistencyTester.test.tsx": {
+      "file": "tests/overlays/overlayConsistencyTester.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "tests/utils/componentTestFramework.tsx": {
+      "file": "tests/utils/componentTestFramework.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/utils/comprehensiveTestGenerator.tsx": {
+      "file": "tests/utils/comprehensiveTestGenerator.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/ux/usabilityDefectDetection.test.tsx": {
+      "file": "tests/ux/usabilityDefectDetection.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/components/Button.test.tsx": {
+      "file": "tests/components/Button.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/components/LoadingSpinner.test.tsx": {
+      "file": "tests/components/LoadingSpinner.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/crossBrowser/automatedBrowserRunner.tsx": {
+      "file": "tests/crossBrowser/automatedBrowserRunner.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/crossBrowser/crossBrowserTestSuite.tsx": {
+      "file": "tests/crossBrowser/crossBrowserTestSuite.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "tests/crossBrowser/crossBrowserIntegration.test.tsx": {
+      "file": "tests/crossBrowser/crossBrowserIntegration.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/accessibility/comprehensiveAccessibilityTest.test.tsx": {
+      "file": "tests/accessibility/comprehensiveAccessibilityTest.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/accessibility/accessibilityTestRunner.test.tsx": {
+      "file": "tests/accessibility/accessibilityTestRunner.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "tests/accessibility/accessibilityTester.tsx": {
+      "file": "tests/accessibility/accessibilityTester.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/demo/FontScalingDemo.tsx": {
+      "file": "components/demo/FontScalingDemo.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 1400px",
+        "Fixed width found: width: 24px",
+        "Fixed width found: width: 48px"
+      ]
+    },
+    "components/ui/tabs.tsx": {
+      "file": "components/ui/tabs.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/Card.tsx": {
+      "file": "components/ui/Card.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/progress.tsx": {
+      "file": "components/ui/progress.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/Label.tsx": {
+      "file": "components/ui/Label.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/Alert.tsx": {
+      "file": "components/ui/Alert.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/LoadingSpinner.tsx": {
+      "file": "components/ui/LoadingSpinner.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/ui/dialog.tsx": {
+      "file": "components/ui/dialog.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:",
+        "xl:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/ui/Badge.tsx": {
+      "file": "components/ui/Badge.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/ui/table.tsx": {
+      "file": "components/ui/table.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/separator.tsx": {
+      "file": "components/ui/separator.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/button.tsx": {
+      "file": "components/ui/button.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/Select.tsx": {
+      "file": "components/ui/Select.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/Textarea.tsx": {
+      "file": "components/ui/Textarea.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/Input.tsx": {
+      "file": "components/ui/Input.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/ui/Form.tsx": {
+      "file": "components/ui/Form.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/experimental/ExperimentalFeaturesLab.tsx": {
+      "file": "components/experimental/ExperimentalFeaturesLab.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/assessments/EditAssessmentModal.tsx": {
+      "file": "components/assessments/EditAssessmentModal.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/assessments/AddQuestionModal.tsx": {
+      "file": "components/assessments/AddQuestionModal.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/assessments/QuestionRenderer.tsx": {
+      "file": "components/assessments/QuestionRenderer.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/assessments/AddSectionModal.tsx": {
+      "file": "components/assessments/AddSectionModal.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/patterns/PatternComparison.tsx": {
+      "file": "components/patterns/PatternComparison.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/patterns/PatternInsightsDashboard.tsx": {
+      "file": "components/patterns/PatternInsightsDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/patterns/PatternVisualization.tsx": {
+      "file": "components/patterns/PatternVisualization.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/crossPlatform/PlatformTester.tsx": {
+      "file": "components/crossPlatform/PlatformTester.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/lists/VirtualizedList.tsx": {
+      "file": "components/lists/VirtualizedList.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": [
+        "Fixed width found: width: 48px",
+        "Fixed width found: width: 8px",
+        "Hard-coded positioning found"
+      ]
+    },
+    "components/lists/SimpleResponsiveList.tsx": {
+      "file": "components/lists/SimpleResponsiveList.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/lists/PerformanceMonitor.tsx": {
+      "file": "components/lists/PerformanceMonitor.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/lists/BasicResponsiveList.tsx": {
+      "file": "components/lists/BasicResponsiveList.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 600px",
+        "Fixed width found: width: 768px",
+        "Fixed width found: width: 1024px"
+      ]
+    },
+    "components/auth/LoginSignupRefactored.tsx": {
+      "file": "components/auth/LoginSignupRefactored.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/gamification/GamificationSystem.tsx": {
+      "file": "components/gamification/GamificationSystem.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/voiceanalysis/VoiceVideoAnalysis.tsx": {
+      "file": "components/voiceanalysis/VoiceVideoAnalysis.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/layout/MobileLayout.tsx": {
+      "file": "components/layout/MobileLayout.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [
+        "onTouchStart",
+        "onTouchEnd",
+        "onTouchMove"
+      ],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/layout/DashboardLayout.tsx": {
+      "file": "components/layout/DashboardLayout.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "sm:",
+        "md:",
+        "lg:",
+        "xl:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/layout/Layout.tsx": {
+      "file": "components/layout/Layout.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/layout/Header.tsx": {
+      "file": "components/layout/Header.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/layout/Sidebar.tsx": {
+      "file": "components/layout/Sidebar.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/compliance/ComplianceCalendar.tsx": {
+      "file": "components/compliance/ComplianceCalendar.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/ComplianceChecklist.tsx": {
+      "file": "components/compliance/ComplianceChecklist.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/AIAssistant.tsx": {
+      "file": "components/compliance/AIAssistant.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/EmployeeRightsDashboard.tsx": {
+      "file": "components/compliance/EmployeeRightsDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/ComplianceDashboard.tsx": {
+      "file": "components/compliance/ComplianceDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/IntegrationHub.tsx": {
+      "file": "components/compliance/IntegrationHub.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/AuditTrail.tsx": {
+      "file": "components/compliance/AuditTrail.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "sm:",
+        "md:",
+        "lg:",
+        "xl:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/TrainingManagement.tsx": {
+      "file": "components/compliance/TrainingManagement.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/AnalyticsDashboard.tsx": {
+      "file": "components/compliance/AnalyticsDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/AnonymousFeedbackReview.tsx": {
+      "file": "components/compliance/AnonymousFeedbackReview.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/ReportBuilder.tsx": {
+      "file": "components/compliance/ReportBuilder.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/AnonymousFeedbackForm.tsx": {
+      "file": "components/compliance/AnonymousFeedbackForm.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/AdminDashboard.tsx": {
+      "file": "components/compliance/AdminDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/compliance/DocumentManagement.tsx": {
+      "file": "components/compliance/DocumentManagement.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:",
+        "xl:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/common/NotificationCenter.tsx": {
+      "file": "components/common/NotificationCenter.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/common/card.tsx": {
+      "file": "components/common/card.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/common/Icon.tsx": {
+      "file": "components/common/Icon.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:",
+        "xl:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/common/NotificationContainer.tsx": {
+      "file": "components/common/NotificationContainer.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/common/PageWrapper.tsx": {
+      "file": "components/common/PageWrapper.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/common/LoadingSpinner.tsx": {
+      "file": "components/common/LoadingSpinner.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/common/LanguageSelector.tsx": {
+      "file": "components/common/LanguageSelector.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/common/Badge.tsx": {
+      "file": "components/common/Badge.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/common/Button.tsx": {
+      "file": "components/common/Button.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/mobile/MobileResponsiveDashboard.tsx": {
+      "file": "components/mobile/MobileResponsiveDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile",
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/mobile/MobileLayout.tsx": {
+      "file": "components/mobile/MobileLayout.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile"
+      ],
+      "has_touch_handlers": [
+        "onTouchStart",
+        "onTouchEnd",
+        "onTouchMove"
+      ],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/mobile/MobileCard.tsx": {
+      "file": "components/mobile/MobileCard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "mobile"
+      ],
+      "has_touch_handlers": [
+        "onTouchStart",
+        "onTouchEnd",
+        "onTouchMove"
+      ],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/longitudinal/TrendAnalysisReport.tsx": {
+      "file": "components/longitudinal/TrendAnalysisReport.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/longitudinal/ChangePointDetection.tsx": {
+      "file": "components/longitudinal/ChangePointDetection.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/longitudinal/LongitudinalComparison.tsx": {
+      "file": "components/longitudinal/LongitudinalComparison.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/teams/AddMemberModal.tsx": {
+      "file": "components/teams/AddMemberModal.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/teams/CreateTeamModal.tsx": {
+      "file": "components/teams/CreateTeamModal.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/teams/TeamCompositionOptimizer.tsx": {
+      "file": "components/teams/TeamCompositionOptimizer.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/teams/EditTeamModal.tsx": {
+      "file": "components/teams/EditTeamModal.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/anonymization/DeIdentificationTools.tsx": {
+      "file": "components/anonymization/DeIdentificationTools.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/monitoring/ProductionMonitoringDashboard.tsx": {
+      "file": "components/monitoring/ProductionMonitoringDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:",
+        "xl:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/trajectories/GrowthTrajectoryVisualization.tsx": {
+      "file": "components/trajectories/GrowthTrajectoryVisualization.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/performance/PerformanceDashboard.tsx": {
+      "file": "components/performance/PerformanceDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/performance/SecurePerformanceDashboard.tsx": {
+      "file": "components/performance/SecurePerformanceDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/accessibility/FontScalingValidator.tsx": {
+      "file": "components/accessibility/FontScalingValidator.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "responsive"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": [
+        "Fixed width found: width: 60px",
+        "Fixed width found: width: 768px",
+        "Hard-coded positioning found"
+      ]
+    },
+    "components/anonymousFeedback/FeedbackStatusCheck.tsx": {
+      "file": "components/anonymousFeedback/FeedbackStatusCheck.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/anonymousFeedback/HRReviewDashboard.tsx": {
+      "file": "components/anonymousFeedback/HRReviewDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/anonymousFeedback/AnonymousFeedbackForm.tsx": {
+      "file": "components/anonymousFeedback/AnonymousFeedbackForm.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/interventions/InterventionEffectivenessDashboard.tsx": {
+      "file": "components/interventions/InterventionEffectivenessDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/onboarding/QuickValuePreview.tsx": {
+      "file": "components/onboarding/QuickValuePreview.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/onboarding/ImprovedLanding.tsx": {
+      "file": "components/onboarding/ImprovedLanding.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/onboarding/ProgressiveDashboard.tsx": {
+      "file": "components/onboarding/ProgressiveDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/onboarding/StreamlinedRegister.tsx": {
+      "file": "components/onboarding/StreamlinedRegister.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/analytics/ResearchDataExport.tsx": {
+      "file": "components/analytics/ResearchDataExport.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "components/analytics/SuccessionPlanning.tsx": {
+      "file": "components/analytics/SuccessionPlanning.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/analytics/PredictiveAnalyticsDashboard.tsx": {
+      "file": "components/analytics/PredictiveAnalyticsDashboard.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/analytics/SkillGapAnalysis.tsx": {
+      "file": "components/analytics/SkillGapAnalysis.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "md:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "components/auth/__tests__/LoginSignupRefactored.test.tsx": {
+      "file": "components/auth/__tests__/LoginSignupRefactored.test.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/AssessmentResultsPage.tsx": {
+      "file": "pages/assessments/AssessmentResultsPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/EnneagramAssessmentPage.tsx": {
+      "file": "pages/assessments/EnneagramAssessmentPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/AssessmentStartPage.tsx": {
+      "file": "pages/assessments/AssessmentStartPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/AssessmentsPage.tsx": {
+      "file": "pages/assessments/AssessmentsPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [
+        "sm:",
+        "lg:"
+      ],
+      "has_touch_handlers": [],
+      "has_responsive_logic": true,
+      "potential_issues": []
+    },
+    "pages/assessments/types/PredictiveIndexPage.tsx": {
+      "file": "pages/assessments/types/PredictiveIndexPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/types/BigFiveAssessmentPage.tsx": {
+      "file": "pages/assessments/types/BigFiveAssessmentPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/types/EnneagramAssessmentPage.tsx": {
+      "file": "pages/assessments/types/EnneagramAssessmentPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/types/MBTIAssessmentPage.tsx": {
+      "file": "pages/assessments/types/MBTIAssessmentPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/types/StrengthsFinderPage.tsx": {
+      "file": "pages/assessments/types/StrengthsFinderPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/types/DISCAssessmentPage.tsx": {
+      "file": "pages/assessments/types/DISCAssessmentPage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    },
+    "pages/assessments/types/AssessmentContinuePage.tsx": {
+      "file": "pages/assessments/types/AssessmentContinuePage.tsx",
+      "uses_responsive_hooks": [],
+      "uses_responsive_props": [],
+      "uses_responsive_classes": [],
+      "has_touch_handlers": [],
+      "has_responsive_logic": false,
+      "potential_issues": []
+    }
+  },
+  "tailwind_config": {
+    "found_configs": [],
+    "mobile_breakpoints": [],
+    "mobile_first": false,
+    "has_touch_utilities": false
+  },
+  "most_problematic_components": [
+    [
+      "integration/PsychSyncMobileIntegration.tsx",
+      {
+        "file": "integration/PsychSyncMobileIntegration.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "mobile"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": [
+          "Fixed width found: width: 1200px",
+          "Fixed width found: width: 40px",
+          "Fixed width found: width: 768px"
+        ]
+      }
+    ],
+    [
+      "testing/FontScalingTest.tsx",
+      {
+        "file": "testing/FontScalingTest.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "mobile",
+          "responsive"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": [
+          "Fixed width found: width: 1200px",
+          "Fixed width found: width: 80px",
+          "Fixed width found: width: 44px"
+        ]
+      }
+    ],
+    [
+      "testing/RealWorldScenarios.tsx",
+      {
+        "file": "testing/RealWorldScenarios.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "mobile"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": [
+          "Fixed width found: width: 1200px",
+          "Fixed width found: width: 768px",
+          "Fixed width found: width: 600px"
+        ]
+      }
+    ],
+    [
+      "examples/MobileOptimizationExamples.tsx",
+      {
+        "file": "examples/MobileOptimizationExamples.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "mobile",
+          "responsive"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": [
+          "Fixed width found: width: 40px",
+          "Fixed width found: width: 8px",
+          "Fixed width found: width: 768px"
+        ]
+      }
+    ],
+    [
+      "tests/responsive/listRenderingSolutions.tsx",
+      {
+        "file": "tests/responsive/listRenderingSolutions.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "responsive"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": [
+          "Fixed width found: width: 767px",
+          "Fixed width found: width: 768px",
+          "Fixed width found: width: 1023px"
+        ]
+      }
+    ]
+  ],
+  "best_practice_examples": [
+    [
+      "components/layout/DashboardLayout.tsx",
+      {
+        "file": "components/layout/DashboardLayout.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "mobile",
+          "sm:",
+          "md:",
+          "lg:",
+          "xl:"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": []
+      }
+    ],
+    [
+      "components/compliance/AuditTrail.tsx",
+      {
+        "file": "components/compliance/AuditTrail.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "mobile",
+          "sm:",
+          "md:",
+          "lg:",
+          "xl:"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": []
+      }
+    ],
+    [
+      "components/ui/dialog.tsx",
+      {
+        "file": "components/ui/dialog.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "sm:",
+          "md:",
+          "lg:",
+          "xl:"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": []
+      }
+    ],
+    [
+      "components/compliance/DocumentManagement.tsx",
+      {
+        "file": "components/compliance/DocumentManagement.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "sm:",
+          "md:",
+          "lg:",
+          "xl:"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": []
+      }
+    ],
+    [
+      "components/common/Icon.tsx",
+      {
+        "file": "components/common/Icon.tsx",
+        "uses_responsive_hooks": [],
+        "uses_responsive_props": [],
+        "uses_responsive_classes": [
+          "sm:",
+          "md:",
+          "lg:",
+          "xl:"
+        ],
+        "has_touch_handlers": [],
+        "has_responsive_logic": true,
+        "potential_issues": []
+      }
+    ]
+  ],
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "components",
+      "description": "Only 62.0% of components are mobile-responsive",
+      "code": "Implement responsive design patterns in more components"
+    },
+    {
+      "priority": "medium",
+      "category": "issues",
+      "description": "Fix 30 mobile usability issues across 10 components",
+      "code": "Review components for fixed widths, hard-coded positioning, and small touch targets"
+    }
+  ]
+}

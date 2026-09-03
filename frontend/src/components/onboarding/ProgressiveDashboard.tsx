@@ -17,8 +17,8 @@ interface OnboardingStep {
 }
 
 interface ProgressiveDashboardProps {
-  initialRole: string;
-  initialChallenge: string;
+  initialRole?: string;
+  initialChallenge?: string;
   isSocialSignup?: boolean;
 }
 
@@ -470,9 +470,10 @@ const FirstInsightsStep: React.FC<{ onComplete: () => void }> = ({ onComplete })
 
   useEffect(() => {
     // Simulate insight generation
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       setIsGenerating(false);
     }, 2000);
+    return () => clearTimeout(timerId);
   }, []);
 
   if (isGenerating) {
@@ -556,7 +557,7 @@ const FirstInsightsStep: React.FC<{ onComplete: () => void }> = ({ onComplete })
       </div>
 
       <div className="text-center">
-        <Button size="lg" onClick={onComplete}>
+        <Button size="sm" onClick={onComplete}>
           View My Full Dashboard
         </Button>
         <p className="text-sm text-gray-500 mt-3">

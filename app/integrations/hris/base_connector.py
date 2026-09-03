@@ -8,10 +8,10 @@ Requirements:
     pip install requests pandas sqlalchemy psycopg2-binary pymysql python-dateutil
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
-import logging
 from typing import Any
 
 import pandas as pd
@@ -141,7 +141,10 @@ class HRISConnector(ABC):
         """Setup authentication for API requests."""
         if self.api_key:
             self.session.headers.update(
-                {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+                {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                }
             )
         elif self.username and self.password:
             self.session.auth = HTTPBasicAuth(self.username, self.password)
@@ -238,7 +241,9 @@ class HRISConnector(ABC):
             List of PerformanceReview objects
         """
 
-    def export_to_csv(self, data: list[Any], filename: str, output_dir: str = "./exports") -> str:
+    def export_to_csv(
+        self, data: list[Any], filename: str, output_dir: str = "./exports"
+    ) -> str:
         """
         Export data to CSV file.
 
@@ -287,7 +292,11 @@ class HRISConnector(ABC):
         return pd.DataFrame([item.to_dict() for item in data])
 
     def _make_request(
-        self, method: str, endpoint: str, params: dict | None = None, data: dict | None = None
+        self,
+        method: str,
+        endpoint: str,
+        params: dict | None = None,
+        data: dict | None = None,
     ) -> dict | None:
         """
         Make HTTP request to HRIS API.
@@ -348,11 +357,16 @@ class HRISConnector(ABC):
 
             return {
                 "sync_date": datetime.utcnow().isoformat(),
-                "date_range": {"start": start_date.isoformat(), "end": end_date.isoformat()},
+                "date_range": {
+                    "start": start_date.isoformat(),
+                    "end": end_date.isoformat(),
+                },
                 "employee_count": len(employees),
                 "attendance_records": len(attendance),
                 "leave_records": len(leaves),
-                "active_employees": len([e for e in employees if e.employment_status == "active"]),
+                "active_employees": len(
+                    [e for e in employees if e.employment_status == "active"]
+                ),
             }
 
         except Exception as e:
@@ -417,9 +431,11 @@ class CSVConnector(HRISConnector):
                 phone=row.get("phone"),
                 department=row.get("department"),
                 position=row.get("position"),
-                hire_date=pd.to_datetime(row.get("hire_date")).date()
-                if pd.notna(row.get("hire_date"))
-                else None,
+                hire_date=(
+                    pd.to_datetime(row.get("hire_date")).date()
+                    if pd.notna(row.get("hire_date"))
+                    else None
+                ),
                 employment_status=row.get("employment_status", "active"),
                 manager_id=row.get("manager_id"),
                 location=row.get("location"),
@@ -460,15 +476,21 @@ class CSVConnector(HRISConnector):
                 record_id=str(row.get("record_id", "")),
                 employee_id=str(row.get("employee_id", "")),
                 date=row["date"],
-                clock_in=pd.to_datetime(row.get("clock_in"))
-                if pd.notna(row.get("clock_in"))
-                else None,
-                clock_out=pd.to_datetime(row.get("clock_out"))
-                if pd.notna(row.get("clock_out"))
-                else None,
-                hours_worked=float(row.get("hours_worked", 0))
-                if pd.notna(row.get("hours_worked"))
-                else None,
+                clock_in=(
+                    pd.to_datetime(row.get("clock_in"))
+                    if pd.notna(row.get("clock_in"))
+                    else None
+                ),
+                clock_out=(
+                    pd.to_datetime(row.get("clock_out"))
+                    if pd.notna(row.get("clock_out"))
+                    else None
+                ),
+                hours_worked=(
+                    float(row.get("hours_worked", 0))
+                    if pd.notna(row.get("hours_worked"))
+                    else None
+                ),
                 status=row.get("status", "present"),
             )
             records.append(record)
@@ -550,7 +572,9 @@ if __name__ == "__main__":
         print(f"\nFound {len(employees)} active employees")
 
         if employees:
-            print(f"\nFirst employee: {employees[0].first_name} {employees[0].last_name}")
+            print(
+                f"\nFirst employee: {employees[0].first_name} {employees[0].last_name}"
+            )
 
         # Get attendance for last 30 days
         from datetime import timedelta

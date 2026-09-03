@@ -7,6 +7,30 @@
 import { TeamMember, TeamRequirement, PersonalityRadarData, SkillCoverageData } from '../types';
 
 /**
+ * Calculate personality compatibility between two team members
+ * Based on complementary and similar traits
+ */
+const calculatePersonalityCompatibility = (
+  traits1: Record<string, number>,
+  traits2: Record<string, number>
+): number => {
+  // Complementary traits (opposites attract for work)
+  const complementaryScore =
+    Math.abs((traits1.extraversion || 0) - (traits2.extraversion || 0)) / 100 * 0.25 +
+    Math.abs((traits1.openness || 0) - (traits2.openness || 0)) / 100 * 0.25;
+
+  // Similar traits (should be aligned)
+  const similarScore =
+    (100 - Math.abs((traits1.conscientiousness || 0) - (traits2.conscientiousness || 0))) / 100 * 0.25 +
+    (100 - Math.abs((traits1.agreeableness || 0) - (traits2.agreeableness || 0))) / 100 * 0.25;
+
+  // Low neuroticism is generally better (penalty factor)
+  const neuroticismPenalty = ((traits1.neuroticism || 0) + (traits2.neuroticism || 0)) / 200;
+
+  return Math.max(0, Math.min(1, complementaryScore + similarScore - (neuroticismPenalty * 0.25)));
+};
+
+/**
  * Calculate average personality traits for a team
  */
 export const calculateAveragePersonality = (team: TeamMember[]): Record<string, number> => {
@@ -92,9 +116,13 @@ export const generateCompatibilityHeatmap = (team: TeamMember[]) => {
   return team.map((member1, i) => {
     const row: any = { name: member1.name, id: member1.id };
     team.forEach((member2, j) => {
-      // Mock compatibility calculation - in production this would use actual algorithm
-      const compatibility = Math.random() * 0.3 + 0.7;
-      row[`member${j}`] = Number((compatibility * 100).toFixed(1));
+      // TODO(human): Replace with actual backend compatibility calculation
+      // Calculate compatibility based on personality traits
+      const comp = calculatePersonalityCompatibility(
+        member1.personalityTraits || {},
+        member2.personalityTraits || {}
+      );
+      row[`member${j}`] = Number((comp * 100).toFixed(1));
     });
     return row;
   });
@@ -114,4 +142,14 @@ export const getRecommendedTeam = (
   );
 
   return [...currentTeam, ...selectedCandidates].slice(0, teamSize);
+};
+
+/**
+ * Get color based on score value
+ */
+export const getScoreColor = (score: number): string => {
+  if (score >= 0.8) return 'text-green-600';
+  if (score >= 0.6) return 'text-yellow-600';
+  if (score >= 0.4) return 'text-orange-600';
+  return 'text-red-600';
 };

@@ -23,12 +23,12 @@ Version: 2.0
 Date: December 23, 2024
 """
 
-from datetime import datetime
 import hashlib
 import json
-from pathlib import Path
 import secrets
 import string
+from datetime import datetime
+from pathlib import Path
 
 # =============================================================================
 # SECURITY POLICY CONSTANTS
@@ -115,7 +115,10 @@ class CredentialRotationManager:
         return hashlib.sha256(credential.encode()).hexdigest()
 
     def should_rotate_credential(
-        self, credential_name: str, last_rotation: str, credential_type: str = "database_password"
+        self,
+        credential_name: str,
+        last_rotation: str,
+        credential_type: str = "database_password",
     ) -> bool:
         """
         Check if a credential needs rotation based on age and type
@@ -145,7 +148,10 @@ class CredentialRotationManager:
             return True
 
     def get_rotation_status(
-        self, credential_name: str, last_rotation: str, credential_type: str = "database_password"
+        self,
+        credential_name: str,
+        last_rotation: str,
+        credential_type: str = "database_password",
     ) -> dict[str, any]:
         """
         Get detailed rotation status for a credential
@@ -196,7 +202,9 @@ class CredentialRotationManager:
                 "urgency": "CRITICAL",
             }
 
-    def rotate_database_password(self, database_user: str = "psychsync_user") -> dict[str, str]:
+    def rotate_database_password(
+        self, database_user: str = "psychsync_user"
+    ) -> dict[str, str]:
         """
         Rotate database password
 
@@ -326,7 +334,9 @@ class CredentialRotationManager:
 
         if not rotations:
             print("⚠️  No rotation history found.")
-            print("   Run 'python -m app.core.credential_rotation run' to start tracking.")
+            print(
+                "   Run 'python -m app.core.credential_rotation run' to start tracking."
+            )
             return {}
 
         # Group by credential
@@ -337,12 +347,16 @@ class CredentialRotationManager:
             cred_type = rotation.get("credential_type", "database_password")
 
             # Get detailed status
-            status = self.get_rotation_status(cred_name, rotation["rotation_timestamp"], cred_type)
+            status = self.get_rotation_status(
+                cred_name, rotation["rotation_timestamp"], cred_type
+            )
 
             credential_status[cred_name] = status
 
         # Display status with color-coded output
-        print(f"\n{'Credential':<25} {'Type':<20} {'Age':<8} {'Status':<12} {'Days Until':<10}")
+        print(
+            f"\n{'Credential':<25} {'Type':<20} {'Age':<8} {'Status':<12} {'Days Until':<10}"
+        )
         print("-" * 70)
 
         for cred, status in credential_status.items():
@@ -365,8 +379,12 @@ class CredentialRotationManager:
         print("-" * 70)
 
         # Summary statistics
-        due_now = sum(1 for s in credential_status.values() if s.get("status") == "DUE_NOW")
-        due_soon = sum(1 for s in credential_status.values() if s.get("status") == "DUE_SOON")
+        due_now = sum(
+            1 for s in credential_status.values() if s.get("status") == "DUE_NOW"
+        )
+        due_soon = sum(
+            1 for s in credential_status.values() if s.get("status") == "DUE_SOON"
+        )
         ok = sum(1 for s in credential_status.values() if s.get("status") == "OK")
 
         print("\n📊 SUMMARY:")
@@ -406,7 +424,7 @@ class CredentialRotationManager:
             try:
                 with open(self.rotation_log) as f:
                     return json.load(f)
-            except:
+            except (OSError, IOError, ValueError) as e:
                 return []
         return []
 

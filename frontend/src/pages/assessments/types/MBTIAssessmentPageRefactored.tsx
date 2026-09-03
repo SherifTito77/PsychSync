@@ -65,10 +65,10 @@ export default function MBTIAssessmentPageRefactored() {
 
   const loadMBTIAssessment = async () => {
     try {
-      const response = await apiClient.get('/assessment-questions/mbti');
+      const response = await apiClient.get('/assessments/assessment-questions/mbti');
 
-      if (response.data?.success) {
-        const backendData = response.data.assessment;
+      if ((response.data as any)?.success) {
+        const backendData = (response.data as any).assessment;
         const mbtiAssessment: MBTIAssessment = {
           id: backendData.id,
           title: backendData.title,

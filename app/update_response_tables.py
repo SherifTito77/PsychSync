@@ -15,10 +15,12 @@ def run_migration():
     with engine.connect() as conn:
         try:
             conn.execute(
-                text("""
+                text(
+                    """
                 ALTER TABLE assessment_responses
                 ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'in_progress';
-            """)
+            """
+                )
             )
             conn.commit()
             print("✓ Added status column")
@@ -27,10 +29,12 @@ def run_migration():
 
         try:
             conn.execute(
-                text("""
+                text(
+                    """
                 ALTER TABLE assessment_responses
                 ADD COLUMN IF NOT EXISTS current_section INTEGER DEFAULT 0;
-            """)
+            """
+                )
             )
             conn.commit()
             print("✓ Added current_section column")
@@ -39,10 +43,12 @@ def run_migration():
 
         try:
             conn.execute(
-                text("""
+                text(
+                    """
                 ALTER TABLE assessment_responses
                 ADD COLUMN IF NOT EXISTS progress_percentage FLOAT DEFAULT 0.0;
-            """)
+            """
+                )
             )
             conn.commit()
             print("✓ Added progress_percentage column")
@@ -51,10 +57,12 @@ def run_migration():
 
         try:
             conn.execute(
-                text("""
+                text(
+                    """
                 ALTER TABLE assessment_responses
                 ADD COLUMN IF NOT EXISTS last_saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-            """)
+            """
+                )
             )
             conn.commit()
             print("✓ Added last_saved_at column")
@@ -64,7 +72,8 @@ def run_migration():
         # Create response_scores table
         try:
             conn.execute(
-                text("""
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS response_scores (
                     id SERIAL PRIMARY KEY,
                     response_id INTEGER REFERENCES assessment_responses(id) ON DELETE CASCADE,
@@ -75,7 +84,8 @@ def run_migration():
                     interpretation TEXT,
                     calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-            """)
+            """
+                )
             )
             conn.commit()
             print("✓ Created response_scores table")

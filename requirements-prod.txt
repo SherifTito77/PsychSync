@@ -1,0 +1,79 @@
+# Production requirements for AWS App Runner
+# Excludes heavy ML/AI libraries that exceed App Runner build limits
+# If you need AI processing, run it as a separate service
+
+# Core Framework
+fastapi>=0.109.1
+uvicorn[standard]==0.24.0
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+psycopg2-binary==2.9.9
+asyncpg>=0.29.0
+
+# AWS SDK
+boto3==1.41.1
+
+# Pydantic
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Authentication
+python-jose[cryptography]>=3.4.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+
+# Two-Factor Authentication
+pyotp>=2.9.0
+qrcode>=7.4.2
+pillow>=10.1.0
+
+# File Upload
+python-multipart>=0.0.18
+
+# Email
+email-validator==2.1.0
+fastapi-mail==1.4.1
+jinja2>=3.1.6
+
+# Redis Cache
+redis==5.0.1
+hiredis==2.3.2
+
+# HTTP Client
+httpx==0.25.0
+
+# Utilities
+python-dotenv==1.1.1
+PyYAML==6.0.3
+orjson>=3.9.0
+python-dateutil==2.8.2
+
+# Security
+cryptography>=46.0.2
+itsdangerous>=2.1.2
+bleach>=6.1.0
+
+# Data Processing (used by 29+ service files)
+numpy==1.24.3
+pandas>=2.0.0
+scikit-learn==1.3.0
+
+# Monitoring
+psutil==5.9.6
+sentry-sdk[fastapi]>=1.40.0
+
+# Task Queue (if using Celery with Upstash)
+celery[redis]==5.3.4
+kombu==5.3.4
+
+# Google Email Integration
+google-api-python-client==2.108.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.1.0
+google-auth==2.23.4
+requests>=2.32.5

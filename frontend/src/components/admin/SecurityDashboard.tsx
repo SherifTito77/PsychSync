@@ -21,7 +21,7 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -33,9 +33,13 @@ import {
   TrendingUp,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  ShieldOff
 } from 'lucide-react';
 import securityAnalyticsApi from '@/services/securityAnalytics';
+
+// Feature flag: security analytics endpoints are now implemented
+const SECURITY_ANALYTICS_ENABLED = true;
 
 // Types
 interface SecurityMetrics {
@@ -78,11 +82,15 @@ const SecurityDashboard: React.FC = () => {
   const [selectedHours, setSelectedHours] = useState(24);
 
   useEffect(() => {
-    loadSecurityData();
-    // Refresh every 60 seconds
-    const interval = setInterval(loadSecurityData, 60000);
-    return () => clearInterval(interval);
-  }, [selectedHours]);
+    if (SECURITY_ANALYTICS_ENABLED) {
+      loadSecurityData();
+      // Refresh every 60 seconds
+      const interval = setInterval(loadSecurityData, 60000);
+      return () => clearInterval(interval);
+    } else {
+      setLoading(false);
+    }
+  }, [selectedHours, SECURITY_ANALYTICS_ENABLED]);
 
   const loadSecurityData = async () => {
     try {
@@ -91,15 +99,22 @@ const SecurityDashboard: React.FC = () => {
 
       const [metricsData, threatsData, eventsData] = await Promise.all([
         securityAnalyticsApi.getSystemStatus(),
-        securityAnalyticsApi.getActiveThreats(selectedHours),
+        securityAnalyticsApi.getActiveThreats({ hours: selectedHours }),
         securityAnalyticsApi.getSecurityEvents({ hours: selectedHours, limit: 50 })
       ]);
 
       setMetrics(metricsData);
       setThreats(threatsData);
       setEvents(eventsData);
-    } catch (err) {
-      setError('Failed to load security data');
+    } catch (err: any) {
+      // Handle both 404 and 500 errors gracefully
+      if (err.response?.status === 500) {
+        setError('Security analytics service is temporarily unavailable. Our team has been notified.');
+      } else if (err.response?.status === 404) {
+        setError('Security analytics feature is not yet available.');
+      } else {
+        setError('Failed to load security data');
+      }
       console.error('Error loading security data:', err);
     } finally {
       setLoading(false);
@@ -133,6 +148,30 @@ const SecurityDashboard: React.FC = () => {
         return <Activity className="h-5 w-5 text-gray-600" />;
     }
   };
+
+  // Show disabled state when feature flag is off
+  if (!SECURITY_ANALYTICS_ENABLED) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <ShieldOff className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Security Analytics Temporarily Disabled
+            </h3>
+            <p className="text-gray-600 mb-6">
+              The security analytics dashboard is currently unavailable due to backend maintenance.
+              We're working to restore full functionality as soon as possible.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <Shield className="h-4 w-4" />
+              <span>Enterprise-grade security monitoring</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading && !metrics) {
     return (
@@ -251,7 +290,7 @@ const SecurityDashboard: React.FC = () => {
                   <Badge className={getSeverityColor(severity)} variant="outline">
                     {severity}
                   </Badge>
-                  <div className="text-2xl font-bold mt-2">{count}</div>
+                  <div className="text-2xl font-bold mt-2">{count as number}</div>
                   <p className="text-xs text-gray-600">events</p>
                 </div>
               ))}

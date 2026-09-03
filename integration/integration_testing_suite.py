@@ -14,24 +14,26 @@ Version: 1.0 Enterprise Integration
 """
 
 import asyncio
-import aiohttp
+import base64
+import hashlib
 import json
+import random
+import secrets
+import smtplib
 import time
 import uuid
-import random
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from pathlib import Path
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+from unittest.mock import AsyncMock, Mock, patch
+from urllib.parse import parse_qs, urlencode, urlparse
+
+import aiohttp
 import jwt
-import hashlib
-import base64
-import secrets
-from unittest.mock import Mock, patch, AsyncMock
-from urllib.parse import urlencode, urlparse, parse_qs
+
 
 @dataclass
 class IntegrationTestResult:

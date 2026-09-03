@@ -4,8 +4,8 @@ Incrementally fix B904 errors, processing only files without syntax errors first
 """
 
 import ast
-import subprocess
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -21,9 +21,9 @@ def has_syntax_errors(file_path: Path) -> bool:
 def main():
     # Get all files with B904 errors
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -35,7 +35,7 @@ def main():
     # Group by file
     files_with_errors = {}
     for error in errors:
-        filename = error['filename']
+        filename = error["filename"]
         if filename not in files_with_errors:
             files_with_errors[filename] = []
         files_with_errors[filename].append(error)
@@ -66,9 +66,9 @@ def main():
         print(f"Fixing: {file_path} ({error_count} errors)")
 
         result = subprocess.run(
-            ['ruff', 'check', str(file_path), '--select', 'B904', '--fix'],
+            ["ruff", "check", str(file_path), "--select", "B904", "--fix"],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Validate syntax after fix
@@ -78,8 +78,9 @@ def main():
         else:
             print(f"  ⚠ Introduced syntax error, reverting...")
             # Revert using git
-            subprocess.run(['git', 'checkout', '--', str(file_path)],
-                         capture_output=True)
+            subprocess.run(
+                ["git", "checkout", "--", str(file_path)], capture_output=True
+            )
 
     print(f"\n=== Summary ===")
     print(f"Successfully fixed: {fixed_count}/{len(clean_files)} files")
@@ -93,9 +94,9 @@ def main():
     # Check remaining B904 errors
     print("\nVerifying remaining B904 errors...")
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -107,5 +108,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit(main())

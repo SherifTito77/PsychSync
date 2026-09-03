@@ -5,11 +5,11 @@ Redis Caching Layer for PsychSync
 Provides caching utilities for improving performance
 """
 
-from collections.abc import Callable
-from functools import wraps
 import hashlib
 import json
 import logging
+from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 import redis
@@ -117,7 +117,9 @@ class Cache:
             return False
 
 
-def cached(expire: int = 3600, key_prefix: str = "", invalidate_on: list | None = None) -> Callable:
+def cached(
+    expire: int = 3600, key_prefix: str = "", invalidate_on: list | None = None
+) -> Callable:
     """
     Decorator for caching function results
 
@@ -141,7 +143,9 @@ def cached(expire: int = 3600, key_prefix: str = "", invalidate_on: list | None 
 
             # Generate cache key
             func_name = func.__name__
-            cache_key = f"{key_prefix}:{func_name}:{Cache._generate_key(*args, **kwargs)}"
+            cache_key = (
+                f"{key_prefix}:{func_name}:{Cache._generate_key(*args, **kwargs)}"
+            )
 
             # Try to get from cache
             cached_result = Cache.get(cache_key)
@@ -165,10 +169,11 @@ def cached(expire: int = 3600, key_prefix: str = "", invalidate_on: list | None 
             return result
 
         # Add cache control methods to function
-        wrapper.invalidate = lambda: Cache.delete_pattern(f"{key_prefix}:{func.__name__}:*")
+        wrapper.invalidate = lambda: Cache.delete_pattern(
+            f"{key_prefix}:{func.__name__}:*"
+        )
         wrapper.cache_key = (
-            lambda *args,
-            **kwargs: f"{key_prefix}:{func.__name__}:{Cache._generate_key(*args, **kwargs)}"
+            lambda *args, **kwargs: f"{key_prefix}:{func.__name__}:{Cache._generate_key(*args, **kwargs)}"
         )
 
         return wrapper
@@ -182,7 +187,9 @@ async def cache_get(key: str) -> Any | None:
     return Cache.get(key)
 
 
-async def cache_set(key: str, value: Any, expire: int = 3600, expire_seconds: int = None) -> bool:
+async def cache_set(
+    key: str, value: Any, expire: int = 3600, expire_seconds: int = None
+) -> bool:
     """Set value in cache - async version for FastAPI compatibility"""
     # Support both parameter names for backward compatibility
     if expire_seconds is not None:
@@ -227,7 +234,7 @@ def redis_health_check() -> dict:
                 "used_memory": info.get("used_memory_human"),
                 "connected_clients": info.get("connected_clients"),
             }
-        except:
+        except (OSError, IOError, ValueError) as e:
             # Fallback for any async issues
             return {"status": "healthy", "message": "Redis client available (fallback)"}
     except Exception as e:

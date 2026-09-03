@@ -5,14 +5,14 @@ Performance improvement: 1000% faster validation processing and error prevention
 """
 
 import asyncio
+import logging
+import re
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import Enum
-import logging
-import re
 from typing import Any, TypeVar
-import uuid
 
 from fastapi import HTTPException, Request, status
 from pydantic import BaseModel
@@ -21,15 +21,19 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 class ValidationLevel(str, Enum):
     """Validation severity levels"""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
 
+
 class ValidationRule(str, Enum):
     """Built-in validation rules"""
+
     REQUIRED = "required"
     TYPE = "type"
     LENGTH = "length"
@@ -42,16 +46,20 @@ class ValidationRule(str, Enum):
     CUSTOM = "custom"
     BUSINESS = "business"
 
+
 class ValidationScope(str, Enum):
     """Validation scope levels"""
-    BASIC = "basic"           # Basic type and format validation
-    BUSINESS = "business"     # Business logic validation
-    SECURITY = "security"     # Security-focused validation
+
+    BASIC = "basic"  # Basic type and format validation
+    BUSINESS = "business"  # Business logic validation
+    SECURITY = "security"  # Security-focused validation
     COMPREHENSIVE = "comprehensive"  # All validation types
+
 
 @dataclass
 class ValidationRuleDef:
     """Validation rule definition"""
+
     name: str
     rule_type: ValidationRule
     level: ValidationLevel
@@ -60,9 +68,11 @@ class ValidationRuleDef:
     validator: Callable | None = None
     enabled: bool = True
 
+
 @dataclass
 class ValidationError:
     """Validation error details"""
+
     field: str
     rule: str
     level: ValidationLevel
@@ -71,15 +81,18 @@ class ValidationError:
     params: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
+
 @dataclass
 class ValidationResult:
     """Complete validation result"""
+
     is_valid: bool
     errors: list[ValidationError] = field(default_factory=list)
     warnings: list[ValidationError] = field(default_factory=list)
     cleaned_data: dict[str, Any] = field(default_factory=dict)
     processing_time_ms: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
+
 
 class RequestValidator:
     """
@@ -121,7 +134,7 @@ class RequestValidator:
             "failed_validations": 0,
             "avg_validation_time": 0.0,
             "rule_usage": {rule.value: 0 for rule in ValidationRule},
-            "error_counts": {level.value: 0 for level in ValidationLevel}
+            "error_counts": {level.value: 0 for level in ValidationLevel},
         }
 
         # Configuration
@@ -139,7 +152,7 @@ class RequestValidator:
         level: ValidationLevel = ValidationLevel.ERROR,
         message: str = None,
         params: dict[str, Any] = None,
-        validator: Callable = None
+        validator: Callable = None,
     ) -> None:
         """
         Add validation rule for a field
@@ -159,15 +172,18 @@ class RequestValidator:
             name=f"{field_name}_{rule_type.value}",
             rule_type=rule_type,
             level=level,
-            message=message or f"Field {field_name} failed {rule_type.value} validation",
+            message=message
+            or f"Field {field_name} failed {rule_type.value} validation",
             params=params or {},
-            validator=validator
+            validator=validator,
         )
 
         self.validation_rules[field_name].append(rule)
         logger.debug(f"Added validation rule for field {field_name}: {rule_type.value}")
 
-    def add_global_validator(self, validator: Callable, level: ValidationLevel = ValidationLevel.ERROR) -> None:
+    def add_global_validator(
+        self, validator: Callable, level: ValidationLevel = ValidationLevel.ERROR
+    ) -> None:
         """
         Add global validator that operates on entire request data
 
@@ -195,7 +211,7 @@ class RequestValidator:
         self,
         data: dict[str, Any],
         request: Request = None,
-        scope: ValidationScope = ValidationScope.COMPREHENSIVE
+        scope: ValidationScope = ValidationScope.COMPREHENSIVE,
     ) -> ValidationResult:
         """
         Validate request data comprehensively
@@ -232,10 +248,21 @@ class RequestValidator:
             if self.config["strict_mode"]:
                 result.is_valid = len(result.errors) == 0
             else:
-                result.is_valid = len([e for e in result.errors if e.level in [ValidationLevel.CRITICAL]]) == 0
+                result.is_valid = (
+                    len(
+                        [
+                            e
+                            for e in result.errors
+                            if e.level in [ValidationLevel.CRITICAL]
+                        ]
+                    )
+                    == 0
+                )
 
             # Calculate processing time
-            result.processing_time_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            result.processing_time_ms = (
+                datetime.utcnow() - start_time
+            ).total_seconds() * 1000
 
             # Update statistics
             self._update_stats(result)
@@ -251,14 +278,17 @@ class RequestValidator:
             logger.error(f"Request validation failed: {e}")
             return ValidationResult(
                 is_valid=False,
-                errors=[ValidationError(
-                    field="system",
-                    rule="validation_error",
-                    level=ValidationLevel.CRITICAL,
-                    message=f"Validation system error: {e!s}",
-                    value=None
-                )],
-                processing_time_ms=(datetime.utcnow() - start_time).total_seconds() * 1000
+                errors=[
+                    ValidationError(
+                        field="system",
+                        rule="validation_error",
+                        level=ValidationLevel.CRITICAL,
+                        message=f"Validation system error: {e!s}",
+                        value=None,
+                    )
+                ],
+                processing_time_ms=(datetime.utcnow() - start_time).total_seconds()
+                * 1000,
             )
 
     async def _clean_data(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -300,7 +330,9 @@ class RequestValidator:
             value = re.sub(r"\s+", " ", value)
 
             # Convert empty strings to None for certain fields
-            if value == "" and any(keyword in field_name.lower() for keyword in ["email", "url", "id"]):
+            if value == "" and any(
+                keyword in field_name.lower() for keyword in ["email", "url", "id"]
+            ):
                 return None
 
         # Number cleaning
@@ -312,27 +344,23 @@ class RequestValidator:
         return value
 
     async def _validate_fields_parallel(
-        self,
-        data: dict[str, Any],
-        result: ValidationResult,
-        scope: ValidationScope
+        self, data: dict[str, Any], result: ValidationResult, scope: ValidationScope
     ) -> None:
         """Validate fields in parallel"""
         tasks = []
 
         for field_name, field_value in data.items():
             if field_name in self.validation_rules:
-                task = self._validate_field(field_name, field_value, data, result, scope)
+                task = self._validate_field(
+                    field_name, field_value, data, result, scope
+                )
                 tasks.append(task)
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _validate_fields_sequential(
-        self,
-        data: dict[str, Any],
-        result: ValidationResult,
-        scope: ValidationScope
+        self, data: dict[str, Any], result: ValidationResult, scope: ValidationScope
     ) -> None:
         """Validate fields sequentially"""
         for field_name, field_value in data.items():
@@ -345,7 +373,7 @@ class RequestValidator:
         field_value: Any,
         data: dict[str, Any],
         result: ValidationResult,
-        scope: ValidationScope
+        scope: ValidationScope,
     ) -> None:
         """Validate a single field"""
         field_rules = self.validation_rules.get(field_name, [])
@@ -361,7 +389,10 @@ class RequestValidator:
                 )
 
                 if validation_error:
-                    if validation_error.level in [ValidationLevel.ERROR, ValidationLevel.CRITICAL]:
+                    if validation_error.level in [
+                        ValidationLevel.ERROR,
+                        ValidationLevel.CRITICAL,
+                    ]:
                         result.errors.append(validation_error)
                     else:
                         result.warnings.append(validation_error)
@@ -371,27 +402,42 @@ class RequestValidator:
 
             except Exception as e:
                 logger.error(f"Validation rule error for {field_name}: {e}")
-                result.errors.append(ValidationError(
-                    field=field_name,
-                    rule=rule.name,
-                    level=ValidationLevel.CRITICAL,
-                    message=f"Validation rule failed: {e!s}",
-                    value=field_value
-                ))
+                result.errors.append(
+                    ValidationError(
+                        field=field_name,
+                        rule=rule.name,
+                        level=ValidationLevel.CRITICAL,
+                        message=f"Validation rule failed: {e!s}",
+                        value=field_value,
+                    )
+                )
 
-    def _rule_applies_to_scope(self, rule: ValidationRuleDef, scope: ValidationScope) -> bool:
+    def _rule_applies_to_scope(
+        self, rule: ValidationRuleDef, scope: ValidationScope
+    ) -> bool:
         """Check if validation rule applies to the given scope"""
-        if scope == ValidationScope.COMPREHENSIVE or (scope == ValidationScope.BASIC and rule.rule_type in [
-            ValidationRule.REQUIRED, ValidationRule.TYPE, ValidationRule.LENGTH,
-            ValidationRule.PATTERN, ValidationRule.EMAIL, ValidationRule.URL,
-            ValidationRule.UUID, ValidationRule.DATE
-        ]):
+        if scope == ValidationScope.COMPREHENSIVE or (
+            scope == ValidationScope.BASIC
+            and rule.rule_type
+            in [
+                ValidationRule.REQUIRED,
+                ValidationRule.TYPE,
+                ValidationRule.LENGTH,
+                ValidationRule.PATTERN,
+                ValidationRule.EMAIL,
+                ValidationRule.URL,
+                ValidationRule.UUID,
+                ValidationRule.DATE,
+            ]
+        ):
             return True
-        if (scope == ValidationScope.BUSINESS and rule.rule_type in [
-            ValidationRule.BUSINESS, ValidationRule.CUSTOM
-        ]) or (scope == ValidationScope.SECURITY and rule.level in [
-            ValidationLevel.CRITICAL
-        ]):
+        if (
+            scope == ValidationScope.BUSINESS
+            and rule.rule_type in [ValidationRule.BUSINESS, ValidationRule.CUSTOM]
+        ) or (
+            scope == ValidationScope.SECURITY
+            and rule.level in [ValidationLevel.CRITICAL]
+        ):
             return True
         return False
 
@@ -400,7 +446,7 @@ class RequestValidator:
         field_name: str,
         field_value: Any,
         data: dict[str, Any],
-        rule: ValidationRuleDef
+        rule: ValidationRuleDef,
     ) -> ValidationError | None:
         """Apply a specific validation rule"""
         # Use custom validator if provided
@@ -417,7 +463,7 @@ class RequestValidator:
                     level=rule.level,
                     message=rule.message,
                     value=field_value,
-                    params=rule.params
+                    params=rule.params,
                 )
 
         # Use built-in validator
@@ -432,7 +478,7 @@ class RequestValidator:
                     level=rule.level,
                     message=rule.message,
                     value=field_value,
-                    params=rule.params
+                    params=rule.params,
                 )
 
         return None
@@ -559,7 +605,7 @@ class RequestValidator:
         data: dict[str, Any],
         result: ValidationResult,
         request: Request,
-        scope: ValidationScope
+        scope: ValidationScope,
     ) -> None:
         """Apply global validators"""
         for validator, level in self.global_validators:
@@ -575,7 +621,7 @@ class RequestValidator:
                         rule="global_validation",
                         level=level,
                         message="Global validation failed",
-                        value=data
+                        value=data,
                     )
 
                     if level in [ValidationLevel.ERROR, ValidationLevel.CRITICAL]:
@@ -585,13 +631,15 @@ class RequestValidator:
 
             except Exception as e:
                 logger.error(f"Global validator error: {e}")
-                result.errors.append(ValidationError(
-                    field="global",
-                    rule="global_validator_error",
-                    level=ValidationLevel.CRITICAL,
-                    message=f"Global validator failed: {e!s}",
-                    value=None
-                ))
+                result.errors.append(
+                    ValidationError(
+                        field="global",
+                        rule="global_validator_error",
+                        level=ValidationLevel.CRITICAL,
+                        message=f"Global validator failed: {e!s}",
+                        value=None,
+                    )
+                )
 
     def _update_stats(self, result: ValidationResult) -> None:
         """Update validation statistics"""
@@ -605,7 +653,9 @@ class RequestValidator:
         # Update average validation time
         total = self.stats["total_validations"]
         current_avg = self.stats["avg_validation_time"]
-        self.stats["avg_validation_time"] = ((current_avg * (total - 1)) + result.processing_time_ms) / total
+        self.stats["avg_validation_time"] = (
+            (current_avg * (total - 1)) + result.processing_time_ms
+        ) / total
 
         # Update error counts
         for error in result.errors:
@@ -615,7 +665,9 @@ class RequestValidator:
         """Get validation statistics"""
         return self.stats.copy()
 
-    def create_pydantic_schema(self, field_definitions: dict[str, Any]) -> type[BaseModel]:
+    def create_pydantic_schema(
+        self, field_definitions: dict[str, Any]
+    ) -> type[BaseModel]:
         """
         Create Pydantic schema from field definitions
 
@@ -625,6 +677,7 @@ class RequestValidator:
         Returns:
             Pydantic model class
         """
+
         class DynamicSchema(BaseModel):
             pass
 
@@ -640,8 +693,10 @@ class RequestValidator:
 
         return DynamicSchema
 
+
 # Singleton instance
 request_validator = RequestValidator()
+
 
 # Built-in field cleaners
 def clean_email(email: str) -> str | None:
@@ -650,6 +705,7 @@ def clean_email(email: str) -> str | None:
         return None
     return email.lower().strip()
 
+
 def clean_phone(phone: str) -> str:
     """Clean phone number"""
     if not phone:
@@ -657,12 +713,14 @@ def clean_phone(phone: str) -> str:
     # Remove all non-digit characters
     return re.sub(r"\D", "", phone)
 
+
 def clean_name(name: str) -> str:
     """Clean person name"""
     if not name:
         return ""
     # Remove extra whitespace and title case
     return " ".join(word.capitalize() for word in name.strip().split())
+
 
 # Built-in validators
 def validate_password_strength(password: str) -> bool:
@@ -674,6 +732,7 @@ def validate_password_strength(password: str) -> bool:
     pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
     return bool(re.match(pattern, password))
 
+
 def validate_business_rules(data: dict[str, Any]) -> bool:
     """Example business rule validator"""
     # Example: End date must be after start date
@@ -682,16 +741,20 @@ def validate_business_rules(data: dict[str, Any]) -> bool:
             start = datetime.fromisoformat(data["start_date"])
             end = datetime.fromisoformat(data["end_date"])
             return end > start
-        except:
+        except Exception as e:
             return False
     return True
+
 
 # Register built-in cleaners and validators
 request_validator.add_field_cleaner("email", clean_email)
 request_validator.add_field_cleaner("phone", clean_phone)
 request_validator.add_field_cleaner("name", clean_name)
 request_validator.add_field_cleaner("full_name", clean_name)
-request_validator.add_global_validator(validate_business_rules, ValidationLevel.BUSINESS)
+request_validator.add_global_validator(
+    validate_business_rules, ValidationLevel.BUSINESS
+)
+
 
 # Decorators for easy use
 def validate(scope: ValidationScope = ValidationScope.COMPREHENSIVE):
@@ -701,6 +764,7 @@ def validate(scope: ValidationScope = ValidationScope.COMPREHENSIVE):
     Args:
         scope: Validation scope level
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             # Get request data
@@ -709,7 +773,7 @@ def validate(scope: ValidationScope = ValidationScope.COMPREHENSIVE):
             else:
                 try:
                     data = await request.json()
-                except:
+                except (ValueError, TypeError, json.JSONDecodeError) as e:
                     data = {}
 
             # Validate request
@@ -722,23 +786,26 @@ def validate(scope: ValidationScope = ValidationScope.COMPREHENSIVE):
                     detail={
                         "message": "Validation failed",
                         "errors": error_messages,
-                        "warnings": [warning.message for warning in result.warnings]
-                    }
+                        "warnings": [warning.message for warning in result.warnings],
+                    },
                 )
 
             # Store cleaned data in request state
             request.state.validated_data = result.cleaned_data
 
             return await func(request, *args, **kwargs)
+
         return wrapper
+
     return decorator
+
 
 def field_validator(
     field_name: str,
     rule_type: ValidationRule,
     level: ValidationLevel = ValidationLevel.ERROR,
     message: str = None,
-    params: dict[str, Any] = None
+    params: dict[str, Any] = None,
 ):
     """
     Decorator to add field validation rule
@@ -750,6 +817,7 @@ def field_validator(
         message: Custom error message
         params: Rule parameters
     """
+
     def decorator(func):
         # Add rule to validator
         request_validator.add_field_rule(
@@ -757,7 +825,8 @@ def field_validator(
             rule_type=rule_type,
             level=level,
             message=message,
-            params=params
+            params=params,
         )
         return func
+
     return decorator

@@ -4,12 +4,12 @@ Provides comprehensive sentiment analysis and trend visualization
 data for interactive dashboards and reporting.
 """
 
+import json
+import logging
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 import numpy as np
@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class TrendAnalysisPeriod(Enum):
     """Time periods for trend analysis"""
+
     HOURLY = "hourly"
     DAILY = "daily"
     WEEKLY = "weekly"
@@ -32,15 +33,17 @@ class TrendAnalysisPeriod(Enum):
 
 class SentimentMetric(Enum):
     """Types of sentiment metrics"""
-    POLARITY = "polarity"           # Overall sentiment score (-1 to 1)
-    SUBJECTIVITY = "subjectivity"   # Subjectivity score (0 to 1)
-    CONFIDENCE = "confidence"       # Analysis confidence (0 to 1)
+
+    POLARITY = "polarity"  # Overall sentiment score (-1 to 1)
+    SUBJECTIVITY = "subjectivity"  # Subjectivity score (0 to 1)
+    CONFIDENCE = "confidence"  # Analysis confidence (0 to 1)
     EMOTIONAL_INTENSITY = "emotional_intensity"  # Strength of emotions
     SENTIMENT_VOLATILITY = "sentiment_volatility"  # Variation in sentiment
 
 
 class TrendDirection(Enum):
     """Trend direction classifications"""
+
     STRONGLY_IMPROVING = "strongly_improving"
     IMPROVING = "improving"
     STABLE = "stable"
@@ -52,6 +55,7 @@ class TrendDirection(Enum):
 @dataclass
 class SentimentDataPoint:
     """Single sentiment data point"""
+
     timestamp: datetime
     sentiment_score: float
     sentiment_label: SentimentLabel
@@ -70,17 +74,22 @@ class SentimentDataPoint:
             "sentiment_label": self.sentiment_label.value,
             "confidence": self.confidence,
             "subjectivity": self.subjectivity,
-            "text_sample": self.text_sample[:100] + "..." if len(self.text_sample) > 100 else self.text_sample,
+            "text_sample": (
+                self.text_sample[:100] + "..."
+                if len(self.text_sample) > 100
+                else self.text_sample
+            ),
             "metadata": self.metadata,
             "user_id": self.user_id,
             "session_id": self.session_id,
-            "theme_ids": self.theme_ids
+            "theme_ids": self.theme_ids,
         }
 
 
 @dataclass
 class SentimentTrend:
     """Sentiment trend analysis"""
+
     metric: SentimentMetric
     period: TrendAnalysisPeriod
     direction: TrendDirection
@@ -105,13 +114,14 @@ class SentimentTrend:
             "predictions": [(t.isoformat(), v) for t, v in self.predictions],
             "confidence_interval": self.confidence_interval,
             "seasonal_pattern": self.seasonal_pattern,
-            "anomaly_detected": self.anomaly_detected
+            "anomaly_detected": self.anomaly_detected,
         }
 
 
 @dataclass
 class SentimentSegment:
     """User segment with similar sentiment patterns"""
+
     segment_id: str
     name: str
     size: int
@@ -130,13 +140,16 @@ class SentimentSegment:
             "sentiment_variance": self.sentiment_variance,
             "dominant_themes": self.dominant_themes,
             "key_characteristics": self.key_characteristics,
-            "trend_analysis": self.trend_analysis.to_dict() if self.trend_analysis else None
+            "trend_analysis": (
+                self.trend_analysis.to_dict() if self.trend_analysis else None
+            ),
         }
 
 
 @dataclass
 class DashboardWidget:
     """Dashboard widget configuration"""
+
     widget_id: str
     widget_type: str
     title: str
@@ -153,13 +166,14 @@ class DashboardWidget:
             "data": self.data,
             "config": self.config,
             "last_updated": self.last_updated.isoformat(),
-            "refresh_interval": self.refresh_interval
+            "refresh_interval": self.refresh_interval,
         }
 
 
 @dataclass
 class SentimentDashboard:
     """Complete sentiment dashboard"""
+
     dashboard_id: str
     title: str
     time_range: tuple[datetime, datetime]
@@ -180,7 +194,7 @@ class SentimentDashboard:
             "segments": [segment.to_dict() for segment in self.segments],
             "key_insights": self.key_insights,
             "summary_metrics": self.summary_metrics,
-            "generated_at": self.generated_at.isoformat()
+            "generated_at": self.generated_at.isoformat(),
         }
 
 
@@ -197,7 +211,7 @@ class SentimentDashboardService:
             "anomaly_threshold": 2.0,  # Standard deviations
             "trend_prediction_horizon": 7,  # Days
             "min_segment_size": 10,
-            "confidence_level": 0.95
+            "confidence_level": 0.95,
         }
 
         # Data storage (in production, this would be database)
@@ -215,7 +229,7 @@ class SentimentDashboardService:
         session_ids: list[str] | None = None,
         time_range: tuple[datetime, datetime] | None = None,
         dashboard_id: str | None = None,
-        title: str = "Sentiment Analysis Dashboard"
+        title: str = "Sentiment Analysis Dashboard",
     ) -> SentimentDashboard:
         """Generate comprehensive sentiment dashboard"""
         try:
@@ -237,7 +251,9 @@ class SentimentDashboardService:
             )
 
             # Analyze overall trends
-            overall_trends = await self._analyze_overall_trends(sentiment_data, time_range)
+            overall_trends = await self._analyze_overall_trends(
+                sentiment_data, time_range
+            )
 
             # Perform user segmentation
             segments = await self._perform_user_segmentation(sentiment_data, timestamps)
@@ -266,16 +282,18 @@ class SentimentDashboardService:
                 segments=segments,
                 key_insights=key_insights,
                 summary_metrics=summary_metrics,
-                generated_at=datetime.utcnow()
+                generated_at=datetime.utcnow(),
             )
 
             # Cache the dashboard
             self._dashboard_cache[dashboard_id] = {
                 "dashboard": dashboard,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow(),
             }
 
-            logger.info(f"Generated sentiment dashboard {dashboard_id} in {processing_time:.2f}s")
+            logger.info(
+                f"Generated sentiment dashboard {dashboard_id} in {processing_time:.2f}s"
+            )
             return dashboard
 
         except Exception as e:
@@ -285,7 +303,7 @@ class SentimentDashboardService:
                 dashboard_id=dashboard_id or "error_dashboard",
                 title="Dashboard Error",
                 time_range=(datetime.utcnow(), datetime.utcnow()),
-                key_insights=[f"Error: {e!s}"]
+                key_insights=[f"Error: {e!s}"],
             )
 
     async def _process_sentiment_data(
@@ -293,7 +311,7 @@ class SentimentDashboardService:
         texts: list[str],
         timestamps: list[datetime],
         user_ids: list[str] | None,
-        session_ids: list[str] | None
+        session_ids: list[str] | None,
     ) -> list[SentimentDataPoint]:
         """Process texts and extract sentiment data"""
         try:
@@ -315,8 +333,10 @@ class SentimentDashboardService:
                     subjectivity=sentiment_score.subjectivity,
                     text_sample=text,
                     user_id=user_ids[i] if user_ids and i < len(user_ids) else None,
-                    session_id=session_ids[i] if session_ids and i < len(session_ids) else None,
-                    theme_ids=theme_ids
+                    session_id=(
+                        session_ids[i] if session_ids and i < len(session_ids) else None
+                    ),
+                    theme_ids=theme_ids,
                 )
 
                 sentiment_data.append(data_point)
@@ -330,7 +350,7 @@ class SentimentDashboardService:
     async def _analyze_overall_trends(
         self,
         sentiment_data: list[SentimentDataPoint],
-        time_range: tuple[datetime, datetime]
+        time_range: tuple[datetime, datetime],
     ) -> list[SentimentTrend]:
         """Analyze overall sentiment trends"""
         try:
@@ -353,7 +373,7 @@ class SentimentDashboardService:
         self,
         sentiment_data: list[SentimentDataPoint],
         metric: SentimentMetric,
-        period: TrendAnalysisPeriod
+        period: TrendAnalysisPeriod,
     ) -> SentimentTrend | None:
         """Calculate trend for specific metric and period"""
         try:
@@ -366,14 +386,22 @@ class SentimentDashboardService:
             # Extract values and timestamps
             timestamps = list(grouped_data.keys())
             if metric == SentimentMetric.POLARITY:
-                values = [np.mean([dp.sentiment_score for dp in grouped_data[t]]) for t in timestamps]
+                values = [
+                    np.mean([dp.sentiment_score for dp in grouped_data[t]])
+                    for t in timestamps
+                ]
             elif metric == SentimentMetric.SUBJECTIVITY:
-                values = [np.mean([dp.subjectivity for dp in grouped_data[t]]) for t in timestamps]
+                values = [
+                    np.mean([dp.subjectivity for dp in grouped_data[t]])
+                    for t in timestamps
+                ]
             else:
                 return None
 
             # Calculate trend statistics
-            slope, strength, direction = self._calculate_linear_trend(timestamps, values)
+            slope, strength, direction = self._calculate_linear_trend(
+                timestamps, values
+            )
             volatility = np.std(values) if len(values) > 1 else 0.0
 
             # Detect seasonal patterns
@@ -406,7 +434,7 @@ class SentimentDashboardService:
                 predictions=predictions,
                 confidence_interval=confidence_interval,
                 seasonal_pattern=seasonal_pattern,
-                anomaly_detected=anomaly_detected
+                anomaly_detected=anomaly_detected,
             )
 
         except Exception as e:
@@ -414,9 +442,7 @@ class SentimentDashboardService:
             return None
 
     def _group_by_time_period(
-        self,
-        sentiment_data: list[SentimentDataPoint],
-        period: TrendAnalysisPeriod
+        self, sentiment_data: list[SentimentDataPoint], period: TrendAnalysisPeriod
     ) -> dict[datetime, list[SentimentDataPoint]]:
         """Group sentiment data by time period"""
         grouped = defaultdict(list)
@@ -440,9 +466,7 @@ class SentimentDashboardService:
         return dict(grouped)
 
     def _calculate_linear_trend(
-        self,
-        timestamps: list[datetime],
-        values: list[float]
+        self, timestamps: list[datetime], values: list[float]
     ) -> tuple[float, float, TrendDirection]:
         """Calculate linear trend"""
         try:
@@ -451,7 +475,9 @@ class SentimentDashboardService:
 
             # Convert timestamps to numeric values
             base_time = timestamps[0]
-            x_values = [(t - base_time).total_seconds() / 3600 for t in timestamps]  # Hours
+            x_values = [
+                (t - base_time).total_seconds() / 3600 for t in timestamps
+            ]  # Hours
 
             # Simple linear regression
             n = len(x_values)
@@ -493,7 +519,9 @@ class SentimentDashboardService:
             logger.error(f"Linear trend calculation failed: {e!s}")
             return 0.0, 0.0, TrendDirection.STABLE
 
-    def _detect_seasonality(self, timestamps: list[datetime], values: list[float]) -> bool:
+    def _detect_seasonality(
+        self, timestamps: list[datetime], values: list[float]
+    ) -> bool:
         """Detect seasonal patterns in data"""
         try:
             if len(values) < 14:  # Need at least 2 weeks for weekly seasonality
@@ -514,7 +542,9 @@ class SentimentDashboardService:
             weekly_variance = np.var(day_averages)
 
             # If weekly variance is significant portion of total variance, consider it seasonal
-            seasonal_ratio = weekly_variance / total_variance if total_variance > 0 else 0
+            seasonal_ratio = (
+                weekly_variance / total_variance if total_variance > 0 else 0
+            )
 
             return seasonal_ratio > 0.3
 
@@ -543,7 +573,7 @@ class SentimentDashboardService:
         self,
         timestamps: list[datetime],
         values: list[float],
-        period: TrendAnalysisPeriod
+        period: TrendAnalysisPeriod,
     ) -> list[tuple[datetime, float]]:
         """Generate simple predictions for future values"""
         try:
@@ -552,7 +582,9 @@ class SentimentDashboardService:
 
             # Use simple linear extrapolation
             base_time = timestamps[0]
-            x_values = [(t - base_time).total_seconds() / 3600 for t in timestamps]  # Hours
+            x_values = [
+                (t - base_time).total_seconds() / 3600 for t in timestamps
+            ]  # Hours
 
             # Calculate trend
             n = len(x_values)
@@ -572,7 +604,9 @@ class SentimentDashboardService:
             last_timestamp = timestamps[-1]
             horizon_hours = self.config["trend_prediction_horizon"] * 24
 
-            for hours_ahead in range(1, min(24, self.config["trend_prediction_horizon"])):
+            for hours_ahead in range(
+                1, min(24, self.config["trend_prediction_horizon"])
+            ):
                 future_x = x_values[-1] + hours_ahead
                 if period == TrendAnalysisPeriod.DAILY:
                     future_time = last_timestamp + timedelta(hours=hours_ahead * 24)
@@ -590,7 +624,9 @@ class SentimentDashboardService:
             logger.error(f"Prediction generation failed: {e!s}")
             return []
 
-    def _calculate_confidence_interval(self, values: list[float]) -> tuple[float, float]:
+    def _calculate_confidence_interval(
+        self, values: list[float]
+    ) -> tuple[float, float]:
         """Calculate confidence interval for values"""
         try:
             if len(values) < 2:
@@ -608,9 +644,7 @@ class SentimentDashboardService:
             return (0.0, 0.0)
 
     async def _perform_user_segmentation(
-        self,
-        sentiment_data: list[SentimentDataPoint],
-        timestamps: list[datetime]
+        self, sentiment_data: list[SentimentDataPoint], timestamps: list[datetime]
     ) -> list[SentimentSegment]:
         """Perform user segmentation based on sentiment patterns"""
         try:
@@ -637,7 +671,7 @@ class SentimentDashboardService:
                     "sentiment_variance": np.var(sentiments),
                     "avg_subjectivity": np.mean(subjectivities),
                     "data_points": len(user_dps),
-                    "sentiment_range": max(sentiments) - min(sentiments)
+                    "sentiment_range": max(sentiments) - min(sentiments),
                 }
 
                 user_features[user_id] = features
@@ -651,8 +685,11 @@ class SentimentDashboardService:
             # Analyze trends for each segment
             for segment in segments:
                 segment_dps = []
-                for user_id in [u for u in user_features
-                              if any(u in s.get("users", []) for s in segments)]:
+                for user_id in [
+                    u
+                    for u in user_features
+                    if any(u in s.get("users", []) for s in segments)
+                ]:
                     if user_id in user_data:
                         segment_dps.extend(user_data[user_id])
 
@@ -668,7 +705,9 @@ class SentimentDashboardService:
             logger.error(f"User segmentation failed: {e!s}")
             return []
 
-    def _cluster_users(self, user_features: dict[str, dict[str, float]]) -> list[SentimentSegment]:
+    def _cluster_users(
+        self, user_features: dict[str, dict[str, float]]
+    ) -> list[SentimentSegment]:
         """Simple user clustering based on sentiment features"""
         try:
             # Extract feature matrix
@@ -676,17 +715,15 @@ class SentimentDashboardService:
             features = []
             for user in users:
                 f = user_features[user]
-                features.append([
-                    f["avg_sentiment"],
-                    f["sentiment_variance"],
-                    f["avg_subjectivity"]
-                ])
+                features.append(
+                    [f["avg_sentiment"], f["sentiment_variance"], f["avg_subjectivity"]]
+                )
 
             # Normalize features
             scaler = StandardScaler()
             try:
                 normalized_features = scaler.fit_transform(features).tolist()
-            except:
+            except Exception as e:
                 normalized_features = features
 
             # Simple k-means-like clustering
@@ -700,8 +737,10 @@ class SentimentDashboardService:
             # Assign users to clusters
             clusters = [[] for _ in range(n_clusters)]
             for i, feature in enumerate(normalized_features):
-                distances = [np.linalg.norm(np.array(feature) - np.array(center))
-                           for center in centers]
+                distances = [
+                    np.linalg.norm(np.array(feature) - np.array(center))
+                    for center in centers
+                ]
                 closest_cluster = np.argmin(distances)
                 clusters[closest_cluster].append(users[i])
 
@@ -710,8 +749,12 @@ class SentimentDashboardService:
             for i, cluster_users in enumerate(clusters):
                 if len(cluster_users) >= self.config["min_segment_size"]:
                     # Calculate cluster statistics
-                    cluster_sentiments = [user_features[u]["avg_sentiment"] for u in cluster_users]
-                    cluster_variances = [user_features[u]["sentiment_variance"] for u in cluster_users]
+                    cluster_sentiments = [
+                        user_features[u]["avg_sentiment"] for u in cluster_users
+                    ]
+                    cluster_variances = [
+                        user_features[u]["sentiment_variance"] for u in cluster_users
+                    ]
 
                     segment = SentimentSegment(
                         segment_id=f"segment_{i}",
@@ -722,8 +765,10 @@ class SentimentDashboardService:
                         dominant_themes=[],  # Would need theme analysis
                         key_characteristics={
                             "users": cluster_users,
-                            "avg_data_points": np.mean([user_features[u]["data_points"] for u in cluster_users])
-                        }
+                            "avg_data_points": np.mean(
+                                [user_features[u]["data_points"] for u in cluster_users]
+                            ),
+                        },
                     )
                     segments.append(segment)
 
@@ -738,7 +783,7 @@ class SentimentDashboardService:
         sentiment_data: list[SentimentDataPoint],
         trends: list[SentimentTrend],
         segments: list[SentimentSegment],
-        time_range: tuple[datetime, datetime]
+        time_range: tuple[datetime, datetime],
     ) -> list[DashboardWidget]:
         """Generate dashboard widgets"""
         try:
@@ -753,7 +798,9 @@ class SentimentDashboardService:
             widgets.append(distribution_widget)
 
             # Sentiment timeline widget
-            timeline_widget = await self._create_timeline_widget(sentiment_data, time_range)
+            timeline_widget = await self._create_timeline_widget(
+                sentiment_data, time_range
+            )
             widgets.append(timeline_widget)
 
             # User segments widget
@@ -775,37 +822,44 @@ class SentimentDashboardService:
             return []
 
     async def _create_trend_widget(
-        self,
-        trends: list[SentimentTrend],
-        time_range: tuple[datetime, datetime]
+        self, trends: list[SentimentTrend], time_range: tuple[datetime, datetime]
     ) -> DashboardWidget:
         """Create sentiment trend widget"""
         try:
             # Prepare trend data for visualization
             trend_data = []
             for trend in trends:
-                if trend.metric == SentimentMetric.POLARITY and trend.period == TrendAnalysisPeriod.DAILY:
+                if (
+                    trend.metric == SentimentMetric.POLARITY
+                    and trend.period == TrendAnalysisPeriod.DAILY
+                ):
                     timestamps = []
                     values = []
 
                     # Aggregate data points by day
                     daily_data = defaultdict(list)
                     for dp in trend.data_points:
-                        day_key = dp.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                        day_key = dp.timestamp.replace(
+                            hour=0, minute=0, second=0, microsecond=0
+                        )
                         daily_data[day_key].append(dp.sentiment_score)
 
                     for day in sorted(daily_data.keys()):
                         timestamps.append(day.isoformat())
                         values.append(np.mean(daily_data[day]))
 
-                    trend_data.append({
-                        "timestamps": timestamps,
-                        "values": values,
-                        "predictions": [(t.isoformat(), v) for t, v in trend.predictions],
-                        "direction": trend.direction.value,
-                        "strength": trend.strength,
-                        "confidence_interval": trend.confidence_interval
-                    })
+                    trend_data.append(
+                        {
+                            "timestamps": timestamps,
+                            "values": values,
+                            "predictions": [
+                                (t.isoformat(), v) for t, v in trend.predictions
+                            ],
+                            "direction": trend.direction.value,
+                            "strength": trend.strength,
+                            "confidence_interval": trend.confidence_interval,
+                        }
+                    )
                     break
 
             return DashboardWidget(
@@ -814,14 +868,14 @@ class SentimentDashboardService:
                 title="Sentiment Trend Over Time",
                 data={
                     "trends": trend_data,
-                    "time_range": [t.isoformat() for t in time_range]
+                    "time_range": [t.isoformat() for t in time_range],
                 },
                 config={
                     "xAxis": "Time",
                     "yAxis": "Sentiment Score",
                     "showPrediction": True,
-                    "showConfidenceInterval": True
-                }
+                    "showConfidenceInterval": True,
+                },
             )
 
         except Exception as e:
@@ -830,12 +884,11 @@ class SentimentDashboardService:
                 widget_id="sentiment_trend",
                 widget_type="error",
                 title="Sentiment Trend Error",
-                data={"error": str(e)}
+                data={"error": str(e)},
             )
 
     async def _create_distribution_widget(
-        self,
-        sentiment_data: list[SentimentDataPoint]
+        self, sentiment_data: list[SentimentDataPoint]
     ) -> DashboardWidget:
         """Create sentiment distribution widget"""
         try:
@@ -845,21 +898,29 @@ class SentimentDashboardService:
 
             # Calculate percentages
             distribution = []
-            for label in ["very_positive", "positive", "neutral", "negative", "very_negative"]:
+            for label in [
+                "very_positive",
+                "positive",
+                "neutral",
+                "negative",
+                "very_negative",
+            ]:
                 count = label_counts.get(label, 0)
                 percentage = (count / total_count * 100) if total_count > 0 else 0
-                distribution.append({
-                    "label": label.replace("_", " ").title(),
-                    "count": count,
-                    "percentage": percentage
-                })
+                distribution.append(
+                    {
+                        "label": label.replace("_", " ").title(),
+                        "count": count,
+                        "percentage": percentage,
+                    }
+                )
 
             return DashboardWidget(
                 widget_id="sentiment_distribution",
                 widget_type="pie_chart",
                 title="Sentiment Distribution",
                 data={"distribution": distribution},
-                config={"showPercentage": True, "showCount": True}
+                config={"showPercentage": True, "showCount": True},
             )
 
         except Exception as e:
@@ -868,13 +929,13 @@ class SentimentDashboardService:
                 widget_id="sentiment_distribution",
                 widget_type="error",
                 title="Sentiment Distribution Error",
-                data={"error": str(e)}
+                data={"error": str(e)},
             )
 
     async def _create_timeline_widget(
         self,
         sentiment_data: list[SentimentDataPoint],
-        time_range: tuple[datetime, datetime]
+        time_range: tuple[datetime, datetime],
     ) -> DashboardWidget:
         """Create sentiment timeline widget"""
         try:
@@ -904,12 +965,9 @@ class SentimentDashboardService:
                     "timestamps": timestamps,
                     "values": values,
                     "counts": counts,
-                    "time_range": [t.isoformat() for t in time_range]
+                    "time_range": [t.isoformat() for t in time_range],
                 },
-                config={
-                    "showVolume": True,
-                    "smoothLine": True
-                }
+                config={"showVolume": True, "smoothLine": True},
             )
 
         except Exception as e:
@@ -918,25 +976,30 @@ class SentimentDashboardService:
                 widget_id="sentiment_timeline",
                 widget_type="error",
                 title="Sentiment Timeline Error",
-                data={"error": str(e)}
+                data={"error": str(e)},
             )
 
     async def _create_segments_widget(
-        self,
-        segments: list[SentimentSegment]
+        self, segments: list[SentimentSegment]
     ) -> DashboardWidget:
         """Create user segments widget"""
         try:
             segments_data = []
             for segment in segments:
-                segments_data.append({
-                    "segment_id": segment.segment_id,
-                    "name": segment.name,
-                    "size": segment.size,
-                    "avg_sentiment": segment.avg_sentiment,
-                    "sentiment_variance": segment.sentiment_variance,
-                    "trend_direction": segment.trend_analysis.direction.value if segment.trend_analysis else "unknown"
-                })
+                segments_data.append(
+                    {
+                        "segment_id": segment.segment_id,
+                        "name": segment.name,
+                        "size": segment.size,
+                        "avg_sentiment": segment.avg_sentiment,
+                        "sentiment_variance": segment.sentiment_variance,
+                        "trend_direction": (
+                            segment.trend_analysis.direction.value
+                            if segment.trend_analysis
+                            else "unknown"
+                        ),
+                    }
+                )
 
             return DashboardWidget(
                 widget_id="user_segments",
@@ -946,8 +1009,8 @@ class SentimentDashboardService:
                 config={
                     "xAxis": "Segment",
                     "yAxis": "Average Sentiment",
-                    "showSize": True
-                }
+                    "showSize": True,
+                },
             )
 
         except Exception as e:
@@ -956,26 +1019,39 @@ class SentimentDashboardService:
                 widget_id="user_segments",
                 widget_type="error",
                 title="User Segments Error",
-                data={"error": str(e)}
+                data={"error": str(e)},
             )
 
     async def _create_metrics_widget(
-        self,
-        sentiment_data: list[SentimentDataPoint],
-        trends: list[SentimentTrend]
+        self, sentiment_data: list[SentimentDataPoint], trends: list[SentimentTrend]
     ) -> DashboardWidget:
         """Create key metrics widget"""
         try:
             # Calculate metrics
             total_entries = len(sentiment_data)
-            avg_sentiment = np.mean([dp.sentiment_score for dp in sentiment_data]) if sentiment_data else 0
-            avg_confidence = np.mean([dp.confidence for dp in sentiment_data]) if sentiment_data else 0
-            avg_subjectivity = np.mean([dp.subjectivity for dp in sentiment_data]) if sentiment_data else 0
+            avg_sentiment = (
+                np.mean([dp.sentiment_score for dp in sentiment_data])
+                if sentiment_data
+                else 0
+            )
+            avg_confidence = (
+                np.mean([dp.confidence for dp in sentiment_data])
+                if sentiment_data
+                else 0
+            )
+            avg_subjectivity = (
+                np.mean([dp.subjectivity for dp in sentiment_data])
+                if sentiment_data
+                else 0
+            )
 
             # Find dominant trend
             dominant_trend = None
             for trend in trends:
-                if trend.metric == SentimentMetric.POLARITY and trend.period == TrendAnalysisPeriod.DAILY:
+                if (
+                    trend.metric == SentimentMetric.POLARITY
+                    and trend.period == TrendAnalysisPeriod.DAILY
+                ):
                     dominant_trend = trend
                     break
 
@@ -984,9 +1060,13 @@ class SentimentDashboardService:
                 "avg_sentiment": round(avg_sentiment, 3),
                 "avg_confidence": round(avg_confidence, 3),
                 "avg_subjectivity": round(avg_subjectivity, 3),
-                "dominant_trend": dominant_trend.direction.value if dominant_trend else "stable",
-                "trend_strength": round(dominant_trend.strength, 3) if dominant_trend else 0,
-                "anomaly_detected": any(t.anomaly_detected for t in trends)
+                "dominant_trend": (
+                    dominant_trend.direction.value if dominant_trend else "stable"
+                ),
+                "trend_strength": (
+                    round(dominant_trend.strength, 3) if dominant_trend else 0
+                ),
+                "anomaly_detected": any(t.anomaly_detected for t in trends),
             }
 
             return DashboardWidget(
@@ -994,10 +1074,7 @@ class SentimentDashboardService:
                 widget_type="metrics",
                 title="Key Sentiment Metrics",
                 data=metrics_data,
-                config={
-                    "showTrend": True,
-                    "showAnomalies": True
-                }
+                config={"showTrend": True, "showAnomalies": True},
             )
 
         except Exception as e:
@@ -1006,35 +1083,32 @@ class SentimentDashboardService:
                 widget_id="key_metrics",
                 widget_type="error",
                 title="Key Metrics Error",
-                data={"error": str(e)}
+                data={"error": str(e)},
             )
 
     async def _create_volatility_widget(
-        self,
-        trends: list[SentimentTrend]
+        self, trends: list[SentimentTrend]
     ) -> DashboardWidget:
         """Create sentiment volatility widget"""
         try:
             volatility_data = []
             for trend in trends:
                 if trend.metric == SentimentMetric.POLARITY:
-                    volatility_data.append({
-                        "period": trend.period.value,
-                        "volatility": round(trend.volatility, 3),
-                        "direction": trend.direction.value,
-                        "anomaly_detected": trend.anomaly_detected
-                    })
+                    volatility_data.append(
+                        {
+                            "period": trend.period.value,
+                            "volatility": round(trend.volatility, 3),
+                            "direction": trend.direction.value,
+                            "anomaly_detected": trend.anomaly_detected,
+                        }
+                    )
 
             return DashboardWidget(
                 widget_id="sentiment_volatility",
                 widget_type="gauge_chart",
                 title="Sentiment Volatility",
                 data={"volatility": volatility_data},
-                config={
-                    "minValue": 0,
-                    "maxValue": 1,
-                    "thresholds": [0.1, 0.3, 0.5]
-                }
+                config={"minValue": 0, "maxValue": 1, "thresholds": [0.1, 0.3, 0.5]},
             )
 
         except Exception as e:
@@ -1043,14 +1117,14 @@ class SentimentDashboardService:
                 widget_id="sentiment_volatility",
                 widget_type="error",
                 title="Sentiment Volatility Error",
-                data={"error": str(e)}
+                data={"error": str(e)},
             )
 
     async def _generate_key_insights(
         self,
         sentiment_data: list[SentimentDataPoint],
         trends: list[SentimentTrend],
-        segments: list[SentimentSegment]
+        segments: list[SentimentSegment],
     ) -> list[str]:
         """Generate key insights from sentiment analysis"""
         try:
@@ -1070,11 +1144,24 @@ class SentimentDashboardService:
 
             # Trend insights
             for trend in trends:
-                if trend.metric == SentimentMetric.POLARITY and trend.period == TrendAnalysisPeriod.DAILY:
-                    if trend.direction in [TrendDirection.IMPROVING, TrendDirection.STRONGLY_IMPROVING]:
-                        insights.append(f"Sentiment is improving over time (strength: {trend.strength:.2f})")
-                    elif trend.direction in [TrendDirection.DECLINING, TrendDirection.STRONGLY_DECLINING]:
-                        insights.append(f"Sentiment is declining over time (strength: {trend.strength:.2f})")
+                if (
+                    trend.metric == SentimentMetric.POLARITY
+                    and trend.period == TrendAnalysisPeriod.DAILY
+                ):
+                    if trend.direction in [
+                        TrendDirection.IMPROVING,
+                        TrendDirection.STRONGLY_IMPROVING,
+                    ]:
+                        insights.append(
+                            f"Sentiment is improving over time (strength: {trend.strength:.2f})"
+                        )
+                    elif trend.direction in [
+                        TrendDirection.DECLINING,
+                        TrendDirection.STRONGLY_DECLINING,
+                    ]:
+                        insights.append(
+                            f"Sentiment is declining over time (strength: {trend.strength:.2f})"
+                        )
 
                     if trend.seasonal_pattern:
                         insights.append("Seasonal patterns detected in sentiment data")
@@ -1083,32 +1170,48 @@ class SentimentDashboardService:
                         insights.append("Anomalies detected in sentiment patterns")
 
             # Volatility insight
-            volatilities = [t.volatility for t in trends if t.metric == SentimentMetric.POLARITY]
+            volatilities = [
+                t.volatility for t in trends if t.metric == SentimentMetric.POLARITY
+            ]
             if volatilities:
                 avg_volatility = np.mean(volatilities)
                 if avg_volatility > 0.3:
-                    insights.append(f"High sentiment volatility detected ({avg_volatility:.2f})")
+                    insights.append(
+                        f"High sentiment volatility detected ({avg_volatility:.2f})"
+                    )
                 elif avg_volatility < 0.1:
-                    insights.append(f"Low sentiment volatility indicates stable patterns ({avg_volatility:.2f})")
+                    insights.append(
+                        f"Low sentiment volatility indicates stable patterns ({avg_volatility:.2f})"
+                    )
 
             # Segment insights
             if len(segments) > 1:
-                insights.append(f"{len(segments)} distinct user sentiment segments identified")
+                insights.append(
+                    f"{len(segments)} distinct user sentiment segments identified"
+                )
 
                 # Find most positive and most negative segments
                 if segments:
                     most_positive = max(segments, key=lambda s: s.avg_sentiment)
                     most_negative = min(segments, key=lambda s: s.avg_sentiment)
 
-                    insights.append(f"Most positive segment: {most_positive.name} (avg: {most_positive.avg_sentiment:.2f})")
-                    insights.append(f"Most negative segment: {most_negative.name} (avg: {most_negative.avg_sentiment:.2f})")
+                    insights.append(
+                        f"Most positive segment: {most_positive.name} (avg: {most_positive.avg_sentiment:.2f})"
+                    )
+                    insights.append(
+                        f"Most negative segment: {most_negative.name} (avg: {most_negative.avg_sentiment:.2f})"
+                    )
 
             # Confidence insight
             avg_confidence = np.mean([dp.confidence for dp in sentiment_data])
             if avg_confidence < 0.6:
-                insights.append(f"Low confidence in sentiment analysis ({avg_confidence:.2f}) - consider more data")
+                insights.append(
+                    f"Low confidence in sentiment analysis ({avg_confidence:.2f}) - consider more data"
+                )
             elif avg_confidence > 0.8:
-                insights.append(f"High confidence in sentiment analysis ({avg_confidence:.2f})")
+                insights.append(
+                    f"High confidence in sentiment analysis ({avg_confidence:.2f})"
+                )
 
             return insights[:10]  # Limit to top 10 insights
 
@@ -1116,7 +1219,9 @@ class SentimentDashboardService:
             logger.error(f"Insight generation failed: {e!s}")
             return [f"Error generating insights: {e!s}"]
 
-    async def _calculate_summary_metrics(self, sentiment_data: list[SentimentDataPoint]) -> dict[str, float]:
+    async def _calculate_summary_metrics(
+        self, sentiment_data: list[SentimentDataPoint]
+    ) -> dict[str, float]:
         """Calculate summary metrics"""
         try:
             if not sentiment_data:
@@ -1134,9 +1239,15 @@ class SentimentDashboardService:
                 "max_sentiment": float(np.max(sentiments)),
                 "avg_confidence": float(np.mean(confidences)),
                 "avg_subjectivity": float(np.mean(subjectivities)),
-                "positive_ratio": float(sum(1 for s in sentiments if s > 0.1) / len(sentiments)),
-                "negative_ratio": float(sum(1 for s in sentiments if s < -0.1) / len(sentiments)),
-                "neutral_ratio": float(sum(1 for s in sentiments if -0.1 <= s <= 0.1) / len(sentiments))
+                "positive_ratio": float(
+                    sum(1 for s in sentiments if s > 0.1) / len(sentiments)
+                ),
+                "negative_ratio": float(
+                    sum(1 for s in sentiments if s < -0.1) / len(sentiments)
+                ),
+                "neutral_ratio": float(
+                    sum(1 for s in sentiments if -0.1 <= s <= 0.1) / len(sentiments)
+                ),
             }
 
         except Exception as e:
@@ -1174,5 +1285,5 @@ __all__ = [
     "SentimentSegment",
     "SentimentTrend",
     "TrendAnalysisPeriod",
-    "TrendDirection"
+    "TrendDirection",
 ]

@@ -5,28 +5,30 @@ Create SQL Audit tables in the database
 """
 
 import asyncio
-from pathlib import Path
 
 # Add parent directory to path
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import text
+
 from app.core.database import get_async_db
 
 
 async def create_tables():
     """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+    Args:
+        db: Database session
+        **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+    Returns:
+        Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+    Raises:
+        ValidationError: If input data is invalid
     """
     """Create a new resource.
 
@@ -44,7 +46,9 @@ Raises:
     async for db in get_async_db():
         try:
             # Create sql_queries table
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS sql_queries (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     query_hash VARCHAR(64) UNIQUE NOT NULL,
@@ -66,24 +70,44 @@ Raises:
                     scanned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     last_scanned TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
-            """))
+            """
+                )
+            )
 
             # Create indexes for sql_queries
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_queries_query_hash ON sql_queries(query_hash);
-            """))
-            await db.execute(text("""
+            """
+                )
+            )
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_queries_risk_level ON sql_queries(risk_level);
-            """))
-            await db.execute(text("""
+            """
+                )
+            )
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_queries_file_path ON sql_queries(file_path);
-            """))
-            await db.execute(text("""
+            """
+                )
+            )
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_queries_scanned_at ON sql_queries(scanned_at);
-            """))
+            """
+                )
+            )
 
             # Create sql_vulnerabilities table
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS sql_vulnerabilities (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     query_id UUID NOT NULL REFERENCES sql_queries(id) ON DELETE CASCADE,
@@ -99,21 +123,37 @@ Raises:
                     discovered_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     resolved_at TIMESTAMP
                 );
-            """))
+            """
+                )
+            )
 
             # Create indexes for sql_vulnerabilities
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_vulnerabilities_query_id ON sql_vulnerabilities(query_id);
-            """))
-            await db.execute(text("""
+            """
+                )
+            )
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_vulnerabilities_severity ON sql_vulnerabilities(severity);
-            """))
-            await db.execute(text("""
+            """
+                )
+            )
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_vulnerabilities_discovered_at ON sql_vulnerabilities(discovered_at);
-            """))
+            """
+                )
+            )
 
             # Create sql_scan_reports table
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE TABLE IF NOT EXISTS sql_scan_reports (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     scan_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -135,12 +175,18 @@ Raises:
                     top_risk_files JSON,
                     top_vulnerability_types JSON
                 );
-            """))
+            """
+                )
+            )
 
             # Create indexes for sql_scan_reports
-            await db.execute(text("""
+            await db.execute(
+                text(
+                    """
                 CREATE INDEX IF NOT EXISTS idx_sql_scan_reports_scan_date ON sql_scan_reports(scan_date);
-            """))
+            """
+                )
+            )
 
             await db.commit()
             print("✓ SQL Audit tables created successfully")

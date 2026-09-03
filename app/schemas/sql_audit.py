@@ -14,8 +14,9 @@ from pydantic import BaseModel, Field
 class SQLQueryBase(BaseModel):
     """SQLQueryBase class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     query_text: str
     file_path: str = Field(..., min_length=1, max_length=500)
     line_number: int = Field(..., ge=1)
@@ -30,8 +31,9 @@ Description of class purpose and functionality.
 class SQLQueryCreate(SQLQueryBase):
     """Schema definition for SQLQuery.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     query_hash: str
     ai_suggestion: Optional[str] = None
     safe_example: Optional[str] = None
@@ -42,8 +44,9 @@ Validates and serializes data for API requests/responses.
 class SQLQueryUpdate(BaseModel):
     """Schema definition for SQLQuery.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     risk_level: Optional[str] = None
     risk_score: Optional[float] = None
     is_fixed: Optional[bool] = None
@@ -55,8 +58,9 @@ Validates and serializes data for API requests/responses.
 class SQLQueryInDB(SQLQueryBase):
     """SQLQueryInDB class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     id: UUID
     query_hash: str
     ai_suggestion: Optional[str] = None
@@ -71,16 +75,18 @@ Description of class purpose and functionality.
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class SQLQuery(SQLQueryInDB):
     """SQLQuery class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     pass
 
 
@@ -88,8 +94,9 @@ Description of class purpose and functionality.
 class SQLVulnerabilityBase(BaseModel):
     """SQLVulnerabilityBase class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     vulnerability_type: str
     severity: str = Field(..., pattern="^(critical|high|medium|low)$")
     description: str
@@ -101,8 +108,9 @@ Description of class purpose and functionality.
 class SQLVulnerabilityCreate(SQLVulnerabilityBase):
     """Schema definition for SQLVulnerability.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     query_id: UUID
     remediation_steps: Optional[str] = None
     code_fix: Optional[str] = None
@@ -111,8 +119,9 @@ Validates and serializes data for API requests/responses.
 class SQLVulnerabilityUpdate(BaseModel):
     """Schema definition for SQLVulnerability.
 
-Validates and serializes data for API requests/responses.
+    Validates and serializes data for API requests/responses.
     """
+
     severity: Optional[str] = None
     verified_safe: Optional[bool] = None
     remediation_steps: Optional[str] = None
@@ -123,8 +132,9 @@ Validates and serializes data for API requests/responses.
 class SQLVulnerabilityInDB(SQLVulnerabilityBase):
     """SQLVulnerabilityInDB class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     id: UUID
     query_id: UUID
     remediation_steps: Optional[str] = None
@@ -136,16 +146,18 @@ Description of class purpose and functionality.
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class SQLVulnerability(SQLVulnerabilityInDB):
     """SQLVulnerability class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     pass
 
 
@@ -153,8 +165,9 @@ Description of class purpose and functionality.
 class SQLScanReportBase(BaseModel):
     """SQLScanReportBase class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     scan_date: datetime
     total_queries_scanned: int
     total_vulnerabilities: int
@@ -167,8 +180,9 @@ Description of class purpose and functionality.
 class SQLScanReportInDB(SQLScanReportBase):
     """SQLScanReportInDB class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     id: UUID
     safe_queries: int
     parameterized_queries: int
@@ -185,16 +199,18 @@ Description of class purpose and functionality.
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class SQLScanReport(SQLScanReportInDB):
     """SQLScanReport class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     pass
 
 
@@ -202,8 +218,9 @@ Description of class purpose and functionality.
 class SQLRiskTrend(BaseModel):
     """SQLRiskTrend class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     date: datetime
     total_vulnerabilities: int
     critical_vulnerabilities: int
@@ -215,8 +232,9 @@ Description of class purpose and functionality.
 class SQLSecuritySummary(BaseModel):
     """SQLSecuritySummary class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     total_queries: int
     total_vulnerabilities: int
     safe_queries: int
@@ -231,8 +249,9 @@ Description of class purpose and functionality.
 class SQLRecommendation(BaseModel):
     """SQLRecommendation class.
 
-Description of class purpose and functionality.
+    Description of class purpose and functionality.
     """
+
     priority: str
     category: str
     recommendation: str

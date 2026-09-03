@@ -5,13 +5,15 @@ Real-time monitoring and alerting system for production infrastructure
 """
 
 import asyncio
-import time
 import json
-import psutil
 import subprocess
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
+import psutil
+
 
 class MonitoringDashboard:
     def __init__(self):
@@ -20,7 +22,7 @@ class MonitoringDashboard:
             "database": {},
             "api": {},
             "redis": {},
-            "alerts": []
+            "alerts": [],
         }
         self.start_time = datetime.now()
 
@@ -29,10 +31,12 @@ class MonitoringDashboard:
         return {
             "cpu_percent": psutil.cpu_percent(interval=1),
             "memory_percent": psutil.virtual_memory().percent,
-            "disk_percent": psutil.disk_usage('/').percent,
-            "load_average": psutil.getloadavg()[0] if hasattr(psutil, 'getloadavg') else 0,
+            "disk_percent": psutil.disk_usage("/").percent,
+            "load_average": (
+                psutil.getloadavg()[0] if hasattr(psutil, "getloadavg") else 0
+            ),
             "uptime": (datetime.now() - self.start_time).total_seconds(),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     async def collect_database_metrics(self) -> Dict[str, Any]:
@@ -40,28 +44,36 @@ class MonitoringDashboard:
         try:
             # Test database connectivity
             result = subprocess.run(
-                ['psql', '-d', 'psychsync_db', '-c', 'SELECT COUNT(*) as user_count FROM users'],
-                capture_output=True, text=True, timeout=5
+                [
+                    "psql",
+                    "-d",
+                    "psychsync_db",
+                    "-c",
+                    "SELECT COUNT(*) as user_count FROM users",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
 
             if result.returncode == 0:
-                user_count = result.stdout.strip().split('\n')[-2]
+                user_count = result.stdout.strip().split("\n")[-2]
                 return {
                     "status": "connected",
                     "user_count": int(user_count) if user_count.isdigit() else 0,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             else:
                 return {
                     "status": "error",
                     "error": result.stderr.strip(),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
         except Exception as e:
             return {
                 "status": "error",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
     async def collect_api_metrics(self) -> Dict[str, Any]:
@@ -70,10 +82,7 @@ class MonitoringDashboard:
             import requests
 
             # Test API health endpoint
-            response = requests.get(
-                "http://localhost:8000/api/v1/health",
-                timeout=5
-            )
+            response = requests.get("http://localhost:8000/api/v1/health", timeout=5)
 
             if response.status_code == 200:
                 response_time = response.elapsed.total_seconds() * 1000
@@ -81,19 +90,19 @@ class MonitoringDashboard:
                     "status": "healthy",
                     "response_time_ms": round(response_time, 2),
                     "status_code": response.status_code,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
             else:
                 return {
                     "status": "unhealthy",
                     "status_code": response.status_code,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
         except Exception as e:
             return {
                 "status": "error",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
     async def collect_redis_metrics(self) -> Dict[str, Any]:
@@ -102,7 +111,7 @@ class MonitoringDashboard:
             import redis
 
             # Connect to Redis
-            r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+            r = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
             # Test Redis connection
             r.ping()
@@ -112,16 +121,16 @@ class MonitoringDashboard:
 
             return {
                 "status": "connected",
-                "used_memory_mb": round(info.get('used_memory', 0) / 1024 / 1024, 2),
-                "connected_clients": info.get('connected_clients', 0),
-                "total_commands_processed": info.get('total_commands_processed', 0),
-                "timestamp": datetime.now().isoformat()
+                "used_memory_mb": round(info.get("used_memory", 0) / 1024 / 1024, 2),
+                "connected_clients": info.get("connected_clients", 0),
+                "total_commands_processed": info.get("total_commands_processed", 0),
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             return {
                 "status": "error",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
     def check_alerts(self) -> List[Dict[str, Any]]:
@@ -130,55 +139,67 @@ class MonitoringDashboard:
 
         # System alerts
         if self.metrics.get("system", {}).get("cpu_percent", 0) > 80:
-            alerts.append({
-                "level": "WARNING",
-                "source": "system",
-                "message": f"High CPU usage: {self.metrics['system']['cpu_percent']:.1f}%",
-                "timestamp": datetime.now().isoformat()
-            })
+            alerts.append(
+                {
+                    "level": "WARNING",
+                    "source": "system",
+                    "message": f"High CPU usage: {self.metrics['system']['cpu_percent']:.1f}%",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         if self.metrics.get("system", {}).get("memory_percent", 0) > 85:
-            alerts.append({
-                "level": "WARNING",
-                "source": "system",
-                "message": f"High memory usage: {self.metrics['system']['memory_percent']:.1f}%",
-                "timestamp": datetime.now().isoformat()
-            })
+            alerts.append(
+                {
+                    "level": "WARNING",
+                    "source": "system",
+                    "message": f"High memory usage: {self.metrics['system']['memory_percent']:.1f}%",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         # Database alerts
         if self.metrics.get("database", {}).get("status") != "connected":
-            alerts.append({
-                "level": "CRITICAL",
-                "source": "database",
-                "message": "Database connection failed",
-                "timestamp": datetime.now().isoformat()
-            })
+            alerts.append(
+                {
+                    "level": "CRITICAL",
+                    "source": "database",
+                    "message": "Database connection failed",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         # API alerts
         if self.metrics.get("api", {}).get("status") != "healthy":
-            alerts.append({
-                "level": "CRITICAL",
-                "source": "api",
-                "message": "API health check failed",
-                "timestamp": datetime.now().isoformat()
-            })
+            alerts.append(
+                {
+                    "level": "CRITICAL",
+                    "source": "api",
+                    "message": "API health check failed",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         if self.metrics.get("api", {}).get("response_time_ms", 0) > 1000:
-            alerts.append({
-                "level": "WARNING",
-                "source": "api",
-                "message": f"Slow API response: {self.metrics['api']['response_time_ms']:.0f}ms",
-                "timestamp": datetime.now().isoformat()
-            })
+            alerts.append(
+                {
+                    "level": "WARNING",
+                    "source": "api",
+                    "message": f"Slow API response: {self.metrics['api']['response_time_ms']:.0f}ms",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         # Redis alerts
         if self.metrics.get("redis", {}).get("status") != "connected":
-            alerts.append({
-                "level": "WARNING",
-                "source": "redis",
-                "message": "Redis connection failed",
-                "timestamp": datetime.now().isoformat()
-            })
+            alerts.append(
+                {
+                    "level": "WARNING",
+                    "source": "redis",
+                    "message": "Redis connection failed",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         return alerts
 
@@ -193,10 +214,10 @@ class MonitoringDashboard:
 
     def display_dashboard(self):
         """Display monitoring dashboard"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print(f"🚀 PSYCHSYNC PRODUCTION MONITORING DASHBOARD")
         print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("="*80)
+        print("=" * 80)
 
         # System Metrics
         sys_metrics = self.metrics.get("system", {})
@@ -229,7 +250,9 @@ class MonitoringDashboard:
         print(f"   Status: {redis_metrics.get('status', 'unknown').upper()}")
         if redis_metrics.get("status") == "connected":
             print(f"   Memory Usage: {redis_metrics.get('used_memory_mb', 0):.1f}MB")
-            print(f"   Connected Clients: {redis_metrics.get('connected_clients', 0):,}")
+            print(
+                f"   Connected Clients: {redis_metrics.get('connected_clients', 0):,}"
+            )
 
         # Alerts
         alerts = self.metrics.get("alerts", [])
@@ -246,11 +269,13 @@ class MonitoringDashboard:
         print(f"   Overall Score: 36.4/100 (Grade F)")
         print(f"   Status: Phase 2 Complete - Ready for Phase 3")
 
-        print("="*80)
+        print("=" * 80)
 
     async def run_monitoring_session(self, duration_minutes=5):
         """Run monitoring for specified duration"""
-        print(f"🚀 Starting PsychSync Monitoring Dashboard ({duration_minutes} minutes)")
+        print(
+            f"🚀 Starting PsychSync Monitoring Dashboard ({duration_minutes} minutes)"
+        )
         print("Press Ctrl+C to stop monitoring\n")
 
         start_time = time.time()
@@ -262,7 +287,8 @@ class MonitoringDashboard:
 
                 # Clear screen and display dashboard
                 import os
-                os.system('clear' if os.name == 'posix' else 'cls')
+
+                os.system("clear" if os.name == "posix" else "cls")
 
                 self.display_dashboard()
 
@@ -281,10 +307,11 @@ class MonitoringDashboard:
         """Save current metrics to file"""
         try:
             metrics_file = Path("monitoring_metrics.json")
-            with open(metrics_file, 'w') as f:
+            with open(metrics_file, "w") as f:
                 json.dump(self.metrics, f, indent=2)
         except Exception as e:
             print(f"Failed to save metrics: {e}")
+
 
 async def main():
     """Main monitoring function"""
@@ -299,7 +326,7 @@ async def main():
     # Ask user if they want continuous monitoring
     try:
         choice = input("\n🔄 Start continuous monitoring? (y/N): ").lower().strip()
-        if choice in ['y', 'yes']:
+        if choice in ["y", "yes"]:
             duration = input("⏱️  Monitoring duration in minutes (default 5): ").strip()
             duration = int(duration) if duration.isdigit() else 5
             await dashboard.run_monitoring_session(duration)
@@ -307,6 +334,7 @@ async def main():
             print("✅ One-time monitoring complete")
     except KeyboardInterrupt:
         print("\n🛑 Monitoring stopped")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -14,25 +14,27 @@ Features:
 - Event handlers (app mentions, reactions)
 - Scheduled messages and reminders
 """
-from typing import Dict, Any, Optional, List
+
+import asyncio
 import logging
 from datetime import datetime, timedelta
-from slack_sdk import WebClient
-from slack_sdk.errors import SlackApiError
+from typing import Any, Dict, List, Optional
+
 from slack_bolt import App
 from slack_bolt.adapter.fastapi import SlackRequestHandler
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_async_db
-from app.db.models.user import User
-from app.db.models.team import Team
 from app.db.models.response import Response
+from app.db.models.team import Team
+from app.db.models.user import User
+from app.integrations.slack.client import SlackClient
 from app.services.assessment_service import AssessmentService
 from app.services.user_service import UserService
-from app.integrations.slack.client import SlackClient
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +53,7 @@ class SlackBotHandler:
     def __init__(self):
         """Initialize Slack Bolt app"""
         self.app = App(
-            token=settings.SLACK_BOT_TOKEN,
-            signing_secret=settings.SLACK_SIGNING_SECRET
+            token=settings.SLACK_BOT_TOKEN, signing_secret=settings.SLACK_SIGNING_SECRET
         )
         self.client = SlackClient()
         self.handler = SlackRequestHandler(self.app)
@@ -91,9 +92,11 @@ class SlackBotHandler:
             elif text == "report":
                 respond(self._generate_team_report(user_id))
             else:
-                respond({
-                    "text": f"Unknown command: `{text}`\nType `/psychsync help` for available commands."
-                })
+                respond(
+                    {
+                        "text": f"Unknown command: `{text}`\nType `/psychsync help` for available commands."
+                    }
+                )
 
         # Quick check-in: /checkin
         @self.app.command("/checkin")
@@ -107,8 +110,7 @@ class SlackBotHandler:
 
             # Open modal for check-in
             client.views_open(
-                trigger_id=command["trigger_id"],
-                view=self._get_checkin_modal()
+                trigger_id=command["trigger_id"], view=self._get_checkin_modal()
             )
 
         # Wellness status: /wellness
@@ -132,9 +134,7 @@ class SlackBotHandler:
             elif text == "team":
                 respond(self._get_team_wellness(user_id))
             else:
-                respond({
-                    "text": "Usage: `/wellness` or `/wellness team`"
-                })
+                respond({"text": "Usage: `/wellness` or `/wellness team`"})
 
         # Take assessment: /assess
         @self.app.command("/assess")
@@ -148,7 +148,7 @@ class SlackBotHandler:
 
             client.views_open(
                 trigger_id=command["trigger_id"],
-                view=self._get_assessment_selection_modal()
+                view=self._get_assessment_selection_modal(),
             )
 
     def _register_events(self):
@@ -172,9 +172,11 @@ class SlackBotHandler:
             elif "help" in text:
                 say(self._get_help_message())
             else:
-                say({
-                    "text": f"Hi <@{user}>! 👋\n\nI can help you with:\n• Check your wellness status\n• View team insights\n• Take assessments\n\nTry `/psychsync help` for more commands!"
-                })
+                say(
+                    {
+                        "text": f"Hi <@{user}>! 👋\n\nI can help you with:\n• Check your wellness status\n• View team insights\n• Take assessments\n\nTry `/psychsync help` for more commands!"
+                    }
+                )
 
         # Message in bot DM
         @self.app.event("message")
@@ -214,7 +216,9 @@ class SlackBotHandler:
             # Extract form values
             mood = values["mood_block"]["mood_select"]["selected_option"]["value"]
             stress = values["stress_block"]["stress_select"]["selected_option"]["value"]
-            notes = values.get("notes_block", {}).get("notes_input", {}).get("value", "")
+            notes = (
+                values.get("notes_block", {}).get("notes_input", {}).get("value", "")
+            )
 
             # Save check-in (integrate with your database)
             self._save_checkin(user_id, mood, stress, notes)
@@ -222,7 +226,7 @@ class SlackBotHandler:
             # Send confirmation
             client.chat_postMessage(
                 channel=user_id,
-                text=f"✅ Thanks for checking in! Your wellness score today: {self._calculate_score(mood, stress)}/100"
+                text=f"✅ Thanks for checking in! Your wellness score today: {self._calculate_score(mood, stress)}/100",
             )
 
         # Handle assessment selection
@@ -233,10 +237,14 @@ class SlackBotHandler:
 
             user_id = body["user"]["id"]
             values = view["state"]["values"]
-            assessment_type = values["assessment_block"]["assessment_select"]["selected_option"]["value"]
+            assessment_type = values["assessment_block"]["assessment_select"][
+                "selected_option"
+            ]["value"]
 
             # Generate assessment link
-            assessment_url = f"{settings.FRONTEND_URL}/assessments/start?type={assessment_type}"
+            assessment_url = (
+                f"{settings.FRONTEND_URL}/assessments/start?type={assessment_type}"
+            )
 
             client.chat_postMessage(
                 channel=user_id,
@@ -245,8 +253,8 @@ class SlackBotHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f"🎯 Ready to start your *{assessment_type}* assessment!"
-                        }
+                            "text": f"🎯 Ready to start your *{assessment_type}* assessment!",
+                        },
                     },
                     {
                         "type": "actions",
@@ -255,14 +263,14 @@ class SlackBotHandler:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Start Assessment"
+                                    "text": "Start Assessment",
                                 },
                                 "url": assessment_url,
-                                "style": "primary"
+                                "style": "primary",
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             )
 
         # Handle button clicks
@@ -284,56 +292,39 @@ class SlackBotHandler:
             "blocks": [
                 {
                     "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "🧠 PsychSync Commands"
-                    }
+                    "text": {"type": "plain_text", "text": "🧠 PsychSync Commands"},
                 },
                 {
                     "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "*Quick Commands:*"
-                    }
+                    "text": {"type": "mrkdwn", "text": "*Quick Commands:*"},
                 },
                 {
                     "type": "section",
                     "fields": [
                         {
                             "type": "mrkdwn",
-                            "text": "`/checkin`\nQuick wellness check-in"
+                            "text": "`/checkin`\nQuick wellness check-in",
                         },
-                        {
-                            "type": "mrkdwn",
-                            "text": "`/assess`\nStart new assessment"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": "`/wellness`\nView your stats"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": "`/wellness team`\nView team stats"
-                        }
-                    ]
+                        {"type": "mrkdwn", "text": "`/assess`\nStart new assessment"},
+                        {"type": "mrkdwn", "text": "`/wellness`\nView your stats"},
+                        {"type": "mrkdwn", "text": "`/wellness team`\nView team stats"},
+                    ],
                 },
+                {"type": "divider"},
                 {
-                    "type": "divider"
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "*Main Commands:*\n• `/psychsync status` - Your wellness overview\n• `/psychsync team` - Team wellness overview\n• `/psychsync report` - Generate team report",
+                    },
                 },
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "*Main Commands:*\n• `/psychsync status` - Your wellness overview\n• `/psychsync team` - Team wellness overview\n• `/psychsync report` - Generate team report"
-                    }
+                        "text": "*Need help?* Just mention me: @PsychSync",
+                    },
                 },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "*Need help?* Just mention me: @PsychSync"
-                    }
-                }
             ]
         }
 
@@ -355,8 +346,8 @@ class SlackBotHandler:
                                 "type": "section",
                                 "text": {
                                     "type": "mrkdwn",
-                                    "text": "❌ *User not found. Please link your Slack account first.*"
-                                }
+                                    "text": "❌ *User not found. Please link your Slack account first.*",
+                                },
                             }
                         ]
                     }
@@ -395,7 +386,11 @@ class SlackBotHandler:
                     wellness_level = "Needs Attention"
                     emoji = "🔴"
 
-                last_assessment_str = last_assessment.strftime("%B %d, %Y") if last_assessment else "No assessments"
+                last_assessment_str = (
+                    last_assessment.strftime("%B %d, %Y")
+                    if last_assessment
+                    else "No assessments"
+                )
 
                 return {
                     "blocks": [
@@ -403,29 +398,29 @@ class SlackBotHandler:
                             "type": "header",
                             "text": {
                                 "type": "plain_text",
-                                "text": f"{emoji} Your Wellness Status"
-                            }
+                                "text": f"{emoji} Your Wellness Status",
+                            },
                         },
                         {
                             "type": "section",
                             "fields": [
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Wellness Level:*\n{wellness_level}"
+                                    "text": f"*Wellness Level:*\n{wellness_level}",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Average Score:*\n{avg_score:.1f}/100"
+                                    "text": f"*Average Score:*\n{avg_score:.1f}/100",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Assessments:*\n{total_assessments} (30 days)"
+                                    "text": f"*Assessments:*\n{total_assessments} (30 days)",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Last Assessment:*\n{last_assessment_str}"
-                                }
-                            ]
+                                    "text": f"*Last Assessment:*\n{last_assessment_str}",
+                                },
+                            ],
                         },
                         {
                             "type": "actions",
@@ -434,21 +429,21 @@ class SlackBotHandler:
                                     "type": "button",
                                     "text": {
                                         "type": "plain_text",
-                                        "text": "📝 Complete Assessment"
+                                        "text": "📝 Complete Assessment",
                                     },
                                     "style": "primary",
-                                    "url": f"{settings.FRONTEND_URL}/assessments"
+                                    "url": f"{settings.FRONTEND_URL}/assessments",
                                 },
                                 {
                                     "type": "button",
                                     "text": {
                                         "type": "plain_text",
-                                        "text": "📊 View Detailed Report"
+                                        "text": "📊 View Detailed Report",
                                     },
-                                    "url": f"{settings.FRONTEND_URL}/dashboard"
-                                }
-                            ]
-                        }
+                                    "url": f"{settings.FRONTEND_URL}/dashboard",
+                                },
+                            ],
+                        },
                     ]
                 }
 
@@ -460,8 +455,8 @@ class SlackBotHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "❌ *Error retrieving wellness data. Please try again later.*"
-                        }
+                            "text": "❌ *Error retrieving wellness data. Please try again later.*",
+                        },
                     }
                 ]
             }
@@ -484,8 +479,8 @@ class SlackBotHandler:
                                 "type": "section",
                                 "text": {
                                     "type": "mrkdwn",
-                                    "text": "❌ *Team not found. Please ensure you're assigned to a team.*"
-                                }
+                                    "text": "❌ *Team not found. Please ensure you're assigned to a team.*",
+                                },
                             }
                         ]
                     }
@@ -503,8 +498,8 @@ class SlackBotHandler:
                                 "type": "section",
                                 "text": {
                                     "type": "mrkdwn",
-                                    "text": "❌ *Team information not found.*"
-                                }
+                                    "text": "❌ *Team information not found.*",
+                                },
                             }
                         ]
                     }
@@ -542,8 +537,14 @@ class SlackBotHandler:
                         assessment_count += 1
 
                 # Calculate metrics
-                participation_rate = (len(members_with_assessments) / total_members * 100) if total_members > 0 else 0
-                team_average = (total_score / assessment_count) if assessment_count > 0 else 0
+                participation_rate = (
+                    (len(members_with_assessments) / total_members * 100)
+                    if total_members > 0
+                    else 0
+                )
+                team_average = (
+                    (total_score / assessment_count) if assessment_count > 0 else 0
+                )
 
                 # Determine wellness level for team
                 if team_average >= 80:
@@ -568,8 +569,14 @@ class SlackBotHandler:
                     .where(Response.created_at >= sixty_days_ago)
                     .where(Response.created_at < thirty_days_ago)
                 )
-                previous_scores = [r.score for r in previous_responses.scalars().all() if r.score]
-                previous_average = sum(previous_scores) / len(previous_scores) if previous_scores else 0
+                previous_scores = [
+                    r.score for r in previous_responses.scalars().all() if r.score
+                ]
+                previous_average = (
+                    sum(previous_scores) / len(previous_scores)
+                    if previous_scores
+                    else 0
+                )
 
                 if team_average > previous_average + 5:
                     trend = "📈 Improving"
@@ -584,38 +591,35 @@ class SlackBotHandler:
                             "type": "header",
                             "text": {
                                 "type": "plain_text",
-                                "text": f"👥 {team.name} Wellness Overview"
-                            }
+                                "text": f"👥 {team.name} Wellness Overview",
+                            },
                         },
                         {
                             "type": "section",
                             "fields": [
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Team Average:*\n{emoji} {team_average:.1f}/100"
+                                    "text": f"*Team Average:*\n{emoji} {team_average:.1f}/100",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Participation:*\n{participation_rate:.0f}% ({len(members_with_assessments)}/{total_members})"
+                                    "text": f"*Participation:*\n{participation_rate:.0f}% ({len(members_with_assessments)}/{total_members})",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Wellness Level:*\n{wellness_level}"
+                                    "text": f"*Wellness Level:*\n{wellness_level}",
                                 },
-                                {
-                                    "type": "mrkdwn",
-                                    "text": f"*Trend:*\n{trend}"
-                                }
-                            ]
+                                {"type": "mrkdwn", "text": f"*Trend:*\n{trend}"},
+                            ],
                         },
                         {
                             "type": "context",
                             "elements": [
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"📊 Based on {assessment_count} assessments in the last 30 days"
+                                    "text": f"📊 Based on {assessment_count} assessments in the last 30 days",
                                 }
-                            ]
+                            ],
                         },
                         {
                             "type": "actions",
@@ -624,21 +628,21 @@ class SlackBotHandler:
                                     "type": "button",
                                     "text": {
                                         "type": "plain_text",
-                                        "text": "📈 View Team Report"
+                                        "text": "📈 View Team Report",
                                     },
-                                    "url": f"{settings.FRONTEND_URL}/teams/{team.id}/analytics"
+                                    "url": f"{settings.FRONTEND_URL}/teams/{team.id}/analytics",
                                 },
                                 {
                                     "type": "button",
                                     "text": {
                                         "type": "plain_text",
-                                        "text": "📋 Schedule Assessment"
+                                        "text": "📋 Schedule Assessment",
                                     },
                                     "style": "primary",
-                                    "url": f"{settings.FRONTEND_URL}/teams/{team.id}/assessments"
-                                }
-                            ]
-                        }
+                                    "url": f"{settings.FRONTEND_URL}/teams/{team.id}/assessments",
+                                },
+                            ],
+                        },
                     ]
                 }
 
@@ -650,8 +654,8 @@ class SlackBotHandler:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "❌ *Error retrieving team data. Please try again later.*"
-                        }
+                            "text": "❌ *Error retrieving team data. Please try again later.*",
+                        },
                     }
                 ]
             }
@@ -661,21 +665,12 @@ class SlackBotHandler:
         return {
             "type": "modal",
             "callback_id": "checkin_modal",
-            "title": {
-                "type": "plain_text",
-                "text": "Daily Check-in"
-            },
-            "submit": {
-                "type": "plain_text",
-                "text": "Submit"
-            },
+            "title": {"type": "plain_text", "text": "Daily Check-in"},
+            "submit": {"type": "plain_text", "text": "Submit"},
             "blocks": [
                 {
                     "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "How are you feeling today?"
-                    }
+                    "text": {"type": "mrkdwn", "text": "How are you feeling today?"},
                 },
                 {
                     "type": "input",
@@ -685,35 +680,32 @@ class SlackBotHandler:
                         "action_id": "mood_select",
                         "placeholder": {
                             "type": "plain_text",
-                            "text": "Select your mood"
+                            "text": "Select your mood",
                         },
                         "options": [
                             {
                                 "text": {"type": "plain_text", "text": "😊 Great"},
-                                "value": "great"
+                                "value": "great",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "🙂 Good"},
-                                "value": "good"
+                                "value": "good",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "😐 Okay"},
-                                "value": "okay"
+                                "value": "okay",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "😟 Not great"},
-                                "value": "not_great"
+                                "value": "not_great",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "😢 Struggling"},
-                                "value": "struggling"
-                            }
-                        ]
+                                "value": "struggling",
+                            },
+                        ],
                     },
-                    "label": {
-                        "type": "plain_text",
-                        "text": "Mood"
-                    }
+                    "label": {"type": "plain_text", "text": "Mood"},
                 },
                 {
                     "type": "input",
@@ -723,35 +715,32 @@ class SlackBotHandler:
                         "action_id": "stress_select",
                         "placeholder": {
                             "type": "plain_text",
-                            "text": "Select stress level"
+                            "text": "Select stress level",
                         },
                         "options": [
                             {
                                 "text": {"type": "plain_text", "text": "1 - Very Low"},
-                                "value": "1"
+                                "value": "1",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "2 - Low"},
-                                "value": "2"
+                                "value": "2",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "3 - Moderate"},
-                                "value": "3"
+                                "value": "3",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "4 - High"},
-                                "value": "4"
+                                "value": "4",
                             },
                             {
                                 "text": {"type": "plain_text", "text": "5 - Very High"},
-                                "value": "5"
-                            }
-                        ]
+                                "value": "5",
+                            },
+                        ],
                     },
-                    "label": {
-                        "type": "plain_text",
-                        "text": "Stress Level"
-                    }
+                    "label": {"type": "plain_text", "text": "Stress Level"},
                 },
                 {
                     "type": "input",
@@ -763,15 +752,12 @@ class SlackBotHandler:
                         "multiline": True,
                         "placeholder": {
                             "type": "plain_text",
-                            "text": "Anything on your mind? (optional)"
-                        }
+                            "text": "Anything on your mind? (optional)",
+                        },
                     },
-                    "label": {
-                        "type": "plain_text",
-                        "text": "Notes"
-                    }
-                }
-            ]
+                    "label": {"type": "plain_text", "text": "Notes"},
+                },
+            ],
         }
 
     def _get_assessment_selection_modal(self) -> Dict[str, Any]:
@@ -779,21 +765,15 @@ class SlackBotHandler:
         return {
             "type": "modal",
             "callback_id": "assessment_modal",
-            "title": {
-                "type": "plain_text",
-                "text": "Start Assessment"
-            },
-            "submit": {
-                "type": "plain_text",
-                "text": "Continue"
-            },
+            "title": {"type": "plain_text", "text": "Start Assessment"},
+            "submit": {"type": "plain_text", "text": "Continue"},
             "blocks": [
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "Choose an assessment to complete:"
-                    }
+                        "text": "Choose an assessment to complete:",
+                    },
                 },
                 {
                     "type": "input",
@@ -803,33 +783,42 @@ class SlackBotHandler:
                         "action_id": "assessment_select",
                         "placeholder": {
                             "type": "plain_text",
-                            "text": "Select assessment type"
+                            "text": "Select assessment type",
                         },
                         "options": [
                             {
-                                "text": {"type": "plain_text", "text": "🔥 Burnout Assessment"},
-                                "value": "burnout"
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "🔥 Burnout Assessment",
+                                },
+                                "value": "burnout",
                             },
                             {
-                                "text": {"type": "plain_text", "text": "😰 Stress Level Check"},
-                                "value": "stress"
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "😰 Stress Level Check",
+                                },
+                                "value": "stress",
                             },
                             {
-                                "text": {"type": "plain_text", "text": "😊 Wellbeing Survey"},
-                                "value": "wellbeing"
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "😊 Wellbeing Survey",
+                                },
+                                "value": "wellbeing",
                             },
                             {
-                                "text": {"type": "plain_text", "text": "👥 Team Dynamics"},
-                                "value": "team_dynamics"
-                            }
-                        ]
+                                "text": {
+                                    "type": "plain_text",
+                                    "text": "👥 Team Dynamics",
+                                },
+                                "value": "team_dynamics",
+                            },
+                        ],
                     },
-                    "label": {
-                        "type": "plain_text",
-                        "text": "Assessment Type"
-                    }
-                }
-            ]
+                    "label": {"type": "plain_text", "text": "Assessment Type"},
+                },
+            ],
         }
 
     async def _save_checkin(self, user_id: str, mood: str, stress: str, notes: str):
@@ -858,14 +847,16 @@ class SlackBotHandler:
                     response_text=f"Mood: {mood}, Stress: {stress}, Notes: {notes}",
                     score=wellness_score,
                     response_type="daily_checkin",
-                    created_at=datetime.utcnow()
+                    created_at=datetime.utcnow(),
                 )
 
                 # Save to database
                 db.add(checkin_response)
                 await db.commit()
 
-                logger.info(f"Check-in saved for user {user.id} (Slack: {user_id}): score={wellness_score}")
+                logger.info(
+                    f"Check-in saved for user {user.id} (Slack: {user_id}): score={wellness_score}"
+                )
                 return True
 
         except Exception as e:
@@ -874,7 +865,13 @@ class SlackBotHandler:
 
     def _calculate_score(self, mood: str, stress: str) -> int:
         """Calculate wellness score from check-in"""
-        mood_scores = {"great": 100, "good": 80, "okay": 60, "not_great": 40, "struggling": 20}
+        mood_scores = {
+            "great": 100,
+            "good": 80,
+            "okay": 60,
+            "not_great": 40,
+            "struggling": 20,
+        }
         stress_scores = {"1": 20, "2": 15, "3": 10, "4": 5, "5": 0}
 
         mood_value = mood_scores.get(mood, 60)

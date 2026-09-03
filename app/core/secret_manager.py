@@ -47,7 +47,9 @@ class SecretManager:
                 salt=b"psychsync_salt",  # In production, use environment-specific salt
                 iterations=100000,
             )
-            self._encryption_key = base64.urlsafe_b64encode(kdf.derive(key_source.encode()))
+            self._encryption_key = base64.urlsafe_b64encode(
+                kdf.derive(key_source.encode())
+            )
 
         return self._encryption_key
 
@@ -118,7 +120,9 @@ class SecretManager:
             ]
 
             if any(pattern in secret_value.lower() for pattern in weak_patterns):
-                logger.error(f"SECRET SECURITY ALERT: '{secret_name}' contains weak patterns!")
+                logger.error(
+                    f"SECRET SECURITY ALERT: '{secret_name}' contains weak patterns!"
+                )
                 raise ValueError(f"Secret '{secret_name}' contains weak patterns")
 
     def encrypt_secret(self, secret_value: str) -> str:
@@ -212,7 +216,10 @@ class SecretManager:
                     validation_results["valid_count"] += 1
 
                     # Check for placeholder values
-                    if secret_value.startswith("CHANGE_ME") or secret_value == "default":
+                    if (
+                        secret_value.startswith("CHANGE_ME")
+                        or secret_value == "default"
+                    ):
                         validation_results["weak_secrets"].append(secret_name)
 
             except Exception:

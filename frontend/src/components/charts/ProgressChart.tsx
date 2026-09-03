@@ -79,7 +79,8 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({ data }) => {
               <polyline
                 points={data.map((d, i) => {
                   const x = padding + (i / (data.length - 1)) * (chartWidth - 2 * padding);
-                  const y = chartHeight - padding - (d[cat.key as keyof typeof d] / maxValue) * (chartHeight - 2 * padding);
+                  const value = d[cat.key as keyof typeof d] as number;
+                  const y = chartHeight - padding - (value / maxValue) * (chartHeight - 2 * padding);
                   return `${x},${y}`;
                 }).join(' ')}
                 fill="none"
@@ -92,7 +93,8 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({ data }) => {
               {/* Data points */}
               {data.map((d, i) => {
                 const x = padding + (i / (data.length - 1)) * (chartWidth - 2 * padding);
-                const y = chartHeight - padding - (d[cat.key as keyof typeof d] / maxValue) * (chartHeight - 2 * padding);
+                const value = d[cat.key as keyof typeof d] as number;
+                const y = chartHeight - padding - (value / maxValue) * (chartHeight - 2 * padding);
                 return (
                   <circle
                     key={i}

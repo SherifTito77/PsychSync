@@ -2,8 +2,8 @@
 Trend Analysis Service - Advanced mental health and wellness tracking with AI-powered insights
 """
 
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 import numpy as np
@@ -70,7 +70,9 @@ class TrendAnalysisService:
             patterns = await self._identify_patterns(trend_data)
 
             # Generate recommendations
-            recommendations = await self._generate_trend_recommendations(trend_data, patterns)
+            recommendations = await self._generate_trend_recommendations(
+                trend_data, patterns
+            )
 
             return {
                 "success": True,
@@ -135,9 +137,11 @@ class TrendAnalysisService:
                 overall_score = self._calculate_overall_score(domain_scores)
 
                 trend_point = {
-                    "date": response.completed_at.isoformat()
-                    if response.completed_at
-                    else datetime.utcnow().isoformat(),
+                    "date": (
+                        response.completed_at.isoformat()
+                        if response.completed_at
+                        else datetime.utcnow().isoformat()
+                    ),
                     "overall_score": overall_score,
                     "domain_scores": domain_scores,
                     "assessment_type": assessment_type,
@@ -168,7 +172,10 @@ class TrendAnalysisService:
         return "General Assessment"
 
     async def _calculate_domain_scores(
-        self, response_data: dict[str, Any], assessment_type: str, domains: list[str] | None = None
+        self,
+        response_data: dict[str, Any],
+        assessment_type: str,
+        domains: list[str] | None = None,
     ) -> dict[str, float]:
         """Calculate domain-specific scores from response data"""
 
@@ -301,14 +308,18 @@ class TrendAnalysisService:
                         domain_trends[domain] = self._calculate_trend_direction(scores)
 
                 # Best improving domain
-                improving_domains = [d for d, t in domain_trends.items() if t == "improving"]
+                improving_domains = [
+                    d for d, t in domain_trends.items() if t == "improving"
+                ]
                 if improving_domains:
                     insights.append(
                         f"Your {improving_domains[0]} wellness is showing the most improvement. This is a great strength to build upon."
                     )
 
                 # Areas needing attention
-                declining_domains = [d for d, t in domain_trends.items() if t == "declining"]
+                declining_domains = [
+                    d for d, t in domain_trends.items() if t == "declining"
+                ]
                 if declining_domains:
                     insights.append(
                         f"Consider focusing more attention on your {declining_domains[0]} wellness, which shows room for improvement."
@@ -323,7 +334,9 @@ class TrendAnalysisService:
 
             # Recent change insights
             if len(recent_data) >= 3:
-                recent_change = recent_data[-1]["overall_score"] - recent_data[0]["overall_score"]
+                recent_change = (
+                    recent_data[-1]["overall_score"] - recent_data[0]["overall_score"]
+                )
                 if abs(recent_change) > 0.1:
                     if recent_change > 0:
                         insights.append(
@@ -360,12 +373,16 @@ class TrendAnalysisService:
             return "declining"
         return "stable"
 
-    def _calculate_assessment_frequency(self, trend_data: list[dict[str, Any]]) -> float:
+    def _calculate_assessment_frequency(
+        self, trend_data: list[dict[str, Any]]
+    ) -> float:
         """Calculate assessment frequency (assessments per month)"""
         if len(trend_data) < 2:
             return 0
 
-        dates = [datetime.fromisoformat(d["date"].replace("Z", "+00:00")) for d in trend_data]
+        dates = [
+            datetime.fromisoformat(d["date"].replace("Z", "+00:00")) for d in trend_data
+        ]
         time_span = (max(dates) - min(dates)).days
 
         if time_span == 0:
@@ -373,7 +390,9 @@ class TrendAnalysisService:
 
         return (len(trend_data) / time_span) * 30  # Convert to monthly frequency
 
-    async def _identify_patterns(self, trend_data: list[dict[str, Any]]) -> dict[str, Any]:
+    async def _identify_patterns(
+        self, trend_data: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Identify patterns in the trend data"""
         patterns = {}
 
@@ -382,7 +401,10 @@ class TrendAnalysisService:
                 return {"message": "More data needed for pattern analysis"}
 
             # Time-based patterns
-            dates = [datetime.fromisoformat(d["date"].replace("Z", "+00:00")) for d in trend_data]
+            dates = [
+                datetime.fromisoformat(d["date"].replace("Z", "+00:00"))
+                for d in trend_data
+            ]
             scores = [d["overall_score"] for d in trend_data]
 
             # Weekly patterns
@@ -403,18 +425,19 @@ class TrendAnalysisService:
                 patterns["weekly_pattern"] = {
                     "best_day": best_day,
                     "worst_day": worst_day,
-                    "average_range": max(weekly_averages.values()) - min(weekly_averages.values()),
+                    "average_range": max(weekly_averages.values())
+                    - min(weekly_averages.values()),
                 }
 
             # Variability analysis
             score_variance = np.var(scores)
             patterns["variability"] = {
                 "variance": score_variance,
-                "stability": "high"
-                if score_variance < 0.01
-                else "medium"
-                if score_variance < 0.05
-                else "low",
+                "stability": (
+                    "high"
+                    if score_variance < 0.01
+                    else "medium" if score_variance < 0.05 else "low"
+                ),
             }
 
             # Peak and low points
@@ -534,7 +557,9 @@ class TrendAnalysisService:
             }
 
         scores = [d["overall_score"] for d in trend_data]
-        dates = [datetime.fromisoformat(d["date"].replace("Z", "+00:00")) for d in trend_data]
+        dates = [
+            datetime.fromisoformat(d["date"].replace("Z", "+00:00")) for d in trend_data
+        ]
 
         return {
             "total_assessments": len(trend_data),
@@ -560,13 +585,18 @@ class TrendAnalysisService:
 
         return end_date - time_ranges.get(time_range, timedelta(days=90))
 
-    async def get_domain_comparison(self, user_id: str, time_range: str = "3m") -> dict[str, Any]:
+    async def get_domain_comparison(
+        self, user_id: str, time_range: str = "3m"
+    ) -> dict[str, Any]:
         """Get domain-specific comparison and analysis"""
         try:
             trend_result = await self.get_user_trend_data(user_id, time_range)
 
             if not trend_result["success"] or not trend_result["data"]["trend_data"]:
-                return {"success": False, "error": "No trend data available for comparison"}
+                return {
+                    "success": False,
+                    "error": "No trend data available for comparison",
+                }
 
             trend_data = trend_result["data"]["trend_data"]
 
@@ -603,16 +633,22 @@ class TrendAnalysisService:
                 "success": True,
                 "data": {
                     "domain_analysis": domain_analysis,
-                    "strongest_domain": max(
-                        domain_analysis.keys(), key=lambda d: domain_analysis[d]["average"]
-                    )
-                    if domain_analysis
-                    else None,
-                    "most_improved_domain": max(
-                        domain_analysis.keys(), key=lambda d: domain_analysis[d]["improvement"]
-                    )
-                    if domain_analysis
-                    else None,
+                    "strongest_domain": (
+                        max(
+                            domain_analysis.keys(),
+                            key=lambda d: domain_analysis[d]["average"],
+                        )
+                        if domain_analysis
+                        else None
+                    ),
+                    "most_improved_domain": (
+                        max(
+                            domain_analysis.keys(),
+                            key=lambda d: domain_analysis[d]["improvement"],
+                        )
+                        if domain_analysis
+                        else None
+                    ),
                     "attention_needed": [
                         d
                         for d, analysis in domain_analysis.items()

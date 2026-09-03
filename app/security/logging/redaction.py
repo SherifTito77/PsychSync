@@ -27,7 +27,7 @@ class RedactionRule:
         pattern: Pattern,
         replacement: str = "***REDACTED***",
         hash_value: bool = False,
-        preserve_length: bool = False
+        preserve_length: bool = False,
     ):
         self.name = name
         self.pattern = pattern
@@ -69,86 +69,74 @@ class DataRedactor:
     PATTERNS = {
         # Email addresses
         "email": re.compile(
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-            re.IGNORECASE
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", re.IGNORECASE
         ),
-
         # IP addresses (optional - redact by default for privacy)
-        "ip_address": re.compile(
-            r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
-            re.IGNORECASE
-        ),
-
+        "ip_address": re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", re.IGNORECASE),
         # Credit card numbers (Luhn algorithm validation not applied for speed)
-        "credit_card": re.compile(
-            r"\b(?:\d[ -]*?){13,16}\b",
-            re.IGNORECASE
-        ),
-
+        "credit_card": re.compile(r"\b(?:\d[ -]*?){13,16}\b", re.IGNORECASE),
         # SSN (US Social Security Number)
-        "ssn": re.compile(
-            r"\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b",
-            re.IGNORECASE
-        ),
-
+        "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b", re.IGNORECASE),
         # Phone numbers
         "phone": re.compile(
             r"\b(?:\+?1[-. ]?)?\(?[0-9]{3}\)?[-. ]?[0-9]{3}[-. ]?[0-9]{4}\b",
-            re.IGNORECASE
+            re.IGNORECASE,
         ),
-
         # API keys and tokens
-        "api_key_bearer": re.compile(
-            r"Bearer\s+[A-Za-z0-9\-._~+/]+=*",
-            re.IGNORECASE
-        ),
+        "api_key_bearer": re.compile(r"Bearer\s+[A-Za-z0-9\-._~+/]+=*", re.IGNORECASE),
         "api_key_generic": re.compile(
             r"(?:api[_-]?key|apikey|token)\s*[:=]\s*[A-Za-z0-9\-._~+/]{20,}",
-            re.IGNORECASE
+            re.IGNORECASE,
         ),
-
         # Passwords in JSON/logs
         "password_field": re.compile(
             r'(["\']?(?:password|passwd|pwd|secret|token|api_key|access_key)["\']?\s*[:=]\s*["\'])([^"\']+)(["\'])',
-            re.IGNORECASE
+            re.IGNORECASE,
         ),
-
         # AWS keys
-        "aws_access_key": re.compile(
-            r"(?:AKIA|ASIA)[A-Z0-9]{16}",
-            re.IGNORECASE
-        ),
-
+        "aws_access_key": re.compile(r"(?:AKIA|ASIA)[A-Z0-9]{16}", re.IGNORECASE),
         # JWT tokens
         "jwt": re.compile(
-            r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*",
-            re.IGNORECASE
+            r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*", re.IGNORECASE
         ),
-
         # URLs with potential credentials
-        "url_with_creds": re.compile(
-            r"(https?://)[^:\s]+:[^@\s]+@",
-            re.IGNORECASE
-        ),
-
+        "url_with_creds": re.compile(r"(https?://)[^:\s]+:[^@\s]+@", re.IGNORECASE),
         # UUIDs (optional - can identify users)
         "uuid": re.compile(
             r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
-            re.IGNORECASE
+            re.IGNORECASE,
         ),
     }
 
     # Keywords that indicate sensitive data in structured data
     SENSITIVE_KEYWORDS = [
-        "password", "passwd", "pwd",
-        "secret", "token", "api_key", "apikey", "access_key", "accesskey",
-        "auth_token", "auth_token",
-        "session_id", "sessionid",
-        "private_key", "privatekey", "public_key", "publickey",
-        "ssn", "social_security",
-        "credit_card", "card_number", "cvv", "cvc",
-        "bank_account", "account_number",
-        "pin", "passcode",
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "access_key",
+        "accesskey",
+        "auth_token",
+        "auth_token",
+        "session_id",
+        "sessionid",
+        "private_key",
+        "privatekey",
+        "public_key",
+        "publickey",
+        "ssn",
+        "social_security",
+        "credit_card",
+        "card_number",
+        "cvv",
+        "cvc",
+        "bank_account",
+        "account_number",
+        "pin",
+        "passcode",
     ]
 
     def __init__(
@@ -180,48 +168,65 @@ class DataRedactor:
     def _build_rules(self):
         """Build redaction rules based on configuration"""
         if self.redact_email:
-            self.rules.append(RedactionRule(
-                "email",
-                self.PATTERNS["email"],
-                hash_value=self.hash_mode
-            ))
+            self.rules.append(
+                RedactionRule(
+                    "email", self.PATTERNS["email"], hash_value=self.hash_mode
+                )
+            )
 
         if self.redact_phone:
-            self.rules.append(RedactionRule(
-                "phone",
-                self.PATTERNS["phone"],
-                hash_value=self.hash_mode
-            ))
+            self.rules.append(
+                RedactionRule(
+                    "phone", self.PATTERNS["phone"], hash_value=self.hash_mode
+                )
+            )
 
         if self.redact_ssn:
-            self.rules.append(RedactionRule(
-                "ssn",
-                self.PATTERNS["ssn"],
-                "***-**-****",
-                preserve_length=True
-            ))
+            self.rules.append(
+                RedactionRule(
+                    "ssn", self.PATTERNS["ssn"], "***-**-****", preserve_length=True
+                )
+            )
 
         if self.redact_credit_card:
-            self.rules.append(RedactionRule(
-                "credit_card",
-                self.PATTERNS["credit_card"],
-                preserve_length=True
-            ))
+            self.rules.append(
+                RedactionRule(
+                    "credit_card", self.PATTERNS["credit_card"], preserve_length=True
+                )
+            )
 
         if self.redact_api_keys:
-            self.rules.append(RedactionRule("api_key_bearer", self.PATTERNS["api_key_bearer"]))
-            self.rules.append(RedactionRule("api_key_generic", self.PATTERNS["api_key_generic"]))
-            self.rules.append(RedactionRule("aws_access_key", self.PATTERNS["aws_access_key"]))
-            self.rules.append(RedactionRule("password_field", self.PATTERNS["password_field"], r"\1***REDACTED***\3"))
+            self.rules.append(
+                RedactionRule("api_key_bearer", self.PATTERNS["api_key_bearer"])
+            )
+            self.rules.append(
+                RedactionRule("api_key_generic", self.PATTERNS["api_key_generic"])
+            )
+            self.rules.append(
+                RedactionRule("aws_access_key", self.PATTERNS["aws_access_key"])
+            )
+            self.rules.append(
+                RedactionRule(
+                    "password_field",
+                    self.PATTERNS["password_field"],
+                    r"\1***REDACTED***\3",
+                )
+            )
 
         if self.redact_jwt:
             self.rules.append(RedactionRule("jwt", self.PATTERNS["jwt"], "[JWT]"))
 
         if self.redact_ip:
-            self.rules.append(RedactionRule("ip_address", self.PATTERNS["ip_address"], hash_value=self.hash_mode))
+            self.rules.append(
+                RedactionRule(
+                    "ip_address", self.PATTERNS["ip_address"], hash_value=self.hash_mode
+                )
+            )
 
         if self.redact_uuid:
-            self.rules.append(RedactionRule("uuid", self.PATTERNS["uuid"], hash_value=self.hash_mode))
+            self.rules.append(
+                RedactionRule("uuid", self.PATTERNS["uuid"], hash_value=self.hash_mode)
+            )
 
     def redact_string(self, text: str) -> str:
         """

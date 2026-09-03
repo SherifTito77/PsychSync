@@ -7,9 +7,9 @@ import base64
 import io
 import secrets
 
-from passlib.context import CryptContext
 import pyotp
 import qrcode
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.db.models.user import User
@@ -125,7 +125,9 @@ class TwoFactorService:
         """
         return pwd_context.hash(code)
 
-    def verify_recovery_code(self, code: str, hashed_codes: list[str]) -> tuple[bool, str | None]:
+    def verify_recovery_code(
+        self, code: str, hashed_codes: list[str]
+    ) -> tuple[bool, str | None]:
         """
         Verify a recovery code
 
@@ -161,7 +163,9 @@ class TwoFactorService:
 
         # Generate recovery codes
         recovery_codes = self.generate_recovery_codes()
-        hashed_recovery_codes = [self.hash_recovery_code(code) for code in recovery_codes]
+        hashed_recovery_codes = [
+            self.hash_recovery_code(code) for code in recovery_codes
+        ]
 
         # Generate QR code
         totp_uri = self.generate_totp_uri(secret, user.email)
@@ -221,7 +225,9 @@ class TwoFactorService:
 
         # Try recovery codes
         if user.two_factor_recovery_codes:
-            is_valid, hashed = self.verify_recovery_code(code, user.two_factor_recovery_codes)
+            is_valid, hashed = self.verify_recovery_code(
+                code, user.two_factor_recovery_codes
+            )
             if is_valid and hashed:
                 # Remove used recovery code
                 user.two_factor_recovery_codes = [
@@ -242,7 +248,9 @@ class TwoFactorService:
         Returns:
             Number of remaining recovery codes
         """
-        return len(user.two_factor_recovery_codes) if user.two_factor_recovery_codes else 0
+        return (
+            len(user.two_factor_recovery_codes) if user.two_factor_recovery_codes else 0
+        )
 
 
 # Singleton instance

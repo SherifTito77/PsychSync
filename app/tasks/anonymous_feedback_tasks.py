@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 
 from celery import Celery
@@ -31,7 +31,11 @@ def send_critical_feedback_alert(feedback_id: str) -> dict[str, Any]:
         from app.db.models.organization import Organization
         from app.db.models.user import User
 
-        feedback = db.query(AnonymousFeedback).filter(AnonymousFeedback.id == feedback_id).first()
+        feedback = (
+            db.query(AnonymousFeedback)
+            .filter(AnonymousFeedback.id == feedback_id)
+            .first()
+        )
 
         if not feedback:
             logger.error(f"Feedback not found: {feedback_id}")
@@ -39,20 +43,29 @@ def send_critical_feedback_alert(feedback_id: str) -> dict[str, Any]:
 
         # Get organization details
         organization = (
-            db.query(Organization).filter(Organization.id == feedback.organization_id).first()
+            db.query(Organization)
+            .filter(Organization.id == feedback.organization_id)
+            .first()
         )
 
         # Get HR contacts for immediate notification
         hr_contacts = (
             db.query(User)
-            .filter(User.organization_id == feedback.organization_id, User.is_active == True)
+            .filter(
+                User.organization_id == feedback.organization_id, User.is_active == True
+            )
             .all()
         )
 
         # Prepare email content
-        severity_urgency = {"critical": "IMMEDIATE ACTION REQUIRED", "high": "HIGH PRIORITY"}
+        severity_urgency = {
+            "critical": "IMMEDIATE ACTION REQUIRED",
+            "high": "HIGH PRIORITY",
+        }
 
-        email_subject = f"🚨 CRITICAL Anonymous Feedback Alert - {feedback.severity.upper()}"
+        email_subject = (
+            f"🚨 CRITICAL Anonymous Feedback Alert - {feedback.severity.upper()}"
+        )
 
         email_content = f"""
         IMMEDIATE ATTENTION REQUIRED
@@ -98,7 +111,9 @@ def send_critical_feedback_alert(feedback_id: str) -> dict[str, Any]:
                 )
                 sent_count += 1
             except Exception as e:
-                logger.error(f"Failed to send critical alert to {hr_contact.email}: {e}")
+                logger.error(
+                    f"Failed to send critical alert to {hr_contact.email}: {e}"
+                )
 
         # Log alert delivery
         logger.info(
@@ -142,7 +157,9 @@ def send_daily_feedback_digest(organization_id: str) -> dict[str, Any]:
         # Get yesterday's feedback
         yesterday = datetime.utcnow() - timedelta(days=1)
         start_of_day = yesterday.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_of_day = yesterday.replace(hour=23, minute=59, second=59, microsecond=999999)
+        end_of_day = yesterday.replace(
+            hour=23, minute=59, second=59, microsecond=999999
+        )
 
         feedbacks = (
             db.query(AnonymousFeedback)
@@ -159,7 +176,9 @@ def send_daily_feedback_digest(organization_id: str) -> dict[str, Any]:
             return {"success": True, "message": "No new feedback to report"}
 
         # Get organization details
-        organization = db.query(Organization).filter(Organization.id == organization_id).first()
+        organization = (
+            db.query(Organization).filter(Organization.id == organization_id).first()
+        )
 
         # Categorize feedback
         severity_counts = {}
@@ -168,10 +187,14 @@ def send_daily_feedback_digest(organization_id: str) -> dict[str, Any]:
 
         for feedback in feedbacks:
             # Count by severity
-            severity_counts[feedback.severity] = severity_counts.get(feedback.severity, 0) + 1
+            severity_counts[feedback.severity] = (
+                severity_counts.get(feedback.severity, 0) + 1
+            )
 
             # Count by category
-            category_counts[feedback.category] = category_counts.get(feedback.category, 0) + 1
+            category_counts[feedback.category] = (
+                category_counts.get(feedback.category, 0) + 1
+            )
 
             # Track critical items
             if feedback.severity in ["critical", "high"]:
@@ -203,9 +226,7 @@ def send_daily_feedback_digest(organization_id: str) -> dict[str, Any]:
             email_content += f"- {category.replace('_', ' ').title()}: {count}\n"
 
         if pending_critical:
-            email_content += (
-                f"\n⚠️  High Priority Items Requiring Immediate Review ({len(pending_critical)}):\n"
-            )
+            email_content += f"\n⚠️  High Priority Items Requiring Immediate Review ({len(pending_critical)}):\n"
             for item in pending_critical:
                 email_content += f"- {item['category'].title()} ({item['severity'].upper()}) - Submitted {item['submitted_at']}\n"
 
@@ -328,7 +349,9 @@ def follow_up_on_pending_feedback() -> dict[str, Any]:
                 from app.db.models.organization import Organization
                 from app.db.models.user import User
 
-                organization = db.query(Organization).filter(Organization.id == org_id).first()
+                organization = (
+                    db.query(Organization).filter(Organization.id == org_id).first()
+                )
 
                 hr_contacts = (
                     db.query(User)
@@ -387,7 +410,9 @@ def follow_up_on_pending_feedback() -> dict[str, Any]:
                         )
                         escalation_count += 1
                     except Exception as e:
-                        logger.error(f"Failed to send escalation to {hr_contact.email}: {e}")
+                        logger.error(
+                            f"Failed to send escalation to {hr_contact.email}: {e}"
+                        )
 
             except Exception as e:
                 logger.error(f"Failed to process escalation for org {org_id}: {e}")
@@ -412,7 +437,9 @@ def follow_up_on_pending_feedback() -> dict[str, Any]:
 
 
 @celery_app.task(name="generate_monthly_anonymous_feedback_report")
-async def generate_monthly_anonymous_feedback_report(organization_id: str) -> dict[str, Any]:
+async def generate_monthly_anonymous_feedback_report(
+    organization_id: str,
+) -> dict[str, Any]:
     """
     Generate monthly anonymous feedback analytics report
 
@@ -431,7 +458,9 @@ async def generate_monthly_anonymous_feedback_report(organization_id: str) -> di
         # Get organization details
         from app.db.models.organization import Organization
 
-        organization = db.query(Organization).filter(Organization.id == organization_id).first()
+        organization = (
+            db.query(Organization).filter(Organization.id == organization_id).first()
+        )
 
         # Prepare monthly report
         report_data = {

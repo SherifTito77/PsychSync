@@ -2,12 +2,13 @@
 Comprehensive test suite for Assessment Integration Service
 """
 
-import pytest
-import json
 import asyncio
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime, timedelta
+import json
 import time
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 
 class TestAssessmentIntegrationService:

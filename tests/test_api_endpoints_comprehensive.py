@@ -9,18 +9,19 @@ Comprehensive API endpoint testing
 - Security and authorization
 """
 
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from unittest.mock import patch, AsyncMock
-from typing import Dict, Any, List
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.user import User, UserRole
-from app.db.models.team import Team, TeamMember, TeamRole
 from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
 from app.db.models.organization import Organization
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User, UserRole
 
 
 @pytest.mark.integration

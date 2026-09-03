@@ -18,29 +18,34 @@ Author: Security Team
 Version: 3.0 Enterprise Security
 """
 
-import pytest
 import asyncio
-from datetime import datetime, timedelta
-from uuid import uuid4
-from typing import Dict, Any
 import json
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict
+from uuid import uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession
+import pytest
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_async_db
-from app.core.security import verify_password, create_access_token, create_password_hash
-from app.core.row_level_security import rls_manager, execute_secure_query
-from app.db.models.user_secure import SecureUser, UserRole, DataClassification
-from app.db.models.organization_secure import SecureOrganization, OrganizationType
-from app.db.models.team_secure import SecureTeam, TeamRole
-from app.schemas.user_secure import UserCreateSecure, UserReadSecure
 from app.core.config import settings
+from app.core.database import get_async_db
+from app.core.row_level_security import execute_secure_query, rls_manager
+from app.db.models.organization_secure import OrganizationType, SecureOrganization
+from app.db.models.team_secure import SecureTeam, TeamRole
+from app.db.models.user_secure import DataClassification, SecureUser, UserRole
+from app.schemas.user_secure import UserCreateSecure, UserReadSecure
+from app.services.security import (
+    create_access_token,
+    create_password_hash,
+    verify_password,
+)
 
 # Test configuration
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('security_tests')
+logger = logging.getLogger("security_tests")
+
 
 class TestFieldLevelEncryption:
     """Test field-level encryption implementation"""
@@ -57,7 +62,7 @@ class TestFieldLevelEncryption:
             full_name="Test Encryption User",
             phone_number="+1-555-123-4567",
             address="123 Test Street, Test City, TC 12345",
-            data_classification=DataClassification.PERSONAL
+            data_classification=DataClassification.PERSONAL,
         )
 
         session.add(user)
@@ -66,8 +71,10 @@ class TestFieldLevelEncryption:
 
         # Verify that sensitive fields are encrypted in database
         result = await session.execute(
-            text("SELECT full_name_encrypted, phone_number_encrypted, address_encrypted FROM users_secure WHERE id = :user_id"),
-            {"user_id": user.id}
+            text(
+                "SELECT full_name_encrypted, phone_number_encrypted, address_encrypted FROM users_secure WHERE id = :user_id"
+            ),
+            {"user_id": user.id},
         )
         row = result.first()
 
@@ -92,7 +99,7 @@ class TestFieldLevelEncryption:
             user_ref="key_rotation_" + str(uuid4())[:8],
             email="keyrotation@test.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            full_name=test_data
+            full_name=test_data,
         )
 
         session.add(user)
@@ -102,6 +109,7 @@ class TestFieldLevelEncryption:
         # Verify the encrypted data can be decrypted
         assert user.full_name == test_data
 
+
 class TestRowLevelSecurity:
     """Test row-level security implementation"""
 
@@ -110,12 +118,10 @@ class TestRowLevelSecurity:
         """Test organization-based data isolation"""
         # Create two organizations
         org1 = SecureOrganization(
-            name="Test Organization 1",
-            organization_type=OrganizationType.CORPORATION
+            name="Test Organization 1", organization_type=OrganizationType.CORPORATION
         )
         org2 = SecureOrganization(
-            name="Test Organization 2",
-            organization_type=OrganizationType.CORPORATION
+            name="Test Organization 2", organization_type=OrganizationType.CORPORATION
         )
 
         session.add(org1)
@@ -129,14 +135,14 @@ class TestRowLevelSecurity:
             user_ref="org1_user_" + str(uuid4())[:8],
             email="user1@org1.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            organization_id=org1.id
+            organization_id=org1.id,
         )
 
         user2 = SecureUser(
             user_ref="org2_user_" + str(uuid4())[:8],
             email="user2@org2.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            organization_id=org2.id
+            organization_id=org2.id,
         )
 
         session.add(user1)
@@ -144,7 +150,9 @@ class TestRowLevelSecurity:
         await session.commit()
 
         # Test RLS with user1 context
-        async with rls_manager.secure_session(session, str(user1.id), "user", str(org1.id)):
+        async with rls_manager.secure_session(
+            session, str(user1.id), "user", str(org1.id)
+        ):
             # User should only see their organization's data
             result = await session.execute(
                 select(SecureUser).where(SecureUser.organization_id == org1.id)
@@ -161,7 +169,7 @@ class TestRowLevelSecurity:
         # Create organization
         org = SecureOrganization(
             name="Team Test Organization",
-            organization_type=OrganizationType.CORPORATION
+            organization_type=OrganizationType.CORPORATION,
         )
         session.add(org)
         await session.commit()
@@ -171,7 +179,7 @@ class TestRowLevelSecurity:
         team = SecureTeam(
             name="Test Team",
             organization_id=org.id,
-            created_by_id=uuid4()  # Will be set properly
+            created_by_id=uuid4(),  # Will be set properly
         )
         session.add(team)
         await session.commit()
@@ -182,7 +190,7 @@ class TestRowLevelSecurity:
             user_ref="team_user_" + str(uuid4())[:8],
             email="teamuser@test.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            organization_id=org.id
+            organization_id=org.id,
         )
         session.add(user)
         await session.commit()
@@ -192,6 +200,7 @@ class TestRowLevelSecurity:
         access_granted = team.is_accessible_by_user(user)
         # This would be True if user is added to team
         assert isinstance(access_granted, bool)
+
 
 class TestInputValidation:
     """Test input validation and sanitization"""
@@ -205,7 +214,7 @@ class TestInputValidation:
             "password": "SecurePassword123!",
             "confirm_password": "SecurePassword123!",
             "full_name": "Valid Test User",
-            "accept_terms": True
+            "accept_terms": True,
         }
 
         try:
@@ -239,7 +248,7 @@ class TestInputValidation:
             "<script>alert('xss')</script>",
             "javascript:alert('xss')",
             "<img src=x onerror=alert('xss')>",
-            "data:text/html,<script>alert('xss')</script>"
+            "data:text/html,<script>alert('xss')</script>",
         ]
 
         for malicious_input in malicious_inputs:
@@ -249,7 +258,7 @@ class TestInputValidation:
                     "password": "SecurePassword123!",
                     "confirm_password": "SecurePassword123!",
                     "full_name": malicious_input,
-                    "accept_terms": True
+                    "accept_terms": True,
                 }
                 UserCreateSecure(**user_data)
 
@@ -260,7 +269,7 @@ class TestInputValidation:
             "'; DROP TABLE users; --",
             "admin' OR '1'='1",
             "1'; DELETE FROM users WHERE '1'='1",
-            "UNION SELECT * FROM sensitive_data"
+            "UNION SELECT * FROM sensitive_data",
         ]
 
         for injection in injection_attempts:
@@ -270,16 +279,17 @@ class TestInputValidation:
                     "password": "SecurePassword123!",
                     "confirm_password": "SecurePassword123!",
                     "full_name": "Test User",
-                    "accept_terms": True
+                    "accept_terms": True,
                 }
                 UserCreateSecure(**user_data)
+
 
 class TestPasswordSecurity:
     """Test password security implementation"""
 
     def test_password_strength_validation(self):
         """Test password strength validation"""
-        from app.core.security import validate_password
+        from app.services.security import validate_password
 
         # Test strong password
         strong_password = "StrongP@ssw0rd123!"
@@ -293,7 +303,7 @@ class TestPasswordSecurity:
             "123456",
             "qwerty",
             "weak",
-            "Password123"  # No special character
+            "Password123",  # No special character
         ]
 
         for weak_password in weak_passwords:
@@ -317,6 +327,7 @@ class TestPasswordSecurity:
         assert verify_password(password, hashed) is True
         assert verify_password("WrongPassword", hashed) is False
 
+
 class TestAuditLogging:
     """Test audit logging functionality"""
 
@@ -329,7 +340,7 @@ class TestAuditLogging:
             user_ref="audit_test_" + str(uuid4())[:8],
             email="audit@test.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            full_name="Audit Test User"
+            full_name="Audit Test User",
         )
 
         session.add(user)
@@ -346,17 +357,20 @@ class TestAuditLogging:
             additional_context={
                 "ip_address": "127.0.0.1",
                 "user_agent": "pytest",
-                "session_id": "test_session"
-            }
+                "session_id": "test_session",
+            },
         )
 
         # Verify audit log was created
         result = await session.execute(
-            text("SELECT COUNT(*) FROM audit_logs WHERE user_id = :user_id AND operation = 'SELECT'"),
-            {"user_id": user.id}
+            text(
+                "SELECT COUNT(*) FROM audit_logs WHERE user_id = :user_id AND operation = 'SELECT'"
+            ),
+            {"user_id": user.id},
         )
         count = result.scalar()
         assert count > 0
+
 
 class TestGDPRCompliance:
     """Test GDPR compliance features"""
@@ -372,7 +386,7 @@ class TestGDPRCompliance:
             password_hash=create_password_hash("SecurePassword123!"),
             full_name="GDPR Test User",
             phone_number="+1-555-123-4567",
-            address="123 GDPR Street, Compliance City"
+            address="123 GDPR Street, Compliance City",
         )
 
         session.add(user)
@@ -403,7 +417,7 @@ class TestGDPRCompliance:
             user_ref="portability_test_" + str(uuid4())[:8],
             email="portability@test.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            full_name="Portability Test User"
+            full_name="Portability Test User",
         )
 
         session.add(user)
@@ -415,13 +429,14 @@ class TestGDPRCompliance:
             "user_ref": user.user_ref,
             "email": user.email,
             "created_at": user.created_at.isoformat() if user.created_at else None,
-            "data_classification": user.data_classification.value
+            "data_classification": user.data_classification.value,
         }
 
         # Verify export contains required fields
         assert "user_ref" in exported_data
         assert "email" in exported_data
         assert "created_at" in exported_data
+
 
 class TestPerformanceImpact:
     """Test performance impact of security measures"""
@@ -438,7 +453,7 @@ class TestPerformanceImpact:
             user_ref="perf_test_" + str(uuid4())[:8],
             email="performance@test.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            full_name="Performance Test User with a longer name to test encryption speed"
+            full_name="Performance Test User with a longer name to test encryption speed",
         )
 
         session.add(user)
@@ -447,7 +462,9 @@ class TestPerformanceImpact:
         encryption_time = time.time() - start_time
 
         # Encryption should complete within reasonable time (< 1 second)
-        assert encryption_time < 1.0, f"Encryption took too long: {encryption_time} seconds"
+        assert (
+            encryption_time < 1.0
+        ), f"Encryption took too long: {encryption_time} seconds"
 
     @pytest.mark.asyncio
     async def test_rls_performance(self, session: AsyncSession):
@@ -464,7 +481,7 @@ class TestPerformanceImpact:
             user_ref="rls_perf_" + str(uuid4())[:8],
             email="rlsperf@test.com",
             password_hash=create_password_hash("SecurePassword123!"),
-            organization_id=org.id
+            organization_id=org.id,
         )
         session.add(user)
         await session.commit()
@@ -473,16 +490,17 @@ class TestPerformanceImpact:
         # Measure query time with RLS
         start_time = time.time()
 
-        async with rls_manager.secure_session(session, str(user.id), "user", str(org.id)):
-            result = await session.execute(
-                select(SecureUser).limit(10)
-            )
+        async with rls_manager.secure_session(
+            session, str(user.id), "user", str(org.id)
+        ):
+            result = await session.execute(select(SecureUser).limit(10))
             users = result.scalars().all()
 
         query_time = time.time() - start_time
 
         # RLS query should complete within reasonable time (< 2 seconds)
         assert query_time < 2.0, f"RLS query took too long: {query_time} seconds"
+
 
 class TestSecurityHeaders:
     """Test security headers implementation"""
@@ -493,12 +511,14 @@ class TestSecurityHeaders:
         # For now, just ensure the test structure exists
         assert True  # Placeholder
 
+
 # Security test configuration
 @pytest.fixture
 async def session():
     """Create test database session"""
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user_data():
@@ -509,8 +529,9 @@ def test_user_data():
         "confirm_password": "SecureTestPassword123!",
         "full_name": "Security Test User",
         "accept_terms": True,
-        "data_processing_consent": True
+        "data_processing_consent": True,
     }
+
 
 # Integration test
 @pytest.mark.asyncio
@@ -520,7 +541,7 @@ async def test_full_security_workflow(session: AsyncSession):
     # 1. Create organization
     org = SecureOrganization(
         name="Security Test Organization",
-        organization_type=OrganizationType.CORPORATION
+        organization_type=OrganizationType.CORPORATION,
     )
     session.add(org)
     await session.commit()
@@ -532,7 +553,7 @@ async def test_full_security_workflow(session: AsyncSession):
         "password": "SecurePassword123!",
         "confirm_password": "SecurePassword123!",
         "full_name": "Full Workflow Test",
-        "accept_terms": True
+        "accept_terms": True,
     }
 
     user_schema = UserCreateSecure(**user_data)
@@ -543,7 +564,7 @@ async def test_full_security_workflow(session: AsyncSession):
         email=user_schema.email,
         password_hash=create_password_hash(user_schema.password.get_secret_value()),
         full_name=user_schema.full_name,
-        organization_id=org.id
+        organization_id=org.id,
     )
 
     session.add(user)
@@ -566,7 +587,7 @@ async def test_full_security_workflow(session: AsyncSession):
         user_id=str(user.id),
         table_name="users_secure",
         operation="SELECT",
-        record_id=str(user.id)
+        record_id=str(user.id),
     )
 
     # 6. Verify security measures

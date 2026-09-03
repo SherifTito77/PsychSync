@@ -7,12 +7,12 @@ Requirements:
     pip install pandas faker hashlib
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import hashlib
 import json
 import random
 import re
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 import pandas as pd
 
@@ -22,7 +22,16 @@ import pandas as pd
 
 HIPAA_IDENTIFIERS = {
     "names": ["first_name", "last_name", "full_name", "name"],
-    "geographic": ["address", "street", "city", "state", "zip", "zipcode", "postal_code", "county"],
+    "geographic": [
+        "address",
+        "street",
+        "city",
+        "state",
+        "zip",
+        "zipcode",
+        "postal_code",
+        "county",
+    ],
     "dates": ["dob", "date_of_birth", "birth_date", "admission_date", "discharge_date"],
     "phone": ["phone", "telephone", "mobile", "cell_phone"],
     "fax": ["fax", "fax_number"],
@@ -103,7 +112,9 @@ class DataAnonymizer:
 
         return result
 
-    def mask_partial(self, value: str, mask_char: str = "*", visible_chars: int = 4) -> str:
+    def mask_partial(
+        self, value: str, mask_char: str = "*", visible_chars: int = 4
+    ) -> str:
         """
         Partially mask a value (e.g., email, phone).
 
@@ -199,7 +210,9 @@ class DataAnonymizer:
 
         # Email pattern
         text = re.sub(
-            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[EMAIL_REDACTED]", text
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
+            "[EMAIL_REDACTED]",
+            text,
         )
 
         # Phone pattern
@@ -258,9 +271,11 @@ class DataAnonymizer:
             # Apply anonymization
             if method == "hash":
                 df_anon[column] = df_anon[column].apply(
-                    lambda x: self.hash_identifier(str(x), prefix=f"{column[:3]}_")
-                    if pd.notna(x)
-                    else x
+                    lambda x: (
+                        self.hash_identifier(str(x), prefix=f"{column[:3]}_")
+                        if pd.notna(x)
+                        else x
+                    )
                 )
 
             elif method == "mask":
@@ -352,12 +367,16 @@ class DataAnonymizer:
                 report["columns_anonymized"].append(
                     {
                         "column": col,
-                        "original_sample": str(original_df[col].iloc[0])
-                        if len(original_df) > 0
-                        else None,
-                        "anonymized_sample": str(anonymized_df[col].iloc[0])
-                        if len(anonymized_df) > 0
-                        else None,
+                        "original_sample": (
+                            str(original_df[col].iloc[0])
+                            if len(original_df) > 0
+                            else None
+                        ),
+                        "anonymized_sample": (
+                            str(anonymized_df[col].iloc[0])
+                            if len(anonymized_df) > 0
+                            else None
+                        ),
                     }
                 )
             else:
@@ -376,7 +395,9 @@ class AuditLogger:
         self.log_file = log_file
         self.logs: list[dict] = []
 
-    def log_access(self, user_id: str, action: str, resource: str, details: dict | None = None):
+    def log_access(
+        self, user_id: str, action: str, resource: str, details: dict | None = None
+    ):
         """
         Log a data access event.
 

@@ -58,7 +58,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
     Args:
         data: The payload to include in the token (e.g., {"sub": username}).
-        expires_delta: Optional timedelta for token expiration. 
+        expires_delta: Optional timedelta for token expiration.
                        Defaults to 15 minutes if not provided.
 
     Returns:
@@ -124,7 +124,7 @@ async def get_current_user(request: Request, token: str = Depends(OAuth2Password
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    
+
     user = get_user(fake_users_db, username=username)
     if user is None:
         raise credentials_exception
@@ -151,7 +151,7 @@ async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequ
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires

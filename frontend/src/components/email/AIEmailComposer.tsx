@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/common/Button';
-import { api } from '@/services/api';
+import api from '@/services/api';
 
 interface PersonalizationLevel {
   value: string;
@@ -162,15 +162,30 @@ export const AIEmailComposer: React.FC = () => {
       const simulatedResponse = simulateAIEmailGeneration(payload, selectedUserPersona);
 
       setAIContent(simulatedResponse);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error generating AI email:', err);
-      setError(err.response?.data?.message || 'Failed to generate AI email');
+      const errorMessage = err instanceof Error && 'response' in err
+        ? ((err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to generate AI email')
+        : 'Failed to generate AI email';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const simulateAIEmailGeneration = (payload: any, userPersona?: UserPersona): AIEmailContent => {
+  // Define proper types for the payload
+  interface EmailGenerationPayload {
+    user_id: string;
+    email_type: string;
+    base_content: {
+      subject: string;
+      body: string;
+      call_to_action: string;
+    };
+    personalization_level: string;
+  }
+
+  const simulateAIEmailGeneration = (payload: EmailGenerationPayload, userPersona?: UserPersona): AIEmailContent => {
     const baseSubject = payload.base_content.subject;
     const baseBody = payload.base_content.body;
     const baseCTA = payload.base_content.call_to_action;

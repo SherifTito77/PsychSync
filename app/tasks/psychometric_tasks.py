@@ -3,8 +3,8 @@
 # Background tasks for psychometric processing
 # ============================================================================
 
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
 from celery import shared_task
 
@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(name="analyze_session_async")
-def analyze_session_async(session_text: str, client_id: str, session_id: str, session_date: str):
+def analyze_session_async(
+    session_text: str, client_id: str, session_id: str, session_date: str
+):
     """Async task to analyze therapy session"""
     try:
         service = PsychometricService()
@@ -61,8 +63,10 @@ def generate_progress_report_async(client_id: str, start_date: str, end_date: st
                 db.query(PsychometricSession)
                 .filter(
                     PsychometricSession.client_id == client_id,
-                    PsychometricSession.session_date >= datetime.fromisoformat(start_date),
-                    PsychometricSession.session_date <= datetime.fromisoformat(end_date),
+                    PsychometricSession.session_date
+                    >= datetime.fromisoformat(start_date),
+                    PsychometricSession.session_date
+                    <= datetime.fromisoformat(end_date),
                 )
                 .all()
             )
@@ -125,7 +129,8 @@ def detect_anomalies_batch(client_ids: list[str]):
                     db.query(PsychometricSession)
                     .filter(
                         PsychometricSession.client_id == client_id,
-                        PsychometricSession.session_date >= datetime.utcnow() - timedelta(days=30),
+                        PsychometricSession.session_date
+                        >= datetime.utcnow() - timedelta(days=30),
                     )
                     .all()
                 )
@@ -138,13 +143,17 @@ def detect_anomalies_batch(client_ids: list[str]):
                 {
                     "timestamp": s.session_date.isoformat(),
                     "sentiment": s.sentiment_analysis.get("overall_score", 0),
-                    "dominant_emotion": s.emotion_analysis.get("dominant_emotion", "neutral"),
+                    "dominant_emotion": s.emotion_analysis.get(
+                        "dominant_emotion", "neutral"
+                    ),
                 }
                 for s in sessions
             ]
 
             # Detect anomalies
-            anomalies = service.anomaly_detector.detect_anomalies(data_points, ["sentiment"])
+            anomalies = service.anomaly_detector.detect_anomalies(
+                data_points, ["sentiment"]
+            )
 
             if anomalies.get("anomalies_detected", 0) > 0:
                 results[client_id] = anomalies

@@ -4,9 +4,9 @@ Team Recommendation Engine
 Provides intelligent team composition recommendations using AI algorithms.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-import logging
 from typing import Any
 
 import numpy as np
@@ -131,22 +131,38 @@ class RecommendationEngine:
 
             # Run optimization based on objective
             if objective == "maximize_performance":
-                recommendations = self._optimize_for_performance(members, compatibility_matrix)
+                recommendations = self._optimize_for_performance(
+                    members, compatibility_matrix
+                )
             elif objective == "minimize_conflicts":
-                recommendations = self._optimize_for_harmony(members, compatibility_matrix)
+                recommendations = self._optimize_for_harmony(
+                    members, compatibility_matrix
+                )
             elif objective == "balance_diversity":
-                recommendations = self._optimize_for_diversity(members, compatibility_matrix)
+                recommendations = self._optimize_for_diversity(
+                    members, compatibility_matrix
+                )
             elif objective == "optimize_collaboration":
-                recommendations = self._optimize_for_collaboration(members, compatibility_matrix)
+                recommendations = self._optimize_for_collaboration(
+                    members, compatibility_matrix
+                )
             else:
-                recommendations = self._optimize_for_performance(members, compatibility_matrix)
+                recommendations = self._optimize_for_performance(
+                    members, compatibility_matrix
+                )
 
             # Generate insights
-            insights = self._generate_insights(recommendations, members, compatibility_matrix)
+            insights = self._generate_insights(
+                recommendations, members, compatibility_matrix
+            )
 
             result = {
-                "recommended_groups": [self._composition_to_dict(comp) for comp in recommendations],
-                "overall_score": recommendations[0].compatibility_score if recommendations else 0.0,
+                "recommended_groups": [
+                    self._composition_to_dict(comp) for comp in recommendations
+                ],
+                "overall_score": (
+                    recommendations[0].compatibility_score if recommendations else 0.0
+                ),
                 "insights": insights,
                 "metadata": {
                     "algorithm": "multi_objective_optimization",
@@ -182,13 +198,17 @@ class RecommendationEngine:
 
         for i in range(n):
             for j in range(i + 1, n):
-                compatibility = self._calculate_pair_compatibility(members[i], members[j])
+                compatibility = self._calculate_pair_compatibility(
+                    members[i], members[j]
+                )
                 matrix[i][j] = compatibility
                 matrix[j][i] = compatibility  # Symmetric
 
         return matrix
 
-    def _calculate_pair_compatibility(self, member_a: TeamMember, member_b: TeamMember) -> float:
+    def _calculate_pair_compatibility(
+        self, member_a: TeamMember, member_b: TeamMember
+    ) -> float:
         """Calculate compatibility score between two members"""
 
         # Personality compatibility (Big Five traits)
@@ -200,7 +220,9 @@ class RecommendationEngine:
         role_score = self._get_role_compatibility(member_a.role, member_b.role)
 
         # Skill complementarity
-        skill_score = self._calculate_skill_complementarity(member_a.skills, member_b.skills)
+        skill_score = self._calculate_skill_complementarity(
+            member_a.skills, member_b.skills
+        )
 
         # Experience balance
         experience_score = self._calculate_experience_balance(
@@ -217,7 +239,9 @@ class RecommendationEngine:
 
         return min(max(total_score, 0.0), 1.0)
 
-    def _calculate_personality_compatibility(self, traits_a: dict, traits_b: dict) -> float:
+    def _calculate_personality_compatibility(
+        self, traits_a: dict, traits_b: dict
+    ) -> float:
         """Calculate Big Five personality compatibility"""
 
         # Standard Big Five traits with proper names
@@ -254,7 +278,9 @@ class RecommendationEngine:
         """Get predefined role compatibility score"""
         return self.role_compatibility.get(role_a, {}).get(role_b, 0.5)
 
-    def _calculate_skill_complementarity(self, skills_a: list[str], skills_b: list[str]) -> float:
+    def _calculate_skill_complementarity(
+        self, skills_a: list[str], skills_b: list[str]
+    ) -> float:
         """Calculate how well skills complement each other"""
 
         if not skills_a or not skills_b:
@@ -287,7 +313,9 @@ class RecommendationEngine:
 
         return overlap_score * 0.6 + unique_ratio * 0.4
 
-    def _calculate_experience_balance(self, exp_a: float | None, exp_b: float | None) -> float:
+    def _calculate_experience_balance(
+        self, exp_a: float | None, exp_b: float | None
+    ) -> float:
         """Calculate experience level balance"""
 
         if exp_a is None or exp_b is None:
@@ -321,7 +349,9 @@ class RecommendationEngine:
         # Sort by overall performance score
         recommendations.sort(
             key=lambda x: (
-                x.compatibility_score * 0.4 + x.skill_coverage * 0.4 + x.diversity_score * 0.2
+                x.compatibility_score * 0.4
+                + x.skill_coverage * 0.4
+                + x.diversity_score * 0.2
             ),
             reverse=True,
         )
@@ -336,7 +366,9 @@ class RecommendationEngine:
         recommendations = []
 
         for team_size in range(3, min(9, len(members) + 1)):
-            best_teams = self._find_best_teams(members, compatibility_matrix, team_size, "harmony")
+            best_teams = self._find_best_teams(
+                members, compatibility_matrix, team_size, "harmony"
+            )
             recommendations.extend(best_teams[:2])
 
         # Sort by compatibility score (highest harmony)
@@ -379,7 +411,8 @@ class RecommendationEngine:
         recommendations.sort(
             key=lambda x: (
                 x.compatibility_score * 0.5
-                + len(set(members[i].role for i in x.member_ids)) * 0.1  # Role diversity bonus
+                + len(set(members[i].role for i in x.member_ids))
+                * 0.1  # Role diversity bonus
             ),
             reverse=True,
         )
@@ -405,7 +438,9 @@ class RecommendationEngine:
             team_members = [members[i] for i in combo_indices]
 
             # Calculate team metrics
-            compatibility = self._calculate_team_compatibility(combo_indices, compatibility_matrix)
+            compatibility = self._calculate_team_compatibility(
+                combo_indices, compatibility_matrix
+            )
             skill_coverage = self._calculate_skill_coverage(team_members)
             diversity = self._calculate_diversity(team_members)
 
@@ -430,7 +465,9 @@ class RecommendationEngine:
         if optimization_goal == "performance":
             best_teams.sort(
                 key=lambda x: (
-                    x.compatibility_score * 0.4 + x.skill_coverage * 0.4 + x.diversity_score * 0.2
+                    x.compatibility_score * 0.4
+                    + x.skill_coverage * 0.4
+                    + x.diversity_score * 0.2
                 ),
                 reverse=True,
             )
@@ -440,7 +477,8 @@ class RecommendationEngine:
             best_teams.sort(key=lambda x: x.diversity_score, reverse=True)
         else:  # collaboration
             best_teams.sort(
-                key=lambda x: (x.compatibility_score * 0.6 + x.diversity_score * 0.4), reverse=True
+                key=lambda x: (x.compatibility_score * 0.6 + x.diversity_score * 0.4),
+                reverse=True,
             )
 
         return best_teams
@@ -458,7 +496,9 @@ class RecommendationEngine:
 
         for i in range(len(member_indices)):
             for j in range(i + 1, len(member_indices)):
-                total_compatibility += compatibility_matrix[member_indices[i]][member_indices[j]]
+                total_compatibility += compatibility_matrix[member_indices[i]][
+                    member_indices[j]
+                ]
                 pair_count += 1
 
         return total_compatibility / pair_count if pair_count > 0 else 0.0
@@ -504,7 +544,9 @@ class RecommendationEngine:
         diversity_scores.append(role_diversity)
 
         # Experience diversity
-        experiences = [m.experience_years for m in team_members if m.experience_years is not None]
+        experiences = [
+            m.experience_years for m in team_members if m.experience_years is not None
+        ]
         if experiences:
             exp_std = np.std(experiences)
             exp_diversity = min(exp_std / 5, 1.0)  # Normalize to 0-1
@@ -520,7 +562,9 @@ class RecommendationEngine:
 
         # Personality diversity (moderate diversity is good)
         if team_members:
-            traits_list = [list(member.traits.values()) for member in team_members if member.traits]
+            traits_list = [
+                list(member.traits.values()) for member in team_members if member.traits
+            ]
             if traits_list and len(traits_list) > 1:
                 personality_matrix = np.array(traits_list)
                 personality_std = np.mean(np.std(personality_matrix, axis=0))
@@ -548,7 +592,9 @@ class RecommendationEngine:
             strengths.append("Quality assurance focus")
 
         # Experience-based strengths
-        experiences = [m.experience_years for m in team_members if m.experience_years is not None]
+        experiences = [
+            m.experience_years for m in team_members if m.experience_years is not None
+        ]
         if experiences:
             avg_exp = np.mean(experiences)
             if avg_exp > 7:
@@ -564,7 +610,15 @@ class RecommendationEngine:
             all_skills.extend(member.skills)
 
         skill_categories = {
-            "frontend": ["react", "vue", "angular", "css", "html", "javascript", "typescript"],
+            "frontend": [
+                "react",
+                "vue",
+                "angular",
+                "css",
+                "html",
+                "javascript",
+                "typescript",
+            ],
             "backend": ["python", "java", "node", "go", "rust", "sql", "nosql"],
             "devops": ["docker", "kubernetes", "aws", "azure", "ci/cd", "terraform"],
             "mobile": ["ios", "android", "react-native", "flutter", "swift", "kotlin"],
@@ -593,7 +647,9 @@ class RecommendationEngine:
             risks.append("No dedicated project management")
 
         # Experience risks
-        experiences = [m.experience_years for m in team_members if m.experience_years is not None]
+        experiences = [
+            m.experience_years for m in team_members if m.experience_years is not None
+        ]
         if experiences:
             exp_std = np.std(experiences)
             if exp_std > 8:  # Very diverse experience levels
@@ -606,7 +662,9 @@ class RecommendationEngine:
         for member in team_members:
             all_skills.extend(member.skills)
 
-        if len(all_skills) < len(team_members) * 2:  # Less than 2 skills per person on average
+        if (
+            len(all_skills) < len(team_members) * 2
+        ):  # Less than 2 skills per person on average
             risks.append("Limited skill diversity")
 
         # Availability risks

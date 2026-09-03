@@ -42,7 +42,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
         env_file = ".env"
         case_sensitive = True
         env_file_encoding = "utf-8"
-        extra = "ignore"  # Ignore extra environment variables (e.g., VITE_* from frontend)
+        extra = (
+            "ignore"  # Ignore extra environment variables (e.g., VITE_* from frontend)
+        )
 
     # API Settings
     API_V1_PREFIX: str = Field(default="/api/v1", env="API_V1_PREFIX")
@@ -65,7 +67,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
 
     # Encryption Settings (for PII field encryption)
     ENCRYPTION_KEY: str = Field(
-        default="", env="ENCRYPTION_KEY", description="Fernet encryption key for PII data at rest"
+        default="",
+        env="ENCRYPTION_KEY",
+        description="Fernet encryption key for PII data at rest",
     )
 
     # Master Encryption Key (for advanced encryption operations)
@@ -111,7 +115,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
     SMTP_PASSWORD: str | None = Field(default=None, env="SMTP_PASSWORD")
     EMAILS_FROM_EMAIL: str | None = Field(default=None, env="EMAILS_FROM_EMAIL")
     EMAILS_FROM_NAME: str | None = Field(default=None, env="EMAILS_FROM_NAME")
-    EMAIL_TEMPLATES_DIR: str = Field(default="app/email_templates", env="EMAIL_TEMPLATES_DIR")
+    EMAIL_TEMPLATES_DIR: str = Field(
+        default="app/email_templates", env="EMAIL_TEMPLATES_DIR"
+    )
 
     # Email Processing Settings
     EMAIL_CALLBACK_URL: str = Field(
@@ -123,6 +129,20 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
     REDIS_PASSWORD: str | None = Field(default=None, env="REDIS_PASSWORD")
     REDIS_DB: int = Field(default=0, env="REDIS_DB")
     REDIS_MAX_CONNECTIONS: int = Field(default=20, env="REDIS_MAX_CONNECTIONS")
+
+    @property
+    def REDIS_HOST(self) -> str:
+        """Parsed host from REDIS_URL for legacy code."""
+        from urllib.parse import urlparse
+
+        return urlparse(self.REDIS_URL).hostname or "localhost"
+
+    @property
+    def REDIS_PORT(self) -> int:
+        """Parsed port from REDIS_URL for legacy code."""
+        from urllib.parse import urlparse
+
+        return urlparse(self.REDIS_URL).port or 6379
 
     # External services
     SLACK_BOT_TOKEN: str | None = Field(default=None, env="SLACK_BOT_TOKEN")
@@ -142,15 +162,25 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
     SIEM_VERIFY_SSL: bool = Field(default=True, env="SIEM_VERIFY_SSL")
 
     # Security Monitoring Settings
-    SECURITY_MONITORING_ENABLED: bool = Field(default=True, env="SECURITY_MONITORING_ENABLED")
-    ANOMALY_DETECTION_THRESHOLD: float = Field(default=0.7, env="ANOMALY_DETECTION_THRESHOLD")
-    SECURITY_ALERT_RETENTION_DAYS: int = Field(default=90, env="SECURITY_ALERT_RETENTION_DAYS")
-    BEHAVIOR_PROFILE_RETENTION_DAYS: int = Field(default=30, env="BEHAVIOR_PROFILE_RETENTION_DAYS")
+    SECURITY_MONITORING_ENABLED: bool = Field(
+        default=True, env="SECURITY_MONITORING_ENABLED"
+    )
+    ANOMALY_DETECTION_THRESHOLD: float = Field(
+        default=0.7, env="ANOMALY_DETECTION_THRESHOLD"
+    )
+    SECURITY_ALERT_RETENTION_DAYS: int = Field(
+        default=90, env="SECURITY_ALERT_RETENTION_DAYS"
+    )
+    BEHAVIOR_PROFILE_RETENTION_DAYS: int = Field(
+        default=30, env="BEHAVIOR_PROFILE_RETENTION_DAYS"
+    )
 
     # Failed Login Settings
     MAX_LOGIN_ATTEMPTS: int = Field(default=5, env="MAX_LOGIN_ATTEMPTS")
     LOCKOUT_DURATION_MINUTES: int = Field(default=15, env="LOCKOUT_DURATION_MINUTES")
-    LOGIN_ATTEMPT_WINDOW_MINUTES: int = Field(default=15, env="LOGIN_ATTEMPT_WINDOW_MINUTES")
+    LOGIN_ATTEMPT_WINDOW_MINUTES: int = Field(
+        default=15, env="LOGIN_ATTEMPT_WINDOW_MINUTES"
+    )
 
     # File upload settings
     UPLOAD_DIR: str = Field(default="uploads", env="UPLOAD_DIR")
@@ -159,6 +189,16 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
         default=[".jpg", ".jpeg", ".png", ".gif", ".pdf", ".doc", ".docx"],
         env="ALLOWED_UPLOAD_EXTENSIONS",
     )
+
+    # Retry Configuration for External Integrations
+    RETRY_MAX_ATTEMPTS: int = Field(default=3, env="RETRY_MAX_ATTEMPTS")
+    RETRY_TIMEOUT_SHORT: int = Field(default=10, env="RETRY_TIMEOUT_SHORT")
+    RETRY_TIMEOUT_MEDIUM: int = Field(default=30, env="RETRY_TIMEOUT_MEDIUM")
+    RETRY_TIMEOUT_LONG: int = Field(default=300, env="RETRY_TIMEOUT_LONG")
+    RETRY_MULTIPLIER: float = Field(default=1.0, env="RETRY_MULTIPLIER")
+    RETRY_MIN_WAIT: float = Field(default=1.0, env="RETRY_MIN_WAIT")
+    RETRY_MAX_WAIT: float = Field(default=10.0, env="RETRY_MAX_WAIT")
+    RETRY_BACKOFF_BASE: int = Field(default=2, env="RETRY_BACKOFF_BASE")
 
     def __init__(self, **data):
         """Initialize settings with comprehensive validation"""
@@ -182,17 +222,23 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
         """
         # Validate email settings if email features are enabled
         if self.ENABLE_EMAIL_VERIFICATION and not all([self.SMTP_HOST, self.SMTP_USER]):
-            settings_logger.warning("Email verification enabled but SMTP configuration incomplete")
+            settings_logger.warning(
+                "Email verification enabled but SMTP configuration incomplete"
+            )
 
         # Validate Slack settings if Slack integration is configured
         if self.SLACK_BOT_TOKEN and not self.SLACK_SIGNING_SECRET:
-            settings_logger.warning("Slack bot token configured but signing secret missing")
+            settings_logger.warning(
+                "Slack bot token configured but signing secret missing"
+            )
 
         # Validate Redis settings if cache is enabled
         if self.CACHE_ENABLED and not self.REDIS_URL:
             settings_logger.warning("Cache enabled but Redis URL not configured")
 
-    def get_database_url(self, async_driver: bool = True, test_mode: bool = False) -> str:
+    def get_database_url(
+        self, async_driver: bool = True, test_mode: bool = False
+    ) -> str:
         """
         Get database URL for specific use case
 
@@ -297,6 +343,24 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
             },
         }
 
+    def get_retry_config(self) -> dict[str, Any]:
+        """
+        Get retry configuration for external integrations
+
+        Returns:
+            Retry configuration dictionary with timeout and backoff settings
+        """
+        return {
+            "max_attempts": self.RETRY_MAX_ATTEMPTS,
+            "timeout_short": self.RETRY_TIMEOUT_SHORT,
+            "timeout_medium": self.RETRY_TIMEOUT_MEDIUM,
+            "timeout_long": self.RETRY_TIMEOUT_LONG,
+            "multiplier": self.RETRY_MULTIPLIER,
+            "min_wait": self.RETRY_MIN_WAIT,
+            "max_wait": self.RETRY_MAX_WAIT,
+            "backoff_base": self.RETRY_BACKOFF_BASE,
+        }
+
     def validate_production_readiness(self) -> list[str]:
         """
         Validate configuration for production deployment
@@ -321,7 +385,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
                 issues.append("Rate limiting is disabled in production")
 
             if not self.CACHE_ENABLED:
-                issues.append("Caching is disabled in production (recommended for performance)")
+                issues.append(
+                    "Caching is disabled in production (recommended for performance)"
+                )
 
             # Check required production configurations
             required_configs = {
@@ -362,6 +428,7 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
             "cache": self.get_cache_config(),
             "email": self.get_email_config(),
             "monitoring": self.get_monitoring_config(),
+            "retry": self.get_retry_config(),
         }
 
 

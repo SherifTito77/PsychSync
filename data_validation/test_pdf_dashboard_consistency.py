@@ -5,37 +5,44 @@ Tests that downloaded PDFs match live dashboard results
 """
 
 import asyncio
-import json
-import time
-import statistics
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
-from enum import Enum
-import random
 import io
-from dataclasses import asdict
+import json
+import os
+import random
+import statistics
 
 # Import the scoring engine from previous tests
 import sys
-import os
+import time
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from test_psychometric_scoring_consistency import (
-    AssessmentType, AssessmentQuestion, AssessmentResponse, ScoringResult,
-    PsychometricScoringEngine
+    AssessmentQuestion,
+    AssessmentResponse,
+    AssessmentType,
+    PsychometricScoringEngine,
+    ScoringResult,
 )
+
 
 class ExportFormat(Enum):
     """Different export formats to test"""
+
     PDF = "pdf"
     DASHBOARD = "dashboard"
     JSON = "json"
     EXCEL = "excel"
 
+
 @dataclass
 class ExportData:
     """Data structure for exported results"""
+
     user_id: str
     assessment_type: str
     personality_type: Optional[str]
@@ -45,17 +52,21 @@ class ExportData:
     completion_time: datetime
     recommendations: List[str]
 
+
 @dataclass
 class FormatSpecificConfig:
     """Configuration specific to each export format"""
+
     rounding_precision: int
     score_adjustment: float  # Systematic differences between formats
     order_changes: bool
     include_metadata: bool
 
+
 @dataclass
 class ConsistencyCheckResult:
     """Result of consistency check between formats"""
+
     format1: ExportFormat
     format2: ExportFormat
     consistent: bool
@@ -65,9 +76,11 @@ class ConsistencyCheckResult:
     percentile_tolerance_met: bool
     details: Dict[str, Any]
 
+
 @dataclass
 class ConsistencyTestResult:
     """Overall consistency test result"""
+
     test_name: str
     assessment_type: str
     export_formats: List[ExportFormat]
@@ -76,6 +89,7 @@ class ConsistencyTestResult:
     critical_issues: List[str]
     recommendations: List[str]
     timestamp: datetime
+
 
 class PDFDashboardConsistencyTester:
     """Comprehensive testing suite for PDF-dashboard consistency"""
@@ -92,30 +106,31 @@ class PDFDashboardConsistencyTester:
                 rounding_precision=1,
                 score_adjustment=0.1,  # Small systematic difference
                 order_changes=True,
-                include_metadata=True
+                include_metadata=True,
             ),
             ExportFormat.DASHBOARD: FormatSpecificConfig(
                 rounding_precision=2,
                 score_adjustment=0.0,
                 order_changes=False,
-                include_metadata=True
+                include_metadata=True,
             ),
             ExportFormat.JSON: FormatSpecificConfig(
                 rounding_precision=6,  # Full precision
                 score_adjustment=0.0,
                 order_changes=False,
-                include_metadata=True
+                include_metadata=True,
             ),
             ExportFormat.EXCEL: FormatSpecificConfig(
                 rounding_precision=2,
                 score_adjustment=0.05,
                 order_changes=True,
-                include_metadata=False
-            )
+                include_metadata=False,
+            ),
         }
 
-    async def generate_test_assessment_data(self, assessment_type: AssessmentType,
-                                    user_count: int = 50) -> List[ScoringResult]:
+    async def generate_test_assessment_data(
+        self, assessment_type: AssessmentType, user_count: int = 50
+    ) -> List[ScoringResult]:
         """Generate test assessment data for multiple users"""
         results = []
 
@@ -139,7 +154,7 @@ class PDFDashboardConsistencyTester:
                     question_id=question.id,
                     answer_value=answer_value,
                     response_time=random.uniform(1.0, 15.0),
-                    timestamp=datetime.now() - timedelta(days=random.randint(1, 30))
+                    timestamp=datetime.now() - timedelta(days=random.randint(1, 30)),
                 )
                 responses.append(response)
 
@@ -149,9 +164,9 @@ class PDFDashboardConsistencyTester:
 
         return results
 
-    def export_to_format(self, scoring_result: ScoringResult,
-                        format_type: ExportFormat,
-                        user_id: str) -> ExportData:
+    def export_to_format(
+        self, scoring_result: ScoringResult, format_type: ExportFormat, user_id: str
+    ) -> ExportData:
         """Export scoring result to specific format with format-specific processing"""
         config = self.format_configs[format_type]
 
@@ -175,7 +190,7 @@ class PDFDashboardConsistencyTester:
         recommendations = self._generate_recommendations(
             scoring_result.assessment_type,
             scoring_result.personality_type,
-            adjusted_scores
+            adjusted_scores,
         )
 
         # Apply format-specific ordering if configured
@@ -191,14 +206,19 @@ class PDFDashboardConsistencyTester:
             personality_type=scoring_result.personality_type,
             scores=adjusted_scores,
             percentiles=percentiles,
-            confidence_score=round(scoring_result.confidence_score, config.rounding_precision),
+            confidence_score=round(
+                scoring_result.confidence_score, config.rounding_precision
+            ),
             completion_time=scoring_result.processing_time,
-            recommendations=recommendations if config.include_metadata else []
+            recommendations=recommendations if config.include_metadata else [],
         )
 
-    def _generate_recommendations(self, assessment_type: AssessmentType,
-                                personality_type: Optional[str],
-                                scores: Dict[str, float]) -> List[str]:
+    def _generate_recommendations(
+        self,
+        assessment_type: AssessmentType,
+        personality_type: Optional[str],
+        scores: Dict[str, float],
+    ) -> List[str]:
         """Generate recommendations based on assessment results"""
         recommendations = []
 
@@ -210,19 +230,28 @@ class PDFDashboardConsistencyTester:
 
         elif assessment_type == AssessmentType.MBTI and personality_type:
             if "E" in personality_type:
-                recommendations.append("Consider roles that involve teamwork and communication")
+                recommendations.append(
+                    "Consider roles that involve teamwork and communication"
+                )
             if "I" in personality_type:
                 recommendations.append("Ensure you have quiet time for deep work")
 
         # Add general recommendations
         if len(recommendations) == 0:
-            recommendations = ["Continue developing your self-awareness",
-                             "Consider regular check-ins on your progress"]
+            recommendations = [
+                "Continue developing your self-awareness",
+                "Consider regular check-ins on your progress",
+            ]
 
         return recommendations
 
-    def check_format_consistency(self, data1: ExportData, data2: ExportData,
-                               format1: ExportFormat, format2: ExportFormat) -> ConsistencyCheckResult:
+    def check_format_consistency(
+        self,
+        data1: ExportData,
+        data2: ExportData,
+        format1: ExportFormat,
+        format2: ExportFormat,
+    ) -> ConsistencyCheckResult:
         """Check consistency between two export formats"""
 
         # Check personality type consistency
@@ -251,16 +280,19 @@ class PDFDashboardConsistencyTester:
         # Determine overall consistency
         score_tolerance = 2.0  # 2% tolerance for scores
         consistent = (
-            personality_match and
-            max_difference <= score_tolerance and
-            percentile_tolerance_met
+            personality_match
+            and max_difference <= score_tolerance
+            and percentile_tolerance_met
         )
 
         # Additional checks
         details = {
             "score_tolerance_met": max_difference <= score_tolerance,
-            "confidence_difference": abs(data1.confidence_score - data2.confidence_score),
-            "recommendation_count_diff": len(data1.recommendations) - len(data2.recommendations)
+            "confidence_difference": abs(
+                data1.confidence_score - data2.confidence_score
+            ),
+            "recommendation_count_diff": len(data1.recommendations)
+            - len(data2.recommendations),
         }
 
         return ConsistencyCheckResult(
@@ -271,15 +303,19 @@ class PDFDashboardConsistencyTester:
             max_difference=max_difference,
             personality_match=personality_match,
             percentile_tolerance_met=percentile_tolerance_met,
-            details=details
+            details=details,
         )
 
-    async def test_pdf_dashboard_consistency(self, assessment_type: AssessmentType) -> ConsistencyTestResult:
+    async def test_pdf_dashboard_consistency(
+        self, assessment_type: AssessmentType
+    ) -> ConsistencyTestResult:
         """Test consistency between PDF and dashboard exports"""
         print(f"Testing PDF-Dashboard consistency for {assessment_type.value}...")
 
         # Generate test data
-        test_results = await self.generate_test_assessment_data(assessment_type, user_count=30)
+        test_results = await self.generate_test_assessment_data(
+            assessment_type, user_count=30
+        )
 
         consistency_results = []
         critical_issues = []
@@ -290,15 +326,21 @@ class PDFDashboardConsistencyTester:
 
             # Export to different formats
             pdf_data = self.export_to_format(scoring_result, ExportFormat.PDF, user_id)
-            dashboard_data = self.export_to_format(scoring_result, ExportFormat.DASHBOARD, user_id)
-            json_data = self.export_to_format(scoring_result, ExportFormat.JSON, user_id)
-            excel_data = self.export_to_format(scoring_result, ExportFormat.EXCEL, user_id)
+            dashboard_data = self.export_to_format(
+                scoring_result, ExportFormat.DASHBOARD, user_id
+            )
+            json_data = self.export_to_format(
+                scoring_result, ExportFormat.JSON, user_id
+            )
+            excel_data = self.export_to_format(
+                scoring_result, ExportFormat.EXCEL, user_id
+            )
 
             # Test format combinations
             format_combinations = [
                 (pdf_data, dashboard_data, ExportFormat.PDF, ExportFormat.DASHBOARD),
                 (pdf_data, json_data, ExportFormat.PDF, ExportFormat.JSON),
-                (dashboard_data, json_data, ExportFormat.DASHBOARD, ExportFormat.JSON)
+                (dashboard_data, json_data, ExportFormat.DASHBOARD, ExportFormat.JSON),
             ]
 
             for data1, data2, format1, format2 in format_combinations:
@@ -326,26 +368,38 @@ class PDFDashboardConsistencyTester:
         # Generate recommendations
         recommendations = []
         if overall_consistency_rate < 85:
-            recommendations.append("Overall consistency below target - review format conversion algorithms")
+            recommendations.append(
+                "Overall consistency below target - review format conversion algorithms"
+            )
 
         if any(r.max_difference > 3.0 for r in consistency_results):
-            recommendations.append("High score differences detected - adjust rounding precision")
+            recommendations.append(
+                "High score differences detected - adjust rounding precision"
+            )
 
         if len(critical_issues) > len(test_results) * 0.1:  # More than 10% issues
-            recommendations.append("High critical issue rate - comprehensive format review needed")
+            recommendations.append(
+                "High critical issue rate - comprehensive format review needed"
+            )
 
         if not recommendations:
-            recommendations.append("PDF-Dashboard consistency is within acceptable parameters")
+            recommendations.append(
+                "PDF-Dashboard consistency is within acceptable parameters"
+            )
 
         return ConsistencyTestResult(
             test_name="pdf_dashboard_consistency",
             assessment_type=assessment_type.value,
-            export_formats=[ExportFormat.PDF, ExportFormat.DASHBOARD, ExportFormat.JSON],
+            export_formats=[
+                ExportFormat.PDF,
+                ExportFormat.DASHBOARD,
+                ExportFormat.JSON,
+            ],
             consistency_results=consistency_results,
             overall_consistency_rate=overall_consistency_rate,
             critical_issues=critical_issues,
             recommendations=recommendations,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     async def run_comprehensive_consistency_tests(self) -> Dict[str, Any]:
@@ -377,7 +431,7 @@ class PDFDashboardConsistencyTester:
                 "target_consistency_rate": 85.0,
                 "total_format_checks": total_tests,
                 "critical_issues_found": total_critical_issues,
-                "meets_target": overall_consistency >= 85.0
+                "meets_target": overall_consistency >= 85.0,
             },
             "assessment_results": [
                 {
@@ -385,33 +439,44 @@ class PDFDashboardConsistencyTester:
                     "consistency_rate": result.overall_consistency_rate,
                     "format_checks": len(result.consistency_results),
                     "critical_issues": len(result.critical_issues),
-                    "recommendations": result.recommendations
+                    "recommendations": result.recommendations,
                 }
                 for result in test_results
             ],
-            "recommendations": self._generate_overall_recommendations(test_results)
+            "recommendations": self._generate_overall_recommendations(test_results),
         }
 
         return report
 
-    def _generate_overall_recommendations(self, test_results: List[ConsistencyTestResult]) -> List[str]:
+    def _generate_overall_recommendations(
+        self, test_results: List[ConsistencyTestResult]
+    ) -> List[str]:
         """Generate overall recommendations based on all test results"""
         recommendations = []
 
         # Check overall consistency
-        avg_consistency = statistics.mean([r.overall_consistency_rate for r in test_results])
+        avg_consistency = statistics.mean(
+            [r.overall_consistency_rate for r in test_results]
+        )
         if avg_consistency < 85:
-            recommendations.append("Overall consistency below target - standardize format conversion logic")
+            recommendations.append(
+                "Overall consistency below target - standardize format conversion logic"
+            )
 
         # Check critical issues patterns
         total_issues = sum(len(r.critical_issues) for r in test_results)
         if total_issues > 0:
-            recommendations.append("Critical issues detected - prioritize format consistency fixes")
+            recommendations.append(
+                "Critical issues detected - prioritize format consistency fixes"
+            )
 
         if not recommendations:
-            recommendations.append("All format consistency checks passed - system ready for production")
+            recommendations.append(
+                "All format consistency checks passed - system ready for production"
+            )
 
         return recommendations
+
 
 async def main():
     """Main function to run PDF-dashboard consistency tests"""
@@ -448,12 +513,13 @@ async def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     results_file = f"pdf_dashboard_consistency_results_{timestamp}.json"
 
-    with open(results_file, 'w') as f:
+    with open(results_file, "w") as f:
         json.dump(results, f, indent=2)
 
     print(f"\nDetailed results saved to: {results_file}")
 
     return results
+
 
 if __name__ == "__main__":
     asyncio.run(main())

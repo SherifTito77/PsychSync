@@ -1,11 +1,25 @@
 // Email Connector Page - Email Integration, Communication Analytics, Connection Management
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  getAvailableProviders,
+  getEmailConnections,
+  setupEmailConnection,
+  disconnectEmail,
+  getOAuthUrl,
+  triggerManualSync,
+} from '../services/emailConnectorService';
+import IMAPConnectionModal from '../components/email/IMAPConnectionModal';
 
 const EmailConnector: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedProvider, setSelectedProvider] = useState<string>('gmail');
-  const [connectionStatus, setConnectionStatus] = useState<string>('disconnected');
+  const [connections, setConnections] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showIMAPModal, setShowIMAPModal] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, 'connected' | 'disconnected'>>({});
 
   const emailProviders = [
     {
@@ -68,6 +82,160 @@ const EmailConnector: React.FC = () => {
     { option: 'Manual only', description: 'Sync only when triggered' }
   ];
 
+  // Load existing connections on mount
+  useEffect(() => {
+    loadConnections();
+  }, []);
+
+  const loadConnections = async () => {
+    try {
+      const result = await getEmailConnections();
+      if (result.success) {
+        setConnections(result.connections);
+        const statusMap: Record<string, 'connected' | 'disconnected'> = {};
+        result.connections.forEach((conn: any) => {
+          statusMap[conn.provider] = conn.connection_status;
+        });
+        setConnectionStatus(statusMap);
+      }
+    } catch (error) {
+      console.error('Failed to load connections:', error);
+    }
+  };
+
+  const handleConnectEmail = async () => {
+    if (selectedProvider === 'imap') {
+      setShowIMAPModal(true);
+      return;
+    }
+
+    // OAuth providers (Gmail, Outlook, Exchange)
+    setLoading(true);
+    try {
+      const result = await getOAuthUrl(selectedProvider);
+      if (result.success) {
+        // Redirect to OAuth provider
+        window.location.href = result.auth_url;
+      } else {
+        alert('Failed to get authorization URL. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('OAuth error:', error);
+
+      // Extract error details from backend response
+      let errorMessage = 'Failed to initiate OAuth flow. Please try again.';
+
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+
+        if (typeof detail === 'string') {
+          errorMessage = detail;
+        } else if (typeof detail === 'object' && detail?.message) {
+          errorMessage = detail.message;
+          if (detail.instructions) {
+            errorMessage += '\n\n' + detail.instructions;
+          }
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisconnect = async (connectionId: string) => {
+    if (!confirm('Are you sure you want to disconnect this email account?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await disconnectEmail(connectionId);
+      if (result.success) {
+        await loadConnections(); // Reload connections
+        alert('Email account disconnected successfully.');
+      } else {
+        alert('Failed to disconnect. Please try again.');
+      }
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      alert('Failed to disconnect. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIMAPConnect = async (credentials: {
+    email_address: string;
+    server: string;
+    port: number;
+    use_ssl: boolean;
+    username?: string;
+    password: string;
+  }) => {
+    setLoading(true);
+    try {
+      const result = await setupEmailConnection({
+        provider: 'imap',
+        email_address: credentials.email_address,
+        connection_parameters: {
+          server: credentials.server,
+          port: credentials.port,
+          use_ssl: credentials.use_ssl,
+          username: credentials.username || credentials.email_address,
+          password: credentials.password,
+        },
+        permissions: ['read'],
+        sync_settings: {
+          frequency: 'manual',
+        },
+        auto_sync_enabled: false,
+      });
+
+      if (result.success) {
+        setShowIMAPModal(false);
+        await loadConnections();
+        alert('IMAP connection successful!');
+      } else {
+        alert(`Connection failed: ${result.error_message || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      console.error('IMAP connection error:', error);
+
+      // Show detailed error information
+      let errorDetails = 'Failed to connect. Please check your credentials and try again.';
+
+      if (error.response) {
+        const status = error.response.status;
+        const data = error.response.data;
+
+        if (data && data.detail) {
+          errorDetails = `Connection failed (${status}): ${typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)}`;
+        } else {
+          errorDetails = `Connection failed (${status}): ${error.response.statusText}`;
+        }
+      } else if (error.message) {
+        errorDetails = `Connection failed: ${error.message}`;
+      }
+
+      alert(errorDetails);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartAnalytics = () => {
+    // Navigate to email analytics dashboard
+    navigate('/email-analytics');
+  };
+
+  const isProviderConnected = (providerId: string) => {
+    return connections.some((conn: any) => conn.provider === providerId && conn.connection_status === 'connected');
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -83,21 +251,60 @@ const EmailConnector: React.FC = () => {
           <CardTitle>Connection Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className={`w-3 h-3 rounded-full ${
-                connectionStatus === 'connected' ? 'bg-green-500' : 'bg-gray-400'
-              }`}></div>
-              <span className="font-medium">
-                {connectionStatus === 'connected' ? 'Connected' : 'Not Connected'}
-              </span>
-            </div>
-            <Button
-              variant={connectionStatus === 'connected' ? 'outline' : 'primary'}
-              onClick={() => setConnectionStatus(connectionStatus === 'connected' ? 'disconnected' : 'connected')}
-            >
-              {connectionStatus === 'connected' ? 'Disconnect' : 'Connect Email'}
-            </Button>
+          <div className="space-y-3">
+            {connections.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No email accounts connected yet.</p>
+            ) : (
+              connections.map((connection: any) => (
+                <div key={connection.connection_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      connection.connection_status === 'connected' ? 'bg-green-500' : 'bg-gray-400'
+                    }`}></div>
+                    <div>
+                      <p className="font-medium">{connection.email_address}</p>
+                      <p className="text-sm text-gray-500 capitalize">{connection.provider}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDisconnect(connection.connection_id)}
+                    disabled={loading}
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* OAuth Configuration Notice */}
+      <Card className="mb-8 bg-yellow-50 border-yellow-200">
+        <CardHeader>
+          <CardTitle className="text-yellow-800">⚠️ OAuth Setup Required for Gmail/Outlook</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-yellow-700 mb-3">
+            To use Gmail or Outlook OAuth connections, you need to configure OAuth credentials in your backend environment.
+          </p>
+          <div className="space-y-2 text-sm">
+            <p className="font-medium">For Gmail:</p>
+            <ol className="list-decimal list-inside space-y-1 text-yellow-700">
+              <li>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline font-medium">Google Cloud Console</a></li>
+              <li>Create a new project or select existing one</li>
+              <li>Enable Gmail API</li>
+              <li>Create OAuth 2.0 credentials (Web application)</li>
+              <li>Add <code className="bg-yellow-100 px-1 rounded">http://localhost:5004/email-oauth-callback</code> to authorized redirect URIs</li>
+              <li>Set <code className="bg-yellow-100 px-1 rounded">GMAIL_CLIENT_ID</code> and <code className="bg-yellow-100 px-1 rounded">GMAIL_CLIENT_SECRET</code> in your .env file</li>
+            </ol>
+          </div>
+          <div className="mt-4 p-2 bg-white rounded border border-yellow-300">
+            <p className="text-sm font-medium text-gray-800">
+              💡 <strong>Alternative:</strong> Use <strong>Generic IMAP/POP3</strong> connection below - it works without OAuth setup using your email password or app-specific password!
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -106,39 +313,59 @@ const EmailConnector: React.FC = () => {
       <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Supported Email Providers</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {emailProviders.map((provider) => (
-            <Card
-              key={provider.id}
-              className={`cursor-pointer transition-all ${
-                selectedProvider === provider.id
-                  ? 'ring-2 ring-blue-500 bg-blue-50'
-                  : 'hover:shadow-md'
-              }`}
-              onClick={() => setSelectedProvider(provider.id)}
-            >
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{provider.icon}</span>
-                    <span>{provider.name}</span>
-                  </div>
-                  <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {provider.difficulty}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-3">{provider.description}</p>
-                <div className="flex flex-wrap gap-2">
-                  {provider.features.map((feature, index) => (
-                    <span key={index} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                      {feature}
+          {emailProviders.map((provider) => {
+            const isConnected = isProviderConnected(provider.id);
+            return (
+              <Card
+                key={provider.id}
+                className={`cursor-pointer transition-all ${
+                  selectedProvider === provider.id && !isConnected
+                    ? 'ring-2 ring-blue-500 bg-blue-50'
+                    : isConnected
+                    ? 'ring-2 ring-green-500 bg-green-50'
+                    : 'hover:shadow-md'
+                }`}
+                onClick={() => !isConnected && setSelectedProvider(provider.id)}
+              >
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">{provider.icon}</span>
+                      <span>{provider.name}</span>
+                      {isConnected && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Connected</span>
+                      )}
+                    </div>
+                    <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                      {provider.difficulty}
                     </span>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-3">{provider.description}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {provider.features.map((feature, index) => (
+                      <span key={index} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Connect Button */}
+        <div className="mt-6">
+          <Button
+            variant="primary"
+            onClick={handleConnectEmail}
+            disabled={loading || isProviderConnected(selectedProvider)}
+            className="w-full md:w-auto"
+          >
+            {loading ? 'Connecting...' : isProviderConnected(selectedProvider) ? 'Already Connected' : `Connect ${selectedProvider === 'gmail' ? 'Gmail' : selectedProvider === 'outlook' ? 'Outlook' : selectedProvider === 'imap' ? 'IMAP Account' : selectedProvider}`}
+          </Button>
         </div>
       </div>
 
@@ -188,18 +415,27 @@ const EmailConnector: React.FC = () => {
       </div>
 
       {/* Action Buttons */}
-      <div className="flex space-x-4">
-        <Button variant="primary" onClick={() => console.log('Setup Connection')}>
+      <div className="flex flex-wrap gap-4">
+        <Button
+          variant="primary"
+          onClick={handleConnectEmail}
+          disabled={loading || isProviderConnected(selectedProvider)}
+        >
           Setup Connection
         </Button>
-        <Button variant="secondary" onClick={() => console.log('Start Analytics')}>
+        <Button
+          variant="secondary"
+          onClick={handleStartAnalytics}
+          disabled={connections.length === 0}
+        >
           Start Analytics
         </Button>
-        <Button variant="outline" onClick={() => console.log('View Dashboard')}>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/email-analytics')}
+          disabled={connections.length === 0}
+        >
           View Dashboard
-        </Button>
-        <Button variant="outline" onClick={() => console.log('Sync Settings')}>
-          Sync Settings
         </Button>
       </div>
 
@@ -216,6 +452,14 @@ const EmailConnector: React.FC = () => {
           </p>
         </CardContent>
       </Card>
+
+      {/* IMAP Connection Modal */}
+      <IMAPConnectionModal
+        isOpen={showIMAPModal}
+        onClose={() => setShowIMAPModal(false)}
+        onConnect={handleIMAPConnect}
+        loading={loading}
+      />
     </div>
   );
 };

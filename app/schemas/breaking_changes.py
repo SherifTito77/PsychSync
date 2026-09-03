@@ -12,36 +12,61 @@ from pydantic import BaseModel, Field
 
 class BreakingChangeBase(BaseModel):
     """Base schema for breaking change"""
-    change_type: str = Field(..., description="Type: api_breaking, schema_change, contract_change, dependency_break")
-    affected_component: str = Field(..., description="API endpoint, database table, or service name")
+
+    change_type: str = Field(
+        ...,
+        description="Type: api_breaking, schema_change, contract_change, dependency_break",
+    )
+    affected_component: str = Field(
+        ..., description="API endpoint, database table, or service name"
+    )
     description: str = Field(..., description="Description of the breaking change")
     severity: str = Field(..., description="Severity: critical, high, medium, low")
 
 
 class BreakingChangeCreate(BreakingChangeBase):
     """Schema for creating breaking change"""
+
     source_branch: str = Field(..., description="Git branch introducing the change")
     commit_hash: str = Field(..., description="Git commit SHA")
     file_path: str = Field(..., description="File where change was detected")
     line_number: int = Field(..., description="Line number of change")
-    backwards_compatible: bool = Field(default=False, description="Whether change is backwards compatible")
-    migration_required: bool = Field(default=False, description="Whether data migration is required")
-    affected_endpoints: Optional[list[str]] = Field(None, description="Affected API endpoints")
-    affected_models: Optional[list[str]] = Field(None, description="Affected database models")
+    backwards_compatible: bool = Field(
+        default=False, description="Whether change is backwards compatible"
+    )
+    migration_required: bool = Field(
+        default=False, description="Whether data migration is required"
+    )
+    affected_endpoints: Optional[list[str]] = Field(
+        None, description="Affected API endpoints"
+    )
+    affected_models: Optional[list[str]] = Field(
+        None, description="Affected database models"
+    )
 
 
 class BreakingChangeUpdate(BaseModel):
     """Schema for updating breaking change"""
-    description: Optional[str] = Field(None, description="Description of the breaking change")
-    severity: Optional[str] = Field(None, description="Severity: critical, high, medium, low")
-    ai_risk_assessment: Optional[str] = Field(None, description="AI-generated risk assessment")
-    ai_mitigation_suggestion: Optional[str] = Field(None, description="AI mitigation suggestion")
+
+    description: Optional[str] = Field(
+        None, description="Description of the breaking change"
+    )
+    severity: Optional[str] = Field(
+        None, description="Severity: critical, high, medium, low"
+    )
+    ai_risk_assessment: Optional[str] = Field(
+        None, description="AI-generated risk assessment"
+    )
+    ai_mitigation_suggestion: Optional[str] = Field(
+        None, description="AI mitigation suggestion"
+    )
     is_approved: Optional[bool] = Field(None, description="Whether change is approved")
     approved_by: Optional[str] = Field(None, description="Who approved the change")
 
 
 class BreakingChange(BreakingChangeBase):
     """Schema for breaking change response"""
+
     id: UUID
     source_branch: str
     commit_hash: str
@@ -60,26 +85,34 @@ class BreakingChange(BreakingChangeBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class MigrationGuideBase(BaseModel):
     """Base schema for migration guide"""
+
     breaking_change_id: UUID = Field(..., description="Link to breaking change")
-    guide_type: str = Field(..., description="Type: code_update, data_migration, config_change")
+    guide_type: str = Field(
+        ..., description="Type: code_update, data_migration, config_change"
+    )
 
 
 class MigrationGuideCreate(MigrationGuideBase):
     """Schema for creating migration guide"""
+
     steps: list[str] = Field(..., description="Step-by-step migration instructions")
     estimated_effort_hours: float
-    required_downtime_minutes: int = Field(default=0, description="Required downtime for migration")
+    required_downtime_minutes: int = Field(
+        default=0, description="Required downtime for migration"
+    )
 
 
 class MigrationGuide(MigrationGuideBase):
     """Schema for migration guide response"""
+
     id: UUID
     steps: list[str]
     estimated_effort_hours: float
@@ -90,13 +123,15 @@ class MigrationGuide(MigrationGuideBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class BreakingChangeReportBase(BaseModel):
     """Base schema for breaking change report"""
+
     report_date: datetime = Field(..., description="When report was generated")
     period_start: datetime = Field(..., description="Start of analysis period")
     period_end: datetime = Field(..., description="End of analysis period")
@@ -104,6 +139,7 @@ class BreakingChangeReportBase(BaseModel):
 
 class BreakingChangeReportCreate(BreakingChangeReportBase):
     """Schema for creating breaking change report"""
+
     total_changes_detected: int
     critical_changes: int
     high_priority_changes: int
@@ -120,6 +156,7 @@ class BreakingChangeReportCreate(BreakingChangeReportBase):
 
 class BreakingChangeReport(BreakingChangeReportBase):
     """Schema for breaking change report response"""
+
     id: UUID
     total_changes_detected: int
     critical_changes: int
@@ -138,13 +175,15 @@ class BreakingChangeReport(BreakingChangeReportBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class BreakingChangesSummary(BaseModel):
     """Summary of breaking changes"""
+
     total_changes: int
     unresolved_changes: int
     critical_changes: int

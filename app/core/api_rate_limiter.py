@@ -5,11 +5,11 @@ Intelligent, multi-tiered rate limiting with different strategies for different 
 """
 
 import asyncio
+import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import time
 from typing import Any
 
 from fastapi import Request, status
@@ -84,28 +84,52 @@ class AdvancedRateLimiter:
         """Initialize rate limit rules for different tiers"""
         return {
             RateLimitTier.FREE: [
-                RateLimitRule(100, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 10),
-                RateLimitRule(1000, 3600, RateLimitTier.FREE, RateLimitType.FIXED_WINDOW, 50),
+                RateLimitRule(
+                    100, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 10
+                ),
+                RateLimitRule(
+                    1000, 3600, RateLimitTier.FREE, RateLimitType.FIXED_WINDOW, 50
+                ),
             ],
             RateLimitTier.BASIC: [
-                RateLimitRule(500, 60, RateLimitTier.BASIC, RateLimitType.SLIDING_WINDOW, 50),
-                RateLimitRule(5000, 3600, RateLimitTier.BASIC, RateLimitType.FIXED_WINDOW, 200),
+                RateLimitRule(
+                    500, 60, RateLimitTier.BASIC, RateLimitType.SLIDING_WINDOW, 50
+                ),
+                RateLimitRule(
+                    5000, 3600, RateLimitTier.BASIC, RateLimitType.FIXED_WINDOW, 200
+                ),
             ],
             RateLimitTier.PREMIUM: [
-                RateLimitRule(2000, 60, RateLimitTier.PREMIUM, RateLimitType.SLIDING_WINDOW, 200),
-                RateLimitRule(20000, 3600, RateLimitTier.PREMIUM, RateLimitType.FIXED_WINDOW, 1000),
+                RateLimitRule(
+                    2000, 60, RateLimitTier.PREMIUM, RateLimitType.SLIDING_WINDOW, 200
+                ),
+                RateLimitRule(
+                    20000, 3600, RateLimitTier.PREMIUM, RateLimitType.FIXED_WINDOW, 1000
+                ),
             ],
             RateLimitTier.ENTERPRISE: [
                 RateLimitRule(
-                    10000, 60, RateLimitTier.ENTERPRISE, RateLimitType.SLIDING_WINDOW, 1000
+                    10000,
+                    60,
+                    RateLimitTier.ENTERPRISE,
+                    RateLimitType.SLIDING_WINDOW,
+                    1000,
                 ),
                 RateLimitRule(
-                    100000, 3600, RateLimitTier.ENTERPRISE, RateLimitType.FIXED_WINDOW, 5000
+                    100000,
+                    3600,
+                    RateLimitTier.ENTERPRISE,
+                    RateLimitType.FIXED_WINDOW,
+                    5000,
                 ),
             ],
             RateLimitTier.ADMIN: [
-                RateLimitRule(50000, 60, RateLimitTier.ADMIN, RateLimitType.TOKEN_BUCKET, 5000),
-                RateLimitRule(500000, 3600, RateLimitTier.ADMIN, RateLimitType.TOKEN_BUCKET, 25000),
+                RateLimitRule(
+                    50000, 60, RateLimitTier.ADMIN, RateLimitType.TOKEN_BUCKET, 5000
+                ),
+                RateLimitRule(
+                    500000, 3600, RateLimitTier.ADMIN, RateLimitType.TOKEN_BUCKET, 25000
+                ),
             ],
         }
 
@@ -139,7 +163,10 @@ class AdvancedRateLimiter:
         return tier
 
     async def check_rate_limit(
-        self, request: Request, user_id: int | None = None, endpoint_name: str | None = None
+        self,
+        request: Request,
+        user_id: int | None = None,
+        endpoint_name: str | None = None,
     ) -> tuple[bool, RateLimitRule | None]:
         """
         Check if request is allowed based on rate limits
@@ -160,17 +187,23 @@ class AdvancedRateLimiter:
 
         return True, None  # All rules passed
 
-    async def _check_ip_rate_limit(self, request: Request) -> tuple[bool, RateLimitRule | None]:
+    async def _check_ip_rate_limit(
+        self, request: Request
+    ) -> tuple[bool, RateLimitRule | None]:
         """Check IP-based rate limiting for unauthenticated requests"""
         client_ip = get_remote_address(request)
 
         # Development-friendly limits for unauthenticated requests
         if settings.DEBUG:
             # More permissive for development: 100 requests per minute
-            ip_rule = RateLimitRule(100, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 20)
+            ip_rule = RateLimitRule(
+                100, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 20
+            )
         else:
             # Strict limits for production
-            ip_rule = RateLimitRule(10, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 2)
+            ip_rule = RateLimitRule(
+                10, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 2
+            )
 
         if await self._check_sliding_window(ip_rule, f"ip:{client_ip}"):
             return True, None
@@ -233,7 +266,9 @@ class AdvancedRateLimiter:
         request_count = await cache_get(window_key) or 0
 
         if request_count < rule.requests_per_window:
-            await cache_set(window_key, request_count + 1, expire_seconds=rule.window_seconds)
+            await cache_set(
+                window_key, request_count + 1, expire_seconds=rule.window_seconds
+            )
             return True
         return False
 
@@ -250,7 +285,9 @@ class AdvancedRateLimiter:
         # Refill tokens based on time elapsed
         time_elapsed = now - bucket["last_refill"]
         tokens_to_add = time_elapsed * (rule.requests_per_window / rule.window_seconds)
-        bucket["tokens"] = min(rule.requests_per_window, bucket["tokens"] + tokens_to_add)
+        bucket["tokens"] = min(
+            rule.requests_per_window, bucket["tokens"] + tokens_to_add
+        )
         bucket["last_refill"] = now
 
         # Check if we have tokens
@@ -308,7 +345,9 @@ class AdvancedRateLimiter:
             return await self._check_sliding_window(adjusted_rule, f"adaptive:{key}")
         return await self._check_sliding_window(rule, key)
 
-    async def record_request(self, user_id: int | None, endpoint_name: str, success: bool = True):
+    async def record_request(
+        self, user_id: int | None, endpoint_name: str, success: bool = True
+    ):
         """Record request for metrics and adaptive limiting"""
         if not user_id:
             return
@@ -392,7 +431,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return response
 
     async def _add_rate_limit_headers(
-        self, response, user_id: int | None, limiting_rule: RateLimitRule | None, request: Request
+        self,
+        response,
+        user_id: int | None,
+        limiting_rule: RateLimitRule | None,
+        request: Request,
     ) -> None:
         """Add comprehensive rate limit information headers to response"""
         import time
@@ -408,14 +451,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     ip_rule = RateLimitRule(
                         100, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 20
                     )
-                    policy_description = "IP-based: 100 requests per 60 seconds (development)"
+                    policy_description = (
+                        "IP-based: 100 requests per 60 seconds (development)"
+                    )
                 else:
                     ip_rule = RateLimitRule(
                         10, 60, RateLimitTier.FREE, RateLimitType.SLIDING_WINDOW, 2
                     )
-                    policy_description = "IP-based: 10 requests per 60 seconds (production)"
+                    policy_description = (
+                        "IP-based: 10 requests per 60 seconds (production)"
+                    )
 
-                current_requests = len(self.rate_limiter.sliding_windows.get(window_key, []))
+                current_requests = len(
+                    self.rate_limiter.sliding_windows.get(window_key, [])
+                )
 
                 response.headers["X-RateLimit-Limit"] = str(ip_rule.requests_per_window)
                 response.headers["X-RateLimit-Window"] = str(ip_rule.window_seconds)
@@ -435,16 +484,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if rules:
                 # Use the primary rule for header information
                 primary_rule = rules[0]
-                window_key = (
-                    f"user:{user_id}:rule:{primary_rule.window_seconds}:tier:{user_tier.value}"
+                window_key = f"user:{user_id}:rule:{primary_rule.window_seconds}:tier:{user_tier.value}"
+                current_requests = len(
+                    self.rate_limiter.sliding_windows.get(window_key, [])
                 )
-                current_requests = len(self.rate_limiter.sliding_windows.get(window_key, []))
                 remaining = max(0, primary_rule.requests_per_window - current_requests)
                 reset_time = int(time.time() + primary_rule.window_seconds)
 
                 # Add comprehensive rate limit headers
-                response.headers["X-RateLimit-Limit"] = str(primary_rule.requests_per_window)
-                response.headers["X-RateLimit-Window"] = str(primary_rule.window_seconds)
+                response.headers["X-RateLimit-Limit"] = str(
+                    primary_rule.requests_per_window
+                )
+                response.headers["X-RateLimit-Window"] = str(
+                    primary_rule.window_seconds
+                )
                 response.headers["X-RateLimit-Remaining"] = str(remaining)
                 response.headers["X-RateLimit-Reset"] = str(reset_time)
                 response.headers["X-RateLimit-Tier"] = user_tier.value
@@ -454,14 +507,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
                 # Add burst information if applicable
                 if primary_rule.burst_allowance > 0:
-                    response.headers["X-RateLimit-Burst"] = str(primary_rule.burst_allowance)
+                    response.headers["X-RateLimit-Burst"] = str(
+                        primary_rule.burst_allowance
+                    )
                     burst_remaining = max(
                         0,
                         primary_rule.burst_allowance
                         + primary_rule.requests_per_window
                         - current_requests,
                     )
-                    response.headers["X-RateLimit-Burst-Remaining"] = str(burst_remaining)
+                    response.headers["X-RateLimit-Burst-Remaining"] = str(
+                        burst_remaining
+                    )
 
                 # Add secondary limit info if available
                 if len(rules) > 1:

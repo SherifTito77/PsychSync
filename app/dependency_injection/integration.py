@@ -15,9 +15,9 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+import logging
 from collections.abc import Callable
 from contextlib import asynccontextmanager
-import logging
 
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -66,7 +66,9 @@ async def di_lifespan(app: FastAPI):
             register_all_services()
             integration_logger.info("All services registered successfully")
         else:
-            integration_logger.info("Services already registered, skipping registration")
+            integration_logger.info(
+                "Services already registered, skipping registration"
+            )
 
         # Integration with FastAPI adapter
         adapter.inject_into_fastapi(app)
@@ -119,7 +121,9 @@ def get_di_integration_status() -> dict:
             "singletons": sum(
                 1 for info in service_info.values() if info["lifetime"] == "singleton"
             ),
-            "scoped": sum(1 for info in service_info.values() if info["lifetime"] == "scoped"),
+            "scoped": sum(
+                1 for info in service_info.values() if info["lifetime"] == "scoped"
+            ),
             "transient": sum(
                 1 for info in service_info.values() if info["lifetime"] == "transient"
             ),

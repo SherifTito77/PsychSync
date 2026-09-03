@@ -188,7 +188,7 @@ spec:
       # Container Security
       containers:
       - name: backend
-        image: psychsync/backend:v1.0.0
+        image: ghcr.io/sheriftito77/psychsync-backend:latest  # Update via CI/CD or kustomize overlay
         imagePullPolicy: Always
 
         # Container Security Context

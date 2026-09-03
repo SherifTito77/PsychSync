@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Button from "../../components/common/Button";
 import assessmentResultsService from "../../services/assessmentResultsService";
+import apiClient from "../../services/api";
 
 interface MBTIResult {
   result_id: number;
@@ -23,47 +24,48 @@ const AssessmentResultsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ FIXED: Function moved inside useEffect to avoid dependency issues
   useEffect(() => {
-    loadAssessmentResults();
-  }, [id]);
+    const loadAssessmentResults = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const loadAssessmentResults = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Get the most recent result for this assessment type
-      if (id === 'mbti') {
-        // Try the test endpoint first (no authentication required)
-        try {
-          const testResponse = await apiClient.get('/assessment-results-test?assessment_type=mbti&limit=1');
-          if (testResponse.data && testResponse.data.success && testResponse.data.count > 0) {
-            const latestResult = testResponse.data.results[0];
-            setResults(latestResult as MBTIResult);
-            return;
+        // Get the most recent result for this assessment type
+        if (id === 'mbti') {
+          // Try the test endpoint first (no authentication required)
+          try {
+            const testResponse = await apiClient.get('/assessment-results-test?assessment_type=mbti&limit=1');
+            if (testResponse.data && (testResponse.data as any).success && (testResponse.data as any).count > 0) {
+              const latestResult = (testResponse.data as any).results[0];
+              setResults(latestResult as MBTIResult);
+              return;
+            }
+          } catch (testError) {
+            console.log('Test endpoint failed, trying authenticated endpoint...');
           }
-        } catch (testError) {
-          console.log('Test endpoint failed, trying authenticated endpoint...');
-        }
 
-        // Fallback to authenticated endpoint
-        const response = await assessmentResultsService.getAssessmentResults('mbti', 1);
-        if (response.success && response.results.length > 0) {
-          const latestResult = response.results[0];
-          setResults(latestResult as MBTIResult);
+          // Fallback to authenticated endpoint
+          const response = await assessmentResultsService.getAssessmentResults('mbti', 1);
+          if (response.success && response.results.length > 0) {
+            const latestResult = response.results[0];
+            setResults(latestResult as MBTIResult);
+          } else {
+            setError("No MBTI assessment results found. Please complete an assessment first.");
+          }
         } else {
-          setError("No MBTI assessment results found. Please complete an assessment first.");
+          setError(`Results for ${id} assessments are not yet implemented.`);
         }
-      } else {
-        setError(`Results for ${id} assessments are not yet implemented.`);
+      } catch (err) {
+        console.error('Failed to load assessment results:', err);
+        setError("Failed to load assessment results. Please try again later.");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to load assessment results:', err);
-      setError("Failed to load assessment results. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadAssessmentResults();
+  }, [id]); // ✅ Only depends on id
 
   if (loading) {
     return (
@@ -130,22 +132,25 @@ const AssessmentResultsPage: React.FC = () => {
           <div className="border-t pt-6 mb-6">
             <h3 className="text-lg font-semibold mb-4">Personality Dimensions</h3>
             <div className="grid grid-cols-2 gap-4">
-              {Object.entries(results.dimensions || {}).map(([dimension, score]) => (
-                <div key={dimension} className="text-center">
-                  <div className="mb-2">
-                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {dimension.replace('_', ' ')}
-                    </span>
+              {Object.entries(results.dimensions || {}).map(([dimension, score]) => {
+                const numScore = score as number;
+                return (
+                  <div key={dimension} className="text-center">
+                    <div className="mb-2">
+                      <span className="text-sm font-medium text-gray-700 capitalize">
+                        {dimension.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(numScore || 0) * 100}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs text-gray-600">{Math.round((numScore || 0) * 100)}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(score || 0) * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-xs text-gray-600">{Math.round((score || 0) * 100)}%</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

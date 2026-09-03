@@ -4,28 +4,29 @@ Experimental Features Lab API Endpoints
 Advanced R&D platform endpoints for A/B testing, gamification, and voice analysis.
 """
 
-from typing import List, Optional, Dict, Any
-
-from app.middleware.rate_limiter import check_rate_limit
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional
 
-from app.api.deps import get_current_user, get_db
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
 from app.services.experimental_features import (
     ExperimentalFeaturesLab,
     ExperimentConfig,
     ExperimentResults,
+    ExperimentStatus,
     GamificationProfile,
+    TestType,
     VoiceAnalysisResult,
     VoiceAnalysisType,
-    ExperimentStatus,
-    TestType
 )
-from pydantic import BaseModel, Field
 
 router = APIRouter()
+
 
 # Request/Response Models
 class ExperimentConfigRequest(BaseModel):
@@ -33,13 +34,18 @@ class ExperimentConfigRequest(BaseModel):
     name: str = Field(..., description="Experiment name")
     description: str = Field(..., description="Experiment description")
     test_type: str = Field(..., description="Type of A/B test")
-    traffic_split: Dict[str, float] = Field(..., description="Traffic allocation per variant")
-    target_audience: Dict[str, Any] = Field(default_factory=dict, description="Target audience criteria")
+    traffic_split: Dict[str, float] = Field(
+        ..., description="Traffic allocation per variant"
+    )
+    target_audience: Dict[str, Any] = Field(
+        default_factory=dict, description="Target audience criteria"
+    )
     success_metrics: List[str] = Field(..., description="Success metrics to track")
     duration_days: int = Field(..., description="Experiment duration in days")
     min_sample_size: int = Field(..., description="Minimum sample size required")
     confidence_level: float = Field(0.95, description="Statistical confidence level")
     variants: Dict[str, Any] = Field(..., description="Variant configurations")
+
 
 class ExperimentResponse(BaseModel):
     experiment_id: str
@@ -55,6 +61,7 @@ class ExperimentResponse(BaseModel):
     winner: Optional[str]
     business_impact: float
 
+
 class GamificationProfileResponse(BaseModel):
     current_level: int
     total_points: int
@@ -66,12 +73,19 @@ class GamificationProfileResponse(BaseModel):
     engagement_score: float
     preferences: Dict[str, Any]
 
+
 class AchievementRequest(BaseModel):
     achievement_type: str = Field(..., description="Type of achievement to award")
-    achievement_data: Dict[str, Any] = Field(default_factory=dict, description="Additional achievement data")
+    achievement_data: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional achievement data"
+    )
+
 
 class VoiceAnalysisRequest(BaseModel):
-    analysis_types: List[str] = Field(..., description="Types of voice analysis to perform")
+    analysis_types: List[str] = Field(
+        ..., description="Types of voice analysis to perform"
+    )
+
 
 class VoiceAnalysisResponse(BaseModel):
     analysis_id: str
@@ -86,6 +100,7 @@ class VoiceAnalysisResponse(BaseModel):
     recommendations: List[str]
     analysis_date: str
 
+
 class LabDashboardResponse(BaseModel):
     active_experiments: int
     total_experiments: int
@@ -95,6 +110,7 @@ class LabDashboardResponse(BaseModel):
     feature_adoption: Dict[str, Any]
     user_engagement: Dict[str, Any]
 
+
 class LeaderboardResponse(BaseModel):
     leaderboard_type: str
     entries: List[Dict[str, Any]]
@@ -102,24 +118,27 @@ class LeaderboardResponse(BaseModel):
     user_rank: Optional[int]
     last_updated: str
 
+
 # API Endpoints
 
-@check_rate_limit(identifier="public", limit_name="public")
+
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/experiments", response_model=str)
 async def create_experiment(
     config: ExperimentConfigRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create a new A/B testing experiment.
     """
     try:
         # Authorization check - require admin or researcher role
-        if not (current_user.is_superuser or current_user.role in ["admin", "researcher"]):
+        if not (
+            current_user.is_superuser or current_user.role in ["admin", "researcher"]
+        ):
             raise HTTPException(
-                status_code=403,
-                detail="Not authorized to create experiments"
+                status_code=403, detail="Not authorized to create experiments"
             )
 
         # Convert to experiment config
@@ -134,7 +153,7 @@ async def create_experiment(
             duration_days=config.duration_days,
             min_sample_size=config.min_sample_size,
             confidence_level=config.confidence_level,
-            variants=config.variants
+            variants=config.variants,
         )
 
         lab = ExperimentalFeaturesLab(db)
@@ -145,23 +164,25 @@ async def create_experiment(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/experiments", response_model=List[ExperimentResponse])
 async def get_experiments(
     status: Optional[str] = Query(None, description="Filter by experiment status"),
     test_type: Optional[str] = Query(None, description="Filter by test type"),
     limit: int = Query(50, description="Maximum number of experiments to return"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get list of experiments with optional filtering.
     """
     try:
         # Authorization check
-        if not (current_user.is_superuser or current_user.role in ["admin", "researcher"]):
+        if not (
+            current_user.is_superuser or current_user.role in ["admin", "researcher"]
+        ):
             raise HTTPException(
-                status_code=403,
-                detail="Not authorized to view experiments"
+                status_code=403, detail="Not authorized to view experiments"
             )
 
         lab = ExperimentalFeaturesLab(db)
@@ -180,11 +201,11 @@ async def get_experiments(
                 participants=2450,
                 variants={
                     "control": {"users": 1225, "conversion_rate": 0.058},
-                    "treatment": {"users": 1225, "conversion_rate": 0.067}
+                    "treatment": {"users": 1225, "conversion_rate": 0.067},
                 },
                 statistical_significance=False,
                 winner=None,
-                business_impact=15.5
+                business_impact=15.5,
             ),
             ExperimentResponse(
                 experiment_id="exp_002",
@@ -197,31 +218,31 @@ async def get_experiments(
                 participants=1820,
                 variants={
                     "control": {"users": 910, "conversion_rate": 0.042},
-                    "treatment": {"users": 910, "conversion_rate": 0.068}
+                    "treatment": {"users": 910, "conversion_rate": 0.068},
                 },
                 statistical_significance=True,
                 winner="treatment",
-                business_impact=61.9
-            )
+                business_impact=61.9,
+            ),
         ]
 
         # Apply filters
         if status:
             experiments = [e for e in experiments if e.status == status]
         if test_type:
-            experiments = [e for e in experiments if e.test_typee == test_type
-]
+            experiments = [e for e in experiments if e.test_typee == test_type]
 
         return experiments[:limit]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.post("/experiments/{experiment_id}/assign", response_model=Optional[str])
 async def assign_user_to_experiment(
     experiment_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Assign current user to an experiment variant.
@@ -235,13 +256,14 @@ async def assign_user_to_experiment(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.post("/experiments/{experiment_id}/track")
 async def track_experiment_event(
     experiment_id: str,
     event_name: str,
     event_data: Dict[str, Any],
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Track user events for experiment analysis.
@@ -260,21 +282,23 @@ async def track_experiment_event(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/experiments/{experiment_id}/results")
 async def get_experiment_results(
     experiment_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get detailed results and analysis for a specific experiment.
     """
     try:
         # Authorization check
-        if not (current_user.is_superuser or current_user.role in ["admin", "researcher"]):
+        if not (
+            current_user.is_superuser or current_user.role in ["admin", "researcher"]
+        ):
             raise HTTPException(
-                status_code=403,
-                detail="Not authorized to view experiment results"
+                status_code=403, detail="Not authorized to view experiment results"
             )
 
         lab = ExperimentalFeaturesLab(db)
@@ -288,17 +312,20 @@ async def get_experiment_results(
             "statistical_significance": results.statistical_significance,
             "winner": results.winner,
             "confidence_intervals": results.confidence_intervals,
-            "business_impact": results.business_impact
+            "business_impact": results.business_impact,
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/gamification/profile", response_model=GamificationProfileResponse)
 async def get_gamification_profile(
-    user_id: Optional[str] = Query(None, description="User ID to get profile for (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    user_id: Optional[str] = Query(
+        None, description="User ID to get profile for (defaults to current user)"
+    ),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get gamification profile for a user.
@@ -310,7 +337,7 @@ async def get_gamification_profile(
         if user_id and user_id != current_user.id and not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Not authorized to view gamification profile for this user"
+                detail="Not authorized to view gamification profile for this user",
             )
 
         lab = ExperimentalFeaturesLab(db)
@@ -325,18 +352,21 @@ async def get_gamification_profile(
             badges=profile.badges,
             leaderboard_rank=profile.leaderboard_rank,
             engagement_score=profile.engagement_score,
-            preferences=profile.preferences
+            preferences=profile.preferences,
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.post("/gamification/achievements", response_model=Dict[str, Any])
 async def award_achievement(
     request: AchievementRequest,
-    user_id: Optional[str] = Query(None, description="User ID to award achievement to (defaults to current user)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    user_id: Optional[str] = Query(
+        None, description="User ID to award achievement to (defaults to current user)"
+    ),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Award an achievement to a user.
@@ -348,7 +378,7 @@ async def award_achievement(
         if user_id and user_id != current_user.id and not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Not authorized to award achievements to this user"
+                detail="Not authorized to award achievements to this user",
             )
 
         lab = ExperimentalFeaturesLab(db)
@@ -361,23 +391,24 @@ async def award_achievement(
                 "status": "success",
                 "message": f"Achievement {request.achievement_type} awarded successfully",
                 "user_id": target_user_id,
-                "achievement_type": request.achievement_type
+                "achievement_type": request.achievement_type,
             }
         else:
             return {
                 "status": "failed",
-                "message": "Failed to award achievement (possibly already awarded)"
+                "message": "Failed to award achievement (possibly already awarded)",
             }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/gamification/leaderboard", response_model=LeaderboardResponse)
 async def get_leaderboard(
     leaderboard_type: str = Query("points", description="Type of leaderboard"),
     limit: int = Query(50, description="Maximum number of entries to return"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get gamification leaderboard.
@@ -398,18 +429,19 @@ async def get_leaderboard(
             entries=leaderboard_data,
             total_entries=len(leaderboard_data),
             user_rank=user_rank,
-            last_updated=datetime.utcnow().isoformat()
+            last_updated=datetime.utcnow().isoformat(),
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.post("/voice/analyze", response_model=VoiceAnalysisResponse)
 async def analyze_voice_response(
     audio_file: UploadFile = File(..., description="Audio file to analyze"),
     analysis_types: List[str] = Query(..., description="Types of analysis to perform"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Analyze voice response for emotional and behavioral insights.
@@ -420,8 +452,7 @@ async def analyze_voice_response(
         invalid_types = [t for t in analysis_types if t not in valid_types]
         if invalid_types:
             raise HTTPException(
-                status_code=400,
-                detail=f"Invalid analysis types: {invalid_types}"
+                status_code=400, detail=f"Invalid analysis types: {invalid_types}"
             )
 
         # Read audio file
@@ -431,7 +462,9 @@ async def analyze_voice_response(
         voice_analysis_types = [VoiceAnalysisType(t) for t in analysis_types]
 
         lab = ExperimentalFeaturesLab(db)
-        result = await lab.analyze_voice_response(audio_data, current_user.id, voice_analysis_types)
+        result = await lab.analyze_voice_response(
+            audio_data, current_user.id, voice_analysis_types
+        )
 
         return VoiceAnalysisResponse(
             analysis_id=result.analysis_id,
@@ -444,17 +477,18 @@ async def analyze_voice_response(
             engagement_level=result.engagement_level,
             stress_indicators=result.stress_indicators,
             recommendations=result.recommendations,
-            analysis_date=datetime.utcnow().isoformat()
+            analysis_date=datetime.utcnow().isoformat(),
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/voice/analysis/{analysis_id}")
 async def get_voice_analysis_result(
     analysis_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get specific voice analysis result.
@@ -467,32 +501,29 @@ async def get_voice_analysis_result(
             "user_id": current_user.id,
             "status": "completed",
             "created_date": datetime.utcnow().isoformat(),
-            "sentiment_score": {
-                "positive": 0.65,
-                "negative": 0.15,
-                "neutral": 0.20
-            },
+            "sentiment_score": {"positive": 0.65, "negative": 0.15, "neutral": 0.20},
             "emotions": {
                 "joy": 0.35,
                 "sadness": 0.08,
                 "anger": 0.05,
                 "fear": 0.12,
                 "surprise": 0.18,
-                "disgust": 0.02
+                "disgust": 0.02,
             },
             "recommendations": [
                 "Consider stress management techniques to improve vocal clarity",
-                "Try to speak with more enthusiasm and variation in tone"
-            ]
+                "Try to speak with more enthusiasm and variation in tone",
+            ],
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/voice/stats")
 async def get_voice_analysis_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get voice analysis platform statistics.
@@ -507,10 +538,11 @@ async def get_voice_analysis_stats(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/dashboard", response_model=LabDashboardResponse)
 async def get_experimental_lab_dashboard(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive experimental features lab dashboard.
@@ -526,18 +558,21 @@ async def get_experimental_lab_dashboard(
             gamification_stats=dashboard["gamification_stats"],
             voice_analysis_stats=dashboard["voice_analysis_stats"],
             feature_adoption=dashboard["feature_adoption"],
-            user_engagement=dashboard["user_engagement"]
+            user_engagement=dashboard["user_engagement"],
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.post("/opt-in", response_model=Dict[str, Any])
 async def opt_in_experimental_features(
     opt_in: bool = Field(..., description="Whether to opt in to experimental features"),
-    feature_types: Optional[List[str]] = Field(None, description="Specific feature types to opt in to"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    feature_types: Optional[List[str]] = Field(
+        None, description="Specific feature types to opt in to"
+    ),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Opt in or out of experimental features.
@@ -549,16 +584,17 @@ async def opt_in_experimental_features(
             "message": f"Successfully opted {'in' if opt_in else 'out'} of experimental features",
             "opt_in_status": opt_in,
             "feature_types": feature_types or "all",
-            "updated_date": datetime.utcnow().isoformat()
+            "updated_date": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/available-features")
 async def get_available_experimental_features(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get list of available experimental features.
@@ -570,40 +606,41 @@ async def get_available_experimental_features(
                 "description": "Participate in user experience experiments",
                 "status": "available",
                 "participation_rate": 0.64,
-                "requirements": []
+                "requirements": [],
             },
             "gamification": {
                 "name": "Gamification System",
                 "description": "Earn points, achievements, and climb leaderboards",
                 "status": "available",
                 "participation_rate": 0.78,
-                "requirements": []
+                "requirements": [],
             },
             "voice_analysis": {
                 "name": "Voice Response Analysis",
                 "description": "Get emotional insights from voice responses",
                 "status": "beta",
                 "participation_rate": 0.42,
-                "requirements": ["microphone_access", "audio_upload"]
+                "requirements": ["microphone_access", "audio_upload"],
             },
             "experimental_algorithms": {
                 "name": "Experimental AI Algorithms",
                 "description": "Try new personality analysis methods",
                 "status": "alpha",
                 "participation_rate": 0.28,
-                "requirements": ["assessment_completion"]
-            }
+                "requirements": ["assessment_completion"],
+            },
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.post("/feedback")
 async def submit_experimental_feature_feedback(
     feature_type: str = Field(..., description="Type of experimental feature"),
     feedback_data: Dict[str, Any] = Field(..., description="Feedback data"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Submit feedback for experimental features.
@@ -615,27 +652,29 @@ async def submit_experimental_feature_feedback(
             "message": "Feedback submitted successfully",
             "feature_type": feature_type,
             "feedback_id": f"fb_{current_user.id}_{datetime.utcnow().timestamp()}",
-            "submitted_date": datetime.utcnow().isoformat()
+            "submitted_date": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/analytics/experiment-participation")
 async def get_experiment_participation_analytics(
     timeframe_days: int = Query(30, description="Timeframe in days"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get analytics about experiment participation.
     """
     try:
         # Authorization check - require admin or researcher role
-        if not (current_user.is_superuser or current_user.role in ["admin", "researcher"]):
+        if not (
+            current_user.is_superuser or current_user.role in ["admin", "researcher"]
+        ):
             raise HTTPException(
-                status_code=403,
-                detail="Not authorized to view experiment analytics"
+                status_code=403, detail="Not authorized to view experiment analytics"
             )
 
         # Mock analytics data
@@ -648,29 +687,30 @@ async def get_experiment_participation_analytics(
                 "ab_testing": 0.64,
                 "gamification": 0.78,
                 "voice_analysis": 0.42,
-                "experimental_algorithms": 0.28
+                "experimental_algorithms": 0.28,
             },
             "completion_rates": {
                 "experiment_completion": 0.89,
                 "assessment_completion": 0.76,
-                "voice_analysis_completion": 0.91
+                "voice_analysis_completion": 0.91,
             },
             "user_satisfaction": {
                 "overall": 0.84,
                 "ab_testing": 0.79,
                 "gamification": 0.91,
-                "voice_analysis": 0.72
-            }
+                "voice_analysis": 0.72,
+            },
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
+
 @router.get("/analytics/gamification-engagement")
 async def get_gamification_engagement_analytics(
     timeframe_days: int = Query(30, description="Timeframe in days"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get analytics about gamification engagement.
@@ -679,8 +719,7 @@ async def get_gamification_engagement_analytics(
         # Authorization check
         if not (current_user.is_superuser or current_user.role in ["admin"]):
             raise HTTPException(
-                status_code=403,
-                detail="Not authorized to view gamification analytics"
+                status_code=403, detail="Not authorized to view gamification analytics"
             )
 
         # Mock gamification analytics
@@ -694,18 +733,18 @@ async def get_gamification_engagement_analytics(
                 "beginner": 0.82,
                 "intermediate": 0.76,
                 "advanced": 0.71,
-                "expert": 0.68
+                "expert": 0.68,
             },
             "popular_achievements": [
                 {"achievement_id": "first_assessment", "unlocked_count": 892},
                 {"achievement_id": "week_streak", "unlocked_count": 447},
-                {"achievement_id": "team_leader", "unlocked_count": 234}
+                {"achievement_id": "team_leader", "unlocked_count": 234},
             ],
             "leaderboard_activity": {
                 "daily_changes": 147,
                 "weekly_changes": 892,
-                "monthly_changes": 3420
-            }
+                "monthly_changes": 3420,
+            },
         }
 
     except Exception as e:

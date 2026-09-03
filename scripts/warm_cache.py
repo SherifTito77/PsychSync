@@ -6,8 +6,10 @@ Populates your async cache with requests to build hit rate
 
 import subprocess
 import time
-import requests
 from datetime import datetime
+
+import requests
+
 
 def make_request(url):
     """Make a request to the API"""
@@ -17,21 +19,30 @@ def make_request(url):
     except Exception as e:
         return None
 
+
 def warm_cache():
     """Warm up the cache by making requests"""
     base_url = "http://localhost:8000"
 
-    print("╔══════════════════════════════════════════════════════════════════════════════╗")
-    print("║                    🔥 CACHE WARMER                                            ║")
-    print("║           Populating cache to build hit rate...                            ║")
-    print("╚══════════════════════════════════════════════════════════════════════════════╝")
+    print(
+        "╔══════════════════════════════════════════════════════════════════════════════╗"
+    )
+    print(
+        "║                    🔥 CACHE WARMER                                            ║"
+    )
+    print(
+        "║           Populating cache to build hit rate...                            ║"
+    )
+    print(
+        "╚══════════════════════════════════════════════════════════════════════════════╝"
+    )
     print()
 
     # Check if server is running
     try:
         response = requests.get(f"{base_url}/api/v1/health", timeout=2)
         print(f"✅ Server is running (HTTP {response.status_code})")
-    except:
+    except Exception as e:
         print("❌ Server not running! Start it first:")
         print("   uvicorn app.main:app --reload")
         return
@@ -63,6 +74,7 @@ def warm_cache():
     print()
     print("Or run the monitor:")
     print("   python3 scripts/cache-monitor.py")
+
 
 if __name__ == "__main__":
     warm_cache()

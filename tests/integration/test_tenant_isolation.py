@@ -17,25 +17,25 @@ Compliance: OWASP ASVS v3.2.1, NIST SP 800-53 Rev 5 (SC-16)
 """
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
 from fastapi import HTTPException
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.user import User
-from app.db.models.organization import Organization
-from app.db.models.team import Team
-from app.db.models.assessment import Assessment
-from app.db.models.response import Response
-from app.services.row_level_security import (
-    RowLevelSecurityService,
-    CrossTenantAccessError
-)
 from app.core.row_level_security import RowLevelSecurityManager
-
+from app.db.models.assessment import Assessment
+from app.db.models.organization import Organization
+from app.db.models.response import Response
+from app.db.models.team import Team
+from app.db.models.user import User
+from app.services.row_level_security import (
+    CrossTenantAccessError,
+    RowLevelSecurityService,
+)
 
 # ============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 async def rls_service():
@@ -75,25 +75,25 @@ async def multi_tenant_data(test_db: AsyncSession):
         id="user-1-1",
         email="user-1-1@test.com",
         organization_id=org1.id,
-        is_superuser=False
+        is_superuser=False,
     )
     user_1_2 = User(
         id="user-1-2",
         email="user-1-2@test.com",
         organization_id=org1.id,
-        is_superuser=False
+        is_superuser=False,
     )
     user_2_1 = User(
         id="user-2-1",
         email="user-2-1@test.com",
         organization_id=org2.id,
-        is_superuser=False
+        is_superuser=False,
     )
     user_2_2 = User(
         id="user-2-2",
         email="user-2-2@test.com",
         organization_id=org2.id,
-        is_superuser=False
+        is_superuser=False,
     )
     test_db.add_all([user_1_1, user_1_2, user_2_1, user_2_2])
 
@@ -102,7 +102,7 @@ async def multi_tenant_data(test_db: AsyncSession):
         id="superuser",
         email="superuser@test.com",
         organization_id=None,
-        is_superuser=True
+        is_superuser=True,
     )
     test_db.add(superuser)
 
@@ -111,13 +111,13 @@ async def multi_tenant_data(test_db: AsyncSession):
         id="team-1-1",
         name="Team 1-1",
         organization_id=org1.id,
-        created_by_id=user_1_1.id
+        created_by_id=user_1_1.id,
     )
     team_2_1 = Team(
         id="team-2-1",
         name="Team 2-1",
         organization_id=org2.id,
-        created_by_id=user_2_1.id
+        created_by_id=user_2_1.id,
     )
     test_db.add_all([team_1_1, team_2_1])
 
@@ -127,14 +127,14 @@ async def multi_tenant_data(test_db: AsyncSession):
         title="Assessment 1-1",
         organization_id=org1.id,
         team_id=team_1_1.id,
-        created_by_id=user_1_1.id
+        created_by_id=user_1_1.id,
     )
     assessment_2_1 = Assessment(
         id="assessment-2-1",
         title="Assessment 2-1",
         organization_id=org2.id,
         team_id=team_2_1.id,
-        created_by_id=user_2_1.id
+        created_by_id=user_2_1.id,
     )
     test_db.add_all([assessment_1_1, assessment_2_1])
 
@@ -143,13 +143,13 @@ async def multi_tenant_data(test_db: AsyncSession):
         id="response-1-1",
         assessment_id=assessment_1_1.id,
         user_id=user_1_1.id,
-        organization_id=org1.id
+        organization_id=org1.id,
     )
     response_2_1 = Response(
         id="response-2-1",
         assessment_id=assessment_2_1.id,
         user_id=user_2_1.id,
-        organization_id=org2.id
+        organization_id=org2.id,
     )
     test_db.add_all([response_1_1, response_2_1])
 
@@ -176,6 +176,7 @@ async def multi_tenant_data(test_db: AsyncSession):
 # Organization-Level Isolation Tests
 # ============================================================================
 
+
 class TestOrganizationIsolation:
     """Test organization-level tenant isolation"""
 
@@ -184,7 +185,7 @@ class TestOrganizationIsolation:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         IDOR Test: User from org-1 attempting to access org-2 assessments
@@ -196,9 +197,7 @@ class TestOrganizationIsolation:
         # Get assessments with RLS filter applied
         query = select(Assessment)
         filtered_query = rls_service.apply_organization_filter(
-            query,
-            user_1_1,
-            Assessment.organization_id
+            query, user_1_1, Assessment.organization_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -215,9 +214,7 @@ class TestOrganizationIsolation:
 
     @pytest.mark.asyncio
     async def test_cross_organization_access_blocked(
-        self,
-        rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        self, rls_service: RowLevelSecurityService, multi_tenant_data
     ):
         """
         IDOR Test: Explicit cross-organization access check
@@ -233,7 +230,7 @@ class TestOrganizationIsolation:
                 user=user_1_1,
                 resource_org_id=assessment_2_1.organization_id,
                 resource_team_id=assessment_2_1.team_id,
-                resource_owner_id=assessment_2_1.created_by_id
+                resource_owner_id=assessment_2_1.created_by_id,
             )
 
         assert "does not have access to organization" in str(exc_info.value)
@@ -243,7 +240,7 @@ class TestOrganizationIsolation:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         Test: Superuser can access data from all organizations
@@ -255,9 +252,7 @@ class TestOrganizationIsolation:
         # Get assessments with RLS filter (should be bypassed)
         query = select(Assessment)
         filtered_query = rls_service.apply_organization_filter(
-            query,
-            superuser,
-            Assessment.organization_id
+            query, superuser, Assessment.organization_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -270,9 +265,7 @@ class TestOrganizationIsolation:
 
     @pytest.mark.asyncio
     async def test_organization_filter_returns_empty_for_no_access(
-        self,
-        test_db: AsyncSession,
-        rls_service: RowLevelSecurityService
+        self, test_db: AsyncSession, rls_service: RowLevelSecurityService
     ):
         """
         Test: User with no organization access gets empty query
@@ -280,13 +273,13 @@ class TestOrganizationIsolation:
         Expected: Query returns no results
         """
         # Create user without organization
-        user_no_org = User(id="no-org-user", email="noorg@test.com", organization_id=None)
+        user_no_org = User(
+            id="no-org-user", email="noorg@test.com", organization_id=None
+        )
 
         query = select(Assessment)
         filtered_query = rls_service.apply_organization_filter(
-            query,
-            user_no_org,
-            Assessment.organization_id
+            query, user_no_org, Assessment.organization_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -300,6 +293,7 @@ class TestOrganizationIsolation:
 # Team-Level Isolation Tests
 # ============================================================================
 
+
 class TestTeamIsolation:
     """Test team-level tenant isolation"""
 
@@ -308,7 +302,7 @@ class TestTeamIsolation:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         IDOR Test: User from team-1-1 attempting to access team-2-1 data
@@ -323,9 +317,7 @@ class TestTeamIsolation:
         # Get teams with RLS filter
         query = select(Team)
         filtered_query = rls_service.apply_organization_filter(
-            query,
-            user_1_1,
-            Team.organization_id
+            query, user_1_1, Team.organization_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -338,9 +330,7 @@ class TestTeamIsolation:
 
     @pytest.mark.asyncio
     async def test_cross_team_access_blocked(
-        self,
-        rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        self, rls_service: RowLevelSecurityService, multi_tenant_data
     ):
         """
         IDOR Test: Explicit cross-team access check
@@ -358,7 +348,7 @@ class TestTeamIsolation:
             rls_service.check_cross_tenant_access(
                 user=user_1_1,
                 resource_org_id=team_2_1.organization_id,
-                resource_team_id=team_2_1.id
+                resource_team_id=team_2_1.id,
             )
 
         assert "does not have access to team" in str(exc_info.value)
@@ -368,6 +358,7 @@ class TestTeamIsolation:
 # Ownership Isolation Tests
 # ============================================================================
 
+
 class TestOwnershipIsolation:
     """Test user-level ownership isolation"""
 
@@ -376,7 +367,7 @@ class TestOwnershipIsolation:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         IDOR Test: User attempting to access another user's responses
@@ -388,9 +379,7 @@ class TestOwnershipIsolation:
         # Get responses with ownership filter
         query = select(Response)
         filtered_query = rls_service.apply_ownership_filter(
-            query,
-            user_1_1,
-            Response.user_id
+            query, user_1_1, Response.user_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -407,9 +396,7 @@ class TestOwnershipIsolation:
 
     @pytest.mark.asyncio
     async def test_cross_ownership_access_blocked(
-        self,
-        rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        self, rls_service: RowLevelSecurityService, multi_tenant_data
     ):
         """
         IDOR Test: User attempting to access another user's private resource
@@ -425,7 +412,7 @@ class TestOwnershipIsolation:
             rls_service.check_cross_tenant_access(
                 user=user_1_1,
                 resource_org_id=response_2_1.organization_id,
-                resource_owner_id=user_2_1.id
+                resource_owner_id=user_2_1.id,
             )
 
         assert "does not have access to this resource" in str(exc_info.value)
@@ -434,6 +421,7 @@ class TestOwnershipIsolation:
 # ============================================================================
 # Database-Level RLS Policy Tests
 # ============================================================================
+
 
 class TestDatabaseRLSPolicies:
     """Test PostgreSQL Row-Level Security policies"""
@@ -453,16 +441,13 @@ class TestDatabaseRLSPolicies:
 
         # Set tenant context
         await rls_manager.set_security_context(
-            test_db,
-            user_id="test-user",
-            user_role="user",
-            org_id="test-org"
+            test_db, user_id="test-user", user_role="user", org_id="test-org"
         )
 
         # Verify context is set
-        result = await test_db.execute(text(
-            "SELECT current_setting('app.current_user_id', true)"
-        ))
+        result = await test_db.execute(
+            text("SELECT current_setting('app.current_user_id', true)")
+        )
         current_user = result.scalar()
 
         assert current_user == "test-user"
@@ -472,9 +457,7 @@ class TestDatabaseRLSPolicies:
 
     @pytest.mark.asyncio
     async def test_security_context_isolation(
-        self,
-        test_db: AsyncSession,
-        multi_tenant_data
+        self, test_db: AsyncSession, multi_tenant_data
     ):
         """
         Test: Verify security context properly isolates data
@@ -489,7 +472,7 @@ class TestDatabaseRLSPolicies:
             test_db,
             user_id=str(user_1_1.id),
             user_role="user",
-            org_id=str(user_1_1.organization_id)
+            org_id=str(user_1_1.organization_id),
         )
 
         # Query assessments (should be filtered by org)
@@ -508,11 +491,7 @@ class TestDatabaseRLSPolicies:
         await rls_manager.clear_security_context(test_db)
 
     @pytest.mark.asyncio
-    async def test_rls_context_manager(
-        self,
-        test_db: AsyncSession,
-        multi_tenant_data
-    ):
+    async def test_rls_context_manager(self, test_db: AsyncSession, multi_tenant_data):
         """
         Test: Verify RLS context manager properly sets and clears context
 
@@ -525,19 +504,19 @@ class TestDatabaseRLSPolicies:
             test_db,
             user_id=str(user_1_1.id),
             user_role="user",
-            org_id=str(user_1_1.organization_id)
+            org_id=str(user_1_1.organization_id),
         ):
             # Inside context - security variables should be set
-            result = await test_db.execute(text(
-                "SELECT current_setting('app.current_user_id', true)"
-            ))
+            result = await test_db.execute(
+                text("SELECT current_setting('app.current_user_id', true)")
+            )
             current_user = result.scalar()
             assert current_user == str(user_1_1.id)
 
         # Outside context - security variables should be cleared
-        result = await test_db.execute(text(
-            "SELECT current_setting('app.current_user_id', true)"
-        ))
+        result = await test_db.execute(
+            text("SELECT current_setting('app.current_user_id', true)")
+        )
         current_user = result.scalar()
         # Should be None or empty (context cleared)
         assert not current_user or current_user == ""
@@ -547,6 +526,7 @@ class TestDatabaseRLSPolicies:
 # Integration Tests
 # ============================================================================
 
+
 class TestTenantIsolationIntegration:
     """End-to-end tenant isolation tests"""
 
@@ -555,7 +535,7 @@ class TestTenantIsolationIntegration:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         Comprehensive Test: Full workflow testing all isolation levels
@@ -572,9 +552,7 @@ class TestTenantIsolationIntegration:
         # 1. Query assessments with tenant isolation
         query = select(Assessment)
         filtered_query = rls_service.apply_tenant_isolation(
-            query,
-            user_1_1,
-            org_column=Assessment.organization_id
+            query, user_1_1, org_column=Assessment.organization_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -591,15 +569,12 @@ class TestTenantIsolationIntegration:
         # 4. Attempt direct access to org-2 assessment (should fail)
         with pytest.raises(CrossTenantAccessError):
             rls_service.check_cross_tenant_access(
-                user=user_1_1,
-                resource_org_id=assessment_2_1.organization_id
+                user=user_1_1, resource_org_id=assessment_2_1.organization_id
             )
 
     @pytest.mark.asyncio
     async def test_isolation_context_generation(
-        self,
-        rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        self, rls_service: RowLevelSecurityService, multi_tenant_data
     ):
         """
         Test: Verify isolation context is properly generated
@@ -622,7 +597,7 @@ class TestTenantIsolationIntegration:
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
         multi_tenant_data,
-        caplog
+        caplog,
     ):
         """
         Test: Verify superuser bypass is logged
@@ -630,6 +605,7 @@ class TestTenantIsolationIntegration:
         Expected: Superuser access is logged for audit
         """
         import logging
+
         caplog.set_level(logging.INFO)
 
         superuser = multi_tenant_data["superuser"]
@@ -637,8 +613,7 @@ class TestTenantIsolationIntegration:
 
         # Superuser accesses org-1 assessment
         rls_service.check_cross_tenant_access(
-            user=superuser,
-            resource_org_id=assessment_1_1.organization_id
+            user=superuser, resource_org_id=assessment_1_1.organization_id
         )
 
         # Verify log entry
@@ -650,31 +625,24 @@ class TestTenantIsolationIntegration:
 # Edge Cases and Boundary Tests
 # ============================================================================
 
+
 class TestTenantIsolationEdgeCases:
     """Test edge cases and boundary conditions"""
 
     @pytest.mark.asyncio
     async def test_user_with_no_organization(
-        self,
-        test_db: AsyncSession,
-        rls_service: RowLevelSecurityService
+        self, test_db: AsyncSession, rls_service: RowLevelSecurityService
     ):
         """
         Edge Case: User with no organization attempts to access data
 
         Expected: Empty result set
         """
-        user_no_org = User(
-            id="no-org",
-            email="noorg@test.com",
-            organization_id=None
-        )
+        user_no_org = User(id="no-org", email="noorg@test.com", organization_id=None)
 
         query = select(Assessment)
         filtered_query = rls_service.apply_organization_filter(
-            query,
-            user_no_org,
-            Assessment.organization_id
+            query, user_no_org, Assessment.organization_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -688,7 +656,7 @@ class TestTenantIsolationEdgeCases:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         Edge Case: Applying multiple filters (org + team + ownership)
@@ -700,17 +668,11 @@ class TestTenantIsolationEdgeCases:
         # Apply organization filter
         query = select(Response)
         query = rls_service.apply_organization_filter(
-            query,
-            user_1_1,
-            Response.organization_id
+            query, user_1_1, Response.organization_id
         )
 
         # Apply ownership filter on top
-        query = rls_service.apply_ownership_filter(
-            query,
-            user_1_1,
-            Response.user_id
-        )
+        query = rls_service.apply_ownership_filter(query, user_1_1, Response.user_id)
 
         result = await test_db.execute(query)
         responses = result.scalars().all()
@@ -722,8 +684,7 @@ class TestTenantIsolationEdgeCases:
 
     @pytest.mark.asyncio
     async def test_isolation_level_configuration(
-        self,
-        rls_service: RowLevelSecurityService
+        self, rls_service: RowLevelSecurityService
     ):
         """
         Configuration Test: Verify isolation level can be changed
@@ -746,6 +707,7 @@ class TestTenantIsolationEdgeCases:
 # Performance Tests
 # ============================================================================
 
+
 class TestTenantIsolationPerformance:
     """Test performance impact of RLS"""
 
@@ -755,7 +717,7 @@ class TestTenantIsolationPerformance:
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
         multi_tenant_data,
-        benchmark
+        benchmark,
     ):
         """
         Performance Test: Measure RLS query overhead
@@ -768,9 +730,7 @@ class TestTenantIsolationPerformance:
         def query_with_rls():
             query = select(Assessment)
             filtered_query = rls_service.apply_organization_filter(
-                query,
-                user_1_1,
-                Assessment.organization_id
+                query, user_1_1, Assessment.organization_id
             )
             return test_db.execute(filtered_query)
 
@@ -788,6 +748,7 @@ class TestTenantIsolationPerformance:
 # Security Tests
 # ============================================================================
 
+
 class TestTenantIsolationSecurity:
     """Security-focused tenant isolation tests"""
 
@@ -796,7 +757,7 @@ class TestTenantIsolationSecurity:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         IDOR Attack: Sequential enumeration of assessment IDs
@@ -820,9 +781,7 @@ class TestTenantIsolationSecurity:
             # Query specific assessment
             query = select(Assessment).where(Assessment.id == assessment_id)
             filtered_query = rls_service.apply_organization_filter(
-                query,
-                user_1_1,
-                Assessment.organization_id
+                query, user_1_1, Assessment.organization_id
             )
 
             result = await test_db.execute(filtered_query)
@@ -842,7 +801,7 @@ class TestTenantIsolationSecurity:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         IDOR Attack: Path traversal in organization_id
@@ -857,9 +816,7 @@ class TestTenantIsolationSecurity:
 
         # Filter should properly escape and validate
         filtered_query = rls_service.apply_organization_filter(
-            query,
-            user_1_1,
-            Assessment.organization_id
+            query, user_1_1, Assessment.organization_id
         )
 
         result = await test_db.execute(filtered_query)
@@ -875,7 +832,7 @@ class TestTenantIsolationSecurity:
         self,
         test_db: AsyncSession,
         rls_service: RowLevelSecurityService,
-        multi_tenant_data
+        multi_tenant_data,
     ):
         """
         SQL Injection Test: Attempt SQL injection in filter parameters
@@ -888,9 +845,7 @@ class TestTenantIsolationSecurity:
         # (This would be difficult in practice, but testing ORM safety)
         query = select(Assessment)
         filtered_query = rls_service.apply_organization_filter(
-            query,
-            user_1_1,
-            Assessment.organization_id
+            query, user_1_1, Assessment.organization_id
         )
 
         # Execute query
@@ -906,15 +861,13 @@ class TestTenantIsolationSecurity:
 # Audit and Compliance Tests
 # ============================================================================
 
+
 class TestTenantIsolationAudit:
     """Test audit logging for tenant isolation"""
 
     @pytest.mark.asyncio
     async def test_cross_tenant_access_attempt_logging(
-        self,
-        rls_service: RowLevelSecurityService,
-        multi_tenant_data,
-        caplog
+        self, rls_service: RowLevelSecurityService, multi_tenant_data, caplog
     ):
         """
         Audit Test: Cross-tenant access attempts are logged
@@ -922,6 +875,7 @@ class TestTenantIsolationAudit:
         Expected: Security events logged for audit
         """
         import logging
+
         caplog.set_level(logging.WARNING)
 
         user_1_1 = multi_tenant_data["user_1_1"]
@@ -930,8 +884,7 @@ class TestTenantIsolationAudit:
         # Attempt cross-tenant access
         try:
             rls_service.check_cross_tenant_access(
-                user=user_1_1,
-                resource_org_id=assessment_2_1.organization_id
+                user=user_1_1, resource_org_id=assessment_2_1.organization_id
             )
         except CrossTenantAccessError:
             pass
@@ -942,10 +895,7 @@ class TestTenantIsolationAudit:
 
     @pytest.mark.asyncio
     async def test_superuser_access_logging(
-        self,
-        rls_service: RowLevelSecurityService,
-        multi_tenant_data,
-        caplog
+        self, rls_service: RowLevelSecurityService, multi_tenant_data, caplog
     ):
         """
         Audit Test: Superuser access is logged
@@ -953,6 +903,7 @@ class TestTenantIsolationAudit:
         Expected: All superuser actions logged for compliance
         """
         import logging
+
         caplog.set_level(logging.INFO)
 
         superuser = multi_tenant_data["superuser"]

@@ -4,31 +4,33 @@ SSH Brute Force Protection Tester
 Tests SSH server against brute force attacks and evaluates security controls
 """
 
-import os
-import sys
-import socket
-import time
-import threading
-import queue
-import json
 import hashlib
+import json
 import logging
-import paramiko
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
+import os
+import queue
+import socket
+import sys
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+import paramiko
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class BruteForceAttempt:
     """Brute force attempt data class"""
+
     attempt_id: str
     timestamp: datetime
     ip_address: str
@@ -39,9 +41,11 @@ class BruteForceAttempt:
     error_message: str
     blocked: bool
 
+
 @dataclass
 class SSHSecurityTestResult:
     """SSH security test result"""
+
     ssh_host: str
     ssh_port: int
     total_attempts: int
@@ -54,6 +58,7 @@ class SSHSecurityTestResult:
     account_lockout_detected: bool
     security_score: int
     recommendations: List[str]
+
 
 class SSHBruteForceTester:
     """SSH brute force protection tester"""
@@ -69,11 +74,31 @@ class SSHBruteForceTester:
         self.concurrent_lock = threading.Lock()
 
         # Test configurations
-        self.test_usernames = ["admin", "root", "user", "test", "guest", "administrator"]
+        self.test_usernames = [
+            "admin",
+            "root",
+            "user",
+            "test",
+            "guest",
+            "administrator",
+        ]
         self.test_passwords = [
-            "password", "123456", "admin", "root", "password123",
-            "qwerty", "letmein", "welcome", "changeme", "default",
-            "pass", "test", "user", "guest", "111111", "123123"
+            "password",
+            "123456",
+            "admin",
+            "root",
+            "password123",
+            "qwerty",
+            "letmein",
+            "welcome",
+            "changeme",
+            "default",
+            "pass",
+            "test",
+            "user",
+            "guest",
+            "111111",
+            "123123",
         ]
 
     def run_comprehensive_test(self) -> SSHSecurityTestResult:
@@ -119,7 +144,9 @@ class SSHBruteForceTester:
         attempt_queue = queue.Queue()
 
         # Generate credential combinations
-        for i in range(min(attempts, len(self.test_usernames) * len(self.test_passwords))):
+        for i in range(
+            min(attempts, len(self.test_usernames) * len(self.test_passwords))
+        ):
             username = self.test_usernames[i % len(self.test_usernames)]
             password = self.test_passwords[i % len(self.test_passwords)]
             attempt_queue.put((username, password))
@@ -130,7 +157,9 @@ class SSHBruteForceTester:
             for _ in range(min(attempts, 20)):  # Limit to 20 concurrent attempts
                 try:
                     username, password = attempt_queue.get_nowait()
-                    future = executor.submit(self._attempt_ssh_login, username, password, "basic_test")
+                    future = executor.submit(
+                        self._attempt_ssh_login, username, password, "basic_test"
+                    )
                     futures.append(future)
                 except queue.Empty:
                     break
@@ -141,7 +170,9 @@ class SSHBruteForceTester:
                     self.attempts.append(result)
 
                     if result.blocked:
-                        print(f"    ⛔ Attempt blocked: {result.username}@{result.ip_address}")
+                        print(
+                            f"    ⛔ Attempt blocked: {result.username}@{result.ip_address}"
+                        )
                         break  # Stop if blocking is detected
 
                 except Exception as e:
@@ -162,7 +193,9 @@ class SSHBruteForceTester:
 
             # Check if we're being rate limited
             if i > 0:
-                time_diff = (attempt.timestamp - self.attempts[-2].timestamp).total_seconds()
+                time_diff = (
+                    attempt.timestamp - self.attempts[-2].timestamp
+                ).total_seconds()
                 if time_diff < 0.1:  # Very fast response might indicate rate limiting
                     print(f"    ⚡ Rapid response detected ({time_diff:.3f}s)")
 
@@ -181,9 +214,7 @@ class SSHBruteForceTester:
                 password = f"dist_pass_{thread_id}_{i}"
 
                 attempt = self._attempt_ssh_login(
-                    username,
-                    password,
-                    f"distributed_test_thread_{thread_id}"
+                    username, password, f"distributed_test_thread_{thread_id}"
                 )
                 self.attempts.append(attempt)
 
@@ -199,7 +230,9 @@ class SSHBruteForceTester:
                 except Exception as e:
                     logger.error(f"Distributed worker failed: {str(e)}")
 
-    def _test_account_focus_attack(self, target_username: str = "admin", attempts: int = 50) -> None:
+    def _test_account_focus_attack(
+        self, target_username: str = "admin", attempts: int = 50
+    ) -> None:
         """Test focused brute force on single account"""
         print(f"  Testing focused attack on '{target_username}' account...")
 
@@ -207,9 +240,7 @@ class SSHBruteForceTester:
 
         for i, password in enumerate(self.test_passwords[:attempts]):
             attempt = self._attempt_ssh_login(
-                target_username,
-                password,
-                f"account_focus_test_{i}"
+                target_username, password, f"account_focus_test_{i}"
             )
             self.attempts.append(attempt)
 
@@ -219,10 +250,14 @@ class SSHBruteForceTester:
                 break
 
             if attempt.success:
-                print(f"    ❌ SUCCESSFUL LOGIN DETECTED! This is a critical security issue!")
+                print(
+                    f"    ❌ SUCCESSFUL LOGIN DETECTED! This is a critical security issue!"
+                )
                 break
 
-        if not successful_blocked and not any(a.success for a in self.attempts[-attempts:]):
+        if not successful_blocked and not any(
+            a.success for a in self.attempts[-attempts:]
+        ):
             print(f"    ⚠️  Account focus attack completed without blocking")
 
     def _test_credential_stuffing(self) -> None:
@@ -240,14 +275,12 @@ class SSHBruteForceTester:
             ("root", "changeme"),
             ("administrator", "administrator"),
             ("guest", "guest"),
-            ("test", "test123")
+            ("test", "test123"),
         ]
 
         for username, password in credential_patterns:
             attempt = self._attempt_ssh_login(
-                username,
-                password,
-                "credential_stuffing_test"
+                username, password, "credential_stuffing_test"
             )
             self.attempts.append(attempt)
 
@@ -255,9 +288,13 @@ class SSHBruteForceTester:
                 print(f"    ⛔ Credential stuffing blocked")
                 break
 
-    def _attempt_ssh_login(self, username: str, password: str, test_type: str) -> BruteForceAttempt:
+    def _attempt_ssh_login(
+        self, username: str, password: str, test_type: str
+    ) -> BruteForceAttempt:
         """Attempt SSH login and track results"""
-        attempt_id = hashlib.md5(f"{username}{password}{time.time()}".encode()).hexdigest()[:16]
+        attempt_id = hashlib.md5(
+            f"{username}{password}{time.time()}".encode()
+        ).hexdigest()[:16]
         timestamp = datetime.now()
         ip_address = "127.0.0.1"  # Local testing
 
@@ -285,7 +322,7 @@ class SSHBruteForceTester:
                 password=password,
                 timeout=10,
                 allow_agent=False,
-                look_for_keys=False
+                look_for_keys=False,
             )
 
             # If we get here, login was successful (this shouldn't happen in secure configuration)
@@ -298,10 +335,17 @@ class SSHBruteForceTester:
         except paramiko.SSHException as e:
             # Check for specific error messages that might indicate blocking
             error_msg = str(e).lower()
-            if any(keyword in error_msg for keyword in [
-                "blocked", "too many", "rate limit", "temporarily",
-                "connection refused", "connection timed out"
-            ]):
+            if any(
+                keyword in error_msg
+                for keyword in [
+                    "blocked",
+                    "too many",
+                    "rate limit",
+                    "temporarily",
+                    "connection refused",
+                    "connection timed out",
+                ]
+            ):
                 blocked = True
                 error_message = f"Connection blocked: {str(e)}"
             else:
@@ -332,7 +376,7 @@ class SSHBruteForceTester:
             success=success,
             response_time=response_time,
             error_message=error_message,
-            blocked=blocked
+            blocked=blocked,
         )
 
     def _analyze_test_results(self) -> SSHSecurityTestResult:
@@ -346,7 +390,9 @@ class SSHBruteForceTester:
 
         # Calculate response times
         response_times = [a.response_time for a in self.attempts if a.response_time > 0]
-        average_response_time = sum(response_times) / len(response_times) if response_times else 0
+        average_response_time = (
+            sum(response_times) / len(response_times) if response_times else 0
+        )
 
         # Detect security controls
         rate_limiting_detected = self._detect_rate_limiting()
@@ -355,14 +401,22 @@ class SSHBruteForceTester:
 
         # Calculate security score
         security_score = self._calculate_security_score(
-            total_attempts, successful_attempts, blocked_attempts,
-            rate_limiting_detected, ip_blocking_detected, account_lockout_detected
+            total_attempts,
+            successful_attempts,
+            blocked_attempts,
+            rate_limiting_detected,
+            ip_blocking_detected,
+            account_lockout_detected,
         )
 
         # Generate recommendations
         recommendations = self._generate_recommendations(
-            successful_attempts, blocked_attempts, rate_limiting_detected,
-            ip_blocking_detected, account_lockout_detected, security_score
+            successful_attempts,
+            blocked_attempts,
+            rate_limiting_detected,
+            ip_blocking_detected,
+            account_lockout_detected,
+            security_score,
         )
 
         # Create result object
@@ -378,7 +432,7 @@ class SSHBruteForceTester:
             ip_blocking_detected=ip_blocking_detected,
             account_lockout_detected=account_lockout_detected,
             security_score=security_score,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
         # Print results
@@ -388,12 +442,20 @@ class SSHBruteForceTester:
         print(f"❌ Successful Attempts: {successful_attempts}")
         print(f"⚡ Max Concurrent: {self.max_concurrent}")
         print(f"📊 Avg Response Time: {average_response_time:.3f}s")
-        print(f"🛡️  Rate Limiting: {'✅ Detected' if rate_limiting_detected else '❌ Not Detected'}")
-        print(f"🚫 IP Blocking: {'✅ Detected' if ip_blocking_detected else '❌ Not Detected'}")
-        print(f"🔒 Account Lockout: {'✅ Detected' if account_lockout_detected else '❌ Not Detected'}")
+        print(
+            f"🛡️  Rate Limiting: {'✅ Detected' if rate_limiting_detected else '❌ Not Detected'}"
+        )
+        print(
+            f"🚫 IP Blocking: {'✅ Detected' if ip_blocking_detected else '❌ Not Detected'}"
+        )
+        print(
+            f"🔒 Account Lockout: {'✅ Detected' if account_lockout_detected else '❌ Not Detected'}"
+        )
 
         if successful_attempts > 0:
-            print(f"\n🚨 CRITICAL: {successful_attempts} successful SSH logins detected!")
+            print(
+                f"\n🚨 CRITICAL: {successful_attempts} successful SSH logins detected!"
+            )
             print("   This indicates serious security vulnerabilities!")
 
         if security_score < 50:
@@ -413,21 +475,30 @@ class SSHBruteForceTester:
 
         # Check for increasing response times
         recent_attempts = self.attempts[-20:]
-        response_times = [a.response_time for a in recent_attempts if a.response_time > 0]
+        response_times = [
+            a.response_time for a in recent_attempts if a.response_time > 0
+        ]
 
         if len(response_times) >= 5:
             # Check if response times are increasing significantly
-            first_half_avg = sum(response_times[:len(response_times)//2]) / (len(response_times)//2)
-            second_half_avg = sum(response_times[len(response_times)//2:]) / (len(response_times)//2)
+            first_half_avg = sum(response_times[: len(response_times) // 2]) / (
+                len(response_times) // 2
+            )
+            second_half_avg = sum(response_times[len(response_times) // 2 :]) / (
+                len(response_times) // 2
+            )
 
             if second_half_avg > first_half_avg * 2:
                 return True
 
         # Check for connection refused errors
-        connection_refused_count = len([
-            a for a in self.attempts
-            if "connection refused" in a.error_message.lower()
-        ])
+        connection_refused_count = len(
+            [
+                a
+                for a in self.attempts
+                if "connection refused" in a.error_message.lower()
+            ]
+        )
 
         if connection_refused_count > len(self.attempts) * 0.3:
             return True
@@ -481,16 +552,20 @@ class SSHBruteForceTester:
         blocked_attempts: int,
         rate_limiting_detected: bool,
         ip_blocking_detected: bool,
-        account_lockout_detected: bool
+        account_lockout_detected: bool,
     ) -> int:
         """Calculate SSH security score (0-100)"""
         score = 100
 
         # Penalty for successful login attempts
-        score -= min(50, successful_attempts * 25)  # Each successful login = -25 points, max -50
+        score -= min(
+            50, successful_attempts * 25
+        )  # Each successful login = -25 points, max -50
 
         # Bonus for blocked attempts
-        score += min(30, blocked_attempts * 2)  # Each blocked attempt = +2 points, max +30
+        score += min(
+            30, blocked_attempts * 2
+        )  # Each blocked attempt = +2 points, max +30
 
         # Bonus for security controls
         if rate_limiting_detected:
@@ -519,15 +594,21 @@ class SSHBruteForceTester:
         rate_limiting_detected: bool,
         ip_blocking_detected: bool,
         account_lockout_detected: bool,
-        security_score: int
+        security_score: int,
     ) -> List[str]:
         """Generate security recommendations based on test results"""
         recommendations = []
 
         if successful_attempts > 0:
-            recommendations.append("URGENT: Disable any successful test accounts immediately")
-            recommendations.append("Review all SSH accounts and remove unnecessary ones")
-            recommendations.append("Implement strong password policies for SSH accounts")
+            recommendations.append(
+                "URGENT: Disable any successful test accounts immediately"
+            )
+            recommendations.append(
+                "Review all SSH accounts and remove unnecessary ones"
+            )
+            recommendations.append(
+                "Implement strong password policies for SSH accounts"
+            )
 
         if not rate_limiting_detected:
             recommendations.append("Implement SSH rate limiting (e.g., fail2ban)")
@@ -541,7 +622,9 @@ class SSHBruteForceTester:
 
         if not account_lockout_detected:
             recommendations.append("Implement account lockout after failed attempts")
-            recommendations.append("Set MaxAuthTries to a reasonable number (e.g., 3-5)")
+            recommendations.append(
+                "Set MaxAuthTries to a reasonable number (e.g., 3-5)"
+            )
             recommendations.append("Configure automatic account unlocking policies")
 
         # General SSH security recommendations
@@ -554,24 +637,32 @@ class SSHBruteForceTester:
             "Regularly monitor SSH access logs for suspicious activity",
             "Implement intrusion detection for SSH brute force attempts",
             "Use SSH bastion host for multi-tier access",
-            "Regularly update OpenSSH to latest version"
+            "Regularly update OpenSSH to latest version",
         ]
 
         recommendations.extend(general_recommendations)
 
         return recommendations
 
-    def save_detailed_report(self, result: SSHSecurityTestResult, filename: str = None) -> str:
+    def save_detailed_report(
+        self, result: SSHSecurityTestResult, filename: str = None
+    ) -> str:
         """Save detailed test report to file"""
         if filename is None:
             filename = f"ssh_brute_force_test_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
         report_data = {
-            "test_id": hashlib.md5(f"{self.ssh_host}{self.ssh_port}{datetime.now()}".encode()).hexdigest()[:16],
+            "test_id": hashlib.md5(
+                f"{self.ssh_host}{self.ssh_port}{datetime.now()}".encode()
+            ).hexdigest()[:16],
             "timestamp": datetime.now().isoformat(),
             "ssh_host": self.ssh_host,
             "ssh_port": self.ssh_port,
-            "test_duration": (self.end_time - self.start_time).total_seconds() if self.end_time and self.start_time else 0,
+            "test_duration": (
+                (self.end_time - self.start_time).total_seconds()
+                if self.end_time and self.start_time
+                else 0
+            ),
             "results": {
                 "total_attempts": result.total_attempts,
                 "successful_attempts": result.successful_attempts,
@@ -581,7 +672,7 @@ class SSHBruteForceTester:
                 "rate_limiting_detected": result.rate_limiting_detected,
                 "ip_blocking_detected": result.ip_blocking_detected,
                 "account_lockout_detected": result.account_lockout_detected,
-                "security_score": result.security_score
+                "security_score": result.security_score,
             },
             "detailed_attempts": [
                 {
@@ -591,17 +682,18 @@ class SSHBruteForceTester:
                     "success": a.success,
                     "blocked": a.blocked,
                     "response_time": a.response_time,
-                    "error_message": a.error_message
+                    "error_message": a.error_message,
                 }
                 for a in self.attempts
             ],
-            "recommendations": result.recommendations
+            "recommendations": result.recommendations,
         }
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(report_data, f, indent=2)
 
         return filename
+
 
 def main():
     """Main execution function"""
@@ -624,7 +716,7 @@ def main():
 
         # Ask for confirmation
         confirm = input("\nDo you want to continue? (y/N): ").lower().strip()
-        if confirm != 'y':
+        if confirm != "y":
             print("Test cancelled by user.")
             sys.exit(0)
 
@@ -652,6 +744,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Test failed: {str(e)}")
         sys.exit(3)
+
 
 if __name__ == "__main__":
     main()

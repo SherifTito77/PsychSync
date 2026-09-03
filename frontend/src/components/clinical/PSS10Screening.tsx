@@ -193,9 +193,12 @@ const PSS10Screening: React.FC = () => {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/pss10', finalResponses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'pss10',
+        responses: responses
+      });
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening. Please try again.');
       console.error('PSS-10 submission error:', err);
     } finally {
@@ -277,7 +280,7 @@ const PSS10Screening: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -294,7 +297,8 @@ const PSS10Screening: React.FC = () => {
               </div>
 
               <RadioGroup
-                onValueChange={(value) => handleResponse(parseInt(value))}
+                value={String(responses[currentQuestion.id as keyof PSS10Response] || 0)}
+                onChange={(value) => handleResponse(parseInt(value))}
                 className="space-y-3"
               >
                 {currentQuestion.options.map((option) => (

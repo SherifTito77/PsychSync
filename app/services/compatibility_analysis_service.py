@@ -3,8 +3,8 @@ Team Compatibility Analysis Service
 Advanced algorithms for analyzing team member compatibility and optimization
 """
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -71,7 +71,9 @@ class TeamCompatibilityAnalysisService:
             "low_compatibility": 0.4,
         }
 
-    async def analyze_team_compatibility(self, team_id: UUID) -> TeamCompatibilityReport:
+    async def analyze_team_compatibility(
+        self, team_id: UUID
+    ) -> TeamCompatibilityReport:
         """Perform comprehensive team compatibility analysis"""
         try:
             # Get team members
@@ -81,13 +83,17 @@ class TeamCompatibilityAnalysisService:
 
             team_members = team.members
             if len(team_members) < 2:
-                raise ValueError("Team must have at least 2 members for compatibility analysis")
+                raise ValueError(
+                    "Team must have at least 2 members for compatibility analysis"
+                )
 
             # Get assessment data for all team members
             member_profiles = await self._get_member_profiles(team_members)
 
             # Calculate pairwise compatibility
-            compatibility_matrix = await self._calculate_compatibility_matrix(member_profiles)
+            compatibility_matrix = await self._calculate_compatibility_matrix(
+                member_profiles
+            )
 
             # Calculate team-level metrics
             overall_compatibility = await self._calculate_overall_compatibility(
@@ -101,7 +107,9 @@ class TeamCompatibilityAnalysisService:
             optimization_suggestions = await self._generate_optimization_suggestions(
                 compatibility_matrix, member_profiles, diversity_metrics
             )
-            risk_factors = await self._identify_risk_factors(compatibility_matrix, member_profiles)
+            risk_factors = await self._identify_risk_factors(
+                compatibility_matrix, member_profiles
+            )
 
             return TeamCompatibilityReport(
                 team_id=team_id,
@@ -128,15 +136,23 @@ class TeamCompatibilityAnalysisService:
             user2_profile = await self._get_member_profiles([user2_id])
 
             if not user1_profile or not user2_profile:
-                raise ValueError("One or both users not found or have no assessment data")
+                raise ValueError(
+                    "One or both users not found or have no assessment data"
+                )
 
             profile1 = user1_profile[0]
             profile2 = user2_profile[0]
 
             # Calculate individual compatibility components
-            personality_fit = await self._calculate_personality_compatibility(profile1, profile2)
-            skills_complement = await self._calculate_skills_complementarity(profile1, profile2)
-            work_style_match = await self._calculate_work_style_compatibility(profile1, profile2)
+            personality_fit = await self._calculate_personality_compatibility(
+                profile1, profile2
+            )
+            skills_complement = await self._calculate_skills_complementarity(
+                profile1, profile2
+            )
+            work_style_match = await self._calculate_work_style_compatibility(
+                profile1, profile2
+            )
             communication_match = await self._calculate_communication_compatibility(
                 profile1, profile2
             )
@@ -150,9 +166,13 @@ class TeamCompatibilityAnalysisService:
             )
 
             # Generate insights
-            potential_conflicts = await self._identify_potential_conflicts(profile1, profile2)
+            potential_conflicts = await self._identify_potential_conflicts(
+                profile1, profile2
+            )
             strengths = await self._identify_compatibility_strengths(profile1, profile2)
-            recommendations = await self._generate_compatibility_recommendations(profile1, profile2)
+            recommendations = await self._generate_compatibility_recommendations(
+                profile1, profile2
+            )
 
             return CompatibilityScore(
                 user1_id=user1_id,
@@ -269,20 +289,28 @@ class TeamCompatibilityAnalysisService:
 
             profile = {
                 "user_id": user_id,
-                "name": member.full_name if hasattr(member, "full_name") else f"User {user_id}",
+                "name": (
+                    member.full_name
+                    if hasattr(member, "full_name")
+                    else f"User {user_id}"
+                ),
                 "personality": personality_scores,
                 "skills": skills,
                 "work_style": work_style,
                 "communication": communication_style,
                 "response_count": len(responses),
-                "last_assessment": max([r.created_at for r in responses]) if responses else None,
+                "last_assessment": (
+                    max([r.created_at for r in responses]) if responses else None
+                ),
             }
 
             profiles.append(profile)
 
         return profiles
 
-    async def _extract_personality_scores(self, responses: list[Any]) -> dict[str, float]:
+    async def _extract_personality_scores(
+        self, responses: list[Any]
+    ) -> dict[str, float]:
         """Extract personality trait scores from assessment responses"""
         personality_scores = {
             "openness": 0.5,  # Big Five traits
@@ -354,7 +382,9 @@ class TeamCompatibilityAnalysisService:
 
         return work_style
 
-    async def _extract_communication_style(self, responses: list[Any]) -> dict[str, Any]:
+    async def _extract_communication_style(
+        self, responses: list[Any]
+    ) -> dict[str, Any]:
         """Extract communication style preferences"""
         communication_style = {
             "formality_level": "moderate",
@@ -371,10 +401,14 @@ class TeamCompatibilityAnalysisService:
                 informal_indicators = ["hey", "gonna", "wanna", "cool", "awesome"]
 
                 formal_count = sum(
-                    1 for indicator in formal_indicators if indicator in text_responses.lower()
+                    1
+                    for indicator in formal_indicators
+                    if indicator in text_responses.lower()
                 )
                 informal_count = sum(
-                    1 for indicator in informal_indicators if indicator in text_responses.lower()
+                    1
+                    for indicator in informal_indicators
+                    if indicator in text_responses.lower()
                 )
 
                 if formal_count > informal_count:
@@ -408,8 +442,10 @@ class TeamCompatibilityAnalysisService:
                     work_style_match = await self._calculate_work_style_compatibility(
                         profile1, profile2
                     )
-                    communication_match = await self._calculate_communication_compatibility(
-                        profile1, profile2
+                    communication_match = (
+                        await self._calculate_communication_compatibility(
+                            profile1, profile2
+                        )
                     )
 
                     # Calculate weighted overall compatibility
@@ -424,13 +460,21 @@ class TeamCompatibilityAnalysisService:
 
         return compatibility_matrix
 
-    async def _calculate_personality_compatibility(self, profile1: dict, profile2: dict) -> float:
+    async def _calculate_personality_compatibility(
+        self, profile1: dict, profile2: dict
+    ) -> float:
         """Calculate personality compatibility between two profiles"""
         p1 = profile1.get("personality", {})
         p2 = profile2.get("personality", {})
 
         # Use Big Five traits for calculation
-        traits = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]
+        traits = [
+            "openness",
+            "conscientiousness",
+            "extraversion",
+            "agreeableness",
+            "neuroticism",
+        ]
 
         if not all(trait in p1 and trait in p2 for trait in traits):
             return 0.5  # Default compatibility if data missing
@@ -453,7 +497,9 @@ class TeamCompatibilityAnalysisService:
 
         return min(1.0, compatibility)
 
-    async def _calculate_skills_complementarity(self, profile1: dict, profile2: dict) -> float:
+    async def _calculate_skills_complementarity(
+        self, profile1: dict, profile2: dict
+    ) -> float:
         """Calculate skills complementarity between two profiles"""
         skills1 = set(profile1.get("skills", []))
         skills2 = set(profile2.get("skills", []))
@@ -473,14 +519,18 @@ class TeamCompatibilityAnalysisService:
 
         # Balance between shared understanding and diverse skill sets
         overlap_ratio = len(common_skills) / total_unique_skills
-        diversity_ratio = (len(unique_skills1) + len(unique_skills2)) / (total_unique_skills * 2)
+        diversity_ratio = (len(unique_skills1) + len(unique_skills2)) / (
+            total_unique_skills * 2
+        )
 
         # Optimal balance: some overlap but good diversity
         complementarity = overlap_ratio * 0.4 + diversity_ratio * 0.6
 
         return complementarity
 
-    async def _calculate_work_style_compatibility(self, profile1: dict, profile2: dict) -> float:
+    async def _calculate_work_style_compatibility(
+        self, profile1: dict, profile2: dict
+    ) -> float:
         """Calculate work style compatibility"""
         ws1 = profile1.get("work_style", {})
         ws2 = profile2.get("work_style", {})
@@ -491,9 +541,10 @@ class TeamCompatibilityAnalysisService:
         # Compare decision making styles
         if ws1.get("decision_making_style") == ws2.get("decision_making_style"):
             compatibility_score += 0.3
-        elif ws1.get("decision_making_style") in ["analytical", "data-driven"] and ws2.get(
-            "decision_making_style"
-        ) in ["intuitive", "creative"]:
+        elif ws1.get("decision_making_style") in [
+            "analytical",
+            "data-driven",
+        ] and ws2.get("decision_making_style") in ["intuitive", "creative"]:
             compatibility_score += 0.2  # Complementary styles
         factors += 1
 
@@ -514,7 +565,9 @@ class TeamCompatibilityAnalysisService:
 
         return compatibility_score if factors > 0 else 0.5
 
-    async def _calculate_communication_compatibility(self, profile1: dict, profile2: dict) -> float:
+    async def _calculate_communication_compatibility(
+        self, profile1: dict, profile2: dict
+    ) -> float:
         """Calculate communication compatibility"""
         com1 = profile1.get("communication", {})
         com2 = profile2.get("communication", {})
@@ -628,14 +681,20 @@ class TeamCompatibilityAnalysisService:
 
         # Work style diversity
         work_styles = [profile.get("work_style", {}) for profile in profiles]
-        unique_environments = len(set(ws.get("preferred_environment") for ws in work_styles))
+        unique_environments = len(
+            set(ws.get("preferred_environment") for ws in work_styles)
+        )
         diversity_metrics["work_environment_diversity"] = unique_environments / max(
             1, len(work_styles)
         )
 
         # Communication diversity
-        communication_styles = [profile.get("communication", {}) for profile in profiles]
-        unique_formalities = len(set(cs.get("formality_level") for cs in communication_styles))
+        communication_styles = [
+            profile.get("communication", {}) for profile in profiles
+        ]
+        unique_formalities = len(
+            set(cs.get("formality_level") for cs in communication_styles)
+        )
         diversity_metrics["communication_diversity"] = unique_formalities / max(
             1, len(communication_styles)
         )
@@ -656,7 +715,9 @@ class TeamCompatibilityAnalysisService:
             work_style = profile.get("work_style", {})
 
             # Base score from skill relevance
-            skill_score = min(1.0, len(skills) / 5.0)  # Assuming 5+ relevant skills is good
+            skill_score = min(
+                1.0, len(skills) / 5.0
+            )  # Assuming 5+ relevant skills is good
 
             # Work style alignment score
             work_style_score = 0.7  # Default score
@@ -695,7 +756,9 @@ class TeamCompatibilityAnalysisService:
             suggestions.append(
                 f"Consider team building activities for {len(low_compatibility_pairs)} low-compatibility pairs"
             )
-            suggestions.append("Facilitate communication workshops to improve understanding")
+            suggestions.append(
+                "Facilitate communication workshops to improve understanding"
+            )
 
         if high_compatibility_pairs:
             suggestions.append(
@@ -714,7 +777,9 @@ class TeamCompatibilityAnalysisService:
         return suggestions
 
     async def _identify_risk_factors(
-        self, compatibility_matrix: dict[str, dict[str, float]], profiles: list[dict[str, Any]]
+        self,
+        compatibility_matrix: dict[str, dict[str, float]],
+        profiles: list[dict[str, Any]],
     ) -> list[str]:
         """Identify potential risk factors in team composition"""
         risk_factors = []
@@ -754,11 +819,15 @@ class TeamCompatibilityAnalysisService:
         independent_count = len(profiles) - collaborative_count
 
         if abs(collaborative_count - independent_count) / len(profiles) > 0.7:
-            risk_factors.append("Team may be unbalanced in work environment preferences")
+            risk_factors.append(
+                "Team may be unbalanced in work environment preferences"
+            )
 
         return risk_factors
 
-    async def _identify_potential_conflicts(self, profile1: dict, profile2: dict) -> list[str]:
+    async def _identify_potential_conflicts(
+        self, profile1: dict, profile2: dict
+    ) -> list[str]:
         """Identify potential conflict areas between two team members"""
         conflicts = []
 
@@ -780,12 +849,19 @@ class TeamCompatibilityAnalysisService:
         ws1 = profile1.get("work_style", {})
         ws2 = profile2.get("work_style", {})
 
-        if ws1.get("task_preference") == "structured" and ws2.get("task_preference") == "flexible":
-            conflicts.append("Different approaches to task organization may require compromise")
+        if (
+            ws1.get("task_preference") == "structured"
+            and ws2.get("task_preference") == "flexible"
+        ):
+            conflicts.append(
+                "Different approaches to task organization may require compromise"
+            )
 
         return conflicts
 
-    async def _identify_compatibility_strengths(self, profile1: dict, profile2: dict) -> list[str]:
+    async def _identify_compatibility_strengths(
+        self, profile1: dict, profile2: dict
+    ) -> list[str]:
         """Identify strengths in the compatibility between two team members"""
         strengths = []
 
@@ -795,18 +871,25 @@ class TeamCompatibilityAnalysisService:
         unique_skills = skills1.symmetric_difference(skills2)
 
         if len(unique_skills) >= len(skills1.intersection(skills2)):
-            strengths.append("Strong complementary skill sets for comprehensive coverage")
+            strengths.append(
+                "Strong complementary skill sets for comprehensive coverage"
+            )
 
         # Similar work ethics (conscientiousness)
         p1 = profile1.get("personality", {})
         p2 = profile2.get("personality", {})
 
-        if abs(p1.get("conscientiousness", 0.5) - p2.get("conscientiousness", 0.5)) < 0.2:
+        if (
+            abs(p1.get("conscientiousness", 0.5) - p2.get("conscientiousness", 0.5))
+            < 0.2
+        ):
             strengths.append("Similar work ethic and reliability levels")
 
         # Balanced leadership potential
         if p1.get("extraversion", 0.5) > 0.6 and p2.get("agreeableness", 0.5) > 0.6:
-            strengths.append("Good balance of leadership initiative and team cooperation")
+            strengths.append(
+                "Good balance of leadership initiative and team cooperation"
+            )
 
         return strengths
 
@@ -835,7 +918,9 @@ class TeamCompatibilityAnalysisService:
         skills2 = set(profile2.get("skills", []))
 
         if skills1 and skills2 and len(skills1.intersection(skills2)) < 2:
-            recommendations.append("Consider cross-training to build common knowledge base")
+            recommendations.append(
+                "Consider cross-training to build common knowledge base"
+            )
 
         return recommendations
 
@@ -891,7 +976,9 @@ class TeamCompatibilityAnalysisService:
             all_current_skills.update(profile.get("skills", []))
 
         unique_skills = candidate_skills - all_current_skills
-        score["diversity_value"] = min(1.0, len(unique_skills) / max(1, len(candidate_skills)))
+        score["diversity_value"] = min(
+            1.0, len(unique_skills) / max(1, len(candidate_skills))
+        )
 
         # Role fit assessment
         work_style = candidate.get("work_style", {})

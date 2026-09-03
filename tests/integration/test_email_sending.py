@@ -14,32 +14,33 @@ Security focus: Email injection prevention, secure template rendering,
 and proper handling of sensitive email content.
 """
 
-import pytest
 import asyncio
+import io
 import json
 import smtplib
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
 from email import encoders
-import io
-from unittest.mock import patch, MagicMock, AsyncMock
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.main import app
+import pytest
+
 from app.core.config import get_settings
-from app.services.email_service import EmailService
-from app.services.email_connector_service import EmailConnectorService
-from app.db.models.user import User
 from app.db.models.organization import Organization
+from app.db.models.user import User
+from app.main import app
 from app.schemas.email import (
+    BulkEmailRequest,
+    EmailAnalytics,
+    EmailCampaign,
     EmailMessage,
     EmailTemplate,
-    EmailCampaign,
-    EmailAnalytics,
-    BulkEmailRequest
 )
+from app.services.email_connector_service import EmailConnectorService
+from app.services.email_service import EmailService
 
 settings = get_settings()
 
@@ -113,7 +114,11 @@ async def bulk_email_data():
         "recipients": [
             {"email": "user1@example.com", "name": "User One", "company": "Company A"},
             {"email": "user2@example.com", "name": "User Two", "company": "Company B"},
-            {"email": "user3@example.com", "name": "User Three", "company": "Company C"},
+            {
+                "email": "user3@example.com",
+                "name": "User Three",
+                "company": "Company C",
+            },
         ],
         "schedule_time": datetime.now() + timedelta(hours=1),
         "batch_size": 100,
@@ -128,7 +133,7 @@ async def email_attachment():
     content = "This is a test attachment content."
     return {
         "filename": "test_document.txt",
-        "content": content.encode('utf-8'),
+        "content": content.encode("utf-8"),
         "content_type": "text/plain",
     }
 
@@ -141,7 +146,7 @@ class TestBasicEmailSending:
         self, client: AsyncClient, authenticated_user, sample_email_data, email_service
     ):
         """Test successful single email sending."""
-        with patch.object(email_service, 'send_email') as mock_send:
+        with patch.object(email_service, "send_email") as mock_send:
             mock_send.return_value = {
                 "message_id": "msg_test123456789",
                 "status": "sent",
@@ -153,7 +158,7 @@ class TestBasicEmailSending:
             response = await client.post(
                 "/api/v1/emails/send",
                 json=sample_email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -164,7 +169,11 @@ class TestBasicEmailSending:
 
     @pytest.mark.integration
     async def test_send_email_with_template(
-        self, client: AsyncClient, authenticated_user, email_template_data, email_service
+        self,
+        client: AsyncClient,
+        authenticated_user,
+        email_template_data,
+        email_service,
     ):
         """Test sending email with template rendering."""
         template_request = {
@@ -177,7 +186,7 @@ class TestBasicEmailSending:
             },
         }
 
-        with patch.object(email_service, 'send_template_email') as mock_send:
+        with patch.object(email_service, "send_template_email") as mock_send:
             mock_send.return_value = {
                 "message_id": "msg_template123",
                 "status": "sent",
@@ -188,7 +197,7 @@ class TestBasicEmailSending:
             response = await client.post(
                 "/api/v1/emails/send-template",
                 json=template_request,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -208,13 +217,13 @@ class TestBasicEmailSending:
             "attachments": [
                 {
                     "filename": email_attachment["filename"],
-                    "content": email_attachment["content"].decode('utf-8'),
+                    "content": email_attachment["content"].decode("utf-8"),
                     "content_type": email_attachment["content_type"],
                 }
             ],
         }
 
-        with patch.object(email_service, 'send_email') as mock_send:
+        with patch.object(email_service, "send_email") as mock_send:
             mock_send.return_value = {
                 "message_id": "msg_attachment123",
                 "status": "sent",
@@ -224,7 +233,7 @@ class TestBasicEmailSending:
             response = await client.post(
                 "/api/v1/emails/send",
                 json=email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -242,13 +251,13 @@ class TestBasicEmailSending:
             "text_content": "This should fail.",
         }
 
-        with patch.object(email_service, 'send_email') as mock_send:
+        with patch.object(email_service, "send_email") as mock_send:
             mock_send.side_effect = ValueError("Invalid email address format")
 
             response = await client.post(
                 "/api/v1/emails/send",
                 json=invalid_email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 400
@@ -260,13 +269,13 @@ class TestBasicEmailSending:
         self, client: AsyncClient, authenticated_user, sample_email_data, email_service
     ):
         """Test handling of SMTP server errors."""
-        with patch.object(email_service, 'send_email') as mock_send:
+        with patch.object(email_service, "send_email") as mock_send:
             mock_send.side_effect = smtplib.SMTPException("SMTP connection failed")
 
             response = await client.post(
                 "/api/v1/emails/send",
                 json=sample_email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 503
@@ -279,10 +288,14 @@ class TestEmailTemplates:
 
     @pytest.mark.integration
     async def test_create_email_template(
-        self, client: AsyncClient, authenticated_user, email_template_data, email_service
+        self,
+        client: AsyncClient,
+        authenticated_user,
+        email_template_data,
+        email_service,
     ):
         """Test creating a new email template."""
-        with patch.object(email_service, 'create_template') as mock_create:
+        with patch.object(email_service, "create_template") as mock_create:
             mock_create.return_value = {
                 "id": "template_test123",
                 "name": email_template_data["name"],
@@ -294,7 +307,7 @@ class TestEmailTemplates:
             response = await client.post(
                 "/api/v1/emails/templates",
                 json=email_template_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 201
@@ -307,7 +320,7 @@ class TestEmailTemplates:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test listing email templates."""
-        with patch.object(email_service, 'list_templates') as mock_list:
+        with patch.object(email_service, "list_templates") as mock_list:
             mock_list.return_value = {
                 "templates": [
                     {
@@ -327,8 +340,7 @@ class TestEmailTemplates:
             }
 
             response = await client.get(
-                "/api/v1/emails/templates",
-                headers=authenticated_user["headers"]
+                "/api/v1/emails/templates", headers=authenticated_user["headers"]
             )
 
             assert response.status_code == 200
@@ -347,7 +359,7 @@ class TestEmailTemplates:
             "html_template": "<h1>Updated content</h1>",
         }
 
-        with patch.object(email_service, 'update_template') as mock_update:
+        with patch.object(email_service, "update_template") as mock_update:
             mock_update.return_value = {
                 "id": "template_test123",
                 "name": "Updated Welcome Email",
@@ -357,7 +369,7 @@ class TestEmailTemplates:
             response = await client.put(
                 "/api/v1/emails/templates/template_test123",
                 json=update_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -369,12 +381,15 @@ class TestEmailTemplates:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test deleting an email template."""
-        with patch.object(email_service, 'delete_template') as mock_delete:
-            mock_delete.return_value = {"deleted": True, "template_id": "template_test123"}
+        with patch.object(email_service, "delete_template") as mock_delete:
+            mock_delete.return_value = {
+                "deleted": True,
+                "template_id": "template_test123",
+            }
 
             response = await client.delete(
                 "/api/v1/emails/templates/template_test123",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -394,7 +409,7 @@ class TestEmailTemplates:
             },
         }
 
-        with patch.object(email_service, 'preview_template') as mock_preview:
+        with patch.object(email_service, "preview_template") as mock_preview:
             mock_preview.return_value = {
                 "subject": "Welcome to Preview Company!",
                 "html_content": "<h1>Welcome Preview User!</h1>",
@@ -404,7 +419,7 @@ class TestEmailTemplates:
             response = await client.post(
                 "/api/v1/emails/templates/template_test123/preview",
                 json=preview_request,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -421,7 +436,7 @@ class TestBulkEmailOperations:
         self, client: AsyncClient, authenticated_user, bulk_email_data, email_service
     ):
         """Test creating a bulk email campaign."""
-        with patch.object(email_service, 'create_campaign') as mock_create:
+        with patch.object(email_service, "create_campaign") as mock_create:
             mock_create.return_value = {
                 "campaign_id": "campaign_test123",
                 "name": bulk_email_data["campaign_name"],
@@ -433,7 +448,7 @@ class TestBulkEmailOperations:
             response = await client.post(
                 "/api/v1/emails/campaigns",
                 json=bulk_email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 201
@@ -457,7 +472,7 @@ class TestBulkEmailOperations:
             "send_immediately": True,
         }
 
-        with patch.object(email_service, 'send_bulk_email') as mock_send:
+        with patch.object(email_service, "send_bulk_email") as mock_send:
             mock_send.return_value = {
                 "campaign_id": "campaign_bulk123",
                 "status": "processing",
@@ -469,7 +484,7 @@ class TestBulkEmailOperations:
             response = await client.post(
                 "/api/v1/emails/bulk-send",
                 json=bulk_request,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -481,7 +496,7 @@ class TestBulkEmailOperations:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test listing email campaigns."""
-        with patch.object(email_service, 'list_campaigns') as mock_list:
+        with patch.object(email_service, "list_campaigns") as mock_list:
             mock_list.return_value = {
                 "campaigns": [
                     {
@@ -503,8 +518,7 @@ class TestBulkEmailOperations:
             }
 
             response = await client.get(
-                "/api/v1/emails/campaigns",
-                headers=authenticated_user["headers"]
+                "/api/v1/emails/campaigns", headers=authenticated_user["headers"]
             )
 
             assert response.status_code == 200
@@ -516,7 +530,7 @@ class TestBulkEmailOperations:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test getting campaign analytics."""
-        with patch.object(email_service, 'get_campaign_analytics') as mock_analytics:
+        with patch.object(email_service, "get_campaign_analytics") as mock_analytics:
             mock_analytics.return_value = {
                 "campaign_id": "campaign_test123",
                 "total_sent": 1000,
@@ -533,7 +547,7 @@ class TestBulkEmailOperations:
 
             response = await client.get(
                 "/api/v1/emails/campaigns/campaign_test123/analytics",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -547,9 +561,7 @@ class TestEmailTracking:
     """Test email delivery tracking and analytics."""
 
     @pytest.mark.integration
-    async def test_email_open_tracking(
-        self, client: AsyncClient, email_service
-    ):
+    async def test_email_open_tracking(self, client: AsyncClient, email_service):
         """Test email open tracking webhook."""
         tracking_data = {
             "event": "open",
@@ -560,20 +572,17 @@ class TestEmailTracking:
             "ip_address": "192.168.1.1",
         }
 
-        with patch.object(email_service, 'track_email_open') as mock_track:
+        with patch.object(email_service, "track_email_open") as mock_track:
             mock_track.return_value = {"tracked": True, "open_count": 1}
 
             response = await client.post(
-                "/api/v1/emails/tracking/open",
-                json=tracking_data
+                "/api/v1/emails/tracking/open", json=tracking_data
             )
 
             assert response.status_code == 200
 
     @pytest.mark.integration
-    async def test_email_click_tracking(
-        self, client: AsyncClient, email_service
-    ):
+    async def test_email_click_tracking(self, client: AsyncClient, email_service):
         """Test email click tracking webhook."""
         tracking_data = {
             "event": "click",
@@ -584,12 +593,11 @@ class TestEmailTracking:
             "link_id": "link_123",
         }
 
-        with patch.object(email_service, 'track_email_click') as mock_track:
+        with patch.object(email_service, "track_email_click") as mock_track:
             mock_track.return_value = {"tracked": True, "click_count": 1}
 
             response = await client.post(
-                "/api/v1/emails/tracking/click",
-                json=tracking_data
+                "/api/v1/emails/tracking/click", json=tracking_data
             )
 
             assert response.status_code == 200
@@ -599,7 +607,7 @@ class TestEmailTracking:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test checking email delivery status."""
-        with patch.object(email_service, 'get_delivery_status') as mock_status:
+        with patch.object(email_service, "get_delivery_status") as mock_status:
             mock_status.return_value = {
                 "message_id": "msg_test123",
                 "status": "delivered",
@@ -611,7 +619,7 @@ class TestEmailTracking:
 
             response = await client.get(
                 "/api/v1/emails/status/msg_test123",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -620,9 +628,7 @@ class TestEmailTracking:
             assert data["attempts"] == 1
 
     @pytest.mark.integration
-    async def test_email_bounce_handling(
-        self, client: AsyncClient, email_service
-    ):
+    async def test_email_bounce_handling(self, client: AsyncClient, email_service):
         """Test handling email bounce events."""
         bounce_data = {
             "event": "bounce",
@@ -633,7 +639,7 @@ class TestEmailTracking:
             "timestamp": datetime.now().isoformat(),
         }
 
-        with patch.object(email_service, 'handle_bounce') as mock_handle:
+        with patch.object(email_service, "handle_bounce") as mock_handle:
             mock_handle.return_value = {
                 "processed": True,
                 "recipient_blacklisted": True,
@@ -641,8 +647,7 @@ class TestEmailTracking:
             }
 
             response = await client.post(
-                "/api/v1/emails/tracking/bounce",
-                json=bounce_data
+                "/api/v1/emails/tracking/bounce", json=bounce_data
             )
 
             assert response.status_code == 200
@@ -664,14 +669,14 @@ class TestEmailSecurity:
             "text_content": "Content\\r\\nBcc: victim@scam.com",
         }
 
-        with patch.object(email_service, 'send_email') as mock_send:
+        with patch.object(email_service, "send_email") as mock_send:
             # Should not reach actual email sending
             mock_send.side_effect = ValueError("Potential email injection detected")
 
             response = await client.post(
                 "/api/v1/emails/send",
                 json=malicious_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 400
@@ -679,9 +684,7 @@ class TestEmailSecurity:
             assert "email injection" in data["detail"].lower()
 
     @pytest.mark.integration
-    async def test_unsubscribe_handling(
-        self, client: AsyncClient, email_service
-    ):
+    async def test_unsubscribe_handling(self, client: AsyncClient, email_service):
         """Test handling unsubscribe requests."""
         unsubscribe_data = {
             "email": "user@example.com",
@@ -689,7 +692,7 @@ class TestEmailSecurity:
             "reason": "User requested unsubscribe",
         }
 
-        with patch.object(email_service, 'process_unsubscribe') as mock_unsubscribe:
+        with patch.object(email_service, "process_unsubscribe") as mock_unsubscribe:
             mock_unsubscribe.return_value = {
                 "unsubscribed": True,
                 "email": "user@example.com",
@@ -697,8 +700,7 @@ class TestEmailSecurity:
             }
 
             response = await client.post(
-                "/api/v1/emails/unsubscribe",
-                json=unsubscribe_data
+                "/api/v1/emails/unsubscribe", json=unsubscribe_data
             )
 
             assert response.status_code == 200
@@ -718,7 +720,7 @@ class TestEmailSecurity:
             },
         }
 
-        with patch.object(email_service, 'send_email') as mock_send:
+        with patch.object(email_service, "send_email") as mock_send:
             mock_send.return_value = {
                 "message_id": "msg_compliance123",
                 "status": "sent",
@@ -728,7 +730,7 @@ class TestEmailSecurity:
             response = await client.post(
                 "/api/v1/emails/send",
                 json=compliant_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -750,7 +752,7 @@ class TestEmailSecurity:
             response = await client.post(
                 "/api/v1/emails/send",
                 json={**basic_email, "subject": f"Test {i}"},
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
             responses.append(response)
             await asyncio.sleep(0.01)
@@ -777,7 +779,7 @@ class TestEmailProviders:
             "use_tls": True,
         }
 
-        with patch.object(email_connector, 'test_connection') as mock_test:
+        with patch.object(email_connector, "test_connection") as mock_test:
             mock_test.return_value = {
                 "connected": True,
                 "provider": "smtp",
@@ -787,7 +789,7 @@ class TestEmailProviders:
             response = await client.post(
                 "/api/v1/emails/providers/test-connection",
                 json=smtp_config,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -806,7 +808,7 @@ class TestEmailProviders:
             "provider": "sendgrid",
         }
 
-        with patch.object(email_service, 'send_via_sendgrid') as mock_send:
+        with patch.object(email_service, "send_via_sendgrid") as mock_send:
             mock_send.return_value = {
                 "message_id": "sendgrid_msg_123",
                 "status": "sent",
@@ -816,7 +818,7 @@ class TestEmailProviders:
             response = await client.post(
                 "/api/v1/emails/send-with-provider",
                 json=email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -833,7 +835,7 @@ class TestEmailProviders:
             "provider": "aws_ses",
         }
 
-        with patch.object(email_service, 'send_via_ses') as mock_send:
+        with patch.object(email_service, "send_via_ses") as mock_send:
             mock_send.return_value = {
                 "message_id": "aws_ses_msg_123",
                 "status": "sent",
@@ -843,7 +845,7 @@ class TestEmailProviders:
             response = await client.post(
                 "/api/v1/emails/send-with-provider",
                 json=email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -860,7 +862,7 @@ class TestEmailProviders:
             "fallback_providers": ["sendgrid", "smtp"],
         }
 
-        with patch.object(email_service, 'send_with_fallback') as mock_send:
+        with patch.object(email_service, "send_with_fallback") as mock_send:
             mock_send.return_value = {
                 "message_id": "fallback_msg_123",
                 "status": "sent",
@@ -871,7 +873,7 @@ class TestEmailProviders:
             response = await client.post(
                 "/api/v1/emails/send-with-fallback",
                 json=email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -887,7 +889,7 @@ class TestEmailErrorHandling:
         self, client: AsyncClient, authenticated_user, sample_email_data, email_service
     ):
         """Test automatic retry logic for failed emails."""
-        with patch.object(email_service, 'send_email_with_retry') as mock_send:
+        with patch.object(email_service, "send_email_with_retry") as mock_send:
             mock_send.return_value = {
                 "message_id": "msg_retry_success",
                 "status": "sent",
@@ -898,7 +900,7 @@ class TestEmailErrorHandling:
             response = await client.post(
                 "/api/v1/emails/send-with-retry",
                 json=sample_email_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -910,7 +912,7 @@ class TestEmailErrorHandling:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test email queue processing for bulk operations."""
-        with patch.object(email_service, 'process_email_queue') as mock_process:
+        with patch.object(email_service, "process_email_queue") as mock_process:
             mock_process.return_value = {
                 "processed": 100,
                 "successful": 95,
@@ -921,7 +923,7 @@ class TestEmailErrorHandling:
             response = await client.post(
                 "/api/v1/emails/queue/process",
                 json={"batch_size": 100},
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -934,7 +936,7 @@ class TestEmailErrorHandling:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test notifications for failed email sends."""
-        with patch.object(email_service, 'send_failure_notification') as mock_notify:
+        with patch.object(email_service, "send_failure_notification") as mock_notify:
             mock_notify.return_value = {
                 "notification_sent": True,
                 "failed_message_id": "msg_failed_123",
@@ -948,7 +950,7 @@ class TestEmailErrorHandling:
                     "error_message": "SMTP connection timeout",
                     "recipient": "failed@example.com",
                 },
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -962,7 +964,7 @@ class TestEmailAnalytics:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test email performance metrics."""
-        with patch.object(email_service, 'get_performance_metrics') as mock_metrics:
+        with patch.object(email_service, "get_performance_metrics") as mock_metrics:
             mock_metrics.return_value = {
                 "period": "last_7_days",
                 "total_sent": 10000,
@@ -977,7 +979,7 @@ class TestEmailAnalytics:
             response = await client.get(
                 "/api/v1/emails/analytics/performance",
                 params={"period": "7d"},
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -990,7 +992,7 @@ class TestEmailAnalytics:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test email engagement analytics."""
-        with patch.object(email_service, 'get_engagement_report') as mock_report:
+        with patch.object(email_service, "get_engagement_report") as mock_report:
             mock_report.return_value = {
                 "report_period": "last_30_days",
                 "engagement_data": [
@@ -1014,7 +1016,7 @@ class TestEmailAnalytics:
             response = await client.get(
                 "/api/v1/emails/analytics/engagement",
                 params={"period": "30d"},
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -1026,7 +1028,7 @@ class TestEmailAnalytics:
         self, client: AsyncClient, authenticated_user, email_service
     ):
         """Test comparing performance of different email templates."""
-        with patch.object(email_service, 'get_template_comparison') as mock_comparison:
+        with patch.object(email_service, "get_template_comparison") as mock_comparison:
             mock_comparison.return_value = {
                 "templates": [
                     {
@@ -1051,7 +1053,7 @@ class TestEmailAnalytics:
 
             response = await client.get(
                 "/api/v1/emails/analytics/template-comparison",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -1079,7 +1081,7 @@ class TestEmailPerformance:
             "batch_size": 100,
         }
 
-        with patch.object(email_service, 'send_bulk_email') as mock_send:
+        with patch.object(email_service, "send_bulk_email") as mock_send:
             mock_send.return_value = {
                 "campaign_id": "perf_test_123",
                 "status": "completed",
@@ -1091,7 +1093,7 @@ class TestEmailPerformance:
             response = await client.post(
                 "/api/v1/emails/bulk-send",
                 json=bulk_request,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
             end_time = time.time()
 
@@ -1117,7 +1119,7 @@ class TestEmailPerformance:
             },
         }
 
-        with patch.object(email_service, 'preview_template') as mock_preview:
+        with patch.object(email_service, "preview_template") as mock_preview:
             mock_preview.return_value = {
                 "subject": "Performance Test",
                 "html_content": "<h1>Rendered content</h1>",
@@ -1127,7 +1129,7 @@ class TestEmailPerformance:
             response = await client.post(
                 "/api/v1/emails/templates/template_complex/preview",
                 json=template_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
             end_time = time.time()
 

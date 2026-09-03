@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -8,6 +8,8 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
+import { Question as QuestionType, getRandomQuestions as getRandomQuestionsFn, getPreviousQuestionIds as getPreviousQuestionIdsFn, saveQuestionIds as saveQuestionIdsFn } from './data/phq9-question-bank';
+import { BASE_ASSESSMENTS, getAssessmentConfig, AssessmentData as AssessmentDataType } from './config/assessment-configs';
 
 // CSS fix for input blocking issues
 const inputFixStyle = `
@@ -793,13 +795,13 @@ const ClinicalAssessment: React.FC = () => {
       description: 'Generalized Anxiety Disorder-7',
       instructions: 'Over the last 2 weeks, how often have you been bothered by the following problems?',
       questions: [
-        { id: 1, text: 'Feeling nervous, anxious, or on edge', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
-        { id: 2, text: 'Not being able to stop or control worrying', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
-        { id: 3, text: 'Worrying too much about different things', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
-        { id: 4, text: 'Trouble relaxing', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
-        { id: 5, text: 'Being so restless that it is hard to sit still', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
-        { id: 6, text: 'Becoming easily annoyed or irritable', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
-        { id: 7, text: 'Feeling afraid, as if something awful might happen', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
+        { id: '1', text: 'Feeling nervous, anxious, or on edge', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
+        { id: '2', text: 'Not being able to stop or control worrying', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
+        { id: '3', text: 'Worrying too much about different things', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
+        { id: '4', text: 'Trouble relaxing', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
+        { id: '5', text: 'Being so restless that it is hard to sit still', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
+        { id: '6', text: 'Becoming easily annoyed or irritable', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
+        { id: '7', text: 'Feeling afraid, as if something awful might happen', options: ['Not at all', 'Several days', 'More than half the days', 'Nearly every day'], required: true },
       ],
       scoring: {
         min: 0,
@@ -831,11 +833,13 @@ const ClinicalAssessment: React.FC = () => {
   };
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | undefined;
+
     const loadAssessmentData = async () => {
       console.log('ClinicalAssessment: Loading assessment for tool:', tool);
 
       // Add a timeout to ensure loading doesn't get stuck
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         console.warn('ClinicalAssessment: Loading timeout, forcing loading to false');
         setLoading(false);
         // Set fallback assessment data
@@ -916,13 +920,17 @@ const ClinicalAssessment: React.FC = () => {
         }
       } finally {
         // Clear timeout and always set loading to false
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
         console.log('ClinicalAssessment: Loading completed');
       }
     };
 
     loadAssessmentData();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [tool, navigate]);
 
   useEffect(() => {
@@ -939,12 +947,12 @@ const ClinicalAssessment: React.FC = () => {
     }
   }, [responses, tool, assessmentData]);
 
-  const handleResponseChange = (questionId: string, response: string) => {
+  const handleResponseChange = useCallback((questionId: string, response: string) => {
     setResponses(prev => ({
       ...prev,
       [questionId]: response,
     }));
-  };
+  }, []);
 
   const handleNext = () => {
     if (!assessmentData) return;
@@ -956,13 +964,13 @@ const ClinicalAssessment: React.FC = () => {
     }
   };
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (currentQuestion > 0) {
       setCurrentQuestion(prev => prev - 1);
     }
-  };
+  }, [currentQuestion]);
 
-  const calculateScore = (): number => {
+  const calculateScore = useMemo((): number => {
     if (!assessmentData) return 0;
 
     return assessmentData.questions.reduce((total, question) => {
@@ -974,15 +982,15 @@ const ClinicalAssessment: React.FC = () => {
       const weightedScore = baseScore * question.severity_weight;
       return total + weightedScore;
     }, 0);
-  };
+  }, [assessmentData, responses]);
 
-  const getSeverityLevel = (score: number) => {
+  const getSeverityLevel = useCallback((score: number) => {
     if (!assessmentData) return null;
 
     return assessmentData.scoring.levels.find(level =>
       score >= level.range[0] && score <= level.range[1]
     );
-  };
+  }, [assessmentData]);
 
   const handleSubmit = async () => {
     if (!assessmentData || !tool) return;
@@ -1154,7 +1162,7 @@ const ClinicalAssessment: React.FC = () => {
               </p>
               <div className="mt-2">
                 <Button
-                  variant="destructive"
+                  variant="danger"
                   size="sm"
                   onClick={() => navigate('/clinical/emergency')}
                 >
@@ -1280,11 +1288,11 @@ const ClinicalAssessment: React.FC = () => {
                       handleResponseChange(currentQuestionData.id, newValue);
                     }}
                     style={{
-                      pointerEvents: 'auto !important',
+                      pointerEvents: 'auto' as any,
                       zIndex: 9999,
-                      position: 'relative !important',
+                      position: 'relative' as any,
                       opacity: 1,
-                      visibility: 'visible',
+                      visibility: 'visible' as any,
                       cursor: 'pointer',
                       appearance: 'none',
                       WebkitAppearance: 'none',
@@ -1344,7 +1352,7 @@ const ClinicalAssessment: React.FC = () => {
               <Button
                 onClick={handleSubmit}
                 disabled={!responses[currentQuestionData.id] || submitting}
-                size="lg"
+                size="sm"
                 className="bg-green-600 hover:bg-green-700"
               >
                 {submitting ? 'Submitting...' : 'Complete Assessment'}
@@ -1353,7 +1361,7 @@ const ClinicalAssessment: React.FC = () => {
               <Button
                 onClick={handleNext}
                 disabled={!responses[currentQuestionData.id]}
-                size="lg"
+                size="sm"
               >
                 Next Question
               </Button>
@@ -1415,4 +1423,4 @@ const ClinicalAssessment: React.FC = () => {
   );
 };
 
-export default ClinicalAssessment;
+export default React.memo(ClinicalAssessment);

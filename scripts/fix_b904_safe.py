@@ -4,8 +4,8 @@ Safely fix B904 errors by processing files individually and validating syntax.
 """
 
 import ast
-import subprocess
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -28,9 +28,9 @@ def fix_file_with_ruff(file_path: Path) -> bool:
 
     # Try to fix with ruff
     result = subprocess.run(
-        ['ruff', 'check', str(file_path), '--select', 'B904', '--fix'],
+        ["ruff", "check", str(file_path), "--select", "B904", "--fix"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     # Validate syntax
@@ -45,9 +45,9 @@ def fix_file_with_ruff(file_path: Path) -> bool:
 def main():
     # Get all files with B904 errors
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -59,7 +59,7 @@ def main():
     # Group by file
     files_with_errors = {}
     for error in errors:
-        filename = error['filename']
+        filename = error["filename"]
         if filename not in files_with_errors:
             files_with_errors[filename] = []
         files_with_errors[filename].append(error)
@@ -92,9 +92,9 @@ def main():
     # Verify remaining errors
     print("\nVerifying remaining B904 errors...")
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -106,5 +106,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit(main())

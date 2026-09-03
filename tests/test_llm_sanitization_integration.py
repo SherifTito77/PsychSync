@@ -8,13 +8,14 @@ Compliance: NIST AI RMF, OWASP, HIPAA §164.312(e)(1), SOC 2 CC7.2
 """
 
 import pytest
+
 from app.services.llm_sanitization import (
-    LLMSanitizer,
     ContentType,
-    check_for_xss,
+    LLMSanitizer,
     check_for_ssrf,
+    check_for_xss,
+    validate_json_schema,
     validate_sql_query,
-    validate_json_schema
 )
 
 
@@ -32,7 +33,7 @@ class TestFullPipelineIntegration:
 
     def test_complete_sanitization_workflow(self, sanitizer):
         """Test full sanitization workflow from input to output"""
-        llm_output = '''
+        llm_output = """
         Based on your request, here's the data:
 
         <script>alert('XSS')</script>
@@ -42,7 +43,7 @@ class TestFullPipelineIntegration:
         SQL query: SELECT * FROM users WHERE id = 1 UNION SELECT * FROM admin
 
         Visit https://docs.psychsync.com/guide for more info.
-        '''
+        """
 
         result = sanitizer.sanitize(llm_output, content_type="text")
 
@@ -52,13 +53,18 @@ class TestFullPipelineIntegration:
 
         # Verify SSRF blocked
         assert "169.254.169.254" not in result.sanitized
-        assert "docs.psychsync.com" in result.sanitized  # Allow-listed domain should remain
+        assert (
+            "docs.psychsync.com" in result.sanitized
+        )  # Allow-listed domain should remain
 
         # Verify SQL injection handled
         assert "UNION SELECT" not in result.sanitized
 
         # Verify content type detected
-        assert result.content_type == ContentType.HTML or result.content_type == ContentType.TEXT
+        assert (
+            result.content_type == ContentType.HTML
+            or result.content_type == ContentType.TEXT
+        )
 
         # Verify modifications tracked
         assert len(result.modifications) > 0
@@ -92,7 +98,7 @@ class TestFullPipelineIntegration:
 
     def test_llm_code_generation_response(self, sanitizer):
         """Test sanitization of LLM code generation"""
-        llm_response = '''
+        llm_response = """
         Here's a Python function to process user data:
 
         ```python
@@ -104,7 +110,7 @@ class TestFullPipelineIntegration:
         ```
 
         This function queries the database with the user input.
-        '''
+        """
 
         result = sanitizer.sanitize(llm_response, content_type="text")
 
@@ -120,7 +126,7 @@ class TestFullPipelineIntegration:
 
     def test_llm_json_response(self, sanitizer):
         """Test sanitization of LLM JSON response"""
-        llm_json = '''
+        llm_json = """
         {
             "user_profile": {
                 "name": "John Doe",
@@ -129,7 +135,7 @@ class TestFullPipelineIntegration:
                 "query": "SELECT * FROM users"
             }
         }
-        '''
+        """
 
         result = sanitizer.sanitize(llm_json, content_type="json")
 
@@ -144,7 +150,7 @@ class TestFullPipelineIntegration:
 
     def test_llm_html_response(self, sanitizer):
         """Test sanitization of LLM HTML response"""
-        llm_html = '''
+        llm_html = """
         <html>
         <head><title>User Dashboard</title></head>
         <body>
@@ -160,13 +166,16 @@ class TestFullPipelineIntegration:
         <img src="avatar.jpg" onerror="stealData()">
         </body>
         </html>
-        '''
+        """
 
         result = sanitizer.sanitize(llm_html, content_type="html")
 
         # HTML tags should be stripped
         assert "<script>" not in result.sanitized
-        assert "function initDashboard" not in result.sanitized or "JavaScript" in result.sanitized
+        assert (
+            "function initDashboard" not in result.sanitized
+            or "JavaScript" in result.sanitized
+        )
 
         # Event handlers removed
         assert "onerror=" not in result.sanitized
@@ -176,7 +185,7 @@ class TestFullPipelineIntegration:
 
     def test_llm_markdown_response(self, sanitizer):
         """Test sanitization of LLM markdown response"""
-        llm_markdown = '''
+        llm_markdown = """
         # User Report
 
         Here's your personalized dashboard link: http://10.0.0.53:8080/dashboard
@@ -189,7 +198,7 @@ class TestFullPipelineIntegration:
         ![XSS](x onerror="alert(1)")
 
         [Internal Link](file:///etc/config)
-        '''
+        """
 
         result = sanitizer.sanitize(llm_markdown, content_type="text")
 
@@ -220,14 +229,20 @@ class TestFullPipelineIntegration:
     def test_mixed_content_classification(self, sanitizer):
         """Test classification of mixed content"""
         # HTML with JavaScript
-        html_with_js = '<script>alert(1)</script>'
+        html_with_js = "<script>alert(1)</script>"
         result = sanitizer.sanitize(html_with_js, content_type="text")
-        assert result.content_type == ContentType.JAVASCRIPT or result.content_type == ContentType.HTML
+        assert (
+            result.content_type == ContentType.JAVASCRIPT
+            or result.content_type == ContentType.HTML
+        )
 
         # Code with SQL
         code_with_sql = 'db.execute("SELECT * FROM users")'
         result = sanitizer.sanitize(code_with_sql, content_type="text")
-        assert result.content_type == ContentType.CODE or result.content_type == ContentType.SQL
+        assert (
+            result.content_type == ContentType.CODE
+            or result.content_type == ContentType.SQL
+        )
 
     # ========================================================================
     # Approval Workflow Tests
@@ -272,13 +287,13 @@ class TestFullPipelineIntegration:
 
     def test_json_schema_validation_success(self, sanitizer):
         """Test successful JSON schema validation"""
-        valid_json = '''
+        valid_json = """
         {
             "summary": "User assessment results",
             "recommendations": ["Improve communication", "Focus on teamwork"],
             "confidence": 0.85
         }
-        '''
+        """
 
         result = sanitizer.sanitize(valid_json, content_type="json")
 
@@ -289,19 +304,22 @@ class TestFullPipelineIntegration:
 
     def test_json_schema_validation_failure(self, sanitizer):
         """Test JSON schema validation failure"""
-        invalid_json = '''
+        invalid_json = """
         {
             "summary": "Test",
             "unexpected_field": "This should not be here",
             "code": "malicious()"
         }
-        '''
+        """
 
         result = sanitizer.sanitize(invalid_json, content_type="json")
 
         # Should have validation warnings
         assert len(result.warnings) > 0
-        assert any("unexpected" in w.lower() or "validation" in w.lower() for w in result.warnings)
+        assert any(
+            "unexpected" in w.lower() or "validation" in w.lower()
+            for w in result.warnings
+        )
 
     # ========================================================================
     # Performance and Stress Tests
@@ -309,15 +327,22 @@ class TestFullPipelineIntegration:
 
     def test_large_content_sanitization(self, sanitizer):
         """Test sanitization of large content"""
-        large_content = """
+        large_content = (
+            """
         <p>Safe content</p>
-        """ * 1000 + """
+        """
+            * 1000
+            + """
         <script>alert('XSS')</script>
-        """ + """
+        """
+            + """
         <p>More safe content</p>
-        """ * 1000
+        """
+            * 1000
+        )
 
         import time
+
         start = time.time()
         result = sanitizer.sanitize(large_content, content_type="text")
         duration = time.time() - start
@@ -383,7 +408,9 @@ class TestFullPipelineIntegration:
     def test_validate_sql_query_helper(self):
         """Test SQL validation helper function"""
         # Safe query
-        is_safe, reason = validate_sql_query("SELECT id, name FROM users WHERE active = true")
+        is_safe, reason = validate_sql_query(
+            "SELECT id, name FROM users WHERE active = true"
+        )
         assert is_safe is True
         assert reason == ""
 
@@ -405,10 +432,10 @@ class TestFullPipelineIntegration:
             "type": "object",
             "properties": {
                 "summary": {"type": "string"},
-                "recommendations": {"type": "array"}
+                "recommendations": {"type": "array"},
             },
             "required": ["summary"],
-            "additionalProperties": False
+            "additionalProperties": False,
         }
 
         # Valid JSON
@@ -444,9 +471,15 @@ class TestFullPipelineIntegration:
         # With strict mode
         result = sanitizer.sanitize(javascript, content_type="text", strict_mode=True)
         # Should detect content type mismatch
-        assert result.content_type == ContentType.JAVASCRIPT or result.content_type == ContentType.CODE
+        assert (
+            result.content_type == ContentType.JAVASCRIPT
+            or result.content_type == ContentType.CODE
+        )
         assert len(result.warnings) > 0
-        assert any("mismatch" in w.lower() or "content type" in w.lower() for w in result.warnings)
+        assert any(
+            "mismatch" in w.lower() or "content type" in w.lower()
+            for w in result.warnings
+        )
 
     # ========================================================================
     # Sanitization Result Structure Tests
@@ -457,13 +490,13 @@ class TestFullPipelineIntegration:
         result = sanitizer.sanitize("Test content", content_type="text")
 
         # Check all required fields exist
-        assert hasattr(result, 'original')
-        assert hasattr(result, 'sanitized')
-        assert hasattr(result, 'content_type')
-        assert hasattr(result, 'modifications')
-        assert hasattr(result, 'approval_required')
-        assert hasattr(result, 'approval_request_id')
-        assert hasattr(result, 'warnings')
+        assert hasattr(result, "original")
+        assert hasattr(result, "sanitized")
+        assert hasattr(result, "content_type")
+        assert hasattr(result, "modifications")
+        assert hasattr(result, "approval_required")
+        assert hasattr(result, "approval_request_id")
+        assert hasattr(result, "warnings")
 
         # Check field types
         assert isinstance(result.original, str)
@@ -495,7 +528,7 @@ class TestRealWorldScenarios:
 
     def test_assessment_recommendation_response(self, sanitizer):
         """Test sanitization of AI assessment recommendation"""
-        ai_response = '''
+        ai_response = """
         Based on your MBTI assessment results (INTJ), here are personalized recommendations:
 
         1. **Communication Style**: Your preference for direct communication can be
@@ -508,7 +541,7 @@ class TestRealWorldScenarios:
         for more detailed guidance.
 
         Your development dashboard is available at your organization portal.
-        '''
+        """
 
         result = sanitizer.sanitize(ai_response, content_type="text")
 
@@ -522,7 +555,7 @@ class TestRealWorldScenarios:
 
     def test_team_composition_analysis(self, sanitizer):
         """Test sanitization of team composition analysis"""
-        ai_analysis = '''
+        ai_analysis = """
         # Team Composition Analysis
 
         Your team has the following breakdown:
@@ -536,7 +569,7 @@ class TestRealWorldScenarios:
 
         To export this data, you can use the internal API:
         POST http://10.0.0.53:8080/api/export
-        '''
+        """
 
         result = sanitizer.sanitize(ai_analysis, content_type="text")
 
@@ -549,7 +582,7 @@ class TestRealWorldScenarios:
 
     def test_clinical_report_generation(self, sanitizer):
         """Test sanitization of clinical report generation"""
-        clinical_report = '''
+        clinical_report = """
         # Clinical Assessment Report
 
         **Patient ID**: PAT-001
@@ -565,7 +598,7 @@ class TestRealWorldScenarios:
         - Follow up in 2 weeks
 
         This report contains protected health information and must be handled securely.
-        '''
+        """
 
         result = sanitizer.sanitize(clinical_report, content_type="text")
 
@@ -574,12 +607,16 @@ class TestRealWorldScenarios:
         assert "moderate depression" in result.sanitized
 
         # Should not have security warnings for safe clinical text
-        security_warnings = [w for w in result.warnings if "dangerous" in w.lower() or "blocked" in w.lower()]
+        security_warnings = [
+            w
+            for w in result.warnings
+            if "dangerous" in w.lower() or "blocked" in w.lower()
+        ]
         assert len(security_warnings) == 0
 
     def test_data_export_request(self, sanitizer):
         """Test sanitization of data export request from LLM"""
-        export_request = '''
+        export_request = """
         To export your assessment data, the system can generate a SQL query:
 
         ```sql
@@ -593,12 +630,15 @@ class TestRealWorldScenarios:
         This query will be executed and the results exported to CSV format.
 
         The export will be saved to: /var/assessment-exports/user_data_[timestamp].csv
-        '''
+        """
 
         result = sanitizer.sanitize(export_request, content_type="text")
 
         # Should detect SQL in the content
-        assert result.content_type == ContentType.SQL or result.content_type == ContentType.CODE
+        assert (
+            result.content_type == ContentType.SQL
+            or result.content_type == ContentType.CODE
+        )
 
         # SQL should require approval
         assert result.approval_required is True

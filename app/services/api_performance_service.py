@@ -4,34 +4,38 @@ Comprehensive monitoring and analysis of API performance metrics
 Performance improvement: 60% faster issue detection and resolution
 """
 
+import json
+import logging
+import statistics
+import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
-import statistics
-import time
 from typing import Any
 
-from fastapi import Request
 import psutil
 import redis.asyncio as redis
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
+
 class PerformanceLevel(str, Enum):
     """Performance level classifications"""
+
     EXCELLENT = "excellent"
     GOOD = "good"
     ACCEPTABLE = "acceptable"
     SLOW = "slow"
     CRITICAL = "critical"
 
+
 @dataclass
 class PerformanceMetric:
     """Individual performance metric data point"""
+
     timestamp: datetime
     endpoint: str
     method: str
@@ -42,9 +46,11 @@ class PerformanceMetric:
     ip_address: str
     user_id: str | None = None
 
+
 @dataclass
 class PerformanceStats:
     """Aggregated performance statistics"""
+
     endpoint: str
     total_requests: int
     avg_response_time: float
@@ -56,9 +62,11 @@ class PerformanceStats:
     avg_response_size: float
     performance_level: PerformanceLevel
 
+
 @dataclass
 class SystemMetrics:
     """System resource metrics"""
+
     cpu_percent: float
     memory_percent: float
     disk_usage_percent: float
@@ -66,6 +74,7 @@ class SystemMetrics:
     open_files: int
     threads_count: int
     timestamp: datetime
+
 
 class PerformanceMonitor:
     """
@@ -102,7 +111,7 @@ class PerformanceMonitor:
             PerformanceLevel.GOOD: 300,
             PerformanceLevel.ACCEPTABLE: 1000,
             PerformanceLevel.SLOW: 3000,
-            PerformanceLevel.CRITICAL: float("inf")
+            PerformanceLevel.CRITICAL: float("inf"),
         }
 
         # Alert state tracking
@@ -113,12 +122,15 @@ class PerformanceMonitor:
         """Get or create Redis client"""
         if self._redis_client is None:
             if self.redis_url:
-                self._redis_client = redis.from_url(self.redis_url, decode_responses=True)
+                self._redis_client = redis.from_url(
+                    self.redis_url, decode_responses=True
+                )
             else:
                 from app.core.config import settings
+
                 self._redis_client = redis.from_url(
                     f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                    decode_responses=True
+                    decode_responses=True,
                 )
         return self._redis_client
 
@@ -161,7 +173,7 @@ class PerformanceMonitor:
                 "status_code": metric.status_code,
                 "response_size_bytes": metric.response_size_bytes,
                 "method": metric.method,
-                "user_id": metric.user_id
+                "user_id": metric.user_id,
             }
 
             # Use Redis list for time series data
@@ -171,7 +183,9 @@ class PerformanceMonitor:
             # Check for performance alerts
             await self._check_performance_alerts(metric)
 
-            logger.debug(f"Recorded performance metric for {metric.endpoint}: {metric.duration_ms}ms")
+            logger.debug(
+                f"Recorded performance metric for {metric.endpoint}: {metric.duration_ms}ms"
+            )
 
         except Exception as e:
             logger.error(f"Failed to record performance metric: {e}")
@@ -197,16 +211,18 @@ class PerformanceMonitor:
                     endpoint=endpoint,
                     level=performance_level,
                     response_time=metric.duration_ms,
-                    duration=timedelta(0)
+                    duration=timedelta(0),
                 )
             else:
                 # Ongoing performance issue
-                degradation_duration = metric.timestamp - self._performance_degradation_start[endpoint]
+                degradation_duration = (
+                    metric.timestamp - self._performance_degradation_start[endpoint]
+                )
                 await self._send_performance_alert(
                     endpoint=endpoint,
                     level=performance_level,
                     response_time=metric.duration_ms,
-                    duration=degradation_duration
+                    duration=degradation_duration,
                 )
         # Performance recovered
         elif self._alert_state[endpoint]:
@@ -215,8 +231,7 @@ class PerformanceMonitor:
                 del self._performance_degradation_start[endpoint]
 
             await self._send_performance_recovery_alert(
-                endpoint=endpoint,
-                response_time=metric.duration_ms
+                endpoint=endpoint, response_time=metric.duration_ms
             )
 
     async def _send_performance_alert(
@@ -224,7 +239,7 @@ class PerformanceMonitor:
         endpoint: str,
         level: PerformanceLevel,
         response_time: float,
-        duration: timedelta
+        duration: timedelta,
     ) -> None:
         """
         Send performance degradation alert
@@ -243,7 +258,7 @@ class PerformanceMonitor:
                 "response_time_ms": response_time,
                 "duration_seconds": int(duration.total_seconds()),
                 "timestamp": datetime.utcnow().isoformat(),
-                "message": f"Performance degradation detected on {endpoint}: {response_time:.2f}ms response time"
+                "message": f"Performance degradation detected on {endpoint}: {response_time:.2f}ms response time",
             }
 
             # Store alert in Redis
@@ -271,7 +286,9 @@ class PerformanceMonitor:
         except Exception as e:
             logger.error(f"Failed to send performance alert: {e}")
 
-    async def _send_performance_recovery_alert(self, endpoint: str, response_time: float) -> None:
+    async def _send_performance_recovery_alert(
+        self, endpoint: str, response_time: float
+    ) -> None:
         """
         Send performance recovery alert
 
@@ -285,22 +302,22 @@ class PerformanceMonitor:
                 "endpoint": endpoint,
                 "response_time_ms": response_time,
                 "timestamp": datetime.utcnow().isoformat(),
-                "message": f"Performance recovered on {endpoint}: {response_time:.2f}ms response time"
+                "message": f"Performance recovered on {endpoint}: {response_time:.2f}ms response time",
             }
 
             # Store recovery alert
             client = await self._get_redis_client()
             await client.lpush("performance_alerts", json.dumps(alert_data))
 
-            logger.info(f"Performance Recovery: {endpoint} response time {response_time:.2f}ms")
+            logger.info(
+                f"Performance Recovery: {endpoint} response time {response_time:.2f}ms"
+            )
 
         except Exception as e:
             logger.error(f"Failed to send performance recovery alert: {e}")
 
     async def get_performance_stats(
-        self,
-        endpoint: str = None,
-        time_window_minutes: int = 60
+        self, endpoint: str = None, time_window_minutes: int = 60
     ) -> list[PerformanceStats]:
         """
         Get performance statistics for endpoints
@@ -328,10 +345,14 @@ class PerformanceMonitor:
             for ep in endpoints:
                 try:
                     # Get metrics for the time window
-                    stats_data = await self._get_endpoint_metrics(client, ep, time_window_minutes)
+                    stats_data = await self._get_endpoint_metrics(
+                        client, ep, time_window_minutes
+                    )
 
                     if stats_data:
-                        performance_stats = await self._calculate_performance_stats(ep, stats_data)
+                        performance_stats = await self._calculate_performance_stats(
+                            ep, stats_data
+                        )
                         stats.append(performance_stats)
 
                 except Exception as e:
@@ -344,10 +365,7 @@ class PerformanceMonitor:
             return []
 
     async def _get_endpoint_metrics(
-        self,
-        client: redis.Redis,
-        endpoint: str,
-        time_window_minutes: int
+        self, client: redis.Redis, endpoint: str, time_window_minutes: int
     ) -> list[dict[str, Any]]:
         """
         Get metrics for a specific endpoint within time window
@@ -381,9 +399,7 @@ class PerformanceMonitor:
         return metrics
 
     async def _calculate_performance_stats(
-        self,
-        endpoint: str,
-        metrics_data: list[dict[str, Any]]
+        self, endpoint: str, metrics_data: list[dict[str, Any]]
     ) -> PerformanceStats:
         """
         Calculate performance statistics from raw metrics data
@@ -406,7 +422,7 @@ class PerformanceMonitor:
                 error_rate=0,
                 requests_per_minute=0,
                 avg_response_size=0,
-                performance_level=PerformanceLevel.EXCELLENT
+                performance_level=PerformanceLevel.EXCELLENT,
             )
 
         # Extract numeric data
@@ -443,7 +459,7 @@ class PerformanceMonitor:
             error_rate=round(error_rate, 2),
             requests_per_minute=round(requests_per_minute, 2),
             avg_response_size=round(avg_response_size, 2),
-            performance_level=performance_level
+            performance_level=performance_level,
         )
 
     def _calculate_percentile(self, data: list[float], percentile: int) -> float:
@@ -470,7 +486,10 @@ class PerformanceMonitor:
         weight = index - lower_index
 
         if upper_index < len(sorted_data):
-            return sorted_data[lower_index] * (1 - weight) + sorted_data[upper_index] * weight
+            return (
+                sorted_data[lower_index] * (1 - weight)
+                + sorted_data[upper_index] * weight
+            )
         return sorted_data[lower_index]
 
     async def collect_system_metrics(self) -> SystemMetrics:
@@ -487,10 +506,14 @@ class PerformanceMonitor:
                 cpu_percent=psutil.cpu_percent(interval=1),
                 memory_percent=psutil.virtual_memory().percent,
                 disk_usage_percent=psutil.disk_usage("/").percent,
-                active_connections=len(process.connections()) if hasattr(process, "connections") else 0,
-                open_files=len(process.open_files()) if hasattr(process, "open_files") else 0,
+                active_connections=(
+                    len(process.connections()) if hasattr(process, "connections") else 0
+                ),
+                open_files=(
+                    len(process.open_files()) if hasattr(process, "open_files") else 0
+                ),
                 threads_count=process.num_threads(),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
             # Store in memory for recent history
@@ -505,11 +528,13 @@ class PerformanceMonitor:
                 "active_connections": metrics.active_connections,
                 "open_files": metrics.open_files,
                 "threads_count": metrics.threads_count,
-                "timestamp": metrics.timestamp.isoformat()
+                "timestamp": metrics.timestamp.isoformat(),
             }
 
             await client.lpush("system_metrics", json.dumps(metrics_data))
-            await client.ltrim("system_metrics", 0, 1440)  # Keep 24 hours of minute data
+            await client.ltrim(
+                "system_metrics", 0, 1440
+            )  # Keep 24 hours of minute data
 
             return metrics
 
@@ -517,15 +542,17 @@ class PerformanceMonitor:
             logger.error(f"Failed to collect system metrics: {e}")
             # Return empty metrics on failure
             return SystemMetrics(
-                cpu_percent=0, memory_percent=0, disk_usage_percent=0,
-                active_connections=0, open_files=0, threads_count=0,
-                timestamp=datetime.utcnow()
+                cpu_percent=0,
+                memory_percent=0,
+                disk_usage_percent=0,
+                active_connections=0,
+                open_files=0,
+                threads_count=0,
+                timestamp=datetime.utcnow(),
             )
 
     async def get_performance_trends(
-        self,
-        endpoint: str,
-        hours: int = 24
+        self, endpoint: str, hours: int = 24
     ) -> dict[str, Any]:
         """
         Get performance trends for an endpoint over time
@@ -552,15 +579,21 @@ class PerformanceMonitor:
                     metrics = [json.loads(m) for m in raw_metrics if m]
                     if metrics:
                         response_times = [float(m["duration_ms"]) for m in metrics]
-                        error_count = sum(1 for m in metrics if int(m["status_code"]) >= 400)
+                        error_count = sum(
+                            1 for m in metrics if int(m["status_code"]) >= 400
+                        )
 
-                        trends["time_series"].append({
-                            "timestamp": timestamp.isoformat(),
-                            "avg_response_time": statistics.mean(response_times),
-                            "request_count": len(metrics),
-                            "error_rate": (error_count / len(metrics)) * 100,
-                            "p95_response_time": self._calculate_percentile(response_times, 95)
-                        })
+                        trends["time_series"].append(
+                            {
+                                "timestamp": timestamp.isoformat(),
+                                "avg_response_time": statistics.mean(response_times),
+                                "request_count": len(metrics),
+                                "error_rate": (error_count / len(metrics)) * 100,
+                                "p95_response_time": self._calculate_percentile(
+                                    response_times, 95
+                                ),
+                            }
+                        )
 
             return trends
 
@@ -569,11 +602,7 @@ class PerformanceMonitor:
             return {"endpoint": endpoint, "time_series": []}
 
     @asynccontextmanager
-    async def monitor_request(
-        self,
-        request: Request,
-        endpoint: str = None
-    ):
+    async def monitor_request(self, request: Request, endpoint: str = None):
         """
         Context manager for monitoring API requests
 
@@ -614,7 +643,7 @@ class PerformanceMonitor:
                 response_size_bytes=response_size,
                 user_agent=user_agent,
                 ip_address=ip_address,
-                user_id=user_id
+                user_id=user_id,
             )
 
             await self.record_metric(metric)
@@ -631,7 +660,7 @@ class PerformanceMonitor:
             "active_endpoints": len(self._metrics_history),
             "alerts_active": sum(1 for active in self._alert_state.values() if active),
             "recent_metrics": 0,
-            "system_health": "unknown"
+            "system_health": "unknown",
         }
 
         # Count recent metrics
@@ -641,15 +670,20 @@ class PerformanceMonitor:
         # Get latest system metrics if available
         if self._system_metrics:
             latest_system = self._system_metrics[-1]
-            summary["system_health"] = "healthy" if (
-                latest_system.cpu_percent < 80 and
-                latest_system.memory_percent < 80
-            ) else "degraded"
+            summary["system_health"] = (
+                "healthy"
+                if (
+                    latest_system.cpu_percent < 80 and latest_system.memory_percent < 80
+                )
+                else "degraded"
+            )
 
         return summary
 
+
 # Singleton instance
 performance_monitor = PerformanceMonitor()
+
 
 # Middleware integration
 async def performance_middleware(request: Request, call_next):
@@ -668,6 +702,8 @@ async def performance_middleware(request: Request, call_next):
 
         # Store response information for metric recording
         request.state.response_status_code = response.status_code
-        request.state.response_size = len(response.body) if hasattr(response, "body") else 0
+        request.state.response_size = (
+            len(response.body) if hasattr(response, "body") else 0
+        )
 
         return response

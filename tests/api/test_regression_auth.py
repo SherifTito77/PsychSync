@@ -18,16 +18,17 @@ Priority: P0 (Critical)
 Coverage Target: 90% lines, 85% branches, 95% functions
 """
 
+import json
+from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from datetime import datetime, timedelta
-from unittest.mock import patch, Mock
-import json
 
-from app.main import app
 from app.db.models.user import User, UserRole
-from app.core.security import create_access_token, verify_password
+from app.main import app
+from app.services.security import create_access_token, verify_password
 from tests.conftest import fake
 
 
@@ -38,7 +39,9 @@ class TestAuthLoginRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_login_success_valid_credentials(self, client: AsyncClient, test_user: User):
+    async def test_login_success_valid_credentials(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify successful login with valid email/password
 
@@ -50,8 +53,8 @@ class TestAuthLoginRegression:
             "/api/v1/auth/token-fixed",
             data={
                 "username": test_user.email,
-                "password": "TestPassword123!"  # Must match fixture
-            }
+                "password": "TestPassword123!",  # Must match fixture
+            },
         )
 
         assert response.status_code == 200
@@ -81,18 +84,23 @@ class TestAuthLoginRegression:
             "/api/v1/auth/token-fixed",
             data={
                 "username": "nonexistent@example.com",
-                "password": "SomePassword123!"
-            }
+                "password": "SomePassword123!",
+            },
         )
 
         assert response.status_code == 401
         data = response.json()
         assert "detail" in data
         # Generic error message (no user enumeration)
-        assert "email" not in data["detail"].lower() or "incorrect" in data["detail"].lower()
+        assert (
+            "email" not in data["detail"].lower()
+            or "incorrect" in data["detail"].lower()
+        )
 
     @pytest.mark.asyncio
-    async def test_login_failure_invalid_password(self, client: AsyncClient, test_user: User):
+    async def test_login_failure_invalid_password(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify login rejection with wrong password
 
@@ -102,10 +110,7 @@ class TestAuthLoginRegression:
         """
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "WrongPassword123!"
-            }
+            data={"username": test_user.email, "password": "WrongPassword123!"},
         )
 
         assert response.status_code == 401
@@ -130,16 +135,13 @@ class TestAuthLoginRegression:
             full_name=fake.name(),
             role=UserRole.USER,
             is_active=False,  # Inactive
-            password="TestPassword123!"
+            password="TestPassword123!",
         )
         user = await create_user(user_data, test_db)
 
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": user.email,
-                "password": "TestPassword123!"
-            }
+            data={"username": user.email, "password": "TestPassword123!"},
         )
 
         assert response.status_code == 401
@@ -157,32 +159,31 @@ class TestAuthLoginRegression:
         for i in range(5):
             response = await client.post(
                 "/api/v1/auth/token-fixed",
-                data={
-                    "username": test_user.email,
-                    "password": "WrongPassword123!"
-                }
+                data={"username": test_user.email, "password": "WrongPassword123!"},
             )
             assert response.status_code == 401
 
         # 6th attempt should be rate limited
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "WrongPassword123!"
-            }
+            data={"username": test_user.email, "password": "WrongPassword123!"},
         )
         assert response.status_code == 429
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("sql_payload", [
-        "admin'--",
-        "' OR '1'='1",
-        "'; DROP TABLE users; --",
-        "admin' UNION SELECT * FROM users--",
-        "'; INSERT INTO users VALUES('hacker','pass'); --"
-    ])
-    async def test_login_sql_injection_protection(self, client: AsyncClient, sql_payload: str):
+    @pytest.mark.parametrize(
+        "sql_payload",
+        [
+            "admin'--",
+            "' OR '1'='1",
+            "'; DROP TABLE users; --",
+            "admin' UNION SELECT * FROM users--",
+            "'; INSERT INTO users VALUES('hacker','pass'); --",
+        ],
+    )
+    async def test_login_sql_injection_protection(
+        self, client: AsyncClient, sql_payload: str
+    ):
         """
         Test: Verify SQL injection protection in email field
 
@@ -193,10 +194,7 @@ class TestAuthLoginRegression:
         """
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": sql_payload,
-                "password": "TestPassword123!"
-            }
+            data={"username": sql_payload, "password": "TestPassword123!"},
         )
 
         # Should not return 500 (SQL error)
@@ -215,17 +213,15 @@ class TestAuthLoginRegression:
         Priority: P0
         """
         response = await client.post(
-            "/api/v1/auth/token-fixed",
-            data={
-                "username": "",
-                "password": ""
-            }
+            "/api/v1/auth/token-fixed", data={"username": "", "password": ""}
         )
 
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_login_updates_last_login(self, client: AsyncClient, test_user: User, test_db):
+    async def test_login_updates_last_login(
+        self, client: AsyncClient, test_user: User, test_db
+    ):
         """
         Test: Verify last_login timestamp is updated
 
@@ -237,14 +233,12 @@ class TestAuthLoginRegression:
 
         await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "TestPassword123!"
-            }
+            data={"username": test_user.email, "password": "TestPassword123!"},
         )
 
         # Refresh user from database
         from sqlalchemy import select
+
         result = await test_db.execute(select(User).where(User.id == test_user.id))
         updated_user = result.scalar_one_or_none()
 
@@ -272,8 +266,8 @@ class TestAuthRegistrationRegression:
             data={
                 "email": fake.email(),
                 "password": "StrongPassword123!",
-                "full_name": fake.name()
-            }
+                "full_name": fake.name(),
+            },
         )
 
         assert response.status_code == 200
@@ -284,7 +278,9 @@ class TestAuthRegistrationRegression:
         assert data["user"]["is_verified"] is False
 
     @pytest.mark.asyncio
-    async def test_register_failure_duplicate_email(self, client: AsyncClient, test_user: User):
+    async def test_register_failure_duplicate_email(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify rejection of duplicate email
 
@@ -297,8 +293,8 @@ class TestAuthRegistrationRegression:
             data={
                 "email": test_user.email,  # Already exists
                 "password": "StrongPassword123!",
-                "full_name": fake.name()
-            }
+                "full_name": fake.name(),
+            },
         )
 
         assert response.status_code == 409
@@ -306,14 +302,19 @@ class TestAuthRegistrationRegression:
         assert "already registered" in data.get("detail", "").lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("weak_password", [
-        "short",  # Too short
-        "alllowercase123",  # No uppercase
-        "ALLUPPERCASE123",  # No lowercase
-        "NoNumbers!",  # No numbers
-        "Nospecial123",  # No special chars
-    ])
-    async def test_register_failure_weak_password(self, client: AsyncClient, weak_password: str):
+    @pytest.mark.parametrize(
+        "weak_password",
+        [
+            "short",  # Too short
+            "alllowercase123",  # No uppercase
+            "ALLUPPERCASE123",  # No lowercase
+            "NoNumbers!",  # No numbers
+            "Nospecial123",  # No special chars
+        ],
+    )
+    async def test_register_failure_weak_password(
+        self, client: AsyncClient, weak_password: str
+    ):
         """
         Test: Verify password strength validation
 
@@ -326,8 +327,8 @@ class TestAuthRegistrationRegression:
             data={
                 "email": fake.email(),
                 "password": weak_password,
-                "full_name": fake.name()
-            }
+                "full_name": fake.name(),
+            },
         )
 
         assert response.status_code == 400
@@ -336,14 +337,13 @@ class TestAuthRegistrationRegression:
         assert "password" in str(data).lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("invalid_email", [
-        "notanemail",
-        "@example.com",
-        "user@",
-        "user@.com",
-        "user..name@example.com"
-    ])
-    async def test_register_failure_invalid_email_format(self, client: AsyncClient, invalid_email: str):
+    @pytest.mark.parametrize(
+        "invalid_email",
+        ["notanemail", "@example.com", "user@", "user@.com", "user..name@example.com"],
+    )
+    async def test_register_failure_invalid_email_format(
+        self, client: AsyncClient, invalid_email: str
+    ):
         """
         Test: Verify email format validation
 
@@ -356,8 +356,8 @@ class TestAuthRegistrationRegression:
             data={
                 "email": invalid_email,
                 "password": "StrongPassword123!",
-                "full_name": fake.name()
-            }
+                "full_name": fake.name(),
+            },
         )
 
         assert response.status_code == 400
@@ -380,8 +380,8 @@ class TestAuthRegistrationRegression:
                 data={
                     "email": fake.email(),
                     "password": "StrongPassword123!",
-                    "full_name": fake.name()
-                }
+                    "full_name": fake.name(),
+                },
             )
             # First 3 may succeed or fail (duplicate), but not rate limited
             assert response.status_code != 429
@@ -392,8 +392,8 @@ class TestAuthRegistrationRegression:
             data={
                 "email": fake.email(),
                 "password": "StrongPassword123!",
-                "full_name": fake.name()
-            }
+                "full_name": fake.name(),
+            },
         )
         assert response.status_code == 429
 
@@ -412,15 +412,12 @@ class TestAuthRegistrationRegression:
 
         await client.post(
             "/api/v1/auth/register-fixed",
-            data={
-                "email": email,
-                "password": password,
-                "full_name": fake.name()
-            }
+            data={"email": email, "password": password, "full_name": fake.name()},
         )
 
         # Retrieve user from database
         from sqlalchemy import select
+
         result = await test_db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
 
@@ -430,7 +427,7 @@ class TestAuthRegistrationRegression:
         assert user.password_hash.startswith("$2b$")
         # Verify password not stored plaintext
         assert password not in user.password_hash
-        assert not hasattr(user, 'password') or user.password is None
+        assert not hasattr(user, "password") or user.password is None
 
 
 class TestAuthTokenManagementRegression:
@@ -440,7 +437,9 @@ class TestAuthTokenManagementRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_get_current_user_valid_token(self, client: AsyncClient, auth_headers: dict):
+    async def test_get_current_user_valid_token(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: Verify user info retrieval with valid token
 
@@ -448,10 +447,7 @@ class TestAuthTokenManagementRegression:
         Expected: 200 status, user object
         Priority: P0
         """
-        response = await client.get(
-            "/api/v1/auth/me-fixed",
-            headers=auth_headers
-        )
+        response = await client.get("/api/v1/auth/me-fixed", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -469,8 +465,7 @@ class TestAuthTokenManagementRegression:
         Priority: P0
         """
         response = await client.get(
-            "/api/v1/auth/me-fixed",
-            headers={"Authorization": "Bearer invalid_token"}
+            "/api/v1/auth/me-fixed", headers={"Authorization": "Bearer invalid_token"}
         )
 
         assert response.status_code == 401
@@ -489,7 +484,9 @@ class TestAuthTokenManagementRegression:
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_token_refresh_valid_refresh_token(self, client: AsyncClient, test_user: User):
+    async def test_token_refresh_valid_refresh_token(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify token refresh works
 
@@ -500,18 +497,14 @@ class TestAuthTokenManagementRegression:
         # First, login to get refresh token
         login_response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "TestPassword123!"
-            }
+            data={"username": test_user.email, "password": "TestPassword123!"},
         )
 
         refresh_token = login_response.cookies.get("refresh_token")
 
         # Use refresh token to get new access token
         response = await client.post(
-            "/api/v1/auth/refresh-token-fixed",
-            data={"refresh_token": refresh_token}
+            "/api/v1/auth/refresh-token-fixed", data={"refresh_token": refresh_token}
         )
 
         assert response.status_code == 200
@@ -529,7 +522,7 @@ class TestAuthTokenManagementRegression:
         """
         response = await client.post(
             "/api/v1/auth/refresh-token-fixed",
-            data={"refresh_token": "invalid_refresh_token"}
+            data={"refresh_token": "invalid_refresh_token"},
         )
 
         assert response.status_code == 401
@@ -543,10 +536,7 @@ class TestAuthTokenManagementRegression:
         Expected: 200 status, cookies cleared (expired)
         Priority: P0
         """
-        response = await client.post(
-            "/api/v1/auth/logout",
-            headers=auth_headers
-        )
+        response = await client.post("/api/v1/auth/logout", headers=auth_headers)
 
         assert response.status_code == 200
         # Verify cookies are cleared (expired)
@@ -557,7 +547,9 @@ class TestAuthTokenManagementRegression:
                 assert cookies[cookie_name] == "" or cookies.get(cookie_name, "") == ""
 
     @pytest.mark.asyncio
-    async def test_logout_token_blacklist(self, client: AsyncClient, auth_headers: dict):
+    async def test_logout_token_blacklist(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: Verify logout blacklists token
 
@@ -567,16 +559,10 @@ class TestAuthTokenManagementRegression:
         Security: Critical
         """
         # Logout
-        await client.post(
-            "/api/v1/auth/logout",
-            headers=auth_headers
-        )
+        await client.post("/api/v1/auth/logout", headers=auth_headers)
 
         # Try to use the same token
-        response = await client.get(
-            "/api/v1/auth/me-fixed",
-            headers=auth_headers
-        )
+        response = await client.get("/api/v1/auth/me-fixed", headers=auth_headers)
 
         # Should fail (token is blacklisted)
         assert response.status_code == 401
@@ -596,12 +582,12 @@ class TestAuthTokenManagementRegression:
         expired_token = create_secure_token_for_user(
             str(test_user.id),
             test_user.email,
-            expires_delta=timedelta(seconds=-1)  # Already expired
+            expires_delta=timedelta(seconds=-1),  # Already expired
         )
 
         response = await client.get(
             "/api/v1/auth/me-fixed",
-            headers={"Authorization": f"Bearer {expired_token}"}
+            headers={"Authorization": f"Bearer {expired_token}"},
         )
 
         assert response.status_code == 401
@@ -614,7 +600,9 @@ class TestAuthSessionSecurityRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_session_csrf_token_generation(self, client: AsyncClient, test_user: User):
+    async def test_session_csrf_token_generation(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify CSRF token generation on login
 
@@ -624,10 +612,7 @@ class TestAuthSessionSecurityRegression:
         """
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "TestPassword123!"
-            }
+            data={"username": test_user.email, "password": "TestPassword123!"},
         )
 
         assert response.status_code == 200
@@ -635,7 +620,9 @@ class TestAuthSessionSecurityRegression:
         assert "csrf_token" in cookies
 
     @pytest.mark.asyncio
-    async def test_session_cookie_security_flags(self, client: AsyncClient, test_user: User):
+    async def test_session_cookie_security_flags(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify cookie security attributes
 
@@ -645,10 +632,7 @@ class TestAuthSessionSecurityRegression:
         """
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": test_user.email,
-                "password": "TestPassword123!"
-            }
+            data={"username": test_user.email, "password": "TestPassword123!"},
         )
 
         # Check cookie attributes in response headers
@@ -668,7 +652,9 @@ class TestAuthEdgeCasesRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_concurrent_login_requests(self, client: AsyncClient, test_user: User):
+    async def test_concurrent_login_requests(
+        self, client: AsyncClient, test_user: User
+    ):
         """
         Test: Verify system handles multiple concurrent logins
 
@@ -681,10 +667,7 @@ class TestAuthEdgeCasesRegression:
         async def login_attempt():
             return await client.post(
                 "/api/v1/auth/token-fixed",
-                data={
-                    "username": test_user.email,
-                    "password": "TestPassword123!"
-                }
+                data={"username": test_user.email, "password": "TestPassword123!"},
             )
 
         # Send 10 concurrent requests
@@ -712,17 +695,14 @@ class TestAuthEdgeCasesRegression:
             full_name="Tëst Üser",
             role=UserRole.USER,
             is_active=True,
-            password="TestPassword123!"
+            password="TestPassword123!",
         )
         user = await create_user(user_data, test_db)
 
         # Try to login
         response = await client.post(
             "/api/v1/auth/token-fixed",
-            data={
-                "username": unicode_email,
-                "password": "TestPassword123!"
-            }
+            data={"username": unicode_email, "password": "TestPassword123!"},
         )
 
         assert response.status_code == 200
@@ -740,8 +720,8 @@ class TestAuthEdgeCasesRegression:
             "/api/v1/auth/token-fixed",
             data={
                 "username": test_user.email.upper(),  # Uppercase
-                "password": "TestPassword123!"
-            }
+                "password": "TestPassword123!",
+            },
         )
 
         assert response.status_code == 200

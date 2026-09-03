@@ -4,18 +4,18 @@ Protects authentication endpoints from brute force and credential stuffing attac
 Implements progressive rate limiting based on success/failure patterns.
 """
 
-from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
 import hashlib
 import ipaddress
 import logging
 import time
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
 
+import redis.asyncio as redis
 from fastapi import Request, Response, status
 from fastapi.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
-import redis.asyncio as redis
 from starlette.middleware.base import RequestResponseEndpoint
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
             AuthAttemptType.REGISTER: self.config.ip_register_limit_per_hour,
         }
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         """
         Main middleware dispatcher for authentication rate limiting.
         """
@@ -116,11 +118,15 @@ class AuthRateLimiter(BaseHTTPMiddleware):
             user_identifier = await self._extract_user_identifier(request, attempt_type)
 
             # Check rate limits
-            if await self._is_rate_limited(request, attempt_type, client_ip, user_identifier):
+            if await self._is_rate_limited(
+                request, attempt_type, client_ip, user_identifier
+            ):
                 return self._create_rate_limited_response(attempt_type)
 
             # Record attempt before processing
-            await self._record_attempt(request, attempt_type, client_ip, user_identifier, "attempt")
+            await self._record_attempt(
+                request, attempt_type, client_ip, user_identifier, "attempt"
+            )
 
             # Process request
             response = await call_next(request)
@@ -136,7 +142,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Apply progressive penalties for failures
             if not is_success:
-                await self._apply_progressive_penalty(user_identifier, client_ip, attempt_type)
+                await self._apply_progressive_penalty(
+                    user_identifier, client_ip, attempt_type
+                )
 
             return response
 
@@ -229,7 +237,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Check user-specific limits
             if user_identifier:
-                user_key = f"auth_limit:user:{user_identifier}:{attempt_type.value}:{hour_key}"
+                user_key = (
+                    f"auth_limit:user:{user_identifier}:{attempt_type.value}:{hour_key}"
+                )
                 base_limit = self.base_limits[attempt_type]
 
                 # Apply progressive penalty if there are recent failures
@@ -295,7 +305,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Record user attempt
             if user_identifier:
-                user_key = f"auth_limit:user:{user_identifier}:{attempt_type.value}:{hour_key}"
+                user_key = (
+                    f"auth_limit:user:{user_identifier}:{attempt_type.value}:{hour_key}"
+                )
                 await self.redis_client.incr(user_key)
                 await self.redis_client.expire(user_key, 7200)  # 2 hours
 
@@ -303,7 +315,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
                 if result_type == "failure":
                     failure_key = f"auth_failures:user:{user_identifier}"
                     await self.redis_client.incr(failure_key)
-                    await self.redis_client.expire(failure_key, self.config.max_penalty_duration)
+                    await self.redis_client.expire(
+                        failure_key, self.config.max_penalty_duration
+                    )
 
             # Record IP attempt
             if attempt_type in self.ip_limits:
@@ -329,7 +343,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Store recent attempts for monitoring
             await self.redis_client.lpush("recent_auth_attempts", str(log_data))
-            await self.redis_client.ltrim("recent_auth_attempts", 0, 999)  # Keep last 1000
+            await self.redis_client.ltrim(
+                "recent_auth_attempts", 0, 999
+            )  # Keep last 1000
             await self.redis_client.expire("recent_auth_attempts", 86400)  # 24 hours
 
         except Exception as e:
@@ -378,12 +394,15 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
                 if failure_count >= 5:  # Block after 5 failures
                     block_duration = min(
-                        60 * (2 ** (failure_count - 5)), self.config.max_penalty_duration
+                        60 * (2 ** (failure_count - 5)),
+                        self.config.max_penalty_duration,
                     )
                     block_key = f"auth_blocked:user:{user_identifier}"
 
                     await self.redis_client.setex(
-                        block_key, block_duration, f"progressive_penalty:{failure_count}"
+                        block_key,
+                        block_duration,
+                        f"progressive_penalty:{failure_count}",
                     )
 
                     logger.warning(
@@ -410,7 +429,9 @@ class AuthRateLimiter(BaseHTTPMiddleware):
         # In practice, you'd examine the response body for tokens or success indicators
         return response.status_code < 400
 
-    def _create_rate_limited_response(self, attempt_type: AuthAttemptType) -> JSONResponse:
+    def _create_rate_limited_response(
+        self, attempt_type: AuthAttemptType
+    ) -> JSONResponse:
         """Create response for rate limited requests."""
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -422,7 +443,11 @@ class AuthRateLimiter(BaseHTTPMiddleware):
         )
 
     async def _log_rate_limit_violation(
-        self, request: Request, attempt_type: AuthAttemptType, limit_type: str, limit: int
+        self,
+        request: Request,
+        attempt_type: AuthAttemptType,
+        limit_type: str,
+        limit: int,
     ) -> None:
         """
         Log rate limit violations for security monitoring.
@@ -443,9 +468,15 @@ class AuthRateLimiter(BaseHTTPMiddleware):
 
             # Store in Redis for security monitoring
             if self.redis_client:
-                await self.redis_client.lpush("auth_rate_violations", str(violation_data))
-                await self.redis_client.ltrim("auth_rate_violations", 0, 499)  # Keep last 500
-                await self.redis_client.expire("auth_rate_violations", 86400)  # 24 hours
+                await self.redis_client.lpush(
+                    "auth_rate_violations", str(violation_data)
+                )
+                await self.redis_client.ltrim(
+                    "auth_rate_violations", 0, 499
+                )  # Keep last 500
+                await self.redis_client.expire(
+                    "auth_rate_violations", 86400
+                )  # 24 hours
 
         except Exception as e:
             logger.error(f"Error logging rate limit violation: {e}")
@@ -459,7 +490,9 @@ class CredentialStuffingProtection:
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
 
-    async def check_known_compromised_credentials(self, identifier: str, ip: str) -> bool:
+    async def check_known_compromised_credentials(
+        self, identifier: str, ip: str
+    ) -> bool:
         """
         Check if credentials/IP are from known breach sources.
         """
@@ -495,7 +528,9 @@ class CredentialStuffingProtection:
             }
 
             await self.redis.lpush("compromised_credentials_reports", str(report_data))
-            await self.redis.expire("compromised_credentials_reports", 86400 * 30)  # 30 days
+            await self.redis.expire(
+                "compromised_credentials_reports", 86400 * 30
+            )  # 30 days
 
         except Exception as e:
             logger.error(f"Error reporting compromised credentials: {e}")

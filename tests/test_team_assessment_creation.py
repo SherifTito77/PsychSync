@@ -13,25 +13,25 @@ Author: QA Team
 Version: 1.0
 """
 
-import pytest
 import asyncio
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
 
-from app.main import app
-from app.core.database import get_async_db, AsyncSessionLocal
-from app.core.security import create_access_token, get_password_hash
-from app.db.models.user import User
-from app.db.models.organization import Organization
-from app.db.models.team import Team
+from app.core.database import AsyncSessionLocal, get_async_db
 from app.db.models import TeamMember
 from app.db.models.assessment import Assessment
+from app.db.models.organization import Organization
+from app.db.models.team import Team
+from app.db.models.user import User
+from app.main import app
 from app.schemas.assessment import AssessmentCreate, AssignmentCreate
+from app.services.security import create_access_token, get_password_hash
 
 
 class TeamAssessmentCreationTestCase:
@@ -43,6 +43,7 @@ class TeamAssessmentCreationTestCase:
     async def client(self) -> TestClient:
         """FastAPI test client with dependency injection override"""
         from fastapi.testclient import TestClient
+
         return TestClient(app)
 
     @pytest.fixture
@@ -59,7 +60,7 @@ class TeamAssessmentCreationTestCase:
             name="Test Organization",
             description="Test organization for team assessments",
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(org)
         await db_session.commit()
@@ -67,14 +68,16 @@ class TeamAssessmentCreationTestCase:
         return org
 
     @pytest.fixture
-    async def test_team(self, db_session: AsyncSession, test_organization: Organization) -> Team:
+    async def test_team(
+        self, db_session: AsyncSession, test_organization: Organization
+    ) -> Team:
         """Create test team for assessment tests"""
         team = Team(
             name="Test Team",
             description="Test team for assessments",
             organization_id=test_organization.id,
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(team)
         await db_session.commit()
@@ -82,7 +85,9 @@ class TeamAssessmentCreationTestCase:
         return team
 
     @pytest.fixture
-    async def admin_user(self, db_session: AsyncSession, test_organization: Organization) -> User:
+    async def admin_user(
+        self, db_session: AsyncSession, test_organization: Organization
+    ) -> User:
         """Create admin user with organization access"""
         user = User(
             email="admin@test.com",
@@ -91,7 +96,7 @@ class TeamAssessmentCreationTestCase:
             is_active=True,
             is_verified=True,
             is_superuser=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(user)
         await db_session.commit()
@@ -102,7 +107,7 @@ class TeamAssessmentCreationTestCase:
             organization_id=test_organization.id,
             role="admin",
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(org_member)
         await db_session.commit()
@@ -110,7 +115,9 @@ class TeamAssessmentCreationTestCase:
         return user
 
     @pytest.fixture
-    async def team_lead_user(self, db_session: AsyncSession, test_organization: Organization) -> User:
+    async def team_lead_user(
+        self, db_session: AsyncSession, test_organization: Organization
+    ) -> User:
         """Create team lead user"""
         user = User(
             email="teamlead@test.com",
@@ -118,7 +125,7 @@ class TeamAssessmentCreationTestCase:
             hashed_password=get_password_hash("lead123456"),
             is_active=True,
             is_verified=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(user)
         await db_session.commit()
@@ -129,7 +136,7 @@ class TeamAssessmentCreationTestCase:
             organization_id=test_organization.id,
             role="team_lead",
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(org_member)
         await db_session.commit()
@@ -137,7 +144,9 @@ class TeamAssessmentCreationTestCase:
         return user
 
     @pytest.fixture
-    async def regular_user(self, db_session: AsyncSession, test_organization: Organization) -> User:
+    async def regular_user(
+        self, db_session: AsyncSession, test_organization: Organization
+    ) -> User:
         """Create regular user with limited permissions"""
         user = User(
             email="user@test.com",
@@ -145,7 +154,7 @@ class TeamAssessmentCreationTestCase:
             hashed_password=get_password_hash("user123456"),
             is_active=True,
             is_verified=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(user)
         await db_session.commit()
@@ -156,7 +165,7 @@ class TeamAssessmentCreationTestCase:
             organization_id=test_organization.id,
             role="user",
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         db_session.add(org_member)
         await db_session.commit()
@@ -208,14 +217,12 @@ class TestHappyPaths(TeamAssessmentCreationTestCase):
             "configuration": {
                 "scoring_algorithm": "weighted_average",
                 "passing_score": 70,
-                "show_results_immediately": True
-            }
+                "show_results_immediately": True,
+            },
         }
 
         response = client.post(
-            f"/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            f"/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert response.status_code == 201
@@ -225,7 +232,10 @@ class TestHappyPaths(TeamAssessmentCreationTestCase):
         assert response_data["success"] is True
         assert "data" in response_data
         assert response_data["data"]["title"] == assessment_data["title"]
-        assert response_data["data"]["assessment_type"] == assessment_data["assessment_type"]
+        assert (
+            response_data["data"]["assessment_type"]
+            == assessment_data["assessment_type"]
+        )
         assert response_data["data"]["is_active"] is True
         assert "id" in response_data["data"]
 
@@ -255,10 +265,16 @@ class TestHappyPaths(TeamAssessmentCreationTestCase):
                         {
                             "question_text": "Rate your proficiency in database management",
                             "question_type": "rating",
-                            "options": ["1 (Beginner)", "2 (Novice)", "3 (Intermediate)", "4 (Advanced)", "5 (Expert)"],
+                            "options": [
+                                "1 (Beginner)",
+                                "2 (Novice)",
+                                "3 (Intermediate)",
+                                "4 (Advanced)",
+                                "5 (Expert)",
+                            ],
                             "required": True,
                             "order": 1,
-                            "weight": 1.0
+                            "weight": 1.0,
                         },
                         {
                             "question_text": "Describe your experience with API development",
@@ -266,9 +282,9 @@ class TestHappyPaths(TeamAssessmentCreationTestCase):
                             "required": True,
                             "order": 2,
                             "weight": 1.5,
-                            "max_length": 500
-                        }
-                    ]
+                            "max_length": 500,
+                        },
+                    ],
                 },
                 {
                     "title": "Soft Skills",
@@ -283,17 +299,15 @@ class TestHappyPaths(TeamAssessmentCreationTestCase):
                             "order": 1,
                             "weight": 2.0,
                             "min_length": 100,
-                            "max_length": 1000
+                            "max_length": 1000,
                         }
-                    ]
-                }
-            ]
+                    ],
+                },
+            ],
         }
 
         response = client.post(
-            f"/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            f"/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert response.status_code == 201
@@ -319,13 +333,11 @@ class TestHappyPaths(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 15
+            "estimated_duration_minutes": 15,
         }
 
         create_response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert create_response.status_code == 201
@@ -338,13 +350,13 @@ class TestHappyPaths(TeamAssessmentCreationTestCase):
             "due_date": (datetime.utcnow() + timedelta(days=14)).isoformat(),
             "notification_message": "Please complete this assessment by the due date.",
             "reminder_frequency_days": 3,
-            "is_mandatory": True
+            "is_mandatory": True,
         }
 
         assign_response = client.post(
             f"/api/v1/assessments/{assessment_id}/assignments",
             json=assignment_data,
-            headers=auth_headers_admin
+            headers=auth_headers_admin,
         )
 
         assert assign_response.status_code == 201
@@ -361,7 +373,10 @@ class TestAuthorizationAndPermissions(TeamAssessmentCreationTestCase):
 
     @pytest.mark.asyncio
     async def test_create_assessment_team_lead_success(
-        self, client: TestClient, test_team: Team, auth_headers_team_lead: Dict[str, str]
+        self,
+        client: TestClient,
+        test_team: Team,
+        auth_headers_team_lead: Dict[str, str],
     ):
         """Test team lead can create assessments for their team"""
 
@@ -372,13 +387,11 @@ class TestAuthorizationAndPermissions(TeamAssessmentCreationTestCase):
             "category": "review",
             "is_active": True,
             "instructions": "Team assessment instructions",
-            "estimated_duration_minutes": 25
+            "estimated_duration_minutes": 25,
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_team_lead
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_team_lead
         )
 
         # Team lead should be able to create assessments
@@ -397,13 +410,11 @@ class TestAuthorizationAndPermissions(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 10
+            "estimated_duration_minutes": 10,
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_regular
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_regular
         )
 
         # Regular user should be forbidden from creating assessments
@@ -422,13 +433,10 @@ class TestAuthorizationAndPermissions(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 5
+            "estimated_duration_minutes": 5,
         }
 
-        response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data
-        )
+        response = client.post("/api/v1/assessments/", json=assessment_data)
 
         # Should require authentication
         assert response.status_code == 401
@@ -452,13 +460,11 @@ class TestDataValidationAndBusinessRules(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 10
+            "estimated_duration_minutes": 10,
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert response.status_code == 422
@@ -478,13 +484,11 @@ class TestDataValidationAndBusinessRules(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 10
+            "estimated_duration_minutes": 10,
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert response.status_code == 422
@@ -503,13 +507,13 @@ class TestDataValidationAndBusinessRules(TeamAssessmentCreationTestCase):
             "is_active": True,
             "instructions": "Test instructions",
             "estimated_duration_minutes": 10,
-            "deadline": (datetime.utcnow() - timedelta(days=1)).isoformat()  # Past deadline
+            "deadline": (
+                datetime.utcnow() - timedelta(days=1)
+            ).isoformat(),  # Past deadline
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert response.status_code == 422
@@ -527,13 +531,11 @@ class TestDataValidationAndBusinessRules(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": -10  # Negative duration
+            "estimated_duration_minutes": -10,  # Negative duration
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert response.status_code == 422
@@ -557,22 +559,18 @@ class TestErrorHandlingAndEdgeCases(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 15
+            "estimated_duration_minutes": 15,
         }
 
         # Create first assessment
         response1 = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
         assert response1.status_code == 201
 
         # Try to create second assessment with same title
         response2 = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         # Should either succeed (if duplicates allowed) or return appropriate error
@@ -589,13 +587,11 @@ class TestErrorHandlingAndEdgeCases(TeamAssessmentCreationTestCase):
             "title": "Minimal Assessment",
             "description": "Minimal description",
             "assessment_type": "minimal_test",
-            "category": "test"
+            "category": "test",
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=minimal_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=minimal_data, headers=auth_headers_admin
         )
 
         # Should succeed with default values for optional fields
@@ -620,13 +616,11 @@ class TestErrorHandlingAndEdgeCases(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 10
+            "estimated_duration_minutes": 10,
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         # Should either succeed or fail due to length limits
@@ -653,14 +647,12 @@ class TestPerformanceAndSecurity(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Performance test instructions",
-            "estimated_duration_minutes": 10
+            "estimated_duration_minutes": 10,
         }
 
         start_time = time.time()
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
         end_time = time.time()
 
@@ -683,13 +675,11 @@ class TestPerformanceAndSecurity(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 10
+            "estimated_duration_minutes": 10,
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         # Should handle the input safely (either succeed or validation error, but not crash)
@@ -714,13 +704,11 @@ class TestPerformanceAndSecurity(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": xss_payload,
-            "estimated_duration_minutes": 10
+            "estimated_duration_minutes": 10,
         }
 
         response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
 
         assert response.status_code == 201
@@ -728,7 +716,10 @@ class TestPerformanceAndSecurity(TeamAssessmentCreationTestCase):
 
         # Check that XSS payload is sanitized or properly escaped
         stored_description = response_data["data"]["description"]
-        assert "<script>" not in stored_description.lower() or "alert(" not in stored_description.lower()
+        assert (
+            "<script>" not in stored_description.lower()
+            or "alert(" not in stored_description.lower()
+        )
 
 
 class TestDatabaseOperations(TeamAssessmentCreationTestCase):
@@ -738,8 +729,11 @@ class TestDatabaseOperations(TeamAssessmentCreationTestCase):
 
     @pytest.mark.asyncio
     async def test_assessment_database_persistence(
-        self, client: TestClient, test_team: Team, auth_headers_admin: Dict[str, str],
-        db_session: AsyncSession
+        self,
+        client: TestClient,
+        test_team: Team,
+        auth_headers_admin: Dict[str, str],
+        db_session: AsyncSession,
     ):
         """Test that assessments are properly persisted in database"""
 
@@ -750,14 +744,12 @@ class TestDatabaseOperations(TeamAssessmentCreationTestCase):
             "category": "test",
             "is_active": True,
             "instructions": "Test instructions",
-            "estimated_duration_minutes": 15
+            "estimated_duration_minutes": 15,
         }
 
         # Create assessment via API
         create_response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
         assert create_response.status_code == 201
 
@@ -776,8 +768,11 @@ class TestDatabaseOperations(TeamAssessmentCreationTestCase):
 
     @pytest.mark.asyncio
     async def test_assessment_cascade_operations(
-        self, client: TestClient, test_team: Team, auth_headers_admin: Dict[str, str],
-        db_session: AsyncSession
+        self,
+        client: TestClient,
+        test_team: Team,
+        auth_headers_admin: Dict[str, str],
+        db_session: AsyncSession,
     ):
         """Test cascade operations when assessment is deleted"""
 
@@ -802,17 +797,15 @@ class TestDatabaseOperations(TeamAssessmentCreationTestCase):
                             "question_type": "text",
                             "required": True,
                             "order": 1,
-                            "weight": 1.0
+                            "weight": 1.0,
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         }
 
         create_response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
         assert create_response.status_code == 201
 
@@ -820,8 +813,7 @@ class TestDatabaseOperations(TeamAssessmentCreationTestCase):
 
         # Delete assessment
         delete_response = client.delete(
-            f"/api/v1/assessments/{assessment_id}",
-            headers=auth_headers_admin
+            f"/api/v1/assessments/{assessment_id}", headers=auth_headers_admin
         )
         assert delete_response.status_code == 204
 
@@ -842,8 +834,11 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
 
     @pytest.mark.asyncio
     async def test_complete_team_assessment_workflow(
-        self, client: TestClient, test_team: Team, auth_headers_admin: Dict[str, str],
-        db_session: AsyncSession
+        self,
+        client: TestClient,
+        test_team: Team,
+        auth_headers_admin: Dict[str, str],
+        db_session: AsyncSession,
     ):
         """Test complete workflow: create assessment → assign → simulate responses"""
 
@@ -864,7 +859,7 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
                 "scoring_algorithm": "weighted_average",
                 "passing_score": 75,
                 "show_results_immediately": True,
-                "allow_retake_after_days": 7
+                "allow_retake_after_days": 7,
             },
             "sections": [
                 {
@@ -877,10 +872,16 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
                         {
                             "question_text": "How would you rate your proficiency in your primary technical skills?",
                             "question_type": "rating",
-                            "options": ["1 - Beginner", "2 - Developing", "3 - Competent", "4 - Advanced", "5 - Expert"],
+                            "options": [
+                                "1 - Beginner",
+                                "2 - Developing",
+                                "3 - Competent",
+                                "4 - Advanced",
+                                "5 - Expert",
+                            ],
                             "required": True,
                             "order": 1,
-                            "weight": 1.0
+                            "weight": 1.0,
                         },
                         {
                             "question_text": "What technical skills would you like to develop further?",
@@ -888,9 +889,9 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
                             "required": True,
                             "order": 2,
                             "weight": 1.0,
-                            "max_length": 300
-                        }
-                    ]
+                            "max_length": 300,
+                        },
+                    ],
                 },
                 {
                     "title": "Team Collaboration",
@@ -902,10 +903,16 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
                         {
                             "question_text": "How effectively do you communicate with team members?",
                             "question_type": "rating",
-                            "options": ["1 - Poorly", "2 - Sometimes", "3 - Usually", "4 - Well", "5 - Excellently"],
+                            "options": [
+                                "1 - Poorly",
+                                "2 - Sometimes",
+                                "3 - Usually",
+                                "4 - Well",
+                                "5 - Excellently",
+                            ],
                             "required": True,
                             "order": 1,
-                            "weight": 1.0
+                            "weight": 1.0,
                         },
                         {
                             "question_text": "Describe a recent successful collaboration experience.",
@@ -914,9 +921,9 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
                             "order": 2,
                             "weight": 2.0,
                             "min_length": 100,
-                            "max_length": 800
-                        }
-                    ]
+                            "max_length": 800,
+                        },
+                    ],
                 },
                 {
                     "title": "Goals and Development",
@@ -931,7 +938,7 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
                             "required": True,
                             "order": 1,
                             "weight": 1.5,
-                            "max_length": 500
+                            "max_length": 500,
                         },
                         {
                             "question_text": "What support do you need to achieve these goals?",
@@ -939,18 +946,16 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
                             "required": True,
                             "order": 2,
                             "weight": 1.0,
-                            "max_length": 300
-                        }
-                    ]
-                }
-            ]
+                            "max_length": 300,
+                        },
+                    ],
+                },
+            ],
         }
 
         # Create assessment
         create_response = client.post(
-            "/api/v1/assessments/",
-            json=assessment_data,
-            headers=auth_headers_admin
+            "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
         )
         assert create_response.status_code == 201
         assessment_id = create_response.json()["data"]["id"]
@@ -963,20 +968,19 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
             "notification_message": "Please complete your annual performance assessment by the deadline.",
             "reminder_frequency_days": 2,
             "is_mandatory": True,
-            "allow_late_submission": True
+            "allow_late_submission": True,
         }
 
         assign_response = client.post(
             f"/api/v1/assessments/{assessment_id}/assignments",
             json=assignment_data,
-            headers=auth_headers_admin
+            headers=auth_headers_admin,
         )
         assert assign_response.status_code == 201
 
         # 3. Verify assessment details
         get_response = client.get(
-            f"/api/v1/assessments/{assessment_id}",
-            headers=auth_headers_admin
+            f"/api/v1/assessments/{assessment_id}", headers=auth_headers_admin
         )
         assert get_response.status_code == 200
         assessment_details = get_response.json()
@@ -984,13 +988,16 @@ class TestTeamAssessmentIntegration(TeamAssessmentCreationTestCase):
         # Verify assessment structure
         assert assessment_details["data"]["title"] == assessment_data["title"]
         assert len(assessment_details["data"]["sections"]) == 3
-        total_questions = sum(len(section["questions"]) for section in assessment_details["data"]["sections"])
+        total_questions = sum(
+            len(section["questions"])
+            for section in assessment_details["data"]["sections"]
+        )
         assert total_questions == 6
 
         # 4. Test assignment retrieval
         assignments_response = client.get(
             f"/api/v1/assessments/{assessment_id}/assignments",
-            headers=auth_headers_admin
+            headers=auth_headers_admin,
         )
         assert assignments_response.status_code == 200
 
@@ -1027,8 +1034,8 @@ class AssessmentTestDataFactory:
             "configuration": {
                 "scoring_algorithm": "weighted_average",
                 "passing_score": 70,
-                "show_results_immediately": True
-            }
+                "show_results_immediately": True,
+            },
         }
         base_data.update(overrides)
         return base_data
@@ -1045,7 +1052,7 @@ class AssessmentTestDataFactory:
             "instructions": "Invalid instructions",
             "estimated_duration_minutes": -10,  # Negative duration
             "max_attempts": 0,  # Invalid attempts
-            "deadline": "invalid_date_format"  # Invalid date
+            "deadline": "invalid_date_format",  # Invalid date
         }
 
 
@@ -1062,20 +1069,18 @@ class TestTeamAssessmentPerformanceBenchmarks(TeamAssessmentCreationTestCase):
     ):
         """Test performance of creating multiple assessments"""
 
-        import time
         import concurrent.futures
+        import time
 
         def create_assessment(index: int) -> Dict[str, Any]:
             assessment_data = AssessmentTestDataFactory.create_valid_assessment_data(
                 title=f"Bulk Assessment {index}",
-                description=f"Assessment number {index} for performance testing"
+                description=f"Assessment number {index} for performance testing",
             )
 
             start_time = time.time()
             response = client.post(
-                "/api/v1/assessments/",
-                json=assessment_data,
-                headers=auth_headers_admin
+                "/api/v1/assessments/", json=assessment_data, headers=auth_headers_admin
             )
             end_time = time.time()
 
@@ -1083,7 +1088,7 @@ class TestTeamAssessmentPerformanceBenchmarks(TeamAssessmentCreationTestCase):
                 "index": index,
                 "status_code": response.status_code,
                 "response_time": end_time - start_time,
-                "success": response.status_code == 201
+                "success": response.status_code == 201,
             }
 
         # Create 10 assessments concurrently
@@ -1092,10 +1097,11 @@ class TestTeamAssessmentPerformanceBenchmarks(TeamAssessmentCreationTestCase):
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = [
-                executor.submit(create_assessment, i)
-                for i in range(num_assessments)
+                executor.submit(create_assessment, i) for i in range(num_assessments)
             ]
-            results = [future.result() for future in concurrent.futures.as_completed(futures)]
+            results = [
+                future.result() for future in concurrent.futures.as_completed(futures)
+            ]
 
         end_time = time.time()
         total_time = end_time - start_time
@@ -1107,18 +1113,24 @@ class TestTeamAssessmentPerformanceBenchmarks(TeamAssessmentCreationTestCase):
         assert len(results) == num_assessments
 
         # Log performance metrics
-        avg_response_time = sum(result["response_time"] for result in results) / len(results)
+        avg_response_time = sum(result["response_time"] for result in results) / len(
+            results
+        )
         print(f"Created {successful_assessments}/{num_assessments} assessments")
-        print(f"Total time: {total_time:.2f}s, Average response time: {avg_response_time:.2f}s")
+        print(
+            f"Total time: {total_time:.2f}s, Average response time: {avg_response_time:.2f}s"
+        )
 
 
 # Test Execution Configuration
 if __name__ == "__main__":
-    pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "--cov=app",
-        "--cov-report=html",
-        "--cov-report=term-missing"
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "--cov=app",
+            "--cov-report=html",
+            "--cov-report=term-missing",
+        ]
+    )

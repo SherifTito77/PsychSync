@@ -4,17 +4,19 @@ Tests for core PsychSync services
 Covers critical business logic services identified in production optimization
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
 
-# Import core services to test
-from app.services.user_service import UserService
-from app.services.team_service import TeamService
+import pytest
+
 from app.services.assessment_service import AssessmentService
 from app.services.email_service import EmailService
 from app.services.response_service import ResponseService
+from app.services.team_service import TeamService
+
+# Import core services to test
+from app.services.user_service import UserService
 
 pytestmark = pytest.mark.unit
 
@@ -39,7 +41,7 @@ class TestUserService:
         user_data = {
             "email": "test@example.com",
             "full_name": "Test User",
-            "password": "SecurePass123!"
+            "password": "SecurePass123!",
         }
 
         # Mock database operations
@@ -57,7 +59,7 @@ class TestUserService:
         mock_db.refresh.return_value = None
 
         # Act & Assert - Test that user creation logic works
-        with patch('app.services.user_service.get_password_hash') as mock_hash:
+        with patch("app.services.user_service.get_password_hash") as mock_hash:
             mock_hash.return_value = "hashed_password"
 
             # This tests the core logic structure
@@ -71,7 +73,7 @@ class TestUserService:
         valid_emails = [
             "user@example.com",
             "test.user+tag@domain.co.uk",
-            "user123@test-domain.com"
+            "user123@test-domain.com",
         ]
 
         for email in valid_emails:
@@ -79,11 +81,7 @@ class TestUserService:
             assert "." in email.split("@")[-1]
 
         # Test password validation
-        valid_passwords = [
-            "SecurePass123!",
-            "MySecure@Pass456",
-            "Complex#Password789"
-        ]
+        valid_passwords = ["SecurePass123!", "MySecure@Pass456", "Complex#Password789"]
 
         for password in valid_passwords:
             assert len(password) >= 8
@@ -113,7 +111,7 @@ class TestTeamService:
             "Development Team",
             "Marketing Squad",
             "Product Team Alpha",
-            "Data Science Group"
+            "Data Science Group",
         ]
 
         for name in valid_team_names:
@@ -140,7 +138,7 @@ class TestTeamService:
             "owner": ["read", "write", "delete", "manage"],
             "admin": ["read", "write", "manage"],
             "member": ["read", "write"],
-            "viewer": ["read"]
+            "viewer": ["read"],
         }
 
         for role, permissions in role_permissions.items():
@@ -191,7 +189,7 @@ class TestAssessmentService:
             "user_id": 1,
             "assessment_id": 1,
             "responses": [1, 2, 3, 4, 5],
-            "completed_at": datetime.now()
+            "completed_at": datetime.now(),
         }
 
         # Test result validation
@@ -217,7 +215,7 @@ class TestEmailService:
             "user@example.com",
             "test.user+tag@domain.co.uk",
             "user123@test-domain.com",
-            "firstname.lastname@company.org"
+            "firstname.lastname@company.org",
         ]
 
         # Test email format validation
@@ -234,7 +232,7 @@ class TestEmailService:
             "@no-domain.com",
             "user@",
             "user..name@domain.com",
-            ""
+            "",
         ]
 
         for email in invalid_emails:
@@ -247,7 +245,7 @@ class TestEmailService:
         template_data = {
             "user_name": "John Doe",
             "reset_link": "https://example.com/reset?token=abc123",
-            "expiry_hours": 24
+            "expiry_hours": 24,
         }
 
         # Test template variable validation
@@ -286,7 +284,7 @@ class TestResponseService:
         valid_responses = [
             {"question_id": 1, "answer": 3, "time_taken": 5},
             {"question_id": 2, "answer": 4, "time_taken": 10},
-            {"question_id": 3, "answer": 2, "time_taken": 3}
+            {"question_id": 3, "answer": 2, "time_taken": 3},
         ]
 
         for response in valid_responses:
@@ -317,7 +315,7 @@ class TestResponseService:
                 "median": median,
                 "count": len(response_list),
                 "min": min(response_list),
-                "max": max(response_list)
+                "max": max(response_list),
             }
 
         result = aggregate_responses(responses)
@@ -336,17 +334,9 @@ class TestServiceIntegration:
     async def test_user_team_workflow(self):
         """Test user to team workflow logic"""
         # Simulate user creation and team assignment workflow
-        user_data = {
-            "id": 1,
-            "email": "user@example.com",
-            "full_name": "Test User"
-        }
+        user_data = {"id": 1, "email": "user@example.com", "full_name": "Test User"}
 
-        team_data = {
-            "id": 1,
-            "name": "Test Team",
-            "max_members": 10
-        }
+        team_data = {"id": 1, "name": "Test Team", "max_members": 10}
 
         # Test workflow validation
         assert user_data["email"] == "user@example.com"
@@ -369,7 +359,7 @@ class TestServiceIntegration:
             "id": 1,
             "type": "personality",
             "total_questions": 50,
-            "time_limit_minutes": 30
+            "time_limit_minutes": 30,
         }
 
         user_responses = [3, 4, 2, 5, 1] * 10  # 50 responses
@@ -382,7 +372,9 @@ class TestServiceIntegration:
         def calculate_completion(responses, total):
             return (len(responses) / total) * 100
 
-        completion_rate = calculate_completion(user_responses, assessment_data["total_questions"])
+        completion_rate = calculate_completion(
+            user_responses, assessment_data["total_questions"]
+        )
         assert completion_rate == 100.0
 
         # Test scoring logic
@@ -423,15 +415,14 @@ class TestServicePerformance:
     @pytest.mark.asyncio
     async def test_concurrent_operations(self):
         """Test service concurrent operation handling"""
+
         async def simulate_service_operation(operation_id):
             """Simulate a service operation"""
             await asyncio.sleep(0.01)  # Simulate work
             return f"operation_{operation_id}_completed"
 
         # Create multiple concurrent operations
-        operations = [
-            simulate_service_operation(i) for i in range(5)
-        ]
+        operations = [simulate_service_operation(i) for i in range(5)]
 
         # Execute concurrently
         results = await asyncio.gather(*operations)

@@ -4,8 +4,8 @@ Enterprise-grade SSL configuration with modern security practices
 """
 
 import logging
-from pathlib import Path
 import ssl
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,9 @@ class SSLConfig:
 
             # Load certificates
             if self.cert_path.exists() and self.key_path.exists():
-                context.load_cert_chain(certfile=str(self.cert_path), keyfile=str(self.key_path))
+                context.load_cert_chain(
+                    certfile=str(self.cert_path), keyfile=str(self.key_path)
+                )
                 logger.info("SSL certificates loaded successfully")
             else:
                 raise FileNotFoundError("SSL certificates not found")
@@ -145,7 +147,9 @@ class SSLConfig:
             # Try to load certificate
             try:
                 context = ssl.create_default_context()
-                context.load_cert_chain(certfile=str(self.cert_path), keyfile=str(self.key_path))
+                context.load_cert_chain(
+                    certfile=str(self.cert_path), keyfile=str(self.key_path)
+                )
                 results["cert_valid"] = True
                 logger.info("Certificate validation successful")
             except Exception as e:

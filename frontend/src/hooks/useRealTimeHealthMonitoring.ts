@@ -27,7 +27,7 @@ export const useRealTimeHealthMonitoring = (
   options: UseRealTimeHealthMonitoringOptions = {}
 ) => {
   const {
-    enabled = true,
+    enabled = false, // DISABLED: WebSocket endpoint not implemented yet
     onHealthAlert,
     onHealthUpdate,
     updateInterval = 60000, // 1 minute default
@@ -40,6 +40,7 @@ export const useRealTimeHealthMonitoring = (
 
   const wsRef = useRef<WebSocket | null>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Handle incoming health alert
@@ -98,16 +99,22 @@ export const useRealTimeHealthMonitoring = (
    * Connect to WebSocket for real-time updates
    */
   const connectWebSocket = useCallback(() => {
+    // WebSocket endpoint not implemented yet - silently skip
+    console.debug('Health monitoring WebSocket is disabled - endpoint not implemented on backend');
+    return;
+
     try {
       const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:8000'}/ws/health-monitoring`;
-      const ws = new WebSocket(wsUrl);
 
-      ws.onopen = () => {
+      // Attempt WebSocket connection
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onopen = () => {
         console.log('Health monitoring WebSocket connected');
         setState(prev => ({ ...prev, isConnected: true, error: undefined }));
       };
 
-      ws.onmessage = (event) => {
+      wsRef.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
 
@@ -121,41 +128,37 @@ export const useRealTimeHealthMonitoring = (
         }
       };
 
-      ws.onerror = (error) => {
+      wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
-        setState(prev => ({
-          ...prev,
-          error: 'Connection error. Switching to polling mode.',
-          isConnected: false,
-        }));
+        // Don't keep trying to reconnect - WebSocket endpoint doesn't exist yet
+        disconnect();
       };
 
-      ws.onclose = () => {
+      wsRef.current.onclose = () => {
         console.log('Health monitoring WebSocket disconnected');
         setState(prev => ({ ...prev, isConnected: false }));
 
-        // Attempt to reconnect after 5 seconds
-        setTimeout(() => {
-          if (enabled) {
-            connectWebSocket();
-          }
-        }, 5000);
+        // Don't auto-reconnect - WebSocket endpoint doesn't exist yet
+        // This prevents infinite reconnection attempts
       };
-
-      wsRef.current = ws;
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
+      // Silently fail - WebSocket endpoint doesn't exist yet
       setState(prev => ({
         ...prev,
-        error: 'Failed to establish real-time connection. Using polling mode.',
+        isConnected: false,
       }));
     }
-  }, [enabled, handleHealthAlert, handleHealthUpdate]);
+  }, []); // Empty deps - prevent infinite loop
 
   /**
    * Start polling for updates (fallback)
    */
   const startPolling = useCallback(async () => {
+    // Disable polling for now - endpoint doesn't exist yet
+    // This prevents unnecessary API calls and errors
+    return;
+
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
     }
@@ -177,10 +180,11 @@ export const useRealTimeHealthMonitoring = (
           handleHealthUpdate(update);
         }
       } catch (error) {
-        console.error('Polling error:', error);
+        // Silently fail - polling endpoint doesn't exist yet
+        console.debug('Polling not available yet');
       }
     }, updateInterval);
-  }, [updateInterval, handleHealthUpdate]);
+  }, [updateInterval]);
 
   /**
    * Disconnect and cleanup
@@ -196,6 +200,11 @@ export const useRealTimeHealthMonitoring = (
       pollIntervalRef.current = null;
     }
 
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     setState(prev => ({
       ...prev,
       isConnected: false,
@@ -207,13 +216,14 @@ export const useRealTimeHealthMonitoring = (
     if (!enabled) return;
 
     // Try WebSocket first, fall back to polling
+    // Note: WebSocket and polling endpoints don't exist yet, so this will silently fail
     connectWebSocket();
     startPolling();
 
     return () => {
       disconnect();
     };
-  }, [enabled, connectWebSocket, startPolling, disconnect]);
+  }, [enabled]); // Only depend on 'enabled' - prevent infinite loop
 
   return {
     ...state,

@@ -9,42 +9,32 @@ Tests all custom exception classes to ensure:
 """
 
 import pytest
-from app.core.exceptions import (
-    # Authentication & Security
-    AccountLockedError,
-    SessionExpiredError,
-    RateLimitExceededError,
-    MFARRequiredError,
-    WeakPasswordError,
-    InvalidCredentialsError,
-    ForbiddenError,
-    MissingFieldError,
-    InvalidEmailError,
-    UserInactiveError,
 
-    # Assessment errors
-    AssessmentNotFoundError,
+from app.core.exceptions import (  # Authentication & Security; Assessment errors; Team errors; Database errors; Billing errors; Base exception
+    AccountLockedError,
     AssessmentExpiredError,
     AssessmentLimitExceededError,
     AssessmentLockedError,
+    AssessmentNotFoundError,
+    DuplicateRecordError,
+    ErrorCode,
+    ForbiddenError,
+    InvalidCredentialsError,
+    InvalidEmailError,
+    MFARRequiredError,
+    MissingFieldError,
+    PaymentFailedError,
+    PsychSyncException,
+    RateLimitExceededError,
+    RecordNotFoundError,
     ResponseAlreadySubmittedError,
-
-    # Team errors
-    TeamNotFoundError,
+    SessionExpiredError,
     TeamAccessDeniedError,
     TeamLimitExceededError,
-
-    # Database errors
-    RecordNotFoundError,
-    DuplicateRecordError,
-
-    # Billing errors
-    PaymentFailedError,
+    TeamNotFoundError,
     UpgradeRequiredError,
-
-    # Base exception
-    PsychSyncException,
-    ErrorCode,
+    UserInactiveError,
+    WeakPasswordError,
 )
 
 
@@ -91,7 +81,7 @@ class TestAuthenticationErrors:
         requirements = {
             "min_length": 8,
             "requires_uppercase": True,
-            "requires_number": True
+            "requires_number": True,
         }
         exc = WeakPasswordError(requirements=requirements)
 
@@ -152,8 +142,7 @@ class TestAssessmentErrors:
         assessment_id = "123"
         expiry_date = "2026-01-01T00:00:00Z"
         exc = AssessmentExpiredError(
-            assessment_id=assessment_id,
-            expiry_date=expiry_date
+            assessment_id=assessment_id, expiry_date=expiry_date
         )
 
         assert exc.error_code == ErrorCode.ASSESSMENT_EXPIRED
@@ -250,11 +239,7 @@ class TestDatabaseErrors:
         resource = "Team"
         field = "name"
         value = "Engineering"
-        exc = DuplicateRecordError(
-            resource=resource,
-            field=field,
-            value=value
-        )
+        exc = DuplicateRecordError(resource=resource, field=field, value=value)
 
         assert exc.error_code == ErrorCode.DUPLICATE_RECORD
         assert exc.status_code == 409
@@ -279,10 +264,7 @@ class TestBillingErrors:
         """Test UpgradeRequiredError"""
         feature = "advanced_analytics"
         required_plan = "Professional"
-        exc = UpgradeRequiredError(
-            feature=feature,
-            required_plan=required_plan
-        )
+        exc = UpgradeRequiredError(feature=feature, required_plan=required_plan)
 
         assert exc.error_code == ErrorCode.UPGRADE_REQUIRED
         assert exc.status_code == 402
@@ -396,14 +378,11 @@ class TestEdgeCases:
 
     def test_exception_with_custom_details(self):
         """Test exception with custom details dict"""
-        custom_details = {
-            "custom_field": "custom_value",
-            "another_field": 123
-        }
+        custom_details = {"custom_field": "custom_value", "another_field": 123}
         exc = PsychSyncException(
             message="Custom error",
             error_code=ErrorCode.GENERIC_ERROR,
-            details=custom_details
+            details=custom_details,
         )
 
         assert exc.details == custom_details
@@ -423,15 +402,18 @@ class TestEdgeCases:
         assert exc.message == custom_message
 
 
-@pytest.mark.parametrize("exception_class,error_code,expected_status", [
-    (TeamNotFoundError, ErrorCode.TEAM_NOT_FOUND, 404),
-    (AssessmentNotFoundError, ErrorCode.ASSESSMENT_NOT_FOUND, 404),
-    (InvalidCredentialsError, ErrorCode.INVALID_CREDENTIALS, 401),
-    (ForbiddenError, ErrorCode.FORBIDDEN, 403),
-    (RateLimitExceededError, ErrorCode.RATE_LIMIT_EXCEEDED_AUTH, 429),
-    (WeakPasswordError, ErrorCode.WEAK_PASSWORD, 400),
-    (MissingFieldError, ErrorCode.MISSING_REQUIRED_FIELD, 422),
-])
+@pytest.mark.parametrize(
+    "exception_class,error_code,expected_status",
+    [
+        (TeamNotFoundError, ErrorCode.TEAM_NOT_FOUND, 404),
+        (AssessmentNotFoundError, ErrorCode.ASSESSMENT_NOT_FOUND, 404),
+        (InvalidCredentialsError, ErrorCode.INVALID_CREDENTIALS, 401),
+        (ForbiddenError, ErrorCode.FORBIDDEN, 403),
+        (RateLimitExceededError, ErrorCode.RATE_LIMIT_EXCEEDED_AUTH, 429),
+        (WeakPasswordError, ErrorCode.WEAK_PASSWORD, 400),
+        (MissingFieldError, ErrorCode.MISSING_REQUIRED_FIELD, 422),
+    ],
+)
 def test_exception_status_codes(exception_class, error_code, expected_status):
     """Parametrized test for exception status codes"""
     # Create exception with minimal args

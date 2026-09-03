@@ -74,9 +74,11 @@ def get_dynamic_security_headers(request: Request) -> dict:
         # Content Security Policy
         "Content-Security-Policy": csp_value,
         # HSTS (only on HTTPS)
-        "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload"
-        if protocol == "https"
-        else "",
+        "Strict-Transport-Security": (
+            "max-age=31536000; includeSubDomains; preload"
+            if protocol == "https"
+            else ""
+        ),
         # Permissions policy
         "Permissions-Policy": (
             "geolocation=(), "

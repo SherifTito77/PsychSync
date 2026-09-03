@@ -154,41 +154,30 @@ export const ListPerformanceMonitor: React.FC<ListPerformanceMonitorProps> = ({
 
   const healthStatus = getHealthStatus();
   const healthColors = {
-    excellent: '#4caf50',
-    good: '#8bc34a',
-    warning: '#ff9800',
-    critical: '#f44336'
+    excellent: 'bg-green-500',
+    good: 'bg-green-400',
+    warning: 'bg-orange-500',
+    critical: 'bg-red-500'
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '20px'
-      }}>
-        <h2>List Performance Monitor</h2>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div style={{
-            width: '12px',
-            height: '12px',
-            borderRadius: '50%',
-            backgroundColor: healthColors[healthStatus]
-          }} />
-          <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>
+    <div className="p-5 font-sans">
+      <div className="flex justify-between items-center mb-5">
+        <h2 className="text-2xl font-semibold">List Performance Monitor</h2>
+        <div className="flex gap-2.5 items-center">
+          <div className={cn(
+            'w-3 h-3 rounded-full',
+            healthColors[healthStatus]
+          )} />
+          <span className="capitalize font-semibold text-sm">
             {healthStatus}
           </span>
           <button
             onClick={isMonitoring ? stopMonitoring : startMonitoring}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: isMonitoring ? '#f44336' : '#4caf50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
+            className={cn(
+              'px-4 py-2 text-white rounded border-0 cursor-pointer',
+              isMonitoring ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+            )}
           >
             {isMonitoring ? 'Stop Monitoring' : 'Start Monitoring'}
           </button>
@@ -196,14 +185,9 @@ export const ListPerformanceMonitor: React.FC<ListPerformanceMonitorProps> = ({
       </div>
 
       {/* Current Configuration */}
-      <div style={{
-        backgroundColor: '#f5f5f5',
-        padding: '15px',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3>Configuration</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+      <div className="bg-gray-50 p-4 rounded-lg mb-5">
+        <h3 className="text-lg font-semibold mb-3">Configuration</h3>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-2.5 text-sm">
           <div><strong>List Type:</strong> {listType}</div>
           <div><strong>Item Count:</strong> {itemCount.toLocaleString()}</div>
           <div><strong>Monitoring:</strong> {isMonitoring ? 'Active' : 'Inactive'}</div>
@@ -213,65 +197,55 @@ export const ListPerformanceMonitor: React.FC<ListPerformanceMonitorProps> = ({
 
       {/* Current Metrics */}
       {metrics && (
-        <div style={{
-          backgroundColor: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          marginBottom: '20px'
-        }}>
-          <h3>Current Metrics</h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '15px'
-          }}>
-            <div style={{ padding: '15px', border: '1px solid #e0e0e0', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2196f3' }}>
+        <div className="bg-white p-5 rounded-lg shadow-md mb-5">
+          <h3 className="text-lg font-semibold mb-4">Current Metrics</h3>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
+            <div className="p-4 border border-gray-200 rounded">
+              <div className="text-2xl font-bold text-blue-600">
                 {metrics.renderTime.toFixed(1)}ms
               </div>
-              <div style={{ color: '#666', fontSize: '14px' }}>Render Time</div>
-              <div style={{ color: '#999', fontSize: '12px' }}>
+              <div className="text-gray-600 text-sm">Render Time</div>
+              <div className="text-gray-400 text-xs">
                 Grade: {getPerformanceGrade(100 - metrics.renderTime)}
               </div>
             </div>
 
-            <div style={{ padding: '15px', border: '1px solid #e0e0e0', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#4caf50' }}>
+            <div className="p-4 border border-gray-200 rounded">
+              <div className="text-2xl font-bold text-green-500">
                 {metrics.memoryUsage}KB
               </div>
-              <div style={{ color: '#666', fontSize: '14px' }}>Memory Usage</div>
-              <div style={{ color: '#999', fontSize: '12px' }}>
+              <div className="text-gray-600 text-sm">Memory Usage</div>
+              <div className="text-gray-400 text-xs">
                 Estimated DOM memory
               </div>
             </div>
 
-            <div style={{ padding: '15px', border: '1px solid #e0e0e0', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ff9800' }}>
+            <div className="p-4 border border-gray-200 rounded">
+              <div className="text-2xl font-bold text-orange-500">
                 {metrics.scrollPerformance.toFixed(0)} FPS
               </div>
-              <div style={{ color: '#666', fontSize: '14px' }}>Scroll Performance</div>
-              <div style={{ color: '#999', fontSize: '12px' }}>
+              <div className="text-gray-600 text-sm">Scroll Performance</div>
+              <div className="text-gray-400 text-xs">
                 {metrics.scrollPerformance > 55 ? 'Smooth' : 'Needs improvement'}
               </div>
             </div>
 
-            <div style={{ padding: '15px', border: '1px solid #e0e0e0', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#9c27b0' }}>
+            <div className="p-4 border border-gray-200 rounded">
+              <div className="text-2xl font-bold text-purple-600">
                 {metrics.interactionLatency}ms
               </div>
-              <div style={{ color: '#666', fontSize: '14px' }}>Interaction Latency</div>
-              <div style={{ color: '#999', fontSize: '12px' }}>
+              <div className="text-gray-600 text-sm">Interaction Latency</div>
+              <div className="text-gray-400 text-xs">
                 Click/hover response time
               </div>
             </div>
 
-            <div style={{ padding: '15px', border: '1px solid #e0e0e0', borderRadius: '6px' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f44336' }}>
+            <div className="p-4 border border-gray-200 rounded">
+              <div className="text-2xl font-bold text-red-500">
                 {metrics.accessibilityScore}%
               </div>
-              <div style={{ color: '#666', fontSize: '14px' }}>Accessibility Score</div>
-              <div style={{ color: '#999', fontSize: '12px' }}>
+              <div className="text-gray-600 text-sm">Accessibility Score</div>
+              <div className="text-gray-400 text-xs">
                 WCAG 2.1 AA compliance
               </div>
             </div>
@@ -281,24 +255,14 @@ export const ListPerformanceMonitor: React.FC<ListPerformanceMonitorProps> = ({
 
       {/* Historical Trends */}
       {history.length > 1 && (
-        <div style={{
-          backgroundColor: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          <h3>Performance Trends</h3>
-          <div style={{ marginBottom: '10px', color: '#666', fontSize: '14px' }}>
+        <div className="bg-white p-5 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold mb-2">Performance Trends</h3>
+          <div className="mb-2.5 text-gray-600 text-sm">
             Last {history.length} measurements
           </div>
 
           {/* Mini trend visualization */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
-            gap: '10px',
-            marginTop: '15px'
-          }}>
+          <div className="grid grid-cols-5 gap-2.5 mt-4">
             {['Render Time', 'Memory', 'Scroll FPS', 'Latency', 'Accessibility'].map((metric, index) => {
               const values = history.slice(-10).map(h => {
                 switch (index) {
@@ -316,20 +280,14 @@ export const ListPerformanceMonitor: React.FC<ListPerformanceMonitorProps> = ({
               const trend = latest > previous ? '↑' : latest < previous ? '↓' : '→';
 
               return (
-                <div key={metric} style={{
-                  padding: '10px',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '4px',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+                <div key={metric} className="p-2.5 border border-gray-200 rounded text-center">
+                  <div className="text-xs text-gray-600 mb-1.5">
                     {metric}
                   </div>
-                  <div style={{
-                    fontSize: '18px',
-                    fontWeight: 'bold',
-                    color: trend === '↑' ? '#f44336' : trend === '↓' ? '#4caf50' : '#666'
-                  }}>
+                  <div className={cn(
+                    'text-lg font-bold',
+                    trend === '↑' ? 'text-red-500' : trend === '↓' ? 'text-green-500' : 'text-gray-600'
+                  )}>
                     {trend} {latest.toFixed(index === 4 ? 1 : 0)}
                   </div>
                 </div>
@@ -340,14 +298,9 @@ export const ListPerformanceMonitor: React.FC<ListPerformanceMonitorProps> = ({
       )}
 
       {/* Recommendations */}
-      <div style={{
-        backgroundColor: '#e3f2fd',
-        padding: '15px',
-        borderRadius: '8px',
-        marginTop: '20px'
-      }}>
-        <h3 style={{ color: '#1976d2', marginTop: 0 }}>Performance Recommendations</h3>
-        <ul style={{ margin: '10px 0', paddingLeft: '20px' }}>
+      <div className="bg-blue-50 p-4 rounded-lg mt-5">
+        <h3 className="text-blue-700 font-semibold mt-0 mb-3">Performance Recommendations</h3>
+        <ul className="m-2.5 0 pl-5 list-disc space-y-1">
           {metrics && metrics.renderTime > 50 && (
             <li>Consider virtualization for large datasets to improve render time</li>
           )}
@@ -380,36 +333,25 @@ export const PerformanceDashboard: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#f9f9f9', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <h1>PsychSync List Performance Monitoring</h1>
-        <p style={{ color: '#666', marginBottom: '30px' }}>
+    <div className="p-5 bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold mb-2">PsychSync List Performance Monitoring</h1>
+        <p className="text-gray-600 mb-8">
           Monitor and optimize list rendering performance across different scenarios.
         </p>
 
         {/* Controls */}
-        <div style={{
-          backgroundColor: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          <h3>Test Configuration</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+        <div className="bg-white p-5 rounded-lg mb-5 shadow-md">
+          <h3 className="text-lg font-semibold mb-4">Test Configuration</h3>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>
+              <label className="block mb-1.5 font-semibold text-sm">
                 List Type:
               </label>
               <select
                 value={selectedListType}
                 onChange={(e) => setSelectedListType(e.target.value as any)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
+                className="w-full px-2 py-2 border border-gray-300 rounded text-sm"
               >
                 <option value="basic">Basic List</option>
                 <option value="virtualized">Virtualized List</option>
@@ -418,7 +360,7 @@ export const PerformanceDashboard: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 600 }}>
+              <label className="block mb-1.5 font-semibold text-sm">
                 Item Count:
               </label>
               <input
@@ -428,36 +370,24 @@ export const PerformanceDashboard: React.FC = () => {
                 min="10"
                 max="10000"
                 step="10"
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
+                className="w-full px-2 py-2 border border-gray-300 rounded text-sm"
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <div className="flex items-end">
               <button
                 onClick={() => {
                   setItemCount(Math.floor(Math.random() * 1000) + 100);
                 }}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#2196f3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
+                className="px-4 py-2 bg-blue-600 text-white border-0 rounded hover:bg-blue-700 cursor-pointer"
               >
-                Random Test
+                Randomize Count
               </button>
             </div>
           </div>
         </div>
 
-        {/* Performance Monitor */}
+        {/* Monitor Component */}
         <ListPerformanceMonitor
           listType={selectedListType}
           itemCount={itemCount}
@@ -468,4 +398,7 @@ export const PerformanceDashboard: React.FC = () => {
   );
 };
 
-export default ListPerformanceMonitor;
+// Helper function for conditional classes
+function cn(...classes: (string | boolean | undefined | null)[]) {
+  return classes.filter(Boolean).join(' ');
+}

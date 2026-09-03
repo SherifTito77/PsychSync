@@ -1,0 +1,49 @@
+{
+  "generated_at": "2025-11-29T14:01:37.845006",
+  "api_test_examples": {
+    "profile_update_api": {
+      "description": "Test profile update API endpoint",
+      "method": "PUT",
+      "url": "/api/v1/settings/profile",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "body": {
+        "name": "Updated Name",
+        "email": "updated@example.com",
+        "company": "New Company",
+        "title": "Senior Developer",
+        "bio": "Experienced developer with 5+ years in React and Node.js"
+      },
+      "expected_response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Profile updated successfully"
+        }
+      }
+    },
+    "avatar_upload_api": {
+      "description": "Test avatar upload API endpoint",
+      "method": "POST",
+      "url": "/api/v1/settings/avatar",
+      "headers": {
+        "Authorization": "Bearer YOUR_JWT_TOKEN"
+      },
+      "files": {
+        "avatar": [
+          "avatar.jpg"
+        ]
+      },
+      "expected_response": {
+        "status": 200,
+        "body": {
+          "success": true,
+          "message": "Avatar uploaded successfully",
+          "avatar_url": "/uploads/avatars/avatar.jpg"
+        }
+      }
+    }
+  }
+}

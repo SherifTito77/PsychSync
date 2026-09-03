@@ -151,8 +151,9 @@ const TrendAnalysis: React.FC<TrendAnalysisProps> = ({ userId, timeRange = '3m' 
 
       const data = await response.json();
       if (data.success) {
-        setTrendData(data.data.trend_data || []);
-        setInsights(data.data.ai_insights || []);
+        const responseData = data.data as { trend_data?: any[]; ai_insights?: any[] };
+        setTrendData(responseData.trend_data || []);
+        setInsights(responseData.ai_insights || []);
       } else {
         setError('Failed to load trend analysis data');
       }

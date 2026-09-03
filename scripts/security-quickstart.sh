@@ -23,17 +23,17 @@ print_header() {
 # Install tools
 cmd_install() {
     print_header "Installing Security Tools"
-    
+
     echo "Installing Python packages..."
     pip install pytest pytest-asyncio pytest-cov semgrep bandit safety pre-commit 2>&1 | tail -5
-    
+
     echo -e "${GREEN}✅ Installation complete!${NC}"
 }
 
 # Run Semgrep scan
 cmd_scan() {
     print_header "Running Semgrep Security Scan"
-    
+
     if command -v semgrep &> /dev/null; then
         semgrep --config=semgrep_rules/owasp-python.yaml || echo "Issues found - please review"
     else
@@ -45,25 +45,25 @@ cmd_scan() {
 # Run security tests
 cmd_test() {
     print_header "Running OWASP Security Tests"
-    
+
     python -m pytest tests/integration/test_owasp_security.py -v --tb=short || echo "Some tests failed - please review"
 }
 
 # Full security check
 cmd_full() {
     print_header "Running Complete Security Check"
-    
+
     echo "Step 1/3: Semgrep scan..."
     cmd_scan || true
-    
+
     echo ""
     echo "Step 2/3: Security tests..."
     cmd_test || true
-    
+
     echo ""
     echo "Step 3/3: Dependency check..."
     safety check || true
-    
+
     echo ""
     echo -e "${GREEN}✅ Full security check complete!${NC}"
 }
@@ -71,9 +71,9 @@ cmd_full() {
 # Generate report
 cmd_report() {
     print_header "Generating Security Report"
-    
+
     REPORT="security-report-$(date +%Y%m%d).md"
-    
+
     cat > "$REPORT" << REPORT_EOF
 # PsychSync Security Report
 

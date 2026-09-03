@@ -7,27 +7,30 @@ Why we need these endpoints:
 - Manage webhook subscriptions
 - Provide Slack app configuration endpoints
 """
-from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException
 
-from app.middleware.rate_limiter import check_rate_limit
-from fastapi.responses import Response
-from sqlalchemy.orm import Session
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
-from app.core.database import get_db
-from app.core.security import get_current_user
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi.responses import Response
+
+# from sqlalchemy.orm import Session  # Replaced with AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
 from app.integrations.slack.bot import slack_bot
 from app.integrations.slack.client import SlackClient
-from app.core.config import settings
+
+# from app.core.database import get_db  # Replaced with get_async_db
+from app.services.security import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-
-@check_rate_limit(identifier="public", limit_name="public")
+@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/events")
 async def handle_slack_events(request: Request):
     """
@@ -87,9 +90,7 @@ async def handle_slack_commands(request: Request):
 
 @router.get("/oauth/callback", dependencies=[Depends(get_current_user)])
 async def slack_oauth_callback(
-    code: str,
-    state: str,
-    db: Session = Depends(get_db)
+    code: str, state: str, db: AsyncSession = Depends(get_async_db)
 ):
     """
     Handle Slack OAuth callback
@@ -114,7 +115,7 @@ async def slack_oauth_callback(
         response = client.oauth_v2_access(
             client_id=settings.SLACK_CLIENT_ID,
             client_secret=settings.SLACK_CLIENT_SECRET,
-            code=code
+            code=code,
         )
 
         # Extract workspace info
@@ -131,13 +132,13 @@ async def slack_oauth_callback(
         welcome_client = WebClient(token=access_token)
         welcome_client.chat_postMessage(
             channel=bot_user_id,
-            text="🎉 PsychSync installed successfully! Type `/psychsync help` to get started."
+            text="🎉 PsychSync installed successfully! Type `/psychsync help` to get started.",
         )
 
         return {
             "status": "success",
             "team": team_name,
-            "message": "PsychSync installed successfully!"
+            "message": "PsychSync installed successfully!",
         }
 
     except Exception as e:
@@ -146,9 +147,7 @@ async def slack_oauth_callback(
 
 
 @router.post("/test-connection")
-async def test_slack_connection(
-    current_user: User = Depends(get_current_user)
-):
+async def test_slack_connection(current_user: User = Depends(get_current_active_user)):
     """
     Test Slack connection
 
@@ -172,17 +171,17 @@ async def test_slack_connection(
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "✅ *Test Message*\n\nPsychSync Slack integration is configured correctly!"
-                    }
+                        "text": "✅ *Test Message*\n\nPsychSync Slack integration is configured correctly!",
+                    },
                 }
-            ]
+            ],
         )
 
         return {
             "status": "success",
             "message": "Test message sent successfully",
             "channel": settings.SLACK_TEST_CHANNEL,
-            "ts": response.get("ts") if response else None
+            "ts": response.get("ts") if response else None,
         }
 
     except Exception as e:
@@ -195,8 +194,8 @@ async def send_slack_notification(
     channel: str,
     message: str,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Send custom notification to Slack channel
@@ -210,16 +209,9 @@ async def send_slack_notification(
         client = SlackClient()
 
         # Queue notification to avoid blocking
-        background_tasks.add_task(
-            client.send_message,
-            channel=channel,
-            text=message
-        )
+        background_tasks.add_task(client.send_message, channel=channel, text=message)
 
-        return {
-            "status": "queued",
-            "message": "Notification queued for delivery"
-        }
+        return {"status": "queued", "message": "Notification queued for delivery"}
 
     except Exception as e:
         logger.error(f"Failed to queue notification: {str(e)}")
@@ -227,9 +219,7 @@ async def send_slack_notification(
 
 
 @router.get("/channels")
-async def list_slack_channels(
-    current_user: User = Depends(get_current_user)
-):
+async def list_slack_channels(current_user: User = Depends(get_current_active_user)):
     """
     List available Slack channels
 
@@ -244,8 +234,7 @@ async def list_slack_channels(
             raise HTTPException(status_code=400, detail="Slack not configured")
 
         response = client.client.conversations_list(
-            types="public_channel,private_channel",
-            exclude_archived=True
+            types="public_channel,private_channel", exclude_archived=True
         )
 
         channels = [
@@ -253,15 +242,12 @@ async def list_slack_channels(
                 "id": ch["id"],
                 "name": ch["name"],
                 "is_private": ch["is_private"],
-                "num_members": ch.get("num_members", 0)
+                "num_members": ch.get("num_members", 0),
             }
             for ch in response["channels"]
         ]
 
-        return {
-            "channels": channels,
-            "count": len(channels)
-        }
+        return {"channels": channels, "count": len(channels)}
 
     except Exception as e:
         logger.error(f"Failed to list channels: {str(e)}")
@@ -284,7 +270,7 @@ async def get_slack_status():
         if not client.is_configured():
             return {
                 "status": "not_configured",
-                "message": "Slack bot token not configured"
+                "message": "Slack bot token not configured",
             }
 
         # Test auth
@@ -295,20 +281,15 @@ async def get_slack_status():
             "bot_user_id": auth_response.get("user_id"),
             "bot_name": auth_response.get("user"),
             "team_name": auth_response.get("team"),
-            "team_id": auth_response.get("team_id")
+            "team_id": auth_response.get("team_id"),
         }
 
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 
 @router.post("/install-url")
-async def get_slack_install_url(
-    current_user: User = Depends(get_current_user)
-):
+async def get_slack_install_url(current_user: User = Depends(get_current_active_user)):
     """
     Generate Slack installation URL
 
@@ -329,24 +310,24 @@ async def get_slack_install_url(
             "im:write",
             "users:read",
             "commands",
-            "app_mentions:read"
+            "app_mentions:read",
         ],
-        user_scopes=[]
+        user_scopes=[],
     )
 
     url = generator.generate(state="random_state_string")
 
     return {
         "install_url": url,
-        "instructions": "Share this URL to install PsychSync in other workspaces"
+        "instructions": "Share this URL to install PsychSync in other workspaces",
     }
 
 
 @router.delete("/workspace/{team_id}")
 async def uninstall_slack_workspace(
     team_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Remove Slack workspace integration
@@ -362,10 +343,7 @@ async def uninstall_slack_workspace(
         # TODO: Delete workspace credentials from database
         logger.info(f"Uninstalling Slack workspace: {team_id}")
 
-        return {
-            "status": "success",
-            "message": f"Workspace {team_id} uninstalled"
-        }
+        return {"status": "success", "message": f"Workspace {team_id} uninstalled"}
 
     except Exception as e:
         logger.error(f"Failed to uninstall workspace: {str(e)}")

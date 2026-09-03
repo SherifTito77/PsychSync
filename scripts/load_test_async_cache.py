@@ -6,13 +6,13 @@ Measures latency, throughput, and error rates
 """
 
 import asyncio
-import time
+import json
+import os
 import statistics
 import sys
-import os
+import time
 from datetime import datetime
-from typing import List, Dict, Tuple
-import json
+from typing import Dict, List, Tuple
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -55,8 +55,16 @@ class LoadTestResult:
 
         avg = statistics.mean(self.latencies)
         median = statistics.median(self.latencies)
-        p95 = statistics.quantiles(self.latencies, n=20)[18] if len(self.latencies) >= 20 else max(self.latencies)
-        p99 = statistics.quantiles(self.latencies, n=100)[98] if len(self.latencies) >= 100 else max(self.latencies)
+        p95 = (
+            statistics.quantiles(self.latencies, n=20)[18]
+            if len(self.latencies) >= 20
+            else max(self.latencies)
+        )
+        p99 = (
+            statistics.quantiles(self.latencies, n=100)[98]
+            if len(self.latencies) >= 100
+            else max(self.latencies)
+        )
 
         return f"""
 {self.endpoint}:
@@ -71,8 +79,12 @@ class LoadTestResult:
 """
 
 
-async def test_endpoint(session: aiohttp.ClientSession, endpoint: str, method: str = "GET",
-                       headers: dict = None) -> Tuple[float, str]:
+async def test_endpoint(
+    session: aiohttp.ClientSession,
+    endpoint: str,
+    method: str = "GET",
+    headers: dict = None,
+) -> Tuple[float, str]:
     """Test a single endpoint"""
     start = time.time()
 
@@ -86,8 +98,13 @@ async def test_endpoint(session: aiohttp.ClientSession, endpoint: str, method: s
         return latency, str(e)
 
 
-async def load_test_endpoint(base_url: str, endpoint: str, concurrent_users: int,
-                            requests_per_user: int, headers: dict = None) -> LoadTestResult:
+async def load_test_endpoint(
+    base_url: str,
+    endpoint: str,
+    concurrent_users: int,
+    requests_per_user: int,
+    headers: dict = None,
+) -> LoadTestResult:
     """Load test a single endpoint with concurrent users"""
     result = LoadTestResult(endpoint)
 
@@ -145,10 +162,7 @@ async def run_load_tests(base_url: str = "http://localhost:8000"):
 
         start = time.time()
         result = await load_test_endpoint(
-            base_url,
-            endpoint,
-            concurrent_users,
-            requests_per_user
+            base_url, endpoint, concurrent_users, requests_per_user
         )
         elapsed = time.time() - start
 
@@ -187,7 +201,11 @@ async def run_load_tests(base_url: str = "http://localhost:8000"):
     if all_latencies:
         avg = statistics.mean(all_latencies)
         median = statistics.median(all_latencies)
-        p95 = statistics.quantiles(all_latencies, n=20)[18] if len(all_latencies) >= 20 else max(all_latencies)
+        p95 = (
+            statistics.quantiles(all_latencies, n=20)[18]
+            if len(all_latencies) >= 20
+            else max(all_latencies)
+        )
 
         print(f"Overall Latency:")
         print(f"  Average: {avg*1000:.2f}ms")
@@ -228,7 +246,8 @@ async def test_with_auth(base_url: str = "http://localhost:8000"):
     print("3. Add token to request headers")
     print()
     print("Example:")
-    print("""
+    print(
+        """
     # Login
     TOKEN=$(curl -X POST http://localhost:8000/api/v1/auth/login \\
         -H "Content-Type: application/json" \\
@@ -238,7 +257,8 @@ async def test_with_auth(base_url: str = "http://localhost:8000"):
     # Test endpoint with auth
     curl -H "Authorization: Bearer $TOKEN" \\
         http://localhost:8000/api/v1/users/me
-    """)
+    """
+    )
 
 
 if __name__ == "__main__":
@@ -258,6 +278,7 @@ if __name__ == "__main__":
     # Check if server is running
     try:
         import aiohttp
+
         asyncio.run(run_load_tests())
         asyncio.run(test_with_auth())
     except ImportError:

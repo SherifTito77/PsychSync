@@ -2,15 +2,16 @@
 Two-Factor Authentication API Endpoints
 """
 
+import asyncio
 import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_async_db, get_current_active_user
 from app.api.v1.deps import get_current_user
-from app.core.database import get_db
 from app.db.models.user import User
 from app.services.two_factor_service import two_factor_service
 
@@ -28,7 +29,9 @@ class TwoFactorEnableResponse(BaseModel):
 
     secret: str = Field(..., description="TOTP secret key")
     qr_code: str = Field(..., description="QR code data URL")
-    recovery_codes: list[str] = Field(..., description="Recovery codes (store securely!)")
+    recovery_codes: list[str] = Field(
+        ..., description="Recovery codes (store securely!)"
+    )
     message: str
 
 
@@ -47,7 +50,9 @@ class TwoFactorDisableRequest(BaseModel):
 class TwoFactorLoginRequest(BaseModel):
     """Request for 2FA code during login"""
 
-    code: str = Field(..., min_length=6, max_length=6, description="6-digit TOTP or recovery code")
+    code: str = Field(
+        ..., min_length=6, max_length=6, description="6-digit TOTP or recovery code"
+    )
 
 
 # ============================================================================
@@ -57,7 +62,8 @@ class TwoFactorLoginRequest(BaseModel):
 
 @router.post("/enable", response_model=TwoFactorEnableResponse)
 async def enable_two_factor(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
     """
     Enable 2FA for the current user
@@ -79,15 +85,16 @@ async def enable_two_factor(
     except Exception as e:
         logger.error(f"Error enabling 2FA: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to enable 2FA"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to enable 2FA",
         ) from e
 
 
 @router.post("/verify")
 async def verify_two_factor_setup(
     request: TwoFactorVerifyRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
     """
     Verify 2FA setup with TOTP code
@@ -96,12 +103,17 @@ async def verify_two_factor_setup(
     """
     if not current_user.two_factor_secret:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="2FA not setup. Call /enable first."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA not setup. Call /enable first.",
         )
 
     # Verify code
-    if not two_factor_service.verify_totp_code(current_user.two_factor_secret, request.code):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid TOTP code")
+    if not two_factor_service.verify_totp_code(
+        current_user.two_factor_secret, request.code
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid TOTP code"
+        )
 
     logger.info(f"2FA verified for user: {current_user.email}")
     return {"message": "2FA setup verified successfully", "enabled": True}
@@ -110,8 +122,8 @@ async def verify_two_factor_setup(
 @router.post("/disable")
 async def disable_two_factor(
     request: TwoFactorDisableRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
     """
     Disable 2FA for the current user
@@ -120,7 +132,9 @@ async def disable_two_factor(
     """
     # Verify password
     if not current_user.verify_password(request.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
+        )
 
     try:
         result = two_factor_service.disable_2fa_for_user(current_user, db)
@@ -129,12 +143,15 @@ async def disable_two_factor(
     except Exception as e:
         logger.error(f"Error disabling 2FA: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to disable 2FA"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to disable 2FA",
         ) from e
 
 
 @router.get("/status")
-async def get_two_factor_status(current_user: User = Depends(get_current_user)) -> dict[str, Any]:
+async def get_two_factor_status(
+    current_user: User = Depends(get_current_active_user),
+) -> dict[str, Any]:
     """
     Get 2FA status for current user
     """
@@ -144,13 +161,17 @@ async def get_two_factor_status(current_user: User = Depends(get_current_user)) 
         "enabled": current_user.two_factor_enabled,
         "has_secret": bool(current_user.two_factor_secret),
         "remaining_recovery_codes": remaining_codes,
-        "recommendation": "Generate new recovery codes" if remaining_codes < 3 else None,
+        "recommendation": (
+            "Generate new recovery codes" if remaining_codes < 3 else None
+        ),
     }
 
 
 @router.post("/recovery-codes/regenerate")
 async def regenerate_recovery_codes(
-    password: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    password: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ) -> dict[str, Any]:
     """
     Regenerate recovery codes
@@ -158,15 +179,21 @@ async def regenerate_recovery_codes(
     Requires current password for verification.
     """
     if not current_user.two_factor_enabled:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="2FA is not enabled")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="2FA is not enabled"
+        )
 
     # Verify password
     if not current_user.verify_password(password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
+        )
 
     # Generate new codes
     recovery_codes = two_factor_service.generate_recovery_codes()
-    hashed_recovery_codes = [two_factor_service.hash_recovery_code(code) for code in recovery_codes]
+    hashed_recovery_codes = [
+        two_factor_service.hash_recovery_code(code) for code in recovery_codes
+    ]
 
     current_user.two_factor_recovery_codes = hashed_recovery_codes
     db.commit()

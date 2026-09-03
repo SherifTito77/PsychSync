@@ -11,9 +11,9 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from dataclasses import dataclass
 import logging
 import re
+from dataclasses import dataclass
 
 # Initialize domain logger
 domain_logger = logging.getLogger("app.domain.registration_request")
@@ -102,9 +102,15 @@ class RegistrationRequest:
         """Validate timezone if provided"""
         if self.timezone:
             # Basic timezone validation - can be enhanced with pytz
-            valid_timezone_patterns = [r"^[A-Za-z_]+/[A-Za-z_]+$", r"^UTC[+-]\d+$", r"^GMT[+-]\d+$"]
+            valid_timezone_patterns = [
+                r"^[A-Za-z_]+/[A-Za-z_]+$",
+                r"^UTC[+-]\d+$",
+                r"^GMT[+-]\d+$",
+            ]
 
-            if not any(re.match(pattern, self.timezone) for pattern in valid_timezone_patterns):
+            if not any(
+                re.match(pattern, self.timezone) for pattern in valid_timezone_patterns
+            ):
                 domain_logger.warning(f"Potentially invalid timezone: {self.timezone}")
 
     def to_dict(self) -> dict:
@@ -164,7 +170,11 @@ class RegistrationRequest:
         # Check email domain patterns
         if self.email:
             email_domain = self.email.split("@")[-1].lower()
-            disposable_domains = ["10minutemail.com", "tempmail.org", "guerrillamail.com"]
+            disposable_domains = [
+                "10minutemail.com",
+                "tempmail.org",
+                "guerrillamail.com",
+            ]
             if any(disposable in email_domain for disposable in disposable_domains):
                 risk_score += 0.5
 

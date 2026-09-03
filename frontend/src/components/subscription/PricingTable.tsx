@@ -130,7 +130,8 @@ const PricingTable: React.FC<PricingTableProps> = ({
       {/* Pricing Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
         {Object.values(SubscriptionTier).map((tier) => {
-          const config = TIER_CONFIG[tier];
+          const tierKey = tier as keyof typeof TIER_CONFIG;
+          const config = TIER_CONFIG[tierKey];
           const price = config.price[billingInterval];
           const isHighlighted = tier === highlightTier;
 

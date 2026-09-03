@@ -11,8 +11,8 @@ Why we need this:
 - Demonstrate integration flow
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from app.core.config import settings
@@ -38,7 +38,9 @@ class SlackServiceStub:
         self.sent_messages = []  # For testing
 
         if self.test_mode:
-            logger.info("🧪 Slack Service running in TEST MODE - messages will be logged, not sent")
+            logger.info(
+                "🧪 Slack Service running in TEST MODE - messages will be logged, not sent"
+            )
         else:
             logger.info("✅ Slack Service connected to workspace")
 
@@ -220,14 +222,19 @@ class SlackServiceStub:
         assessment_type = data.get("assessment_type", "Assessment")
         score = data.get("score")
 
-        emoji = "🟢" if score and score >= 80 else "🟡" if score and score >= 60 else "🔴"
+        emoji = (
+            "🟢" if score and score >= 80 else "🟡" if score and score >= 60 else "🔴"
+        )
 
         return {
             "text": f"{emoji} {user_name} completed {assessment_type}",
             "blocks": [
                 {
                     "type": "header",
-                    "text": {"type": "plain_text", "text": f"{emoji} Assessment Completed"},
+                    "text": {
+                        "type": "plain_text",
+                        "text": f"{emoji} Assessment Completed",
+                    },
                 },
                 {
                     "type": "section",
@@ -236,7 +243,11 @@ class SlackServiceStub:
                         {"type": "mrkdwn", "text": f"*Assessment:*\n{assessment_type}"},
                         {
                             "type": "mrkdwn",
-                            "text": f"*Score:*\n{score}/100" if score else "*Status:*\nCompleted",
+                            "text": (
+                                f"*Score:*\n{score}/100"
+                                if score
+                                else "*Status:*\nCompleted"
+                            ),
                         },
                     ],
                 },
@@ -248,7 +259,10 @@ class SlackServiceStub:
         return {
             "text": f"⚠️ Wellbeing alert: {data.get('message')}",
             "blocks": [
-                {"type": "header", "text": {"type": "plain_text", "text": "⚠️ Wellbeing Alert"}},
+                {
+                    "type": "header",
+                    "text": {"type": "plain_text", "text": "⚠️ Wellbeing Alert"},
+                },
                 {
                     "type": "section",
                     "text": {

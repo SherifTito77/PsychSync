@@ -1,20 +1,23 @@
-from app.core.database import get_async_db
-from app.core.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
-@pytest.fixture
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -22,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -41,24 +45,21 @@ def setup_email_connection(client, auth_headers):
     Setup email connection for integration with email providers
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/connection/setup",
-        json={}
-    )
+    response = client.post("/connection/setup", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -66,12 +67,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -85,24 +87,21 @@ def analyze_email_communication(client, auth_headers):
     Analyze email communication patterns and behaviors
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/analytics/communication",
-        json={}
-    )
+    response = client.post("/analytics/communication", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -110,12 +109,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -129,24 +129,21 @@ def conduct_email_behavioral_assessment(client, auth_headers):
     Conduct behavioral assessment based on email communication data
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/assessment/behavioral",
-        json={}
-    )
+    response = client.post("/assessment/behavioral", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -154,12 +151,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -174,24 +172,22 @@ def trigger_manual_email_sync(client, auth_headers):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/sync/manual",
-        json={},
-        params={'background_tasks': 'test_value'}
+        "/sync/manual", json={}, params={"background_tasks": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -199,12 +195,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -218,8 +215,8 @@ def get_email_sync_status(client, auth_headers):
     Get current email sync status
     """
     # TODO: Implement test logic
-    response = client.get("/sync/status/{connection_id}",
-        params={'connection_id': 'test_value'}
+    response = client.get(
+        "/sync/status/{connection_id}", params={"connection_id": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -228,16 +225,16 @@ def get_email_sync_status(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -245,12 +242,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -264,24 +262,21 @@ def update_email_configuration(client, auth_headers):
     Update email connector configuration
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/configuration/update",
-        json={}
-    )
+    response = client.post("/configuration/update", json={})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -289,12 +284,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -308,10 +304,7 @@ def get_email_connections(client, auth_headers):
     Get all email connections for the user
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/connections"
-        
-    )
+    response = client.get("/connections")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -319,16 +312,16 @@ def get_email_connections(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -336,12 +329,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -355,23 +349,23 @@ def disconnect_email_account(client, auth_headers):
     Disconnect email account and remove data
     """
     # TODO: Implement test logic
-    response = client.delete("/connection/{connection_id}",
-        params={'connection_id': 'test_value'}
+    response = client.delete(
+        "/connection/{connection_id}", params={"connection_id": "test_value"}
     )
 
     assert response.status_code in [200, 204]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -379,12 +373,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -398,9 +393,7 @@ def get_email_analytics_dashboard(client, auth_headers):
     Get email analytics dashboard data
     """
     # TODO: Implement test logic
-    response = client.get("/analytics/dashboard",
-        params={'time_period': 'test_value'}
-    )
+    response = client.get("/analytics/dashboard", params={"time_period": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -408,16 +401,16 @@ def get_email_analytics_dashboard(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -425,12 +418,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -444,10 +438,7 @@ def get_available_email_providers(client):
     Get list of available email providers and their capabilities
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/providers/available"
-        
-    )
+    response = client.get("/providers/available")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure

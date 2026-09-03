@@ -1,0 +1,329 @@
+# Message Queue Alerting Rules for PsychSync
+#
+# This file contains Prometheus alerting rules specifically for monitoring
+# the Kafka and Celery message queue systems.
+#
+# To enable these alerts:
+# 1. Ensure Prometheus is running with access to these rules
+# 2. Configure alertmanager for notification delivery
+# 3. Adjust thresholds based on your traffic patterns
+#
+# Author: Infrastructure Team
+# Version: 1.0.0
+# Date: February 10, 2026
+
+groups:
+  - name: message_queue_alerts
+    interval: 30s
+    rules:
+      # =================================================================
+      # DEAD LETTER QUEUE ALERTS
+      # =================================================================
+
+      # Critical: Kafka DLQ size critical
+      - alert: KafkaDLQSizeCritical
+        expr: sum(kafka_dlq_size) > 500
+        for: 2m
+        labels:
+          severity: critical
+          component: kafka
+          alert_type: dlq
+        annotations:
+          summary: "Critical Kafka Dead Letter Queue size"
+          description: "Kafka DLQ has {{ $value }} entries (threshold: 500)"
+          runbook_url: "https://docs.psychsync.io/runbooks/dlq-critical"
+
+      # Warning: Kafka DLQ size elevated
+      - alert: KafkaDLQSizeWarning
+        expr: sum(kafka_dlq_size) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          alert_type: dlq
+        annotations:
+          summary: "Elevated Kafka Dead Letter Queue size"
+          description: "Kafka DLQ has {{ $value }} entries (threshold: 100)"
+          runbook_url: "https://docs.psychsync.io/runbooks/dlq-warning"
+
+      # Critical: Celery DLQ size critical
+      - alert: CeleryDLQSizeCritical
+        expr: sum(celery_dlq_size) > 500
+        for: 2m
+        labels:
+          severity: critical
+          component: celery
+          alert_type: dlq
+        annotations:
+          summary: "Critical Celery Dead Letter Queue size"
+          description: "Celery DLQ has {{ $value }} failed tasks (threshold: 500)"
+          runbook_url: "https://docs.psychsync.io/runbooks/celery-dlq-critical"
+
+      # Warning: Celery DLQ size elevated
+      - alert: CeleryDLQSizeWarning
+        expr: sum(celery_dlq_size) > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: celery
+          alert_type: dlq
+        annotations:
+          summary: "Elevated Celery Dead Letter Queue size"
+          description: "Celery DLQ has {{ $value }} failed tasks (threshold: 100)"
+          runbook_url: "https://docs.psychsync.io/runbooks/celery-dlq-warning"
+
+      # =================================================================
+      # CONSUMER LAG ALERTS
+      # =================================================================
+
+      # Critical: High consumer lag
+      - alert: KafkaConsumerLagCritical
+        expr: max(kafka_consumer_lag) > 10000
+        for: 2m
+        labels:
+          severity: critical
+          component: kafka
+          alert_type: consumer
+        annotations:
+          summary: "Critical Kafka consumer lag detected"
+          description: "Consumer lag is {{ $value }} messages (threshold: 10000)"
+          runbook_url: "https://docs.psychsync.io/runbooks/consumer-lag-critical"
+
+      # Warning: Elevated consumer lag
+      - alert: KafkaConsumerLagWarning
+        expr: max(kafka_consumer_lag) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          alert_type: consumer
+        annotations:
+          summary: "Elevated Kafka consumer lag detected"
+          description: "Consumer lag is {{ $value }} messages (threshold: 1000)"
+          runbook_url: "https://docs.psychsync.io/runbooks/consumer-lag-warning"
+
+      # =================================================================
+      # PERSISTENT BUFFER ALERTS
+      # =================================================================
+
+      # Warning: Persistent buffer size elevated
+      - alert: KafkaBufferSizeWarning
+        expr: sum(kafka_persistent_buffer_size) > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          alert_type: buffer
+        annotations:
+          summary: "Elevated Kafka persistent buffer size"
+          description: "Persistent buffer has {{ $value }} events waiting (threshold: 50)"
+          runbook_url: "https://docs.psychsync.io/runbooks/buffer-warning"
+
+      # Critical: Persistent buffer size critical
+      - alert: KafkaBufferSizeCritical
+        expr: sum(kafka_persistent_buffer_size) > 250
+        for: 2m
+        labels:
+          severity: critical
+          component: kafka
+          alert_type: buffer
+        annotations:
+          summary: "Critical Kafka persistent buffer size"
+          description: "Persistent buffer has {{ $value }} events waiting (threshold: 250)"
+          runbook_url: "https://docs.psychsync.io/runbooks/buffer-critical"
+
+      # =================================================================
+      # MESSAGE LOSS ALERTS
+      # =================================================================
+
+      # Critical: High message loss rate
+      - alert: MessageLossRateCritical
+        expr: message_loss_rate{queue_type="kafka"} > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: kafka
+          alert_type: data_loss
+        annotations:
+          summary: "Critical message loss rate detected"
+          description: "Message loss rate is {{ $value }} messages/minute (threshold: 10)"
+          runbook_url: "https://docs.psychsync.io/runbooks/message-loss-critical"
+
+      # Warning: Elevated message loss rate
+      - alert: MessageLossRateWarning
+        expr: message_loss_rate{queue_type="kafka"} > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          alert_type: data_loss
+        annotations:
+          summary: "Elevated message loss rate detected"
+          description: "Message loss rate is {{ $value }} messages/minute (threshold: 1)"
+          runbook_url: "https://docs.psychsync.io/runbooks/message-loss-warning"
+
+      # =================================================================
+      # QUEUE HEALTH SCORE ALERTS
+      # =================================================================
+
+      # Critical: Low queue health score
+      - alert: QueueHealthScoreCritical
+        expr: queue_health_score{queue_type="kafka"} < 50
+        for: 3m
+        labels:
+          severity: critical
+          component: kafka
+          alert_type: health
+        annotations:
+          summary: "Critical queue health score"
+          description: "Queue health score is {{ $value }}/100 (threshold: 50)"
+          runbook_url: "https://docs.psychsync.io/runbooks/health-critical"
+
+      # Warning: Degraded queue health score
+      - alert: QueueHealthScoreWarning
+        expr: queue_health_score{queue_type="kafka"} < 75
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          alert_type: health
+        annotations:
+          summary: "Degraded queue health score"
+          description: "Queue health score is {{ $value }}/100 (threshold: 75)"
+          runbook_url: "https://docs.psychsync.io/runbooks/health-warning"
+
+      # =================================================================
+      # PUBLISH/CONSUME RATE ALERTS
+      # =================================================================
+
+      # Warning: High publish failure rate
+      - alert: KafkaPublishFailureRateHigh
+        expr: |
+          rate(kafka_messages_published_total{status="failed"}[5m]) /
+          rate(kafka_messages_published_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          component: kafka
+          alert_type: publish
+        annotations:
+          summary: "High Kafka publish failure rate"
+          description: "{{ $value | humanizePercentage }} of publishes are failing (threshold: 5%)"
+          runbook_url: "https://docs.psychsync.io/runbooks/publish-failures"
+
+      # Critical: Critical publish failure rate
+      - alert: KafkaPublishFailureRateCritical
+        expr: |
+          rate(kafka_messages_published_total{status="failed"}[5m]) /
+          rate(kafka_messages_published_total[5m]) > 0.20
+        for: 1m
+        labels:
+          severity: critical
+          component: kafka
+          alert_type: publish
+        annotations:
+          summary: "Critical Kafka publish failure rate"
+          description: "{{ $value | humanizePercentage }} of publishes are failing (threshold: 20%)"
+          runbook_url: "https://docs.psychsync.io/runbooks/publish-failures-critical"
+
+      # Warning: High consumer processing failure rate
+      - alert: KafkaConsumerFailureRateHigh
+        expr: |
+          rate(kafka_messages_consumed_total{status="failed"}[5m]) /
+          rate(kafka_messages_consumed_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          component: kafka
+          alert_type: consumer
+        annotations:
+          summary: "High Kafka consumer failure rate"
+          description: "{{ $value | humanizePercentage }} of consumed messages are failing (threshold: 5%)"
+          runbook_url: "https://docs.psychsync.io/runbooks/consumer-failures"
+
+      # =================================================================
+      # CELERY TASK ALERTS
+      # =================================================================
+
+      # Critical: High Celery task failure rate
+      - alert: CeleryTaskFailureRateCritical
+        expr: |
+          rate(celery_task_executions_total{status="failure"}[5m]) /
+          rate(celery_task_executions_total[5m]) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          component: celery
+          alert_type: task_execution
+        annotations:
+          summary: "Critical Celery task failure rate"
+          description: "{{ $value | humanizePercentage }} of tasks are failing (threshold: 10%)"
+          runbook_url: "https://docs.psychsync.io/runbooks/celery-failures-critical"
+
+      # Warning: Elevated Celery task timeout rate
+      - alert: CeleryTaskTimeoutRateHigh
+        expr: |
+          rate(celery_task_executions_total{status="timeout"}[5m]) /
+          rate(celery_task_executions_total[5m]) > 0.02
+        for: 5m
+        labels:
+          severity: warning
+          component: celery
+          alert_type: task_timeout
+        annotations:
+          summary: "High Celery task timeout rate"
+          description: "{{ $value | humanizePercentage }} of tasks are timing out (threshold: 2%)"
+          runbook_url: "https://docs.psychsync.io/runbooks/celery-timeouts"
+
+      # Warning: High Celery task retry rate
+      - alert: CeleryTaskRetryRateHigh
+        expr: rate(celery_task_retries_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: celery
+          alert_type: task_retry
+        annotations:
+          summary: "High Celery task retry rate"
+          description: "{{ $value }} task retries per second (threshold: 10/sec)"
+          runbook_url: "https://docs.psychsync.io/runbooks/celery-retries"
+
+      # =================================================================
+      # AVAILABILITY ALERTS
+      # =================================================================
+
+      # Critical: Message queue monitoring endpoint down
+      - alert: MessageQueueMonitoringDown
+        expr: up{job="psychsync-message-queues"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: monitoring
+          alert_type: availability
+        annotations:
+          summary: "Message queue monitoring endpoint is down"
+          description: "Metrics endpoint at localhost:9090 is not responding"
+          runbook_url: "https://docs.psychsync.io/runbooks/monitoring-down"
+
+  - name: message_queue_summary
+    interval: 5m
+    rules:
+      # Summary recording rules for better performance
+      - record: mq:total_dlq_size
+        expr: sum(kafka_dlq_size) + sum(celery_dlq_size)
+
+      - record: mq:total_consumer_lag
+        expr: sum(kafka_consumer_lag)
+
+      - record: mq:total_buffer_size
+        expr: sum(kafka_persistent_buffer_size)
+
+      - record: mq:publish_success_rate
+        expr: |
+          rate(kafka_messages_published_total{status="success"}[5m]) /
+          rate(kafka_messages_published_total[5m])
+
+      - record: mq:consume_success_rate
+        expr: |
+          rate(kafka_messages_consumed_total{status="success"}[5m]) /
+          rate(kafka_messages_consumed_total[5m])

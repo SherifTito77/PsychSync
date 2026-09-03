@@ -133,7 +133,7 @@ const API_ENDPOINTS = [
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   console.log('[Service Worker] Installing...');
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -147,14 +147,14 @@ self.addEventListener('install', (event) => {
 // Activate event - cleanup old caches
 self.addEventListener('activate', (event) => {
   console.log('[Service Worker] Activating...');
-  
+
   event.waitUntil(
     caches.keys()
       .then(cacheNames => {
         return Promise.all(
           cacheNames
-            .filter(name => name !== CACHE_NAME && 
-                          name !== API_CACHE_NAME && 
+            .filter(name => name !== CACHE_NAME &&
+                          name !== API_CACHE_NAME &&
                           name !== IMAGE_CACHE_NAME)
             .map(name => caches.delete(name))
         );
@@ -194,27 +194,27 @@ self.addEventListener('fetch', (event) => {
 async function networkFirstStrategy(request, cacheName) {
   try {
     const response = await fetch(request);
-    
+
     // Cache successful responses
     if (response.ok) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
-    
+
     return response;
   } catch (error) {
     // Network failed, try cache
     const cachedResponse = await caches.match(request);
-    
+
     if (cachedResponse) {
       return cachedResponse;
     }
-    
+
     // Return offline page for navigation requests
     if (request.mode === 'navigate') {
       return caches.match('/offline.html');
     }
-    
+
     throw error;
   }
 }
@@ -222,28 +222,28 @@ async function networkFirstStrategy(request, cacheName) {
 // Cache-first strategy
 async function cacheFirstStrategy(request, cacheName) {
   const cachedResponse = await caches.match(request);
-  
+
   if (cachedResponse) {
     // Update cache in background
     updateCache(request, cacheName);
     return cachedResponse;
   }
-  
+
   try {
     const response = await fetch(request);
-    
+
     if (response.ok) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
-    
+
     return response;
   } catch (error) {
     // Return offline page for navigation requests
     if (request.mode === 'navigate') {
       return caches.match('/offline.html');
     }
-    
+
     throw error;
   }
 }
@@ -252,7 +252,7 @@ async function cacheFirstStrategy(request, cacheName) {
 async function updateCache(request, cacheName) {
   try {
     const response = await fetch(request);
-    
+
     if (response.ok) {
       const cache = await caches.open(cacheName);
       cache.put(request, response);
@@ -267,7 +267,7 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-lineup') {
     event.waitUntil(syncLineup());
   }
-  
+
   if (event.tag === 'sync-alerts') {
     event.waitUntil(syncAlerts());
   }
@@ -277,14 +277,14 @@ async function syncLineup() {
   try {
     const db = await openDB();
     const lineups = await db.getAll('pending-lineups');
-    
+
     for (const lineup of lineups) {
       await fetch('/api/lineup/save', {
         method: 'POST',
         body: JSON.stringify(lineup),
         headers: { 'Content-Type': 'application/json' }
       });
-      
+
       await db.delete('pending-lineups', lineup.id);
     }
   } catch (error) {
@@ -297,7 +297,7 @@ async function syncAlerts() {
     // Fetch latest alerts
     const response = await fetch('/api/alerts/latest');
     const alerts = await response.json();
-    
+
     // Show notifications
     for (const alert of alerts) {
       self.registration.showNotification('NBA Analytics', {
@@ -316,7 +316,7 @@ async function syncAlerts() {
 // Push notifications
 self.addEventListener('push', (event) => {
   const data = event.data.json();
-  
+
   const options = {
     body: data.body,
     icon: '/icons/icon-192x192.png',
@@ -335,7 +335,7 @@ self.addEventListener('push', (event) => {
     ],
     vibrate: [200, 100, 200]
   };
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title, options)
   );
@@ -344,10 +344,10 @@ self.addEventListener('push', (event) => {
 // Notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   if (event.action === 'view') {
     const url = event.notification.data?.url || '/';
-    
+
     event.waitUntil(
       clients.openWindow(url)
     );
@@ -358,17 +358,17 @@ self.addEventListener('notificationclick', (event) => {
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('nba-analytics', 1);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      
+
       if (!db.objectStoreNames.contains('pending-lineups')) {
         db.createObjectStore('pending-lineups', { keyPath: 'id', autoIncrement: true });
       }
-      
+
       if (!db.objectStoreNames.contains('cached-players')) {
         db.createObjectStore('cached-players', { keyPath: 'id' });
       }
@@ -387,16 +387,16 @@ export function registerServiceWorker() {
       navigator.serviceWorker.register('/service-worker.js')
         .then(registration => {
           console.log('SW registered:', registration);
-          
+
           // Check for updates every hour
           setInterval(() => {
             registration.update();
           }, 60 * 60 * 1000);
-          
+
           // Listen for updates
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
-            
+
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New version available
@@ -522,7 +522,7 @@ export async function requestNotificationPermission() {
 
 export async function subscribeToPushNotifications() {
   const registration = await navigator.serviceWorker.ready;
-  
+
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY)

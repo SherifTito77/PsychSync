@@ -5,12 +5,12 @@ Advanced analytics for optimal team composition based on personality traits,
 skills diversity, psychological compatibility, and performance predictors.
 """
 
+import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum
-import logging
 from typing import Any
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from scipy.optimize import differential_evolution
@@ -118,7 +118,9 @@ class TeamCompositionOptimizer:
     ) -> OptimizationResult:
         """Optimize team composition using multi-objective optimization"""
 
-        self.logger.info(f"Optimizing team composition with {len(available_candidates)} candidates")
+        self.logger.info(
+            f"Optimizing team composition with {len(available_candidates)} candidates"
+        )
 
         # Build candidate profiles
         candidate_profiles = await self._build_candidate_profiles(available_candidates)
@@ -149,7 +151,10 @@ class TeamCompositionOptimizer:
         """Evaluate current team dynamics and composition"""
 
         if not objectives:
-            objectives = [OptimizationObjective.PERFORMANCE, OptimizationObjective.COLLABORATION]
+            objectives = [
+                OptimizationObjective.PERFORMANCE,
+                OptimizationObjective.COLLABORATION,
+            ]
 
         # Build team member profiles
         member_profiles = await self._build_candidate_profiles(team_members)
@@ -160,12 +165,22 @@ class TeamCompositionOptimizer:
         # Calculate various metrics
         evaluation = {
             "team_size": len(member_profiles),
-            "personality_balance": await self._evaluate_personality_balance(member_profiles),
+            "personality_balance": await self._evaluate_personality_balance(
+                member_profiles
+            ),
             "skill_coverage": await self._evaluate_skill_coverage(member_profiles),
-            "compatibility_scores": await self._calculate_compatibility_matrix(member_profiles),
-            "diversity_metrics": await self._calculate_diversity_metrics(member_profiles),
-            "leadership_potential": await self._evaluate_leadership_potential(member_profiles),
-            "innovation_capacity": await self._evaluate_innovation_capacity(member_profiles),
+            "compatibility_scores": await self._calculate_compatibility_matrix(
+                member_profiles
+            ),
+            "diversity_metrics": await self._calculate_diversity_metrics(
+                member_profiles
+            ),
+            "leadership_potential": await self._evaluate_leadership_potential(
+                member_profiles
+            ),
+            "innovation_capacity": await self._evaluate_innovation_capacity(
+                member_profiles
+            ),
             "team_cohesion": await self._calculate_team_cohesion(member_profiles),
             "role_distribution": await self._analyze_role_distribution(member_profiles),
             "recommendations": await self._generate_team_improvement_recommendations(
@@ -176,8 +191,8 @@ class TeamCompositionOptimizer:
         # Calculate overall team scores for different objectives
         evaluation["objective_scores"] = {}
         for objective in objectives:
-            evaluation["objective_scores"][objective.value] = await self._calculate_objective_score(
-                member_profiles, objective
+            evaluation["objective_scores"][objective.value] = (
+                await self._calculate_objective_score(member_profiles, objective)
             )
 
         return evaluation
@@ -221,7 +236,9 @@ class TeamCompositionOptimizer:
         }
 
     async def predict_team_performance(
-        self, team_members: list[str], project_requirements: dict[str, Any] | None = None
+        self,
+        team_members: list[str],
+        project_requirements: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Predict team performance based on composition metrics"""
 
@@ -241,8 +258,12 @@ class TeamCompositionOptimizer:
             "diversity_innovation": await self._calculate_diversity_innovation_impact(
                 member_profiles
             ),
-            "leadership_balance": await self._evaluate_leadership_balance(member_profiles),
-            "experience_mix": await self._evaluate_experience_distribution(member_profiles),
+            "leadership_balance": await self._evaluate_leadership_balance(
+                member_profiles
+            ),
+            "experience_mix": await self._evaluate_experience_distribution(
+                member_profiles
+            ),
         }
 
         # Calculate weighted performance prediction
@@ -256,7 +277,10 @@ class TeamCompositionOptimizer:
         }
 
         overall_score = (
-            sum(performance_factors[factor] * weight for factor, weight in weights.items())
+            sum(
+                performance_factors[factor] * weight
+                for factor, weight in weights.items()
+            )
             if all(factor in performance_factors for factor in weights)
             else 0.5
         )
@@ -265,19 +289,25 @@ class TeamCompositionOptimizer:
         prediction = {
             "overall_score": overall_score,
             "performance_factors": performance_factors,
-            "confidence_interval": await self._calculate_prediction_confidence(member_profiles),
+            "confidence_interval": await self._calculate_prediction_confidence(
+                member_profiles
+            ),
             "risk_factors": await self._identify_performance_risks(member_profiles),
             "strength_areas": await self._identify_team_strengths(member_profiles),
             "improvement_opportunities": await self._identify_improvement_opportunities(
                 member_profiles
             ),
-            "benchmark_comparison": await self._benchmark_team_performance(member_profiles),
+            "benchmark_comparison": await self._benchmark_team_performance(
+                member_profiles
+            ),
         }
 
         return prediction
 
     # Private methods for optimization logic
-    async def _build_candidate_profiles(self, user_ids: list[str]) -> list[TeamMemberProfile]:
+    async def _build_candidate_profiles(
+        self, user_ids: list[str]
+    ) -> list[TeamMemberProfile]:
         """Build comprehensive profiles for team members"""
 
         profiles = []
@@ -288,7 +318,7 @@ class TeamCompositionOptimizer:
                 # Run synchronous DB query in thread pool to avoid blocking event loop
                 user = await loop.run_in_executor(
                     _db_executor,
-                    lambda: self.db.query(User).filter(User.id == user_id).first()
+                    lambda: self.db.query(User).filter(User.id == user_id).first(),
                 )
                 if not user:
                     continue
@@ -313,7 +343,9 @@ class TeamCompositionOptimizer:
                 innovation_tendency = await self._calculate_innovation_tendency(user_id)
                 stability_score = await self._calculate_stability_score(user_id)
                 adaptability_score = await self._calculate_adaptability_score(user_id)
-                leadership_potential = await self._calculate_leadership_potential(user_id)
+                leadership_potential = await self._calculate_leadership_potential(
+                    user_id
+                )
 
                 profile = TeamMemberProfile(
                     user_id=user_id,
@@ -356,7 +388,9 @@ class TeamCompositionOptimizer:
                 recommended_members=[p.user_id for p in current_profiles],
                 team_score=0.8,
                 performance_prediction=0.75,
-                compatibility_matrix=np.zeros((len(current_profiles), len(current_profiles))),
+                compatibility_matrix=np.zeros(
+                    (len(current_profiles), len(current_profiles))
+                ),
                 skill_coverage={},
                 personality_balance={},
                 diversity_metrics={},
@@ -367,7 +401,9 @@ class TeamCompositionOptimizer:
 
         n_candidates = len(candidate_profiles)
         if n_candidates < n_select:
-            raise ValueError(f"Insufficient candidates: need {n_select}, have {n_candidates}")
+            raise ValueError(
+                f"Insufficient candidates: need {n_select}, have {n_candidates}"
+            )
 
         # Build optimization problem
         optimization_result = await self._solve_optimization_problem(
@@ -402,7 +438,9 @@ class TeamCompositionOptimizer:
             # Calculate team score based on objectives
             team_score = 0
             for objective in objectives:
-                objective_score = await self._calculate_objective_score(all_profiles, objective)
+                objective_score = await self._calculate_objective_score(
+                    all_profiles, objective
+                )
                 team_score += objective_score
 
             # Apply constraints penalties
@@ -434,7 +472,9 @@ class TeamCompositionOptimizer:
         selected_indices = np.where(binary_selection)[0]
         if len(selected_indices) != n_select:
             # Fallback: select top candidates by composite score
-            scores = await self._calculate_composite_scores(candidate_profiles, objectives)
+            scores = await self._calculate_composite_scores(
+                candidate_profiles, objectives
+            )
             top_indices = np.argsort(scores)[-n_select:]
         else:
             top_indices = selected_indices
@@ -444,14 +484,20 @@ class TeamCompositionOptimizer:
 
         # Calculate detailed metrics
         compatibility_matrix = await self._calculate_compatibility_matrix(all_profiles)
-        skill_coverage = await self._calculate_skill_coverage_metrics(all_profiles, requirements)
-        personality_balance = await self._calculate_personality_balance_metrics(all_profiles)
+        skill_coverage = await self._calculate_skill_coverage_metrics(
+            all_profiles, requirements
+        )
+        personality_balance = await self._calculate_personality_balance_metrics(
+            all_profiles
+        )
         diversity_metrics = await self._calculate_diversity_metrics_all(all_profiles)
 
         return OptimizationResult(
             recommended_members=[p.user_id for p in selected_profiles],
             team_score=abs(result.fun),
-            performance_prediction=await self._predict_team_performance_score(all_profiles),
+            performance_prediction=await self._predict_team_performance_score(
+                all_profiles
+            ),
             compatibility_matrix=compatibility_matrix,
             skill_coverage=skill_coverage,
             personality_balance=personality_balance,
@@ -466,7 +512,9 @@ class TeamCompositionOptimizer:
             },
         )
 
-    async def _create_feature_matrix(self, profiles: list[TeamMemberProfile]) -> np.ndarray:
+    async def _create_feature_matrix(
+        self, profiles: list[TeamMemberProfile]
+    ) -> np.ndarray:
         """Create feature matrix for optimization"""
 
         features = []
@@ -588,7 +636,10 @@ class TeamCompositionOptimizer:
         """Calculate score for specific optimization objective"""
         if objective == OptimizationObjective.PERFORMANCE:
             return np.mean(
-                [p.performance_history.get("average_performance", 0.5) for p in profiles]
+                [
+                    p.performance_history.get("average_performance", 0.5)
+                    for p in profiles
+                ]
             )
         if objective == OptimizationObjective.COLLABORATION:
             return np.mean([p.collaboration_score for p in profiles])
@@ -636,7 +687,9 @@ class TeamCompositionOptimizer:
         for i in range(n):
             for j in range(i, n):
                 # Calculate compatibility between profiles i and j
-                compatibility = await self._calculate_pair_compatibility(profiles[i], profiles[j])
+                compatibility = await self._calculate_pair_compatibility(
+                    profiles[i], profiles[j]
+                )
                 compatibility_matrix[i][j] = compatibility
                 compatibility_matrix[j][i] = compatibility
 
@@ -673,7 +726,11 @@ class TeamCompositionOptimizer:
                     profile1.work_preferences.get(pref, 0.5)
                     - profile2.work_preferences.get(pref, 0.5)
                 )
-                for pref in ["remote_work_preference", "collaboration_style", "independence"]
+                for pref in [
+                    "remote_work_preference",
+                    "collaboration_style",
+                    "independence",
+                ]
             )
             / 3.0
         )
@@ -720,7 +777,9 @@ class TeamCompositionOptimizer:
         ]
         return risks
 
-    async def _predict_team_performance_score(self, profiles: list[TeamMemberProfile]) -> float:
+    async def _predict_team_performance_score(
+        self, profiles: list[TeamMemberProfile]
+    ) -> float:
         return 0.82  # Placeholder
 
     # Additional evaluation methods (simplified)
@@ -729,7 +788,9 @@ class TeamCompositionOptimizer:
     ) -> dict[str, float]:
         return {"balance_score": 0.75, "trait_variance": 0.3}
 
-    async def _evaluate_skill_coverage(self, profiles: list[TeamMemberProfile]) -> dict[str, float]:
+    async def _evaluate_skill_coverage(
+        self, profiles: list[TeamMemberProfile]
+    ) -> dict[str, float]:
         return {"coverage_score": 0.8, "skill_diversity": 0.7}
 
     async def _calculate_diversity_metrics(
@@ -737,16 +798,24 @@ class TeamCompositionOptimizer:
     ) -> dict[str, float]:
         return {"diversity_index": 0.73, "inclusion_score": 0.8}
 
-    async def _evaluate_leadership_potential(self, profiles: list[TeamMemberProfile]) -> float:
+    async def _evaluate_leadership_potential(
+        self, profiles: list[TeamMemberProfile]
+    ) -> float:
         return 0.72
 
-    async def _evaluate_innovation_capacity(self, profiles: list[TeamMemberProfile]) -> float:
+    async def _evaluate_innovation_capacity(
+        self, profiles: list[TeamMemberProfile]
+    ) -> float:
         return 0.68
 
-    async def _calculate_team_cohesion(self, profiles: list[TeamMemberProfile]) -> float:
+    async def _calculate_team_cohesion(
+        self, profiles: list[TeamMemberProfile]
+    ) -> float:
         return 0.78
 
-    async def _analyze_role_distribution(self, profiles: list[TeamMemberProfile]) -> dict[str, Any]:
+    async def _analyze_role_distribution(
+        self, profiles: list[TeamMemberProfile]
+    ) -> dict[str, Any]:
         return {"roles": {}, "balance": 0.8}
 
     async def _generate_team_improvement_recommendations(
@@ -768,10 +837,14 @@ class TeamCompositionOptimizer:
     ) -> tuple[float, float]:
         return (0.82, 0.75)  # Lower and upper bounds
 
-    async def _identify_performance_risks(self, profiles: list[TeamMemberProfile]) -> list[str]:
+    async def _identify_performance_risks(
+        self, profiles: list[TeamMemberProfile]
+    ) -> list[str]:
         return ["Skill gaps in critical areas", "Limited leadership experience"]
 
-    async def _identify_team_strengths(self, profiles: list[TeamMemberProfile]) -> list[str]:
+    async def _identify_team_strengths(
+        self, profiles: list[TeamMemberProfile]
+    ) -> list[str]:
         return ["High collaboration potential", "Strong technical foundation"]
 
     async def _identify_improvement_opportunities(
@@ -802,8 +875,16 @@ class TeamCompositionOptimizer:
         objectives: list[OptimizationObjective],
     ) -> list[dict[str, Any]]:
         return [
-            {"user_id": "candidate_1", "match_score": 0.85, "replacing_role": "Project Lead"},
-            {"user_id": "candidate_2", "match_score": 0.78, "replacing_role": "Technical"},
+            {
+                "user_id": "candidate_1",
+                "match_score": 0.85,
+                "replacing_role": "Project Lead",
+            },
+            {
+                "user_id": "candidate_2",
+                "match_score": 0.78,
+                "replacing_role": "Technical",
+            },
         ]
 
     async def _assess_replacement_impact(
@@ -815,11 +896,15 @@ class TeamCompositionOptimizer:
         return {"performance_change": 0.05, "risk_reduction": 0.2}
 
     async def _calculate_skill_alignment(
-        self, profiles: list[TeamMemberProfile], project_requirements: dict[str, Any] | None
+        self,
+        profiles: list[TeamMemberProfile],
+        project_requirements: dict[str, Any] | None,
     ) -> float:
         return 0.8  # Placeholder
 
-    async def _calculate_personality_optimization(self, profiles: list[TeamMemberProfile]) -> float:
+    async def _calculate_personality_optimization(
+        self, profiles: list[TeamMemberProfile]
+    ) -> float:
         return 0.75  # Placeholder
 
     async def _calculate_diversity_innovation_impact(
@@ -827,8 +912,12 @@ class TeamCompositionOptimizer:
     ) -> float:
         return 0.68  # Placeholder
 
-    async def _evaluate_leadership_balance(self, profiles: list[TeamMemberProfile]) -> float:
+    async def _evaluate_leadership_balance(
+        self, profiles: list[TeamMemberProfile]
+    ) -> float:
         return 0.72  # Placeholder
 
-    async def _evaluate_experience_distribution(self, profiles: list[TeamMemberProfile]) -> float:
+    async def _evaluate_experience_distribution(
+        self, profiles: list[TeamMemberProfile]
+    ) -> float:
         return 0.8  # Placeholder

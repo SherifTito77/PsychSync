@@ -3,18 +3,20 @@ Database Health Check Script for PsychSync
 Tests database connectivity and shows basic information
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 from pathlib import Path
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
 from app.core.config import settings
+
 
 async def test_database_connection():
     """Test database connection and show basic info"""
@@ -38,14 +40,20 @@ async def test_database_connection():
             # Show database info
             if "sqlite" in database_url:
                 # SQLite specific queries
-                result = await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))
+                result = await conn.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table'")
+                )
                 tables = result.fetchall()
                 print(f"📋 Found {len(tables)} tables:")
                 for table in tables:
                     print(f"   - {table[0]}")
             else:
                 # PostgreSQL specific queries
-                result = await conn.execute(text("SELECT * FROM information_schema.tables WHERE table_schema='public'"))
+                result = await conn.execute(
+                    text(
+                        "SELECT * FROM information_schema.tables WHERE table_schema='public'"
+                    )
+                )
                 tables = result.fetchall()
                 print(f"📋 Found {len(tables)} tables in public schema:")
                 for table in tables:
@@ -59,7 +67,9 @@ async def test_database_connection():
 
         # Provide helpful suggestions
         if "does not exist" in str(e):
-            print("\n💡 Suggestion: Check if database user exists or create the database")
+            print(
+                "\n💡 Suggestion: Check if database user exists or create the database"
+            )
         elif "Connection refused" in str(e):
             print("\n💡 Suggestion: Make sure database server is running")
         elif "No such file" in str(e):
@@ -68,6 +78,7 @@ async def test_database_connection():
         return False
 
     return True
+
 
 if __name__ == "__main__":
     asyncio.run(test_database_connection())
