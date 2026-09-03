@@ -123,6 +123,8 @@ import {
   KnowledgeBaseAnalyticsDashboard,
   ProjectManagementDashboard,
   EmployeeLifecycleDashboard,
+  IntelligenceLoopDashboard,
+  NetworkIntelligenceDashboard,
 } from './lazyImports';
 
 // Layout
@@ -315,6 +317,10 @@ export const protectedRoutes = (
     {/* Project Management & Employee Lifecycle */}
     {createProtectedRoute('/project-management-metadata', <ProjectManagementDashboard />)}
     {createProtectedRoute('/employee-lifecycle', <EmployeeLifecycleDashboard />)}
+
+    {/* Intelligence Platform */}
+    {createProtectedRoute('/intelligence-loop', <IntelligenceLoopDashboard />)}
+    {createProtectedRoute('/network-intelligence', <NetworkIntelligenceDashboard />)}
 
     {/* Compliance & Legal */}
     {createProtectedRoute('/legal-rights', <LegalRightsDashboard />)}

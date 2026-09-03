@@ -167,6 +167,8 @@ _FEATURE_ENDPOINTS = [
     "project_management_metadata",
     "employee_lifecycle",
     "module_registry",
+    "network_intelligence",
+    "intelligence_loop",
 ]
 
 _SEPARATED_SERVICE_ENDPOINTS = [

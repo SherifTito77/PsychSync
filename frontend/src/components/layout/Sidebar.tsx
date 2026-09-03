@@ -64,6 +64,12 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
     icon: '📊',
     items: [
       {
+        name: 'Intelligence Loop',
+        path: '/intelligence-loop',
+        icon: '🔁',
+        description: 'Command center: collect → normalize → analyze → risks → intervene → measure'
+      },
+      {
         name: 'CEO Executive Dashboard',
         path: '/executive/burnout',
         icon: '🎯',
@@ -615,6 +621,12 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         path: '/personality-network',
         icon: '🧠',
         description: 'Big Five traits overlaid on network positions'
+      },
+      {
+        name: 'Network Intelligence',
+        path: '/network-intelligence',
+        icon: '🔬',
+        description: '8 structural signals: isolation, bottlenecks, silos & informal leaders'
       }
     ]
   };

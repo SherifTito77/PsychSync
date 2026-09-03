@@ -188,6 +188,10 @@ export const ToxicityBurnoutDashboard = lazy(() => import('../pages/ToxicityBurn
 export const ProjectManagementDashboard = lazy(() => import('../pages/ProjectManagementDashboard'));
 export const EmployeeLifecycleDashboard = lazy(() => import('../pages/EmployeeLifecycleDashboard'));
 
+// Intelligence Platform (core loop + network intelligence)
+export const IntelligenceLoopDashboard = lazy(() => import('../pages/IntelligenceLoopDashboard'));
+export const NetworkIntelligenceDashboard = lazy(() => import('../pages/NetworkIntelligenceDashboard'));
+
 // Test & Demo Pages
 export const TestWellnessForm = lazy(() => import('../components/clinical/TestWellnessForm'));
 export const StressAssessmentTest = lazy(() => import('../pages/StressAssessmentTest'));
