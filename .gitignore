@@ -37,6 +37,7 @@ Thumbs.db
 # Environment variables and secrets
 .env
 .env.local
+.envrc
 .env.development
 .env.staging
 .env.test

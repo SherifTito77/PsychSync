@@ -321,9 +321,9 @@ async def init_db():
     try:
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created successfully")
+        db_security_logger.info("Database tables created successfully")
     except Exception as e:
-        logger.error(f"Error creating database tables: {e}")
+        db_security_logger.error(f"Error creating database tables: {e}")
         raise
 
 
@@ -337,7 +337,7 @@ async def check_db_health() -> bool:
             await conn.execute(text("SELECT 1"))
         return True
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        db_security_logger.error(f"Database health check failed: {e}")
         return False
 
 
@@ -346,6 +346,6 @@ async def close_db_connections():
     """Close all database connections"""
     try:
         await async_engine.dispose()
-        logger.info("Database connections closed successfully")
+        db_security_logger.info("Database connections closed successfully")
     except Exception as e:
-        logger.error(f"Error closing database connections: {e}")
+        db_security_logger.error(f"Error closing database connections: {e}")

@@ -3,6 +3,7 @@ Behavioral Pattern Recognition API Endpoints
 REST API endpoints for behavioral pattern analysis, anomaly detection, and insights.
 """
 
+import logging
 from typing import List, Dict, Any, Optional
 
 from app.middleware.rate_limiter import check_rate_limit
@@ -10,7 +11,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncAsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_db, get_current_active_user, get_current_user
 from app.db.models.user import User
@@ -30,6 +31,7 @@ def require_permission(permission: str):
     return decorator
 
 router = APIRouter(prefix="/behavioral-patterns", tags=["behavioral-patterns"])
+logger = logging.getLogger(__name__)
 
 # Pydantic models for request/response
 class PatternAnalysisRequest(BaseModel):

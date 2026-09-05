@@ -9,6 +9,8 @@ Risk Level: Low (indexes are safe to add)
 Execution Time: ~2-5 minutes per index
 """
 
+import logging
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import text
@@ -18,6 +20,8 @@ revision = '012_add_critical_performance_indexes'
 down_revision = '011_secure_performance_indexes'
 branch_labels = None
 depends_on = None
+
+logger = logging.getLogger(__name__)
 
 def upgrade() -> None:
     """Add critical performance indexes with comprehensive coverage"""

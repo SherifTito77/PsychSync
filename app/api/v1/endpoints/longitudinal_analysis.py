@@ -3,6 +3,7 @@ Longitudinal Analysis API Endpoints
 REST API endpoints for longitudinal behavioral analysis, change detection, and trend analysis.
 """
 
+import logging
 from typing import List, Dict, Any, Optional
 
 from app.middleware.rate_limiter import check_rate_limit
@@ -19,6 +20,7 @@ from app.api.v1.deps import get_db, get_current_active_user
 from app.db.models.user import User
 
 router = APIRouter(prefix="/longitudinal", tags=["longitudinal-analysis"])
+logger = logging.getLogger(__name__)
 
 # Pydantic models for request/response
 class TimeSeriesAggregationRequest(BaseModel):
